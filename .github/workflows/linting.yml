@@ -31,10 +31,10 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run flake8
-        run: flake8 src tests
+        run: flake8 backend/src tests
 
       - name: Run isort
-        run: isort --check-only src tests
+        run: isort --check-only backend/src tests
 
       - name: Run mypy
-        run: mypy src --check-untyped-defs
+        run: mypy backend/src --check-untyped-defs
