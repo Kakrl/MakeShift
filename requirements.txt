@@ -1,0 +1,12 @@
+# Testing
+pytest==8.2.2
+pytest-cov==5.0.0
+
+# Linting and Formatting
+flake8==7.1.0
+isort==5.13.2
+
+# Type Checking
+mypy==1.10.0
+
+# Implementation
