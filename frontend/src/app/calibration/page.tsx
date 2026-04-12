@@ -144,7 +144,6 @@ export default function Calibration() {
   const [metronome, setMetronome] = useState(true);
   const [cameraReady, setCameraReady] = useState(false);
   const [isCalibrated, setIsCalibrated] = useState(false);
-  const [canComplete, setCanComplete] = useState(false);
   const [fingersShown, setFingersShown] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
@@ -294,18 +293,11 @@ export default function Calibration() {
     return () => clearTimeout(timer);
   }, [countdown]);
 
-  useEffect(() => {
-    if (fingersShown) {
-      setCanComplete(true);
-    }
-  }, [fingersShown]);
-
   const handleStartTimer = () => {
     setHasStarted(true);
     setCountdown(3);
     setShowingImage(false);
     setFingersShown(false);
-    setCanComplete(false);
   };
 
   const handleCompleteCalibration = () => {
@@ -489,9 +481,9 @@ export default function Calibration() {
 
         <button
           onClick={handleCompleteCalibration}
-          disabled={!canComplete}
+          disabled={!fingersShown}
           className={`shrink-0 border-[1.5px] border-black bg-[#fffdf7] px-6 py-3 rounded-[8px] text-[30px] text-black font-sans whitespace-nowrap hover:bg-black/5 transition-colors ${
-            !canComplete ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"
+            !fingersShown ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"
           }`}
         >
           Complete Calibration
