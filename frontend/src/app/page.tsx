@@ -111,11 +111,6 @@ export default function Home() {
             muted
             className="absolute inset-0 w-full h-full object-cover"
           />
-          {!cameraReady && (
-            <p className="absolute inset-0 flex items-center justify-center text-white text-[37px] font-sans">
-              Live Camera Feed
-            </p>
-          )}
         </div>
 
         {/* Right sidebar */}

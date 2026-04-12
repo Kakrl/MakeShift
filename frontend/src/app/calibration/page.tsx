@@ -8,7 +8,7 @@ import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 // ─── Progress bar configuration ───────────────────────────────────────────────
 const TOTAL_STEPS = 5;
 const CURRENT_STEP = 1;
-const STEP_INSTRUCTION = "Hover your hands above the paper for 3 seconds";
+const STEP_INSTRUCTION = "Click \"Start\" and hover your hands above the paper";
 // ──────────────────────────────────────────────────────────────────────────────
 
 function ChevronDown() {
@@ -144,6 +144,8 @@ export default function Calibration() {
   const [metronome, setMetronome] = useState(true);
   const [cameraReady, setCameraReady] = useState(false);
   const [isCalibrated, setIsCalibrated] = useState(false);
+  const [canComplete, setCanComplete] = useState(false);
+  const [fingersShown, setFingersShown] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [showingImage, setShowingImage] = useState(false);
@@ -231,6 +233,7 @@ export default function Calibration() {
       baseOptions: {
         modelAssetPath: "/models/hand_landmarker.task"
       },
+      runningMode: "IMAGE",
       numHands: 2
     });
     const res = handLandmarker.detect(image);
@@ -245,6 +248,8 @@ export default function Calibration() {
 
     const points = [4, 8, 12, 16, 20];
     if (res.landmarks) {
+      let fingertips = 0;
+
       for (const hand of res.landmarks) {
         for (const idx of points) {
           const point = hand[idx];
@@ -255,7 +260,13 @@ export default function Calibration() {
           ctx.arc(x, y, 20, 0, 2 * Math.PI);
           ctx.fillStyle = "red";
           ctx.fill();
+
+          fingertips++;
         }
+      }
+
+      if (fingertips > 0) {
+            setFingersShown(true);
       }
     }
 
@@ -266,6 +277,7 @@ export default function Calibration() {
     if (countdown === null || countdown < 0) return;
     else if (countdown === 0) {
       // get mediapipe overlay
+
       capture().then((image) => {
         if (image) {
           get_finger_skeleton(image).then(() => {
@@ -273,7 +285,6 @@ export default function Calibration() {
           }); // run media pipe
         }
       }); // hand image
-
     }
 
     const timer = setTimeout(() => {
@@ -283,10 +294,18 @@ export default function Calibration() {
     return () => clearTimeout(timer);
   }, [countdown]);
 
+  useEffect(() => {
+    if (fingersShown) {
+      setCanComplete(true);
+    }
+  }, [fingersShown]);
+
   const handleStartTimer = () => {
     setHasStarted(true);
     setCountdown(3);
     setShowingImage(false);
+    setFingersShown(false);
+    setCanComplete(false);
   };
 
   const handleCompleteCalibration = () => {
@@ -315,34 +334,6 @@ export default function Calibration() {
             style={{ display: showingImage ? 'block' : 'none' }}
             className="absolute inset-0 w-full h-full object-cover"
           />
-          {!cameraReady && (
-            <p className="absolute inset-0 flex items-center justify-center text-white text-[37px] font-sans">
-              Live Camera Feed
-            </p>
-          )}
-          {/* Warning banner */}
-          <div className="absolute top-[74px] left-[227px] flex items-center gap-[34px]">
-            <AlertTriangle />
-            <p className="text-white text-[37px] font-sans">
-              Warning: Hands not detected
-            </p>
-          </div>
-
-          {/* Hands info box */}
-          <div className="absolute top-[284px] left-[243px] bg-[rgba(255,253,247,0.2)] flex items-center gap-[34px] px-6 py-6 rounded-[16px]">
-            <HandIcon />
-            <p className="text-white text-[24px] font-sans">
-              Hands above the paper visual goes here
-            </p>
-          </div>
-
-          {/* Fingertip dots */}
-          <div className="absolute size-[10px] rounded-full bg-red-500 top-[407px] left-[326px]" />
-          <div className="absolute size-[10px] rounded-full bg-red-500 top-[417px] left-[695px]" />
-          <div className="absolute size-[10px] rounded-full bg-red-500 top-[427px] left-[680px]" />
-
-          {/* Paper rectangle */}
-          <div className="absolute top-[475px] left-[227px] w-[622px] h-[50px] border-2 border-red-500 bg-white/10" />
 
           {/* Visual Countdown Overlay */}
           {countdown !== null && countdown > 0 && (
@@ -352,6 +343,16 @@ export default function Calibration() {
               </span>
             </div>
           )}
+
+          {/* Warning banner */}
+          <div className={`absolute top-[74px] left-[227px] flex items-center gap-[10px] bg-black/40 pr-3 pl-3 rounded-full ${
+            (fingersShown || !showingImage) ? "hidden" : ""
+          }`}>
+            <AlertTriangle />
+            <p className="text-white text-[37px] font-sans">
+              Error: No fingers are visible
+            </p>
+          </div>
         </div>
 
         {/* Right sidebar */}
@@ -488,7 +489,10 @@ export default function Calibration() {
 
         <button
           onClick={handleCompleteCalibration}
-          className="shrink-0 border-[1.5px] border-black bg-[#fffdf7] px-6 py-3 rounded-[8px] text-[30px] text-black font-sans whitespace-nowrap hover:bg-black/5 transition-colors"
+          disabled={!canComplete}
+          className={`shrink-0 border-[1.5px] border-black bg-[#fffdf7] px-6 py-3 rounded-[8px] text-[30px] text-black font-sans whitespace-nowrap hover:bg-black/5 transition-colors ${
+            !canComplete ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"
+          }`}
         >
           Complete Calibration
         </button>
