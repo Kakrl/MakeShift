@@ -1,0 +1,6 @@
+# Pytest cache files
+.coverage
+__pycache__/
+*.py[cod]
+*$py.class
+

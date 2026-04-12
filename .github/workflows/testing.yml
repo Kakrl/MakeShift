@@ -3,14 +3,8 @@ name: Tests
 on:
   push:
     branches: [ "main" ]
-    paths:
-      - '**.py'
-      - 'requirements.txt'
   pull_request:
     branches: [ "main" ]
-    paths:
-      - '**.py'
-      - 'requirements.txt'
 
 jobs:
   test:
@@ -31,4 +25,4 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run pytest
-        run: python3 -m pytest --cov=src --cov-report=term-missing
+        run: python3 -m pytest --cov=backend --cov-report=term-missing
