@@ -76,6 +76,70 @@ We use a fork-and-pull-request workflow:
   - CI passes
   - minimum reviewer approval threshold is met
 
+## Naming Conventions
+
+### Branch Names
+
+Branches live in a personal fork and follow `type/short-description`:
+
+- `type` is one of `feature`, `fix`, `docs`, `test`, `refactor`, or `chore`.
+- `short-description` is lowercase and hyphen-separated, a few words at most.
+
+Examples:
+
+- `feature/midi-note-on`
+- `fix/calibration-restart-button`
+- `docs/sprint-cadence`
+- `test/midi-unit-tests`
+
+If a branch maps to a single issue, including the issue number is encouraged:
+`feature/41-midi-note-on`.
+
+### Pull Request Titles
+
+PR titles use the same shape, `type: short summary`:
+
+- a lowercase `type` prefix matching the branch type
+- a short, imperative summary of what the PR does
+
+Examples:
+
+- `feature: generate MIDI note-on events`
+- `fix: calibration restart button not resetting state`
+- `docs: sprint close-out and project view refresh process`
+
+## Linking Issues to Pull Requests
+
+Every PR should trace back to an issue on the project board.
+
+- Put a GitHub closing keyword and the issue number in the **PR description**
+  (not just the title), so the issue is linked and closed automatically when the
+  PR merges into `main`: `Closes #41`.
+- Use one keyword per issue if a PR finishes more than one:
+  `Closes #41`, `Closes #42`.
+- If a PR relates to an issue but does not finish it, reference it without a
+  closing keyword so the issue stays open: `Part of #46`.
+- Auto-closing still respects our review rules: the issue closes when the PR
+  merges, which only happens after CI passes and a reviewer approves.
+- Anything that cannot be linked to an existing issue needs an issue opened for
+  it first, so the sprint views stay accurate.
+
+Example PR description:
+
+```text
+**What changed**
+
+added note-on event generation for the MIDI subsystem.
+
+**Why**
+
+first half of the note event pipeline. Closes #41, part of #46.
+
+**How it was tested**
+
+added unit tests under tests/, passing locally and in CI.
+```
+
 ## Sprint Cadence and Project Board Upkeep
 
 We work in 2-week sprints. Sprints start and end on **Wednesday**, since that is
@@ -87,7 +151,7 @@ At the end of every sprint (each sprint-boundary Wednesday) we hold a combined
 review and planning meeting:
 
 - **Review.** As a team we walk through everything that was done over the past
-  two weeks — merged PRs, work still in flight, and anything that got blocked.
+  two weeks: merged PRs, work still in flight, and anything that got blocked.
 - **Closing issues.** Issues are closed during this meeting by explicit team
   agreement. An issue is only closed once the team agrees its acceptance
   criteria are met and the corresponding PR has been merged into `main`
