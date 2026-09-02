@@ -15,7 +15,8 @@ MakeShift/
 │       ├── MIDI/
 │       └── __init__.py
 ├── docs/
-│   └── organization.md
+│   ├── dev_process.md
+│   └── sdp.md
 ├── frontend/
 │   ├── public/
 │   ├── src/
@@ -47,6 +48,7 @@ We use a fork-and-pull-request workflow:
 - Feature or fix branches are created in the developer fork (for example: `feature/audio-sync`).
 - Pull requests are opened from fork branches into the upstream repository `main` branch.
 - All feature updates are merged through pull requests (no direct pushes to `main`).
+- Feature branches are automatically deleted after their pull request is merged.
 
 ## Code Development and Review Policy
 
