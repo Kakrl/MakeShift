@@ -39,6 +39,15 @@ MakeShift/
 ├── README.md
 └── requirements.txt
 ```
+### Project Structure
+
+References discussing horizontal / layered file structure: 
+1. https://www.esveo.com/en/blog/wv/
+2. https://labs.madisoft.it/folder-structure-for-big-projects-package-by-type-layer-or-feature/
+
+MakeShift follows an approach similar to a horizontal/layered file structure with a subsystem-based organization. The main folders correspond to the project's major subsystems, including frontend, CV, MIDI, audio, and testing. This allows the different technical subsystems to be easily separated, with each subsystem containing the code relevant to its specific functionality.
+
+Each subsystem should remain as independent as reasonably possible and expose a clearly defined interface for interacting with other subsystems. This separation allows team members to work on individual subsystems without unnecessarily affecting other parts of the project, while providing clear boundaries for communication between components.
 
 ## Branching Model
 
