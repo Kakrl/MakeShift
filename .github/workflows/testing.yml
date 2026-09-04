@@ -46,11 +46,9 @@ jobs:
         run: python3 -m pytest --cov=backend --cov-report=term-missing
 
       # --- C++ Testing ---
-      - name: Install C++ dependencies
+      - name: Install nanobind for CMake
         if: steps.filter.outputs.cpp == 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake gtest-dev portaudio19-dev
+        run: python -m pip install nanobind
 
       - name: Configure CMake
         if: steps.filter.outputs.cpp == 'true'
@@ -58,8 +56,8 @@ jobs:
 
       - name: Build C++ tests
         if: steps.filter.outputs.cpp == 'true'
-        run: cmake --build build
+        run: cmake --build build --config Release
 
       - name: Run CTest
         if: steps.filter.outputs.cpp == 'true'
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build -C Release --output-on-failure

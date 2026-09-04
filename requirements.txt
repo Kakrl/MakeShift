@@ -10,3 +10,4 @@ isort==5.13.2
 mypy==1.10.0
 
 # Implementation
+nanobind==3.0.1
