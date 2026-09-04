@@ -4,7 +4,7 @@
 #include <string>
 
 class AudioEngine {
-public:
+  public:
     AudioEngine();
     ~AudioEngine();
 
@@ -12,13 +12,12 @@ public:
     void startStream();
     void stopStream();
 
-private:
-    PaStream* stream;
-    
+  private:
+    PaStream *stream;
+
     // PortAudio requires a static C-style callback function
-    static int audioCallback(const void* inputBuffer, void* outputBuffer,
+    static int audioCallback(const void *inputBuffer, void *outputBuffer,
                              unsigned long framesPerBuffer,
-                             const PaStreamCallbackTimeInfo* timeInfo,
-                             PaStreamCallbackFlags statusFlags,
-                             void* userData);
+                             const PaStreamCallbackTimeInfo *timeInfo,
+                             PaStreamCallbackFlags statusFlags, void *userData);
 };

@@ -2,17 +2,14 @@
 
 AudioEngine::AudioEngine() : stream(nullptr) {}
 
-AudioEngine::~AudioEngine()
-{
+AudioEngine::~AudioEngine() {
     stopStream();
     Pa_Terminate();
 }
 
-void AudioEngine::initialize()
-{
+void AudioEngine::initialize() {
     PaError err = Pa_Initialize();
-    if (err != paNoError)
-    {
+    if (err != paNoError) {
         throw std::runtime_error(std::string("PortAudio Init Error: ") + Pa_GetErrorText(err));
     }
 }
@@ -20,16 +17,13 @@ void AudioEngine::initialize()
 int AudioEngine::audioCallback(const void *inputBuffer, void *outputBuffer,
                                unsigned long framesPerBuffer,
                                const PaStreamCallbackTimeInfo *timeInfo,
-                               PaStreamCallbackFlags statusFlags,
-                               void *userData)
-{
+                               PaStreamCallbackFlags statusFlags, void *userData) {
 
     float *out = static_cast<float *>(outputBuffer);
     AudioEngine *engine = static_cast<AudioEngine *>(userData);
 
     // Minimal loop: Fill with silence for initialization testing
-    for (unsigned long i = 0; i < framesPerBuffer; ++i)
-    {
+    for (unsigned long i = 0; i < framesPerBuffer; ++i) {
         *out++ = 0.0f; // Left channel
         *out++ = 0.0f; // Right channel
     }
@@ -37,13 +31,11 @@ int AudioEngine::audioCallback(const void *inputBuffer, void *outputBuffer,
     return paContinue;
 }
 
-void AudioEngine::startStream()
-{
+void AudioEngine::startStream() {
     PaStreamParameters outputParams;
     outputParams.device = Pa_GetDefaultOutputDevice();
 
-    if (outputParams.device == paNoDevice)
-    {
+    if (outputParams.device == paNoDevice) {
         throw std::runtime_error("No default output device found.");
     }
 
@@ -58,26 +50,21 @@ void AudioEngine::startStream()
     // ISSUE 21 REQUIREMENT: Minimal buffer size to prioritize low latency over CPU efficiency
     unsigned long bufferSize = 64;
 
-    PaError err = Pa_OpenStream(&stream, nullptr, &outputParams,
-                                44100, bufferSize, paClipOff,
+    PaError err = Pa_OpenStream(&stream, nullptr, &outputParams, 44100, bufferSize, paClipOff,
                                 audioCallback, this);
 
-    if (err != paNoError)
-    {
+    if (err != paNoError) {
         throw std::runtime_error(std::string("Stream Open Error: ") + Pa_GetErrorText(err));
     }
 
     err = Pa_StartStream(stream);
-    if (err != paNoError)
-    {
+    if (err != paNoError) {
         throw std::runtime_error(std::string("Stream Start Error: ") + Pa_GetErrorText(err));
     }
 }
 
-void AudioEngine::stopStream()
-{
-    if (stream)
-    {
+void AudioEngine::stopStream() {
+    if (stream) {
         Pa_StopStream(stream);
         Pa_CloseStream(stream);
         stream = nullptr;
