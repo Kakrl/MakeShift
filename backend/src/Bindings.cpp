@@ -3,7 +3,8 @@
 
 namespace nb = nanobind;
 
-NB_MODULE(audio_engine, m) {
+NB_MODULE(audio_engine, m)
+{
     m.doc() = "MakeShift Low-Latency Audio Engine Plugin";
 
     nb::class_<AudioEngine>(m, "AudioEngine")
