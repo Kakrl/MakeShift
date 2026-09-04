@@ -65,7 +65,7 @@ target_include_directories(MakeShiftAudio PUBLIC src)
 target_link_libraries(MakeShiftAudio PUBLIC Threads::Threads portaudio_static)
 
 # --- Python Extension Module ---
-nanobind_add_module(audio_engine src/bindings.cpp)
+nanobind_add_module(audio_engine src/Bindings.cpp)
 
 set_target_properties(audio_engine PROPERTIES 
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/src/audio"
