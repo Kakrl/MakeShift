@@ -1,7 +1,13 @@
 import MidiWriter from "midi-writer-js";
 
 // fix for typescript note knowing the MidiWriter types
-let track: any = null;
+type MidiTrack = {
+  setTempo(bpm: number): void;
+  addEvent(event: unknown): void;
+};
+
+let track: MidiTrack | null = null;
+
 let recordingStartTime = 0;
 let recordingBpm = 120;
 
@@ -13,9 +19,11 @@ function millisecondsToTicks(
 }
 
 export function startRecording(bpm: number): void {
-  track = new MidiWriter.Track();
-  track.setTempo(bpm);
+  const newTrack = new MidiWriter.Track();
 
+  newTrack.setTempo(bpm);
+
+  track = newTrack;
   recordingBpm = bpm;
   recordingStartTime = performance.now();
 }
