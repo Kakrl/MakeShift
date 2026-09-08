@@ -7,7 +7,7 @@ export const PIANO_CORNERS: [Point, Point, Point, Point] = [
   { x: -0.05, y: 0.9 },
 ];
 
-const WHITE_KEY_COUNT = 8;
+export const WHITE_KEY_COUNT = 8;
 
 function pointOnPiano(u: number, v: number): Point {
   const [topLeft, topRight, bottomRight, bottomLeft] = PIANO_CORNERS;
@@ -38,4 +38,34 @@ export function getWhiteKeyPolygons(): Point[][] {
       pointOnPiano(left, 1),
     ];
   });
+}
+
+function drawWhiteKey(
+  context: CanvasRenderingContext2D,
+  key: Point[],
+  fillStyle: string,
+): void {
+  context.beginPath();
+  key.forEach((corner, index) => {
+    if (index === 0) context.moveTo(corner.x, corner.y);
+    else context.lineTo(corner.x, corner.y);
+  });
+  context.closePath();
+  context.fillStyle = fillStyle;
+  context.fill();
+  context.stroke();
+}
+
+export function pressWhiteKey(
+  context: CanvasRenderingContext2D,
+  key: Point[],
+): void {
+  drawWhiteKey(context, key, "rgba(255, 80, 80, 0.75)");
+}
+
+export function releaseWhiteKey(
+  context: CanvasRenderingContext2D,
+  key: Point[],
+): void {
+  drawWhiteKey(context, key, "rgba(255, 255, 255, 0.35)");
 }

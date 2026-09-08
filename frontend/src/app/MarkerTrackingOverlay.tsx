@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getWhiteKeyPolygons, PIANO_CORNERS } from "../cv/keyboardGeometry";
+import {
+  getWhiteKeyPolygons,
+  PIANO_CORNERS,
+  pressWhiteKey,
+  releaseWhiteKey,
+  WHITE_KEY_COUNT,
+} from "../cv/keyboardGeometry";
 import { MarkerDetector } from "../cv/markerDetector";
 import { computeHomography, projectPoint } from "../cv/homography";
 import type { MarkerDetectionResult } from "../cv/types";
@@ -21,8 +27,17 @@ export default function MarkerTrackingOverlay({
 }) {
   const [markerDetection, setMarkerDetection] =
     useState<MarkerDetectionResult | null>(null);
+  const [activeWhiteKey, setActiveWhiteKey] = useState(0);
   const processingCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActiveWhiteKey((keyIndex) => (keyIndex + 1) % WHITE_KEY_COUNT);
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -179,23 +194,16 @@ export default function MarkerTrackingOverlay({
           context.fill();
           context.stroke();
 
-          context.fillStyle = "rgba(255, 255, 255, 0.35)";
           context.strokeStyle = "rgba(255, 255, 255, 0.9)";
           context.lineWidth = 3;
-          projectedWhiteKeys.forEach((key) => {
-            context.beginPath();
-            key.forEach((corner, index) => {
-              if (index === 0) context.moveTo(corner.x, corner.y);
-              else context.lineTo(corner.x, corner.y);
-            });
-            context.closePath();
-            context.fill();
-            context.stroke();
+          projectedWhiteKeys.forEach((key, index) => {
+            if (index === activeWhiteKey) pressWhiteKey(context, key);
+            else releaseWhiteKey(context, key);
           });
         }
       }
     }
-  }, [markerDetection]);
+  }, [activeWhiteKey, markerDetection]);
 
   return (
     <>
