@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCamera } from "./CameraContext";
+import CameraStatusOverlay from "./CameraStatusOverlay";
 
 function ChevronDown() {
   return (
@@ -79,7 +80,7 @@ export default function Home() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { stream } = useCamera();
+  const { stream, cameraReady } = useCamera();
 
   useEffect(() => {
     if (stream && videoRef.current) videoRef.current.srcObject = stream;
@@ -136,9 +137,12 @@ export default function Home() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countInBeat]);
 
+  // Recording needs both a stored calibration and a live camera feed.
+  const canRecord = isCalibrated && cameraReady;
+
   // ── Recording controls ───────────────────────────────────────────────────
   const handlePlay = () => {
-    if (!isCalibrated) return;
+    if (!canRecord) return;
     if (countInBeat !== null) return; // already counting in
     if (isRecording && !isPaused) {
       // Pause
@@ -163,7 +167,7 @@ export default function Home() {
   };
 
   const handleStop = () => {
-    if (!isCalibrated) return;
+    if (!canRecord) return;
     if (countInBeat !== null) { setCountInBeat(null); return; } // cancel count-in
     if (!isRecording) return;
     setIsRecording(false);
@@ -341,8 +345,10 @@ export default function Home() {
         <div className="flex-1 aspect-video bg-[#090909] relative overflow-hidden">
           <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" />
 
+          <CameraStatusOverlay />
+
           {/* "Click Calibration to Begin" overlay */}
-          {!isCalibrated && (
+          {!isCalibrated && cameraReady && (
             <div className="absolute inset-0 flex items-start justify-center pt-[60px] pointer-events-none">
               <p className="text-white text-[32px] font-sans text-center px-8">Click &lsquo;Calibration&rsquo; to Begin</p>
             </div>
@@ -560,8 +566,8 @@ export default function Home() {
           <button
             onClick={handlePlay}
             aria-label={isRecording && !isPaused ? "Pause recording" : isPaused ? "Resume recording" : "Start recording"}
-            disabled={!isCalibrated || countInBeat !== null}
-            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!isCalibrated || countInBeat !== null ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
+            disabled={!canRecord || countInBeat !== null}
+            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!canRecord || countInBeat !== null ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
           >
             {isRecording && !isPaused
               ? <PauseIcon />
@@ -575,8 +581,8 @@ export default function Home() {
           <button
             onClick={handleStop}
             aria-label="Stop recording"
-            disabled={!isCalibrated || (!isRecording && countInBeat === null)}
-            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!isCalibrated || (!isRecording && countInBeat === null) ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
+            disabled={!canRecord || (!isRecording && countInBeat === null)}
+            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!canRecord || (!isRecording && countInBeat === null) ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
           >
             <StopIcon />
             <span className="text-[13px] text-[#1e1e1e] font-sans select-none">Stop</span>

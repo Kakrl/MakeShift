@@ -33,3 +33,14 @@ body {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Spinner shown while the camera stream is being acquired. */
+.camera-spinner {
+  animation: camera-spin 0.8s linear infinite;
+}
+
+@keyframes camera-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
