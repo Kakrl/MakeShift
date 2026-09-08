@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { getWhiteKeyPolygons, PIANO_CORNERS } from "../cv/keyboardGeometry";
 import { MarkerDetector } from "../cv/markerDetector";
 import { computeHomography, projectPoint } from "../cv/homography";
 import type { MarkerDetectionResult } from "../cv/types";
@@ -11,15 +12,6 @@ const PAGE_CORNERS: Point[] = [
   { x: 1, y: 0 },
   { x: 1, y: 1 },
   { x: 0, y: 1 },
-];
-
-// Approximate piano bounds measured from docs/Piano Sheet.png, relative to
-// the four marker-center page corners.
-const PIANO_CORNERS: Point[] = [
-  { x: -0.05, y: 0.10 },
-  { x: 1.05, y: 0.10 },
-  { x: 1.05, y: 0.90 },
-  { x: -0.05, y: 0.90 },
 ];
 
 export default function MarkerTrackingOverlay({
@@ -162,22 +154,44 @@ export default function MarkerTrackingOverlay({
       ]);
 
       if (homography) {
-        const pianoCorners = PIANO_CORNERS.map((corner) =>
+        const projectedPianoCorners = PIANO_CORNERS.map((corner) =>
           projectPoint(homography, corner),
         ).filter((corner): corner is Point => corner !== null);
+        const projectedWhiteKeys = getWhiteKeyPolygons().map((key) =>
+          key
+            .map((corner) => projectPoint(homography, corner))
+            .filter((corner): corner is Point => corner !== null),
+        );
 
-        if (pianoCorners.length === PIANO_CORNERS.length) {
+        if (
+          projectedPianoCorners.length === PIANO_CORNERS.length &&
+          projectedWhiteKeys.every((key) => key.length === 4)
+        ) {
           context.beginPath();
-          pianoCorners.forEach((corner, index) => {
+          projectedPianoCorners.forEach((corner, index) => {
             if (index === 0) context.moveTo(corner.x, corner.y);
             else context.lineTo(corner.x, corner.y);
           });
           context.closePath();
-          context.fillStyle = "rgba(255, 214, 10, 0.18)";
+          context.fillStyle = "rgba(255, 255, 255, 0.18)";
           context.strokeStyle = "#ffd60a";
           context.lineWidth = 6;
           context.fill();
           context.stroke();
+
+          context.fillStyle = "rgba(255, 255, 255, 0.35)";
+          context.strokeStyle = "rgba(255, 255, 255, 0.9)";
+          context.lineWidth = 3;
+          projectedWhiteKeys.forEach((key) => {
+            context.beginPath();
+            key.forEach((corner, index) => {
+              if (index === 0) context.moveTo(corner.x, corner.y);
+              else context.lineTo(corner.x, corner.y);
+            });
+            context.closePath();
+            context.fill();
+            context.stroke();
+          });
         }
       }
     }
