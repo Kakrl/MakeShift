@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useCamera } from "./CameraContext";
+
+const MarkerTrackingOverlay = dynamic(
+  () => import("./MarkerTrackingOverlay"),
+  { ssr: false },
+);
 
 function ChevronDown() {
   return (
@@ -88,7 +94,7 @@ export default function Home() {
     <div className="flex-1 bg-[#fffdf7] flex flex-col">
       <div className="flex flex-1 pt-[115px] pl-[61px] pr-[47px] pb-[226px]">
         {/* Camera feed */}
-        <div className="flex-1 bg-[#090909] relative">
+        <div className="flex-1 bg-[#090909] relative overflow-hidden">
           <video
             ref={videoRef}
             autoPlay
@@ -96,6 +102,7 @@ export default function Home() {
             muted
             className="absolute inset-0 w-full h-full object-cover"
           />
+          <MarkerTrackingOverlay videoRef={videoRef} />
         </div>
 
         {/* Right sidebar */}
