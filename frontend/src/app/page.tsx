@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useCamera } from "./CameraContext";
+import HandTrackingOverlay from "./cv/HandTrackingOverlay";
 
 function ChevronDown() {
   return (
@@ -96,6 +97,7 @@ export default function Home() {
             muted
             className="absolute inset-0 w-full h-full object-cover"
           />
+          <HandTrackingOverlay videoRef={videoRef} />
         </div>
 
         {/* Right sidebar */}
