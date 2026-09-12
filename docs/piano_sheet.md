@@ -6,6 +6,6 @@ To combine pieces of paper, you can overlap a low and high C to get two octaves.
 
 ### ArUco board
 
-The markers are part of the { 4x4 (50, 100, 250, 1000 )} set. The ids range from [0,3]. They were generated at https://chev.me/arucogen/. 
+The markers are part of the 4x4_DICT_50 set. The ids range from [0,3]. They were generated at https://chev.me/arucogen/. 
 
 If you make the paper horizontal with the black keys on top, the top-left corner has id:0, top-right id:1, bottom-right id:2, and bottom-left id:3.
