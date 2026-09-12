@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 import { useCamera } from "../CameraContext";
+import CameraStatusOverlay from "../CameraStatusOverlay";
 
 const TOTAL_STEPS = 5;
 
@@ -80,7 +81,7 @@ export default function Calibration() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { stream } = useCamera();
+  const { stream, cameraReady } = useCamera();
 
   useEffect(() => {
     if (stream && videoRef.current) {
@@ -215,7 +216,9 @@ export default function Calibration() {
   const isInteractiveStep = step === 4 || step === 5;
   const showPreviousStep = !isComplete && step > 1 && !isCounting;
   const showExitCalibration = step === 1;
-  const showNextStep = !isComplete && (!isInteractiveStep || canAdvance());
+  // Step 1 is settings only; every later step asks the user to judge the camera feed.
+  const showNextStep =
+    !isComplete && (!isInteractiveStep || canAdvance()) && (step === 1 || cameraReady);
 
   // ── Camera overlays per step ──────────────────────────────────────────────
   const renderCameraOverlay = () => {
@@ -491,7 +494,7 @@ export default function Calibration() {
         <div className="flex items-center gap-4">
           <p className="text-[24px] text-black font-sans shrink-0">Step 4: Hover hands above paper for 3 s</p>
           {!fingersShown && (
-            <button onClick={handleStartCountdown} disabled={isCounting} className="shrink-0 border-[1.5px] border-black bg-[#fffdf7] px-5 py-2 rounded-[8px] text-[20px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] disabled:opacity-40 disabled:cursor-not-allowed">
+            <button onClick={handleStartCountdown} disabled={isCounting || !cameraReady} className="shrink-0 border-[1.5px] border-black bg-[#fffdf7] px-5 py-2 rounded-[8px] text-[20px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] disabled:opacity-40 disabled:cursor-not-allowed">
               {hasStarted && !isCounting ? "Retry" : "Start"}
             </button>
           )}
@@ -505,7 +508,7 @@ export default function Calibration() {
         <div className="flex items-center gap-4">
           <p className="text-[24px] text-black font-sans shrink-0">Step 5: Place hands on paper for 3 s</p>
           {!step5Success && (
-            <button onClick={handleStartCountdown} disabled={isCounting} className="shrink-0 border-[1.5px] border-black bg-[#fffdf7] px-5 py-2 rounded-[8px] text-[20px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] disabled:opacity-40 disabled:cursor-not-allowed">
+            <button onClick={handleStartCountdown} disabled={isCounting || !cameraReady} className="shrink-0 border-[1.5px] border-black bg-[#fffdf7] px-5 py-2 rounded-[8px] text-[20px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] disabled:opacity-40 disabled:cursor-not-allowed">
               {hasStarted && !isCounting ? "Retry" : "Start"}
             </button>
           )}
@@ -526,7 +529,8 @@ export default function Calibration() {
           <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" style={{ display: showingImage ? "none" : "block" }} />
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover" style={{ display: showingImage ? "block" : "none" }} />
           {renderCountdown()}
-          {renderCameraOverlay()}
+          {cameraReady && renderCameraOverlay()}
+          <CameraStatusOverlay />
           {renderHelpModal()}
         </div>
 
