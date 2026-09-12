@@ -22,9 +22,10 @@ export function CameraProvider({ children }: { children: React.ReactNode }) {
     navigator.mediaDevices
       .getUserMedia({
         video: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          aspectRatio: 16 / 9,
+          width: { min: 1280, ideal: 1920 },
+          height: { min: 720, ideal: 1080 },
+          aspectRatio: { ideal: 16 / 9 },
+          frameRate: { ideal: 30 },
         },
         audio: false,
       })
