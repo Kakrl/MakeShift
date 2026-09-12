@@ -1,6 +1,6 @@
 ## Piano Sheet
 
-The piano sheet covers one octave. To help with automatic detection of the piano sheet and a visualization of the keyboard, each corner of the piece of paper has an ArUco board. ArUco boards help with pose estimation and can help (with some geometric transformations) put that paper into a virtual space. 
+The [printable piano sheet](Piano%20Sheet.png) covers one octave. To help with automatic detection of the piano sheet and a visualization of the keyboard, each corner of the piece of paper has an ArUco board. ArUco boards help with pose estimation and can help (with some geometric transformations) put that paper into a virtual space.
 
 To combine pieces of paper, you can overlap a low and high C to get two octaves.
 
