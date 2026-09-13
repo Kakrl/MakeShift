@@ -1,15 +1,13 @@
-#include <gtest/gtest.h>
-#include <portaudio.h>
-#include <iostream>
 #include "audio/AudioEngine.h" // Adjust capitalization if necessary
+#include <gtest/gtest.h>
+#include <iostream>
+#include <portaudio.h>
 
 class AudioEngineTest : public ::testing::Test {
-protected:
+  protected:
     AudioEngine engine;
 
-    void SetUp() override {
-        engine.initialize();
-    }
+    void SetUp() override { engine.initialize(); }
 
     void TearDown() override {
         engine.stopStream();
@@ -18,9 +16,7 @@ protected:
 };
 
 // Test 1: Verify PortAudio initializes without throwing exceptions
-TEST_F(AudioEngineTest, InitializationSucceeds) {
-    EXPECT_NO_THROW(engine.initialize());
-}
+TEST_F(AudioEngineTest, InitializationSucceeds) { EXPECT_NO_THROW(engine.initialize()); }
 
 // Test 2: Verify the stream can start and stop cleanly
 TEST_F(AudioEngineTest, StreamStartsAndStops) {
@@ -44,7 +40,7 @@ TEST_F(AudioEngineTest, MultipleStartStopCycles) {
     // First cycle
     EXPECT_NO_THROW(engine.startStream());
     EXPECT_NO_THROW(engine.stopStream());
-    
+
     // Second cycle
     EXPECT_NO_THROW(engine.startStream());
     EXPECT_NO_THROW(engine.stopStream());
