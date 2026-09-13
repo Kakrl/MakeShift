@@ -30,3 +30,6 @@ To verify the audio engine locally using CTest, run:
 
 cd build
 ctest -C Release --output-on-failure
+
+See [Audio Event Queue](docs/audio_events.md) for hit submission, thread ownership,
+and playback behavior.
