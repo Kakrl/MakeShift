@@ -1,44 +1,44 @@
 # Audio Voice Allocation
 
+Issue: [#26](https://github.com/Kakrl/MakeShift/issues/26).
+
 ## Polyphony and Voice Stealing
 
-The audio engine allows up to 10 active notes. When a new key press arrives
-at the limit, it replaces the oldest active key press. Releasing a note frees
-its voice immediately. A stolen note stays silent until it is released and
-pressed again.
+The audio renderer allows up to 10 active voices. Each accepted hit starts a
+voice when the callback consumes it. Expired voices are reused first. At the
+limit, the new hit replaces the oldest active hit. Hits consumed in the same
+callback retain their queue order, so the oldest queued hit is stolen first.
+The remaining voices keep their phase and decay state.
 
-Repeated detections of a held key do not allocate another voice or change its
-age. Releasing a stolen note does not stop the note that replaced it.
-Stopping the stream clears active notes and held-key state.
-
-## Python Interface
+## Configuring the Limit
 
 ```python
 from backend.src.audio.audio_engine import AudioEngine
 
-engine = AudioEngine(voice_limit=10)
-stolen_note = engine.note_on(60)  # MIDI note number, 0-127
-active_notes = engine.active_notes()  # Oldest to newest
-engine.note_off(60)
+engine = AudioEngine(voice_limit=8)
 ```
 
-`note_on` returns the stolen MIDI note number, or `-1` if no voice was stolen.
-`note_off` ignores valid notes that are not held. Invalid MIDI note numbers
-raise `ValueError`.
+The optional `voice_limit` defaults to 10 and must be between 1 and 10.
+Invalid limits raise `ValueError` in Python or `std::invalid_argument` in C++.
+Choose a lower limit when constructing the engine if clipping persists.
+The renderer retains its output clamp; limiting voices alone does not guarantee
+that their sum stays within the output range.
 
-The optional `voice_limit` must be between 1 and 10 and defaults to 10.
-Choose a lower value when constructing the engine if audio clipping persists.
+## Event Queue Integration
 
-## Current Integration
+Submit notes through the [audio event queue](audio_events.md) using
+`submit_hit(note, velocity)`. Each event represents a new hit, including repeated
+hits of the same pitch. The current tones expire after 100 ms; there is no
+held-key or note-off interface. Stopping the stream preserves queued events and
+voice state, following the queue's restart behavior.
 
-Voice allocation is available through the C++ and Python interfaces. The
-PortAudio callback currently outputs silence; waveform generation and mixing
-must use the allocated voices when they are implemented. The note limit alone
-does not guarantee that a future mix will avoid clipping.
+Only the rendering consumer changes voices. The fixed voice pool requires no
+allocation, mutex, or waiting in the callback. C++ offline callers may use
+`render` only while the stream is stopped and no other renderer is active.
 
 ## Testing
 
-The voice allocation tests in `tests/test_audio.cpp` run without an audio
-device. They cover the ten-note limit, oldest-note stealing, released slots,
-repeated detections, stolen-note releases, lower limits, invalid input, and
-clearing state when the stream stops.
+The offline audio tests compare rendered samples against reference mixes to
+check the default limit, oldest-hit stealing within and across callbacks,
+expired-slot reuse, repeated pitches, and lower limits. These tests do not
+require an audio device.

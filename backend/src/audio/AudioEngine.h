@@ -1,14 +1,12 @@
 #pragma once
-#include <bitset>
-#include <mutex>
+#include "SpscQueue.h"
 #include <portaudio.h>
 #include <stdexcept>
 #include <string>
-#include <vector>
 
 class AudioEngine {
   public:
-    static constexpr int MaxVoices = 10;
+    static constexpr std::size_t MaxVoices = 10;
     explicit AudioEngine(int voiceLimit = MaxVoices);
     ~AudioEngine();
 
@@ -16,19 +14,34 @@ class AudioEngine {
     void startStream();
     void stopStream();
 
-    // MIDI notes 0-127. Repeated note-on events for a held key are ignored.
-    // Returns the stolen note, or -1 when no voice was stolen.
-    int noteOn(int note);
-    void noteOff(int note);
-    std::vector<int> activeNotes() const;
+    // Call from one hit-detection producer thread. False means invalid or full.
+    bool submitHit(int note, float velocity) noexcept;
+
+    // Consumer entry point used by PortAudio; output holds frames * 2 floats.
+    // Offline callers must not call this while the stream is running.
+    void render(float *output, unsigned long frames) noexcept;
+
+    static constexpr std::size_t eventCapacity = 256;
 
   private:
+    struct HitEvent {
+        int note;
+        float velocity;
+    };
+    struct Voice {
+        double phase = 0.0;
+        double phaseStep = 0.0;
+        float amplitude = 0.0f;
+        unsigned int remaining = 0;
+    };
+    static constexpr unsigned int sampleRate = 44100;
+    static constexpr unsigned int hitFrames = sampleRate / 10;
+    SpscQueue<HitEvent, eventCapacity> events;
+    // Consumer-owned voices, ordered from oldest hit to newest.
+    std::array<Voice, MaxVoices> voices{};
+    std::size_t activeVoiceCount = 0;
+    const std::size_t voiceLimit;
     PaStream *stream;
-    const int voiceLimit;
-    mutable std::mutex voiceMutex;
-    // Active voices ordered from oldest key press to newest.
-    std::vector<int> voices;
-    std::bitset<128> heldNotes;
 
     // PortAudio requires a static C-style callback function
     static int audioCallback(const void *inputBuffer, void *outputBuffer,
