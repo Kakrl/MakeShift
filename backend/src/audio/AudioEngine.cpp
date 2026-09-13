@@ -1,6 +1,47 @@
 #include "AudioEngine.h"
+#include <algorithm>
 
-AudioEngine::AudioEngine() : stream(nullptr) {}
+AudioEngine::AudioEngine(int voiceLimit) : stream(nullptr), voiceLimit(voiceLimit) {
+    if (voiceLimit < 1 || voiceLimit > MaxVoices) {
+        throw std::invalid_argument("Voice limit must be between 1 and 10.");
+    }
+    voices.reserve(voiceLimit);
+}
+
+int AudioEngine::noteOn(int note) {
+    if (note < 0 || note > 127) {
+        throw std::invalid_argument("MIDI note must be between 0 and 127.");
+    }
+    std::lock_guard<std::mutex> lock(voiceMutex);
+    if (heldNotes.test(note)) {
+        return -1;
+    }
+    heldNotes.set(note);
+    int stolenNote = -1;
+    if (voices.size() == static_cast<std::size_t>(voiceLimit)) {
+        stolenNote = voices.front();
+        voices.erase(voices.begin());
+    }
+    voices.push_back(note);
+    return stolenNote;
+}
+
+void AudioEngine::noteOff(int note) {
+    if (note < 0 || note > 127) {
+        throw std::invalid_argument("MIDI note must be between 0 and 127.");
+    }
+    std::lock_guard<std::mutex> lock(voiceMutex);
+    heldNotes.reset(note);
+    auto voice = std::find(voices.begin(), voices.end(), note);
+    if (voice != voices.end()) {
+        voices.erase(voice);
+    }
+}
+
+std::vector<int> AudioEngine::activeNotes() const {
+    std::lock_guard<std::mutex> lock(voiceMutex);
+    return voices;
+}
 
 AudioEngine::~AudioEngine() {
     stopStream();
@@ -69,4 +110,7 @@ void AudioEngine::stopStream() {
         Pa_CloseStream(stream);
         stream = nullptr;
     }
+    std::lock_guard<std::mutex> lock(voiceMutex);
+    voices.clear();
+    heldNotes.reset();
 }
