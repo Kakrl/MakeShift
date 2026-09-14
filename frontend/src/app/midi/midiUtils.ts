@@ -1,17 +1,16 @@
 import MidiWriter from "midi-writer-js";
 
-// fix for typescript note knowing the MidiWriter types
+// Fix for TypeScript not knowing the MidiWriter types
 type MidiTrack = {
   setTempo(bpm: number): void;
   addEvent(event: unknown): void;
 };
 
 let track: MidiTrack | null = null;
-
 let recordingStartTime = 0;
 let recordingBpm = 120;
 
-function millisecondsToTicks(
+export function millisecondsToTicks(
   milliseconds: number,
   bpm: number
 ): number {
@@ -36,13 +35,8 @@ export function noteOn(
     return;
   }
 
-  const elapsedTime =
-    performance.now() - recordingStartTime;
-
-  const tick = millisecondsToTicks(
-    elapsedTime,
-    recordingBpm
-  );
+  const elapsedTime = performance.now() - recordingStartTime;
+  const tick = millisecondsToTicks(elapsedTime, recordingBpm);
 
   track.addEvent(
     new MidiWriter.NoteOnEvent({
@@ -58,13 +52,8 @@ export function noteOff(pitch: string): void {
     return;
   }
 
-  const elapsedTime =
-    performance.now() - recordingStartTime;
-
-  const tick = millisecondsToTicks(
-    elapsedTime,
-    recordingBpm
-  );
+  const elapsedTime = performance.now() - recordingStartTime;
+  const tick = millisecondsToTicks(elapsedTime, recordingBpm);
 
   track.addEvent(
     new MidiWriter.NoteOffEvent({
@@ -74,7 +63,24 @@ export function noteOff(pitch: string): void {
   );
 }
 
-// a bug exists where if the last note was not released when the recording is stopped, it will note be recorded
+export function stopRecording(pitches: string[]): void {
+  if (track === null) {
+    return;
+  }
+
+  const elapsedTime = performance.now() - recordingStartTime;
+  const tick = millisecondsToTicks(elapsedTime, recordingBpm);
+
+  for (const pitch of pitches) {
+    track.addEvent(
+      new MidiWriter.NoteOffEvent({
+        pitch,
+        tick,
+      })
+    );
+  }
+}
+
 export function downloadMidi(): void {
   if (track === null) {
     return;
