@@ -2,9 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCamera } from "./CameraContext";
 import CameraStatusOverlay from "./CameraStatusOverlay";
+
+const MarkerTrackingOverlay = dynamic(
+  () => import("./MarkerTrackingOverlay"),
+  { ssr: false },
+);
 
 function ChevronDown() {
   return (
