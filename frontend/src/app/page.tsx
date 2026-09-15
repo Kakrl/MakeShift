@@ -9,6 +9,7 @@ const MarkerTrackingOverlay = dynamic(
   () => import("./MarkerTrackingOverlay"),
   { ssr: false },
 );
+import HandTrackingOverlay from "./cv/HandTrackingOverlay";
 
 function ChevronDown() {
   return (
