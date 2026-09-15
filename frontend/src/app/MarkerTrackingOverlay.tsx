@@ -6,8 +6,12 @@ import {
   PIANO_CORNERS,
   pressWhiteKey,
   releaseWhiteKey,
-  WHITE_KEY_COUNT,
 } from "../cv/keyboardGeometry";
+import {
+  getCollidedKeyIndexes,
+  getKeyCollisions,
+} from "../cv/collision";
+import type { Fingertip } from "../cv/collision";
 import { MarkerDetector } from "../cv/markerDetector";
 import { computeHomography, projectPoint } from "../cv/homography";
 import type { MarkerDetectionResult } from "../cv/types";
@@ -22,22 +26,15 @@ const PAGE_CORNERS: Point[] = [
 
 export default function MarkerTrackingOverlay({
   videoRef,
+  fingertips,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
+  fingertips: readonly Fingertip[];
 }) {
   const [markerDetection, setMarkerDetection] =
     useState<MarkerDetectionResult | null>(null);
-  const [activeWhiteKey, setActiveWhiteKey] = useState(0);
   const processingCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setActiveWhiteKey((keyIndex) => (keyIndex + 1) % WHITE_KEY_COUNT);
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -196,14 +193,21 @@ export default function MarkerTrackingOverlay({
 
           context.strokeStyle = "rgba(255, 255, 255, 0.9)";
           context.lineWidth = 3;
+          const collisions = getKeyCollisions(
+            fingertips,
+            projectedWhiteKeys,
+            8,
+          );
+          const collidedKeys = getCollidedKeyIndexes(collisions);
+
           projectedWhiteKeys.forEach((key, index) => {
-            if (index === activeWhiteKey) pressWhiteKey(context, key);
+            if (collidedKeys.has(index)) pressWhiteKey(context, key);
             else releaseWhiteKey(context, key);
           });
         }
       }
     }
-  }, [activeWhiteKey, markerDetection]);
+  }, [fingertips, markerDetection]);
 
   return (
     <>
