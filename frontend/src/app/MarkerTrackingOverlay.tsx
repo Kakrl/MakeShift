@@ -13,7 +13,11 @@ import {
 } from "../cv/collision";
 import type { Fingertip } from "../cv/collision";
 import { MarkerDetector } from "../cv/markerDetector";
-import { computeHomography, projectPoint } from "../cv/homography";
+import {
+  computeHomography,
+  projectPoint,
+  type Homography,
+} from "../cv/homography";
 import type { MarkerDetectionResult } from "../cv/types";
 import type { Point } from "../cv/types";
 
@@ -35,6 +39,9 @@ export default function MarkerTrackingOverlay({
     useState<MarkerDetectionResult | null>(null);
   const processingCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const homographyRef = useRef<Homography | null>(null);
+  const projectedPianoCornersRef = useRef<Point[] | null>(null);
+  const projectedWhiteKeysRef = useRef<Point[][] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -89,14 +96,12 @@ export default function MarkerTrackingOverlay({
       }
     };
 
-    console.log("hello world")
     MarkerDetector.create()
       .then((createdDetector) => {
         if (cancelled) {
           createdDetector.dispose();
           return;
         }
-        console.log("on animation frame, detect!")
         detector = createdDetector;
         animationFrame = requestAnimationFrame(detect);
       })
@@ -104,9 +109,6 @@ export default function MarkerTrackingOverlay({
         console.error("Unable to initialize ArUco marker detector", error);
         setMarkerDetection(null);
       });
-      
-    console.log("MarkerDetector created?", markerDetection)
-
     return () => {
       cancelled = true;
       cancelAnimationFrame(animationFrame);
@@ -115,7 +117,57 @@ export default function MarkerTrackingOverlay({
   }, [videoRef]);
 
   useEffect(() => {
-    console.log("marker detection changed")
+    if (
+      homographyRef.current ||
+      !markerDetection ||
+      markerDetection.missingIds.length > 0
+    ) {
+      return;
+    }
+
+    const markerCenters = new Map(
+      markerDetection.observations.map((observation) => [
+        observation.id,
+        observation.center,
+      ]),
+    );
+    const topLeft = markerCenters.get(0);
+    const topRight = markerCenters.get(1);
+    const bottomRight = markerCenters.get(2);
+    const bottomLeft = markerCenters.get(3);
+
+    if (!topLeft || !topRight || !bottomRight || !bottomLeft) return;
+
+    const homography = computeHomography(PAGE_CORNERS, [
+      topLeft,
+      topRight,
+      bottomRight,
+      bottomLeft,
+    ]);
+    if (!homography) return;
+
+    const projectedPianoCorners = PIANO_CORNERS.map((corner) =>
+      projectPoint(homography, corner),
+    ).filter((corner): corner is Point => corner !== null);
+    const projectedWhiteKeys = getWhiteKeyPolygons().map((key) =>
+      key
+        .map((corner) => projectPoint(homography, corner))
+        .filter((corner): corner is Point => corner !== null),
+    );
+
+    if (
+      projectedPianoCorners.length !== PIANO_CORNERS.length ||
+      !projectedWhiteKeys.every((key) => key.length === 4)
+    ) {
+      return;
+    }
+
+    homographyRef.current = homography;
+    projectedPianoCornersRef.current = projectedPianoCorners;
+    projectedWhiteKeysRef.current = projectedWhiteKeys;
+  }, [markerDetection]);
+
+  useEffect(() => {
     const overlay = overlayCanvasRef.current;
     if (!overlay) return;
 
@@ -146,39 +198,10 @@ export default function MarkerTrackingOverlay({
       );
     });
 
-    const markerCenters = new Map(
-      markerDetection.observations.map((observation) => [
-        observation.id,
-        observation.center,
-      ]),
-    );
-    const topLeft = markerCenters.get(0);
-    const topRight = markerCenters.get(1);
-    const bottomRight = markerCenters.get(2);
-    const bottomLeft = markerCenters.get(3);
+    const projectedPianoCorners = projectedPianoCornersRef.current;
+    const projectedWhiteKeys = projectedWhiteKeysRef.current;
 
-    if (topLeft && topRight && bottomRight && bottomLeft) {
-      const homography = computeHomography(PAGE_CORNERS, [
-        topLeft,
-        topRight,
-        bottomRight,
-        bottomLeft,
-      ]);
-
-      if (homography) {
-        const projectedPianoCorners = PIANO_CORNERS.map((corner) =>
-          projectPoint(homography, corner),
-        ).filter((corner): corner is Point => corner !== null);
-        const projectedWhiteKeys = getWhiteKeyPolygons().map((key) =>
-          key
-            .map((corner) => projectPoint(homography, corner))
-            .filter((corner): corner is Point => corner !== null),
-        );
-
-        if (
-          projectedPianoCorners.length === PIANO_CORNERS.length &&
-          projectedWhiteKeys.every((key) => key.length === 4)
-        ) {
+    if (projectedPianoCorners && projectedWhiteKeys) {
           context.beginPath();
           projectedPianoCorners.forEach((corner, index) => {
             if (index === 0) context.moveTo(corner.x, corner.y);
@@ -204,8 +227,6 @@ export default function MarkerTrackingOverlay({
             if (collidedKeys.has(index)) pressWhiteKey(context, key);
             else releaseWhiteKey(context, key);
           });
-        }
-      }
     }
   }, [fingertips, markerDetection]);
 
