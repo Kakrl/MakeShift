@@ -5,11 +5,10 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useCamera } from "./CameraContext";
 
-const MarkerTrackingOverlay = dynamic(
-  () => import("./MarkerTrackingOverlay"),
+const CVOverlayCoordinator = dynamic(
+  () => import("./CVOverlayCoordinator"),
   { ssr: false },
 );
-import HandTrackingOverlay from "./cv/HandTrackingOverlay";
 
 function ChevronDown() {
   return (
@@ -103,7 +102,7 @@ export default function Home() {
             muted
             className="absolute inset-0 w-full h-full object-cover"
           />
-          <MarkerTrackingOverlay videoRef={videoRef} />
+          <CVOverlayCoordinator videoRef={videoRef} />
         </div>
 
         {/* Right sidebar */}
