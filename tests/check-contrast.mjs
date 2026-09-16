@@ -1,9 +1,12 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const frontendDir = resolve(dirname(fileURLToPath(import.meta.url)), "../frontend");
 
 // Colors come from the @theme tokens in globals.css so the audit always
 // matches what the app renders.
-const globalsCss = await readFile(resolve("src/app/globals.css"), "utf8");
+const globalsCss = await readFile(resolve(frontendDir, "src/app/globals.css"), "utf8");
 const palette = Object.fromEntries(
   [...globalsCss.matchAll(/--color-([\w-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)].map(
     ([, name, hex]) => [name, hex.toLowerCase()],
@@ -78,7 +81,7 @@ const evidence = {
   },
 };
 
-const outputPath = resolve("test-results/contrast-report.json");
+const outputPath = resolve(frontendDir, "test-results/contrast-report.json");
 await mkdir(dirname(outputPath), { recursive: true });
 await writeFile(outputPath, `${JSON.stringify(evidence, null, 2)}\n`);
 

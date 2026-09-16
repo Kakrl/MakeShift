@@ -16,7 +16,7 @@
 /*
  * App color palette. Each token becomes a Tailwind utility (e.g. bg-surface,
  * text-ink) and a CSS variable (var(--color-ink)). Pairs are checked against
- * WCAG contrast minimums by scripts/check-contrast.mjs.
+ * WCAG contrast minimums by tests/check-contrast.mjs.
  */
 @theme {
   --color-white: #ffffff;

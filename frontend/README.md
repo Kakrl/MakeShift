@@ -34,7 +34,7 @@ that report as the `contrast-report` artifact so each run retains the NFR-1
 verification evidence. Colors live as `--color-*` tokens in the `@theme` block of
 `src/app/globals.css` (use them as `bg-surface`, `text-ink`, `var(--color-accent)`, etc.
 instead of hardcoded hex values). Add every new foreground/background token pair to
-`scripts/check-contrast.mjs`; normal text must reach 4.5:1, while large text and
+`tests/check-contrast.mjs`; normal text must reach 4.5:1, while large text and
 UI components must reach 3:1.
 ---
 
