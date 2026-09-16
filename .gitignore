@@ -11,3 +11,7 @@ Testing/
 *.pyd
 *.so
 *.pdb
+
+.vscode
+
+docs/cv_local_plan.md
