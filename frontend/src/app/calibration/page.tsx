@@ -3,9 +3,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 import { useCamera } from "../CameraContext";
 import CameraStatusOverlay from "../CameraStatusOverlay";
+import { useHandLandmarker } from "../useHandLandmarker";
+import {
+  LIGHTING_MESSAGES,
+  MAX_BRIGHTNESS,
+  MIN_BRIGHTNESS,
+  readFrameBrightness,
+  type LightingReading,
+} from "../lighting";
 
 const TOTAL_STEPS = 5;
 
@@ -77,17 +84,76 @@ export default function Calibration() {
   const [step5Success, setStep5Success] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [paperError, setPaperError] = useState(false);
+  const [captureError, setCaptureError] = useState<string | null>(null);
+
+  // #13 — the video element reports 0x0 until it has decoded a frame
+  const [frameReady, setFrameReady] = useState(false);
+
+  // #16 — sampled from the live frame during step 2
+  const [lighting, setLighting] = useState<LightingReading | null>(null);
 
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { stream, cameraReady } = useCamera();
+  const brightnessCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const { status: landmarkerStatus, detect, reload: reloadLandmarker } =
+    useHandLandmarker();
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const update = () =>
+      setFrameReady(
+        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+          video.videoWidth > 0 &&
+          video.videoHeight > 0,
+      );
+
+    // A remounted or retried stream may already be decoding, in which case no
+    // further events fire; poll once on the next frame to catch that case.
+    const raf = requestAnimationFrame(update);
+    for (const evt of ["loadedmetadata", "loadeddata", "playing", "emptied"]) {
+      video.addEventListener(evt, update);
+    }
+    return () => {
+      cancelAnimationFrame(raf);
+      for (const evt of ["loadedmetadata", "loadeddata", "playing", "emptied"]) {
+        video.removeEventListener(evt, update);
+      }
+    };
+  }, [stream]);
 
   useEffect(() => {
     if (stream && videoRef.current) {
       videoRef.current.srcObject = stream;
     }
   }, [stream]);
+
+  // #16 — poll the live frame only while the lighting step is visible
+  useEffect(() => {
+    if (step !== 2 || !cameraReady || !frameReady) return;
+
+    if (!brightnessCanvasRef.current) {
+      brightnessCanvasRef.current = document.createElement("canvas");
+    }
+    const scratch = brightnessCanvasRef.current;
+
+    const sample = () => {
+      const video = videoRef.current;
+      if (!video) return;
+      const reading = readFrameBrightness(video, scratch);
+      if (reading) setLighting(reading);
+    };
+
+    const raf = requestAnimationFrame(sample);
+    const interval = setInterval(sample, 400);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearInterval(interval);
+    };
+  }, [step, cameraReady, frameReady]);
 
   function resetInteractiveStepState() {
     setCountdown(null);
@@ -97,6 +163,10 @@ export default function Calibration() {
     setStep5Success(false);
     setShowHelpModal(false);
     setPaperError(false);
+    setCaptureError(null);
+    // Drop the previous reading so re-entering step 2 cannot advance on a
+    // stale measurement before the first fresh sample lands.
+    setLighting(null);
   }
 
   function goToAdjacentStep(delta: -1 | 1) {
@@ -136,41 +206,35 @@ export default function Calibration() {
     if (!video || !canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    // #13 — a 0x0 canvas throws on toDataURL and silently breaks detection
+    if (!video.videoWidth || !video.videoHeight) return;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     return canvasToImage(canvas);
   }, []);
 
-  async function detectFingers(image: HTMLImageElement) {
-    const vision = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
-    );
-    const handLandmarker = await HandLandmarker.createFromOptions(vision, {
-      baseOptions: { modelAssetPath: "/models/hand_landmarker.task" },
-      runningMode: "IMAGE",
-      numHands: 2,
-    });
-    const res = handLandmarker.detect(image);
+  function detectFingers(image: HTMLImageElement) {
+    const res = detect(image);
     const canvas = canvasRef.current;
-    const video = videoRef.current;
-    if (!video || !canvas) return;
+    if (!res || !canvas) {
+      setCaptureError("Hand detection is unavailable. Try again.");
+      return;
+    }
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     let fingertips = 0;
-    if (res.landmarks) {
-      for (const hand of res.landmarks) {
-        for (const idx of [4, 8, 12, 16, 20]) {
-          const pt = hand[idx];
-          ctx.beginPath();
-          ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 20, 0, 2 * Math.PI);
-          ctx.fillStyle = "red";
-          ctx.fill();
-          fingertips++;
-        }
+    for (const hand of res.landmarks ?? []) {
+      for (const idx of [4, 8, 12, 16, 20]) {
+        const pt = hand[idx];
+        ctx.beginPath();
+        ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 20, 0, 2 * Math.PI);
+        ctx.fillStyle = "red";
+        ctx.fill();
+        fingertips++;
       }
-      if (fingertips > 0) setFingersShown(true);
     }
+    if (fingertips > 0) setFingersShown(true);
     setShowingImage(true);
   }
 
@@ -179,7 +243,20 @@ export default function Calibration() {
     if (countdown === null || countdown < 0) return;
     if (countdown === 0) {
       if (step === 4) {
-        capture().then((image) => { if (image) detectFingers(image); });
+        capture()
+          .then((image) => {
+            if (image) {
+              detectFingers(image);
+            } else {
+              // #13 — no usable frame; stay on the live preview so Retry works
+              setCaptureError("The camera was not ready. Try again.");
+              setShowingImage(false);
+            }
+          })
+          .catch(() => {
+            setCaptureError("Could not read a frame from the camera. Try again.");
+            setShowingImage(false);
+          });
       } else if (step === 5) {
         setStep5Success(true);
       }
@@ -196,6 +273,7 @@ export default function Calibration() {
     setShowingImage(false);
     setFingersShown(false);
     setStep5Success(false);
+    setCaptureError(null);
   };
 
   const handleComplete = () => {
@@ -203,7 +281,10 @@ export default function Calibration() {
     router.push("/");
   };
 
+  const lightingOk = lighting?.verdict === "ok";
+
   const canAdvance = () => {
+    if (step === 2) return lightingOk; // #16
     if (step === 4) return fingersShown;
     if (step === 5) return step5Success;
     return true;
@@ -211,9 +292,13 @@ export default function Calibration() {
 
   const isComplete = step > TOTAL_STEPS;
 
+  // Start is only meaningful once there is a frame to capture and a detector
+  // to run on it (#12, #13).
+  const canCapture = cameraReady && frameReady && landmarkerStatus === "ready";
+
   // Counting down right now?
   const isCounting = countdown !== null && countdown > 0;
-  const isInteractiveStep = step === 4 || step === 5;
+  const isInteractiveStep = step === 2 || step === 4 || step === 5;
   const showPreviousStep = !isComplete && step > 1 && !isCounting;
   const showExitCalibration = step === 1;
   // Step 1 is settings only; every later step asks the user to judge the camera feed.
@@ -237,17 +322,22 @@ export default function Calibration() {
 
     // ── Step 2: lighting ──
     if (step === 2) {
-      const luxOk = true; // replace with real measurement
-      return luxOk ? (
-        // Success: subtle banner
+      if (!lighting) {
+        return (
+          <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-black/60 px-4 py-2 rounded-full pointer-events-none">
+            <span className="text-white text-[16px] font-sans">Measuring lighting…</span>
+          </div>
+        );
+      }
+      return lighting.verdict === "ok" ? (
         <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-[#1a6b3a]/80 px-4 py-2 rounded-full pointer-events-none">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="#6dd99a"/><path d="M5 9L7.5 12L13 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          <span className="text-white text-[16px] font-sans">Lighting looks good!</span>
+          <span className="text-white text-[16px] font-sans">{LIGHTING_MESSAGES.ok}</span>
         </div>
       ) : (
         <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/50 px-4 py-2 rounded-full pointer-events-none">
           <AlertTriangle />
-          <p className="text-white text-[18px] font-sans">Warning: Lighting too dim</p>
+          <p className="text-white text-[18px] font-sans">{LIGHTING_MESSAGES[lighting.verdict]}</p>
         </div>
       );
     }
@@ -333,11 +423,36 @@ export default function Calibration() {
             </div>
           )}
 
-          {/* Hands not detected warning */}
-          {handNotDetected && (
-            <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/50 px-4 py-2 rounded-full pointer-events-none">
+          {/* Status banner: capture failure, detector failure, or no hands */}
+          {(captureError || landmarkerStatus === "error" || handNotDetected) && (
+            <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/50 px-4 py-2 rounded-full">
               <AlertTriangle />
-              <p className="text-white text-[18px] font-sans">No hands detected. Try again</p>
+              <p className="text-white text-[18px] font-sans pointer-events-none">
+                {captureError ??
+                  (landmarkerStatus === "error"
+                    ? "Hand detection failed to load."
+                    : "No hands detected. Try again")}
+              </p>
+              {landmarkerStatus === "error" && (
+                <button
+                  onClick={reloadLandmarker}
+                  className="rounded-[6px] border border-white px-3 py-1 text-[15px] font-sans text-white transition-[background-color,transform] hover:bg-white/15 active:scale-[0.97]"
+                >
+                  Reload
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Waiting on the detector or the first decoded frame */}
+          {!hasStarted && landmarkerStatus === "loading" && (
+            <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-black/60 px-4 py-2 rounded-full pointer-events-none">
+              <p className="text-white text-[16px] font-sans">Loading hand detection…</p>
+            </div>
+          )}
+          {!hasStarted && landmarkerStatus === "ready" && cameraReady && !frameReady && (
+            <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-black/60 px-4 py-2 rounded-full pointer-events-none">
+              <p className="text-white text-[16px] font-sans">Waiting for the camera…</p>
             </div>
           )}
 
@@ -469,17 +584,24 @@ export default function Calibration() {
     }
 
     if (step === 2) {
-      const luxOk = true;
+      const pct = lighting ? Math.round(lighting.brightness * 100) : null;
       return (
         <div className="flex items-center gap-5 flex-wrap">
           <p className="text-[24px] text-black font-sans shrink-0">Step 2: Check your lighting</p>
           <div className="flex items-center gap-6 shrink-0">
-            <span className="text-[14px] text-black/70 font-sans">Current: 783 lux</span>
-            <span className="text-[14px] text-black/70 font-sans">Recommended: &gt;500 lux</span>
-            {luxOk
-              ? <SuccessBadge label="Lighting OK" />
-              : <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-50 border border-red-300"><span className="text-[13px] text-red-600">Too dim. Increase lighting</span></div>
-            }
+            <span className="text-[14px] text-black/70 font-sans" aria-live="polite">
+              Current: {pct === null ? "measuring…" : `${pct}% brightness`}
+            </span>
+            <span className="text-[14px] text-black/70 font-sans">
+              Target: {Math.round(MIN_BRIGHTNESS * 100)}–{Math.round(MAX_BRIGHTNESS * 100)}%
+            </span>
+            {lightingOk ? (
+              <SuccessBadge label="Lighting OK" />
+            ) : lighting ? (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-50 border border-red-300">
+                <span className="text-[13px] text-red-600">{LIGHTING_MESSAGES[lighting.verdict]}</span>
+              </div>
+            ) : null}
           </div>
         </div>
       );
@@ -494,9 +616,18 @@ export default function Calibration() {
         <div className="flex items-center gap-4">
           <p className="text-[24px] text-black font-sans shrink-0">Step 4: Hover hands above paper for 3 s</p>
           {!fingersShown && (
-            <button onClick={handleStartCountdown} disabled={isCounting || !cameraReady} className="shrink-0 border-[1.5px] border-black bg-[#fffdf7] px-5 py-2 rounded-[8px] text-[20px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] disabled:opacity-40 disabled:cursor-not-allowed">
+            <button onClick={handleStartCountdown} disabled={isCounting || !canCapture} className="shrink-0 border-[1.5px] border-black bg-[#fffdf7] px-5 py-2 rounded-[8px] text-[20px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] disabled:opacity-40 disabled:cursor-not-allowed">
               {hasStarted && !isCounting ? "Retry" : "Start"}
             </button>
+          )}
+          {!fingersShown && !canCapture && (
+            <span className="text-[14px] text-black/60 font-sans" aria-live="polite">
+              {landmarkerStatus === "loading"
+                ? "Loading hand detection…"
+                : landmarkerStatus === "error"
+                  ? "Hand detection unavailable"
+                  : "Waiting for the camera…"}
+            </span>
           )}
           {fingersShown && <SuccessBadge label="Hands detected" />}
         </div>
@@ -508,7 +639,7 @@ export default function Calibration() {
         <div className="flex items-center gap-4">
           <p className="text-[24px] text-black font-sans shrink-0">Step 5: Place hands on paper for 3 s</p>
           {!step5Success && (
-            <button onClick={handleStartCountdown} disabled={isCounting || !cameraReady} className="shrink-0 border-[1.5px] border-black bg-[#fffdf7] px-5 py-2 rounded-[8px] text-[20px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] disabled:opacity-40 disabled:cursor-not-allowed">
+            <button onClick={handleStartCountdown} disabled={isCounting || !canCapture} className="shrink-0 border-[1.5px] border-black bg-[#fffdf7] px-5 py-2 rounded-[8px] text-[20px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] disabled:opacity-40 disabled:cursor-not-allowed">
               {hasStarted && !isCounting ? "Retry" : "Start"}
             </button>
           )}
