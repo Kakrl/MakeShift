@@ -49,7 +49,7 @@ export default function Tutorial() {
     >
       {/* Modal card */}
       <div
-        className="relative bg-[#fffdf7] rounded-[16px] shadow-2xl w-full max-w-[740px] mx-6 overflow-hidden"
+        className="relative bg-surface rounded-[16px] shadow-2xl w-full max-w-[740px] mx-6 overflow-hidden"
         style={{ maxHeight: "88vh" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -81,33 +81,33 @@ export default function Tutorial() {
           <div className="flex flex-col gap-[20px] mb-8">
             {steps.map((s) => (
               <div key={s.step} className="flex gap-4">
-                <div className="shrink-0 w-[30px] h-[30px] rounded-full bg-[#7440a8] flex items-center justify-center text-white text-[14px] font-bold mt-[1px]">
+                <div className="shrink-0 w-[30px] h-[30px] rounded-full bg-accent flex items-center justify-center text-white text-[14px] font-bold mt-[1px]">
                   {s.step}
                 </div>
                 <div>
                   <p className="text-black text-[18px] font-sans font-medium mb-[4px]">{s.title}</p>
-                  <p className="text-[#595854] text-[15px] font-sans leading-relaxed">{s.body}</p>
+                  <p className="text-ink-muted text-[15px] font-sans leading-relaxed">{s.body}</p>
                 </div>
               </div>
             ))}
           </div>
 
           {/* PDF download */}
-          <div className="border border-[#767676] rounded-[10px] flex items-center justify-between px-6 py-4">
+          <div className="border border-control-border rounded-[10px] flex items-center justify-between px-6 py-4">
             <div className="flex items-center gap-3">
               <svg aria-hidden="true" width="28" height="32" viewBox="0 0 28 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="0.75" y="0.75" width="26.5" height="30.5" rx="3.25" stroke="#1e1e1e" strokeWidth="1.5" />
-                <text x="4" y="22" fontSize="10" fontWeight="bold" fill="#1e1e1e" fontFamily="sans-serif">PDF</text>
+                <rect x="0.75" y="0.75" width="26.5" height="30.5" rx="3.25" stroke="var(--color-ink)" strokeWidth="1.5" />
+                <text x="4" y="22" fontSize="10" fontWeight="bold" fill="var(--color-ink)" fontFamily="sans-serif">PDF</text>
               </svg>
               <div>
                 <p className="text-black text-[16px] font-sans font-medium">MakeShift Quick-Start Guide</p>
-                <p className="text-[#595854] text-[13px] font-sans">PDF · Coming soon</p>
+                <p className="text-ink-muted text-[13px] font-sans">PDF · Coming soon</p>
               </div>
             </div>
             <a
               href="/tutorial/makeshift-guide.pdf"
               download
-              className="border-[1.5px] border-black bg-[#fffdf7] px-5 py-2 rounded-[8px] text-[15px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-1"
+              className="border-[1.5px] border-black bg-surface px-5 py-2 rounded-[8px] text-[15px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-1"
             >
               Download
             </a>
