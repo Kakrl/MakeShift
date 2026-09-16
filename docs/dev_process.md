@@ -79,6 +79,23 @@ We use a fork-and-pull-request workflow:
   - code quality/lint/cleanliness checks passing
 - PRs with failing CI checks are not eligible for merge.
 
+### Running Python Checks Locally
+
+From the repository root, install the dependencies and run the same Python
+checks as CI:
+
+```sh
+python -m pip install -r requirements.txt
+python -m ruff check backend/src tests
+python -m mypy backend/src --check-untyped-defs
+python -m pytest --cov=backend --cov-report=term-missing
+```
+
+Ruff checks Python style, common errors, and import sorting in one command.
+The rules and 79-character line limit are configured in `ruff.toml`. To apply
+available fixes locally, run `python -m ruff check --fix backend/src tests`
+and review the changes before committing. CI checks files without changing them.
+
 ### Review and Approval Rules
 
 - At least one reviewer approval is required before merge.
