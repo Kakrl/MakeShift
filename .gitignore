@@ -12,6 +12,9 @@ Testing/
 *.so
 *.pdb
 
+# Generated frontend test evidence
+frontend/test-results/
+
 .vscode
 
 docs/cv_local_plan.md

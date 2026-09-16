@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest"
+    "test": "vitest",
+    "test:contrast": "node ../tests/check-contrast.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.34",
