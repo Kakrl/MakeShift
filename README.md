@@ -11,7 +11,7 @@ The backend includes a high-performance C++ audio engine exposed to Python via n
 ### Prerequisites
 - C++ Compiler: MSVC (Windows), GCC/Clang (Linux/macOS) supporting C++23.
 - CMake: Version 3.15 or higher.
-- Python: Version 3.10+ with an active virtual environment.
+- Python: Version 3.12+ with an active virtual environment (required by `backend/CMakeLists.txt`).
 
 1. Install Python Dependencies
 Activate your virtual environment and install the required build tools (including nanobind):
@@ -33,3 +33,11 @@ ctest -C Release --output-on-failure
 
 See [Audio Event Queue](docs/audio_events.md) for hit submission, thread ownership,
 and playback behavior.
+
+## Testing and Documentation
+
+- [Testing guide, known defects, and RCA log](tests/README.md)
+- [Verification Test Inventory](tests/verification_test_inventory.md)
+- [Development process](docs/dev_process.md)
+- [Frontend setup](frontend/README.md)
+- Contributor and coding agent instructions: [AGENTS.md](AGENTS.md)

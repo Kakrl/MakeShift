@@ -1,5 +1,87 @@
 # Repository Instructions
 
-Before making changes or preparing pull requests, read and follow
-`docs/dev_process.md`, including its PR workflow, issue linking, naming
-conventions, review requirements, and documentation style.
+These instructions apply to every contributor and coding agent (Codex, Claude,
+or anything else). `CLAUDE.md` points here, so keep this file as the single
+source of truth.
+
+## Read First
+
+- `docs/dev_process.md`: PR workflow, issue linking, branch and PR naming,
+  review requirements, and documentation style. Follow it for every change.
+- `tests/README.md`: how to run each test suite, the known defect list, the
+  root cause analysis (RCA) log, and severity rules for defects.
+- `tests/verification_test_inventory.md`: every verification test, the
+  requirement it covers, its owner, and whether CI runs it.
+
+## Repository Map
+
+| Path | Contents |
+| :--- | :--- |
+| `frontend/` | Next.js web client: camera, calibration, CV overlays, MIDI utils |
+| `frontend/src/cv/` | ArUco marker detection, homography, keyboard geometry |
+| `backend/` | C++ audio engine (PortAudio) and its nanobind Python module |
+| `tests/` | C++ GoogleTest suites, Python tests, contrast audit, test docs |
+| `tests/manual/` | Manual test template and completed manual test reports |
+| `docs/` | Process, SDP, V&V plan, design document, subsystem notes |
+| `.github/workflows/` | CI: tests, linting, and frontend checks |
+| `.github/ISSUE_TEMPLATE/` | Defect report template |
+
+## Workflow
+
+1. Start from an issue. If none exists, open one first (see
+   `docs/dev_process.md`).
+2. Branch as `type/<issue>-short-description` in your fork.
+3. Make the smallest change that closes the issue. Do not fix unrelated code
+   in the same PR; open or reference a separate issue instead.
+4. Run the checks for every area you touched (below) before opening a PR.
+5. Update documentation in the same PR (see "Keep Docs in Sync").
+6. Open the PR against upstream `main` with `Closes #N` in the description and
+   the "What changed / Why / How it was tested" sections.
+
+## Checks to Run
+
+| Area touched | Commands (from repo root unless noted) |
+| :--- | :--- |
+| Frontend | `cd frontend && npm run lint && npx tsc --noEmit && npx vitest run && npm run test:contrast && npm run build` |
+| Python | `python -m ruff check backend/src tests`, `python -m mypy backend/src --check-untyped-defs`, `python -m pytest` |
+| C++ | `cmake -B build -S backend && cmake --build build --config Release && ctest --test-dir build -C Release --output-on-failure` |
+| C++ formatting | `clang-format --dry-run --Werror` on changed files (`.clang-format`, clang-format 17) |
+
+The C++ build requires Python 3.12 and nanobind (`pip install -r requirements.txt`).
+If a check cannot run locally (for example, no audio device or no CMake),
+say so in the PR description instead of claiming it passed.
+
+## Keep Docs in Sync
+
+A change is not done until the matching documentation is updated:
+
+- **New or changed test:** add or update its row in
+  `tests/verification_test_inventory.md` (ID, level, requirement, owner, tool,
+  automation, CI status, evidence link).
+- **New CI job or workflow change:** update the "CI Integrated?" column for
+  affected tests and the check table above.
+- **Defect found:** High or Medium severity defects get a GitHub issue using the
+  defect report template, and a row in the known defects table in
+  `tests/README.md`. Severity rules live in `tests/README.md`.
+- **High severity defect fixed:** complete the RCA in the issue and add a row
+  to the RCA log in `tests/README.md`. The fix PR must add or name a
+  regression test.
+- **Manual test of a critical workflow, or one that exposes a critical defect:**
+  copy `tests/manual/manual_test_template.md` into a new dated report in
+  `tests/manual/`.
+- **New folder, subsystem, or moved files:** update the repository tree in
+  `docs/dev_process.md` and the map above.
+- **New requirement or changed scope:** update the RVTM and SDP, then map at
+  least one test to the requirement in the inventory.
+
+## Conventions
+
+- Frontend colors come from `--color-*` tokens in `frontend/src/app/globals.css`.
+  Do not hardcode hex values; add new token pairs to `tests/check-contrast.mjs`.
+- Python follows `ruff.toml` (79-character lines). C++ follows `.clang-format`.
+- Keep test files in `tests/` unless a tool requires colocation (Vitest specs
+  sit next to their module, such as `midiUtils.test.ts`).
+- Remove debug `console.log` calls before opening a PR, especially inside
+  per-frame loops.
+- Tests that need hardware (camera, audio device) must skip explicitly
+  (`GTEST_SKIP()`, `pytest.skip`) rather than return early and report a pass.

@@ -4,40 +4,75 @@
 
 ```text
 MakeShift/
-├── .claude/
 ├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   │   └── defect_report.yml        # defect (bug) report form
 │   └── workflows/
+│       ├── bypass-checks.yml        # no-op test/lint jobs for non-Python PRs
+│       ├── bypass-frontend.yml      # no-op frontend job for non-frontend PRs
+│       ├── frontend-ci.yml          # lint, type check, contrast audit, build
+│       ├── linting.yml              # ruff, mypy, clang-format
+│       └── testing.yml              # pytest, CMake build, CTest
 ├── backend/
+│   ├── CMakeLists.txt               # audio library, nanobind module, GoogleTest
 │   └── src/
 │       ├── API/
-│       ├── audio/
+│       ├── audio/                   # AudioEngine (PortAudio) and SpscQueue
 │       ├── CV/
 │       ├── MIDI/
+│       ├── Bindings.cpp             # nanobind Python bindings
 │       └── __init__.py
 ├── docs/
+│   ├── audio.md                     # polyphony and voice stealing
+│   ├── audio_events.md              # audio event queue contract
 │   ├── dev_process.md
-│   └── sdp.md
+│   ├── piano_sheet.md               # printable sheet and ArUco marker IDs
+│   ├── Piano Sheet.png
+│   ├── sdp.md
+│   ├── Design Document.pdf
+│   └── Final Verification and Validation Plan.pdf
 ├── frontend/
 │   ├── public/
+│   │   └── models/                  # MediaPipe hand landmarker model
 │   ├── src/
-│   │   └── app/
-│   │       ├── calibration/
-│   │       ├── documentation/
-│   │       ├── tutorial/
-│   │       ├── CameraContext.tsx
-│   │       ├── globals.css
-│   │       ├── layout.tsx
-│   │       └── page.tsx
+│   │   ├── app/
+│   │   │   ├── about/
+│   │   │   ├── calibration/
+│   │   │   ├── cv/                  # hand landmark overlay and drawing
+│   │   │   ├── documentation/
+│   │   │   ├── midi/                # MIDI recording utils and Vitest spec
+│   │   │   ├── tutorial/
+│   │   │   ├── CameraContext.tsx
+│   │   │   ├── CameraStatusOverlay.tsx
+│   │   │   ├── MarkerTrackingOverlay.tsx
+│   │   │   ├── globals.css          # --color-* theme tokens
+│   │   │   ├── layout.tsx
+│   │   │   ├── lighting.ts
+│   │   │   ├── page.tsx
+│   │   │   └── useHandLandmarker.ts
+│   │   ├── cv/                      # ArUco detection, homography, key geometry
+│   │   └── shims/
 │   ├── package.json
 │   ├── package-lock.json
 │   ├── tsconfig.json
 │   ├── next.config.ts
 │   └── README.md
 ├── tests/
+│   ├── README.md                    # how to test, known defects, RCA log
+│   ├── verification_test_inventory.md
+│   ├── manual/                      # manual test template and reports
+│   ├── check-contrast.mjs
+│   ├── test_audio.cpp
+│   ├── test_audio_events.cpp
+│   └── test_dummy.py
+├── .clang-format
 ├── .gitignore
+├── AGENTS.md                        # contributor and coding agent instructions
+├── CLAUDE.md                        # points to AGENTS.md
 ├── LICENSE
 ├── README.md
-└── requirements.txt
+├── requirements.txt
+└── ruff.toml
 ```
 ### Project Structure
 
@@ -95,6 +130,15 @@ Ruff checks Python style, common errors, and import sorting in one command.
 The rules and 79-character line limit are configured in `ruff.toml`. To apply
 available fixes locally, run `python -m ruff check --fix backend/src tests`
 and review the changes before committing. CI checks files without changing them.
+
+### Testing and Defect Documentation
+
+- A PR that adds or changes a test updates its row in
+  `tests/verification_test_inventory.md`.
+- Defects are filed with the defect report issue template. Severity decides
+  how much documentation is needed (see `tests/README.md`).
+- High severity fixes get an RCA comment on the defect issue and an entry in
+  the RCA log in `tests/README.md`.
 
 ### Review and Approval Rules
 
