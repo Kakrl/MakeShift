@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:contrast": "node scripts/check-contrast.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.34",

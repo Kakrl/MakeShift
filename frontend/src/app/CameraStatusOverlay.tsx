@@ -23,10 +23,10 @@ export default function CameraStatusOverlay() {
         <div className="flex flex-col items-center gap-3">
           <span
             aria-hidden="true"
-            className="camera-spinner h-8 w-8 rounded-full border-2 border-white/25 border-t-white"
+            className="camera-spinner h-8 w-8 rounded-full border-2 border-[#767676] border-t-white"
           />
           <p className="text-[17px] font-sans text-white">Starting camera…</p>
-          <p className="text-[14px] font-sans text-white/60">
+          <p className="text-[14px] font-sans text-[#bdbdbd]">
             Allow camera access if your browser asks.
           </p>
         </div>
@@ -40,14 +40,14 @@ export default function CameraStatusOverlay() {
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <path d="M12 3L22 20H2L12 3Z" fill="#e05c5c" />
+            <path d="M12 3L22 20H2L12 3Z" fill="#b42318" />
             <line x1="12" y1="9" x2="12" y2="14" stroke="white" strokeWidth="2" strokeLinecap="round" />
             <circle cx="12" cy="17" r="1" fill="white" />
           </svg>
           <p className="text-[18px] font-sans font-medium text-white">
             {error?.title ?? "Could not start the camera"}
           </p>
-          <p className="text-[14px] font-sans leading-relaxed text-white/70">
+          <p className="text-[14px] font-sans leading-relaxed text-[#bdbdbd]">
             {error?.detail}
           </p>
           {error?.kind !== "unsupported" && (

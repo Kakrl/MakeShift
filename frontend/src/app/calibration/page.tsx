@@ -39,9 +39,9 @@ function AlertTriangle() {
 
 function SuccessBadge({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#e7faf0] border border-[#6dd99a]">
+    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#e7faf0] border border-[#237a45]">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <circle cx="8" cy="8" r="7" fill="#6dd99a" />
+        <circle cx="8" cy="8" r="7" fill="#237a45" />
         <path d="M4.5 8L6.8 10.5L11.5 5.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
       <span className="text-[13px] font-sans text-[#1a6b3a] whitespace-nowrap">{label}</span>
@@ -58,9 +58,9 @@ function ProgressBar({ total, current }: { total: number; current: number }) {
         const barFilled = stepNum < current;
         return (
           <div key={i} className="flex flex-1 items-center last:flex-none">
-            <div className={`shrink-0 size-[20px] rounded-full border-2 transition-colors duration-200 ${circleFilled ? "bg-[#b46eff] border-[#b46eff]" : "bg-[#ded4cb] border-[#ded4cb]"}`} />
+            <div className={`shrink-0 size-[20px] rounded-full border-2 transition-colors duration-200 ${circleFilled ? "bg-[#7440a8] border-[#7440a8]" : "bg-[#8a8882] border-[#8a8882]"}`} />
             {i < total - 1 && (
-              <div className={`flex-1 h-[10px] transition-colors duration-200 ${barFilled ? "bg-[#b46eff]" : "bg-[#ded4cb]"}`} />
+              <div className={`flex-1 h-[10px] transition-colors duration-200 ${barFilled ? "bg-[#7440a8]" : "bg-[#8a8882]"}`} />
             )}
           </div>
         );
@@ -312,7 +312,7 @@ export default function Calibration() {
       return (
         <div className="absolute pointer-events-none" style={{ bottom: "18%", left: "10%", right: "10%" }}>
           <div className="relative w-full" style={{ height: 60, transform: "skewX(-8deg)" }}>
-            <div className="absolute inset-0 border-2 border-[#e05c5c] bg-white/90" />
+            <div className="absolute inset-0 border-2 border-[#b42318] bg-white/90" />
           </div>
         </div>
       );
@@ -324,18 +324,18 @@ export default function Calibration() {
     if (step === 2) {
       if (!lighting) {
         return (
-          <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-black/60 px-4 py-2 rounded-full pointer-events-none">
+          <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-[#090909] px-4 py-2 rounded-full pointer-events-none">
             <span className="text-white text-[16px] font-sans">Measuring lighting…</span>
           </div>
         );
       }
       return lighting.verdict === "ok" ? (
-        <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-[#1a6b3a]/80 px-4 py-2 rounded-full pointer-events-none">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="#6dd99a"/><path d="M5 9L7.5 12L13 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-[#1a6b3a] px-4 py-2 rounded-full pointer-events-none">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="#237a45"/><path d="M5 9L7.5 12L13 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
           <span className="text-white text-[16px] font-sans">{LIGHTING_MESSAGES.ok}</span>
         </div>
       ) : (
-        <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/50 px-4 py-2 rounded-full pointer-events-none">
+        <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-[#090909] px-4 py-2 rounded-full pointer-events-none">
           <AlertTriangle />
           <p className="text-white text-[18px] font-sans">{LIGHTING_MESSAGES[lighting.verdict]}</p>
         </div>
@@ -351,18 +351,18 @@ export default function Calibration() {
             <div className="absolute top-5 left-1/2 -translate-x-1/2 z-20 bg-white rounded-[10px] shadow-xl px-5 py-4 flex items-start gap-3 w-[480px] max-w-[90%]">
               {/* Red triangle icon */}
               <svg className="shrink-0 mt-0.5" width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M12 3L22 20H2L12 3Z" fill="#e05c5c" />
+                <path d="M12 3L22 20H2L12 3Z" fill="#b42318" />
                 <line x1="12" y1="9" x2="12" y2="14" stroke="white" strokeWidth="2" strokeLinecap="round" />
                 <circle cx="12" cy="17" r="1" fill="white" />
               </svg>
               <div className="flex flex-col gap-0.5">
-                <p className="text-[15px] font-bold text-[#e05c5c] font-sans">ERROR: Paper position is not accepted</p>
-                <p className="text-[14px] text-black/60 font-sans">Impossible placement. Click the &lsquo;?&rsquo; button for help</p>
+                <p className="text-[15px] font-bold text-[#b42318] font-sans">ERROR: Paper position is not accepted</p>
+                <p className="text-[14px] text-[#595959] font-sans">Impossible placement. Click the &lsquo;?&rsquo; button for help</p>
               </div>
               <button
                 onClick={() => setPaperError(false)}
                 aria-label="Dismiss error"
-                className="ml-auto shrink-0 text-black/30 hover:text-black/60 text-[20px] leading-none transition-colors"
+                className="ml-auto shrink-0 text-[#595959] hover:text-black text-[20px] leading-none transition-colors"
               >×</button>
             </div>
           )}
@@ -370,15 +370,15 @@ export default function Calibration() {
           {/* Paper outline */}
           <div className="absolute pointer-events-none" style={{ bottom: "18%", left: "10%", right: "10%" }}>
             <div className="relative w-full" style={{ height: 60, transform: "skewX(-8deg)" }}>
-              <div className="absolute inset-0 border-2 border-[#e05c5c] bg-white/90" />
+              <div className="absolute inset-0 border-2 border-[#b42318] bg-white/90" />
               {([{ top: -6, left: -6 }, { top: -6, right: -6 }, { bottom: -6, left: -6 }, { bottom: -6, right: -6 }] as React.CSSProperties[]).map((pos, i) => (
-                <div key={i} className="absolute w-3 h-3 rounded-full bg-[#e05c5c]" style={pos} />
+                <div key={i} className="absolute w-3 h-3 rounded-full bg-[#b42318]" style={pos} />
               ))}
             </div>
           </div>
           {/* Hint */}
           {!paperError && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 px-5 py-2 rounded-full pointer-events-none">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-[#090909] px-5 py-2 rounded-full pointer-events-none">
               <p className="text-white text-[15px] font-sans">Align the red outline with your paper, then click Next Step</p>
             </div>
           )}
@@ -398,16 +398,16 @@ export default function Calibration() {
           {/* Paper + hover dots */}
           <div className="absolute pointer-events-none" style={{ bottom: "18%", left: "10%", right: "10%" }}>
             <div className="relative w-full" style={{ height: 60, transform: "skewX(-8deg)" }}>
-              <div className="absolute inset-0 border-2 border-[#e05c5c] bg-white/90" />
+              <div className="absolute inset-0 border-2 border-[#b42318] bg-white/90" />
               {[20, 28, 36, 44, 50, 58, 66, 72, 80, 88].map((pct, i) => (
-                <div key={i} className="absolute w-2 h-2 rounded-full bg-[#e05c5c]" style={{ bottom: "100%", left: `${pct}%`, marginBottom: 4 + (i % 3) * 6 }} />
+                <div key={i} className="absolute w-2 h-2 rounded-full bg-[#b42318]" style={{ bottom: "100%", left: `${pct}%`, marginBottom: 4 + (i % 3) * 6 }} />
               ))}
             </div>
           </div>
 
           {/* Instruction pill — only before countdown starts */}
           {!hasStarted && (
-            <div className="absolute top-[35%] left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/60 px-5 py-2 rounded-full pointer-events-none">
+            <div className="absolute top-[35%] left-1/2 -translate-x-1/2 flex items-center gap-2 bg-[#090909] px-5 py-2 rounded-full pointer-events-none">
               <span className="text-white text-[16px] font-sans">Hover hands above the paper, then press Start</span>
             </div>
           )}
@@ -415,17 +415,17 @@ export default function Calibration() {
           {/* Success overlay */}
           {fingersShown && (
             <div className="absolute inset-0 flex flex-col items-center justify-start pt-[14%] gap-3 pointer-events-none">
-              <div className="flex items-center gap-3 bg-black/60 px-6 py-3 rounded-full">
-                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="#6dd99a"/><path d="M8 14L11.5 18L20 10" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <div className="flex items-center gap-3 bg-[#090909] px-6 py-3 rounded-full">
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="#237a45"/><path d="M8 14L11.5 18L20 10" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 <span className="text-white text-[26px] font-sans font-medium">Hands detected!</span>
               </div>
-              <p className="text-white/80 text-[15px] font-sans">Click Next Step to continue</p>
+              <p className="rounded-full bg-[#090909] px-4 py-1 text-white text-[15px] font-sans">Click Next Step to continue</p>
             </div>
           )}
 
           {/* Status banner: capture failure, detector failure, or no hands */}
           {(captureError || landmarkerStatus === "error" || handNotDetected) && (
-            <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/50 px-4 py-2 rounded-full">
+            <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-[#090909] px-4 py-2 rounded-full">
               <AlertTriangle />
               <p className="text-white text-[18px] font-sans pointer-events-none">
                 {captureError ??
@@ -446,12 +446,12 @@ export default function Calibration() {
 
           {/* Waiting on the detector or the first decoded frame */}
           {!hasStarted && landmarkerStatus === "loading" && (
-            <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-black/60 px-4 py-2 rounded-full pointer-events-none">
+            <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-[#090909] px-4 py-2 rounded-full pointer-events-none">
               <p className="text-white text-[16px] font-sans">Loading hand detection…</p>
             </div>
           )}
           {!hasStarted && landmarkerStatus === "ready" && cameraReady && !frameReady && (
-            <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-black/60 px-4 py-2 rounded-full pointer-events-none">
+            <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-[#090909] px-4 py-2 rounded-full pointer-events-none">
               <p className="text-white text-[16px] font-sans">Waiting for the camera…</p>
             </div>
           )}
@@ -471,23 +471,23 @@ export default function Calibration() {
           {/* Paper + fingertip dots on surface */}
           <div className="absolute pointer-events-none" style={{ bottom: "18%", left: "10%", right: "10%" }}>
             <div className="relative w-full" style={{ height: 60, transform: "skewX(-8deg)" }}>
-              <div className="absolute inset-0 border-2 border-[#e05c5c] bg-white/90" />
+              <div className="absolute inset-0 border-2 border-[#b42318] bg-white/90" />
               {[15, 22, 32, 42, 54, 62, 70, 78, 86, 92].map((pct, i) => (
-                <div key={i} className="absolute w-2 h-2 rounded-full bg-[#e05c5c]" style={{ top: "30%", left: `${pct}%` }} />
+                <div key={i} className="absolute w-2 h-2 rounded-full bg-[#b42318]" style={{ top: "30%", left: `${pct}%` }} />
               ))}
             </div>
           </div>
 
           {/* Instruction pill — before countdown starts */}
           {!hasStarted && !step5Success && (
-            <div className="absolute top-[35%] left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/60 px-5 py-2 rounded-full pointer-events-none">
+            <div className="absolute top-[35%] left-1/2 -translate-x-1/2 flex items-center gap-2 bg-[#090909] px-5 py-2 rounded-full pointer-events-none">
               <span className="text-white text-[16px] font-sans">Place hands flat on the paper, then press Start</span>
             </div>
           )}
 
           {/* Waiting pill — while counting (not success yet) */}
           {isCounting && !step5Success && (
-            <div className="absolute top-[35%] left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/60 px-5 py-2 rounded-full pointer-events-none">
+            <div className="absolute top-[35%] left-1/2 -translate-x-1/2 flex items-center gap-2 bg-[#090909] px-5 py-2 rounded-full pointer-events-none">
               <span className="text-white text-[16px] font-sans">Hold still...</span>
             </div>
           )}
@@ -495,11 +495,11 @@ export default function Calibration() {
           {/* Success overlay */}
           {step5Success && (
             <div className="absolute inset-0 flex flex-col items-center justify-start pt-[14%] gap-3 pointer-events-none">
-              <div className="flex items-center gap-3 bg-black/60 px-6 py-3 rounded-full">
-                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="#6dd99a"/><path d="M8 14L11.5 18L20 10" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <div className="flex items-center gap-3 bg-[#090909] px-6 py-3 rounded-full">
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="#237a45"/><path d="M8 14L11.5 18L20 10" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 <span className="text-white text-[26px] font-sans font-medium">Success!</span>
               </div>
-              <p className="text-white/80 text-[15px] font-sans">Click Next Step to finish calibration</p>
+              <p className="rounded-full bg-[#090909] px-4 py-1 text-white text-[15px] font-sans">Click Next Step to finish calibration</p>
             </div>
           )}
 
@@ -548,7 +548,7 @@ export default function Calibration() {
     if (isComplete) {
       return (
         <div className="flex items-center gap-4">
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="#6dd99a"/><path d="M8 14L11.5 18L20 10" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="#237a45"/><path d="M8 14L11.5 18L20 10" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           <p className="text-[24px] text-black font-sans">Calibration complete! You&apos;re ready to play.</p>
         </div>
       );
@@ -562,7 +562,7 @@ export default function Calibration() {
             <div className="flex flex-col gap-1">
               <label htmlFor="octave-count" className="text-[13px] text-black font-sans"># of Octaves</label>
               <div className="relative">
-                <select id="octave-count" value={octaves} onChange={(e) => setOctaves(e.target.value)} className="border border-[#d9d9d9] rounded-[8px] pl-3 pr-8 py-2 text-[15px] text-[#1e1e1e] bg-white appearance-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20">
+                <select id="octave-count" value={octaves} onChange={(e) => setOctaves(e.target.value)} className="border border-[#767676] rounded-[8px] pl-3 pr-8 py-2 text-[15px] text-[#1e1e1e] bg-white appearance-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
                   {OCTAVE_OPTIONS.map((o) => <option key={o}>{o}</option>)}
                 </select>
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"><ChevronDown /></div>
@@ -571,7 +571,7 @@ export default function Calibration() {
             <div className="flex flex-col gap-1">
               <label htmlFor="starting-note" className="text-[13px] text-black font-sans">Starting Octave</label>
               <div className="relative">
-                <select id="starting-note" value={startingNote} onChange={(e) => setStartingNote(e.target.value)} className="border border-[#d9d9d9] rounded-[8px] pl-3 pr-8 py-2 text-[15px] text-[#1e1e1e] bg-white appearance-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20">
+                <select id="starting-note" value={startingNote} onChange={(e) => setStartingNote(e.target.value)} className="border border-[#767676] rounded-[8px] pl-3 pr-8 py-2 text-[15px] text-[#1e1e1e] bg-white appearance-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
                   {NOTE_OPTIONS.map((n) => <option key={n}>{n}</option>)}
                 </select>
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"><ChevronDown /></div>
@@ -589,10 +589,10 @@ export default function Calibration() {
         <div className="flex items-center gap-5 flex-wrap">
           <p className="text-[24px] text-black font-sans shrink-0">Step 2: Check your lighting</p>
           <div className="flex items-center gap-6 shrink-0">
-            <span className="text-[14px] text-black/70 font-sans" aria-live="polite">
+            <span className="text-[14px] text-[#595854] font-sans" aria-live="polite">
               Current: {pct === null ? "measuring…" : `${pct}% brightness`}
             </span>
-            <span className="text-[14px] text-black/70 font-sans">
+            <span className="text-[14px] text-[#595854] font-sans">
               Target: {Math.round(MIN_BRIGHTNESS * 100)}–{Math.round(MAX_BRIGHTNESS * 100)}%
             </span>
             {lightingOk ? (
@@ -621,7 +621,7 @@ export default function Calibration() {
             </button>
           )}
           {!fingersShown && !canCapture && (
-            <span className="text-[14px] text-black/60 font-sans" aria-live="polite">
+            <span className="text-[14px] text-[#595854] font-sans" aria-live="polite">
               {landmarkerStatus === "loading"
                 ? "Loading hand detection…"
                 : landmarkerStatus === "error"

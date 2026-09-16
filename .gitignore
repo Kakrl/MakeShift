@@ -11,3 +11,6 @@ Testing/
 *.pyd
 *.so
 *.pdb
+
+# Generated frontend test evidence
+frontend/test-results/

@@ -220,7 +220,7 @@ export default function Home() {
                 </h2>
               </div>
 
-              <p className="text-[15px] text-black/65 font-sans leading-relaxed mb-7">
+              <p className="text-[15px] text-[#595854] font-sans leading-relaxed mb-7">
                 MakeShift turns a sheet of paper and your webcam into a playable piano, no hardware needed. Before you start, here&apos;s how to get going:
               </p>
 
@@ -228,19 +228,19 @@ export default function Home() {
                 {[
                   {
                     num: "1",
-                    color: "#b46eff",
+                    color: "#7440a8",
                     title: "Read the Tutorial",
                     body: "Get familiar with the setup steps and how finger tracking works.",
                   },
                   {
                     num: "2",
-                    color: "#b46eff",
+                    color: "#7440a8",
                     title: "Run Calibration",
                     body: "Place a sheet of paper in view of your camera and walk through the 5-step calibration so MakeShift can map your keys.",
                   },
                   {
                     num: "3",
-                    color: "#b46eff",
+                    color: "#7440a8",
                     title: "Press Play and perform",
                     body: "Set your tempo, toggle the metronome, hit Play, and start tapping the paper to make music.",
                   },
@@ -254,7 +254,7 @@ export default function Home() {
                     </span>
                     <div>
                       <p className="text-[15px] font-semibold text-black font-sans">{title}</p>
-                      <p className="text-[14px] text-black/60 font-sans leading-relaxed">{body}</p>
+                      <p className="text-[14px] text-[#595854] font-sans leading-relaxed">{body}</p>
                     </div>
                   </div>
                 ))}
@@ -278,7 +278,7 @@ export default function Home() {
 
               <button
                 onClick={() => setShowWelcome(false)}
-                className="w-full mt-3 py-2 text-[13px] text-black/40 font-sans hover:text-black/60 transition-colors"
+                className="w-full mt-3 py-2 text-[13px] text-[#595854] font-sans hover:text-black transition-colors"
               >
                 Skip for now
               </button>
@@ -302,7 +302,7 @@ export default function Home() {
             </div>
             <hr className="border-[#e5e5e5]" />
             <div className="px-8 py-6">
-              <p className="text-[15px] text-black/70 font-sans mb-5 leading-relaxed">
+              <p className="text-[15px] text-[#595959] font-sans mb-5 leading-relaxed">
                 Calibration maps your paper keyboard to the screen. Make sure you have a sheet of paper, good lighting, and your webcam is unobstructed before starting.
               </p>
               <ol className="flex flex-col gap-3">
@@ -314,7 +314,7 @@ export default function Home() {
                   "Place hands flat on the paper to set note boundaries",
                 ].map((text, i) => (
                   <li key={i} className="flex items-start gap-3">
-                    <span className="shrink-0 w-6 h-6 rounded-full bg-[#b46eff] flex items-center justify-center text-white text-[13px] font-bold mt-0.5">
+                    <span className="shrink-0 w-6 h-6 rounded-full bg-[#7440a8] flex items-center justify-center text-white text-[13px] font-bold mt-0.5">
                       {i + 1}
                     </span>
                     <span className="text-[15px] text-black/80 font-sans leading-relaxed">{text}</span>
@@ -381,10 +381,10 @@ export default function Home() {
             <div className="absolute inset-0 flex items-center justify-center z-50 bg-black/30">
               <div className="bg-white rounded-[14px] px-12 py-8 shadow-2xl flex flex-col items-center gap-3">
                 <div className="flex items-center gap-3">
-                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#6dd99a"/><path d="M9 16L13.5 21L23 11" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#237a45"/><path d="M9 16L13.5 21L23 11" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   <p className="text-[28px] font-bold text-black font-sans">Recording Complete!</p>
                 </div>
-                <p className="text-[14px] text-black/50 font-sans">Use the sidebar to export or delete</p>
+                <p className="text-[14px] text-[#595959] font-sans">Use the sidebar to export or delete</p>
                 <button
                   onClick={() => setShowRecordingComplete(false)}
                   className="mt-1 border border-black/20 px-6 py-2 rounded-[8px] text-[15px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]"
@@ -400,7 +400,7 @@ export default function Home() {
             <div className="absolute inset-0 flex items-center justify-center z-50 bg-black/30">
               <div className="bg-white rounded-[14px] px-10 py-8 shadow-2xl flex flex-col items-center gap-5 w-[360px]">
                 <p className="text-[20px] font-sans font-medium text-black text-center">Delete this MIDI recording?</p>
-                <p className="text-[14px] text-black/50 font-sans text-center -mt-2">This cannot be undone.</p>
+                <p className="text-[14px] text-[#595959] font-sans text-center -mt-2">This cannot be undone.</p>
                 <div className="flex gap-4 w-full">
                   <button
                     onClick={() => setShowDeleteConfirm(false)}
@@ -410,7 +410,7 @@ export default function Home() {
                   </button>
                   <button
                     onClick={confirmDelete}
-                    className="flex-1 border border-[#e05c5c] bg-[#e05c5c] py-3 rounded-[8px] text-[16px] text-white font-sans hover:bg-[#c94f4f] active:scale-[0.97] transition-[background-color,transform]"
+                    className="flex-1 border border-[#b42318] bg-[#b42318] py-3 rounded-[8px] text-[16px] text-white font-sans hover:bg-[#8f1c13] active:scale-[0.97] transition-[background-color,transform]"
                   >
                     Delete
                   </button>
@@ -457,9 +457,9 @@ export default function Home() {
                   max={300}
                   value={tempo}
                   onChange={(e) => handleTempoChange(e.target.value)}
-                  className="border border-[#d9d9d9] rounded-[8px] px-4 py-3 text-[16px] text-[#1e1e1e] bg-white w-[80px] leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+                  className="border border-[#767676] rounded-[8px] px-4 py-3 text-[16px] text-[#1e1e1e] bg-white w-[80px] leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
                 />
-                <span className="text-[13px] text-black/50 font-sans">BPM</span>
+                <span className="text-[13px] text-[#595854] font-sans">BPM</span>
               </div>
             </div>
 
@@ -471,7 +471,7 @@ export default function Home() {
                   id="time-signature"
                   value={timeSignature}
                   onChange={(e) => setTimeSignature(e.target.value)}
-                  className="border border-[#d9d9d9] rounded-[8px] pl-4 pr-8 py-[10px] text-[16px] text-[#1e1e1e] bg-white w-full appearance-none leading-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+                  className="border border-[#767676] rounded-[8px] pl-4 pr-8 py-[10px] text-[16px] text-[#1e1e1e] bg-white w-full appearance-none leading-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
                 >
                   <option>4/4</option>
                   <option>3/4</option>
@@ -488,7 +488,7 @@ export default function Home() {
                 onClick={() => setMetronome(!metronome)}
                 aria-label="Toggle metronome"
                 aria-pressed={metronome}
-                className={`relative w-[40px] h-[24px] rounded-full overflow-hidden transition-colors ${metronome ? "bg-[#1e1e1e]" : "bg-[#d9d9d9]"}`}
+                className={`relative w-[40px] h-[24px] rounded-full overflow-hidden transition-colors ${metronome ? "bg-[#1e1e1e]" : "bg-[#8a8882]"}`}
               >
                 <span className={`absolute top-[2px] left-0 w-[20px] h-[20px] rounded-full bg-white shadow transition-transform duration-150 ease-out ${metronome ? "translate-x-[18px]" : "translate-x-[2px]"}`} />
               </button>
@@ -505,7 +505,7 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="border border-[#e05c5c] bg-[#fffdf7] px-4 py-[10px] rounded-[8px] text-[14px] text-[#e05c5c] font-sans hover:bg-red-50 active:scale-[0.97] transition-[background-color,transform] text-left"
+                  className="border border-[#b42318] bg-[#fffdf7] px-4 py-[10px] rounded-[8px] text-[14px] text-[#b42318] font-sans hover:bg-red-50 active:scale-[0.97] transition-[background-color,transform] text-left"
                 >
                   Delete .MIDI Recording
                 </button>
@@ -526,14 +526,14 @@ export default function Home() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-[22px] font-bold text-black font-sans mb-2">Export MIDI Recording</h2>
-            <p className="text-[15px] text-black/60 font-sans mb-6">Choose where to save the MIDI file.</p>
+            <p className="text-[15px] text-[#595959] font-sans mb-6">Choose where to save the MIDI file.</p>
             <label htmlFor="export-path" className="text-[14px] font-medium text-black font-sans block mb-2">Save location</label>
             <input
               id="export-path"
               type="text"
               value={exportPath}
               onChange={(e) => setExportPath(e.target.value)}
-              className="w-full border border-[#d9d9d9] rounded-[8px] px-4 py-3 text-[16px] text-black bg-white mb-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+              className="w-full border border-[#767676] rounded-[8px] px-4 py-3 text-[16px] text-black bg-white mb-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
             />
             <div className="flex gap-3 justify-end">
               <button
