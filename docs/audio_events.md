@@ -51,8 +51,10 @@ Each callback consumes at most 256 events before rendering its buffer. Events
 start at a buffer boundary; sample-accurate timestamps are not supported yet.
 The initial renderer plays a 100 ms decaying sine tone at the requested MIDI
 pitch. This provides audible output for the event path until instrument samples
-are available. It mixes 16 voices into stereo at 44.1 kHz and clamps output to
-[-1, 1]. When all voice slots have been used, new hits replace voices in rotation.
+are available. It mixes up to 10 voices into stereo at 44.1 kHz and clamps output to
+[-1, 1]. Expired voices are reused first. At the limit, a new hit replaces the
+oldest active hit, including when several hits arrive in one callback.
+See [voice allocation](audio.md) for configuring a lower limit.
 Stopping the stream preserves pending events and voice state for a later restart.
 
 ## Testing

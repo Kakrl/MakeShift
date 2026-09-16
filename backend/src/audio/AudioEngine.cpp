@@ -3,7 +3,11 @@
 #include <cmath>
 #include <numbers>
 
-AudioEngine::AudioEngine() : stream(nullptr) {}
+AudioEngine::AudioEngine(int voiceLimit) : voiceLimit(voiceLimit), stream(nullptr) {
+    if (voiceLimit < 1 || voiceLimit > static_cast<int>(MaxVoices)) {
+        throw std::invalid_argument("Voice limit must be between 1 and 10.");
+    }
+}
 
 AudioEngine::~AudioEngine() {
     stopStream();
@@ -28,18 +32,30 @@ void AudioEngine::render(float *output, unsigned long frames) noexcept {
     if (frames == 0) {
         return;
     }
+    // Reuse expired slots before stealing an active voice. Stable compaction
+    // preserves hit order, including hits received in the same callback.
+    auto activeEnd = std::remove_if(voices.begin(), voices.begin() + activeVoiceCount,
+                                    [](const Voice &voice) { return voice.remaining == 0; });
+    activeVoiceCount = static_cast<std::size_t>(activeEnd - voices.begin());
     HitEvent event{};
     // Bound callback work even when the producer keeps adding events.
     for (std::size_t i = 0; i < eventCapacity && events.tryPop(event); ++i) {
-        auto &voice = voices[nextVoice];
-        nextVoice = (nextVoice + 1) % voices.size();
+        if (activeVoiceCount == voiceLimit) {
+            // Drop the oldest hit and retain the remaining voices' playback state.
+            for (std::size_t j = 1; j < activeVoiceCount; ++j) {
+                voices[j - 1] = voices[j];
+            }
+            --activeVoiceCount;
+        }
+        auto &voice = voices[activeVoiceCount++];
         const double frequency = 440.0 * std::exp2((event.note - 69) / 12.0);
         voice = {0.0, 2.0 * std::numbers::pi * frequency / sampleRate, event.velocity * 0.2f,
                  hitFrames};
     }
     for (unsigned long i = 0; i < frames; ++i) {
         float sample = 0.0f;
-        for (auto &voice : voices) {
+        for (std::size_t j = 0; j < activeVoiceCount; ++j) {
+            auto &voice = voices[j];
             if (voice.remaining == 0) {
                 continue;
             }

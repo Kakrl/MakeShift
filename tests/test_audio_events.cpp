@@ -123,3 +123,74 @@ TEST(AudioEventsTest, VoiceStateContinuesAcrossCallbacks) {
     split.render(actual.data() + 128, 64);
     EXPECT_EQ(expected, actual);
 }
+
+TEST(AudioPolyphonyTest, DefaultLimitKeepsNewestTenHitsInQueueOrder) {
+    AudioEngine actual;
+    AudioEngine expected;
+    for (int note = 40; note < 64; ++note) {
+        ASSERT_TRUE(actual.submitHit(note, 0.1f));
+        if (note >= 54)
+            ASSERT_TRUE(expected.submitHit(note, 0.1f));
+    }
+    std::array<float, 256> a{}, b{};
+    actual.render(a.data(), 128);
+    expected.render(b.data(), 128);
+    EXPECT_EQ(a, b);
+}
+
+TEST(AudioPolyphonyTest, StealsOldestAcrossCallbacksWithoutRestartingOtherVoices) {
+    AudioEngine actual(2);
+    AudioEngine expected(2);
+    ASSERT_TRUE(actual.submitHit(60, 0.1f));
+    ASSERT_TRUE(actual.submitHit(61, 0.1f));
+    ASSERT_TRUE(expected.submitHit(61, 0.1f));
+    std::array<float, 256> a{}, b{};
+    actual.render(a.data(), 128);
+    expected.render(b.data(), 128);
+    ASSERT_TRUE(actual.submitHit(62, 0.1f));
+    ASSERT_TRUE(expected.submitHit(62, 0.1f));
+    actual.render(a.data(), 128);
+    expected.render(b.data(), 128);
+    EXPECT_EQ(a, b);
+}
+
+TEST(AudioPolyphonyTest, ReusesExpiredVoicesBeforeStealing) {
+    AudioEngine actual(3);
+    AudioEngine expected(3);
+    std::vector<float> scratch(8000);
+    ASSERT_TRUE(actual.submitHit(60, 0.1f));
+    actual.render(scratch.data(), 4000);
+    for (int note : {61, 62}) {
+        ASSERT_TRUE(actual.submitHit(note, 0.1f));
+        ASSERT_TRUE(expected.submitHit(note, 0.1f));
+    }
+    actual.render(scratch.data(), 410);
+    expected.render(scratch.data(), 410);
+    ASSERT_TRUE(actual.submitHit(63, 0.1f));
+    ASSERT_TRUE(expected.submitHit(63, 0.1f));
+    std::array<float, 256> a{}, b{};
+    actual.render(a.data(), 128);
+    expected.render(b.data(), 128);
+    EXPECT_EQ(a, b);
+}
+
+TEST(AudioPolyphonyTest, RepeatedPitchIsANewHitAndSingleVoiceLimitWorks) {
+    AudioEngine actual(1);
+    AudioEngine expected(1);
+    ASSERT_TRUE(actual.submitHit(60, 0.1f));
+    std::array<float, 256> a{}, b{};
+    actual.render(a.data(), 128);
+    ASSERT_TRUE(actual.submitHit(60, 0.2f));
+    ASSERT_TRUE(expected.submitHit(60, 0.2f));
+    actual.render(a.data(), 128);
+    expected.render(b.data(), 128);
+    EXPECT_EQ(a, b);
+}
+
+TEST(AudioPolyphonyTest, RejectsLimitsOutsideOneToTen) {
+    EXPECT_THROW(AudioEngine(0), std::invalid_argument);
+    EXPECT_THROW(AudioEngine(-1), std::invalid_argument);
+    EXPECT_THROW(AudioEngine(11), std::invalid_argument);
+    EXPECT_NO_THROW(AudioEngine(1));
+    EXPECT_NO_THROW(AudioEngine(10));
+}

@@ -6,7 +6,8 @@
 
 class AudioEngine {
   public:
-    AudioEngine();
+    static constexpr std::size_t MaxVoices = 10;
+    explicit AudioEngine(int voiceLimit = MaxVoices);
     ~AudioEngine();
 
     void initialize();
@@ -36,8 +37,10 @@ class AudioEngine {
     static constexpr unsigned int sampleRate = 44100;
     static constexpr unsigned int hitFrames = sampleRate / 10;
     SpscQueue<HitEvent, eventCapacity> events;
-    std::array<Voice, 16> voices{};
-    std::size_t nextVoice = 0;
+    // Consumer-owned voices, ordered from oldest hit to newest.
+    std::array<Voice, MaxVoices> voices{};
+    std::size_t activeVoiceCount = 0;
+    const std::size_t voiceLimit;
     PaStream *stream;
 
     // PortAudio requires a static C-style callback function
