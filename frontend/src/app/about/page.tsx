@@ -4,33 +4,33 @@ import Link from "next/link";
 
 export default function About() {
   return (
-    <div className="flex-1 bg-[#fffdf7] flex flex-col min-h-0 overflow-hidden">
+    <div className="flex-1 bg-surface flex flex-col min-h-0 overflow-hidden">
       <div className="flex pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)]">
         {/* Content area — locked to 16:9 */}
-        <div className="flex-1 aspect-video bg-[#090909] relative overflow-hidden">
+        <div className="flex-1 aspect-video bg-surface-dark relative overflow-hidden">
           <div className="absolute inset-0 overflow-y-auto p-[48px]">
             <h1 className="text-white text-[40px] font-sans font-medium mb-[24px]">About MakeShift</h1>
-            <p className="text-white/80 text-[18px] font-sans leading-relaxed mb-[32px] max-w-[560px]">
+            <p className="text-ink-inverse text-[18px] font-sans leading-relaxed mb-[32px] max-w-[560px]">
               MakeShift turns any flat surface into a virtual piano. Using computer vision and your webcam,
               it tracks your fingertips in real time and maps them to musical notes. No hardware required.
             </p>
 
             <div className="flex flex-col gap-[24px] max-w-[560px]">
               <div>
-                <p className="text-[#b46eff] text-[14px] font-sans uppercase tracking-wider mb-2">Requirements</p>
-                <p className="text-white/70 text-[16px] font-sans leading-relaxed">
+                <p className="text-accent-light text-[14px] font-sans uppercase tracking-wider mb-2">Requirements</p>
+                <p className="text-ink-inverse-muted text-[16px] font-sans leading-relaxed">
                   A webcam, a flat sheet of paper, and decent lighting. That&apos;s all.
                 </p>
               </div>
               <div>
-                <p className="text-[#b46eff] text-[14px] font-sans uppercase tracking-wider mb-2">Output</p>
-                <p className="text-white/70 text-[16px] font-sans leading-relaxed">
+                <p className="text-accent-light text-[14px] font-sans uppercase tracking-wider mb-2">Output</p>
+                <p className="text-ink-inverse-muted text-[16px] font-sans leading-relaxed">
                   Export your performance as a standard MIDI file to use in any DAW.
                 </p>
               </div>
               <div>
-                <p className="text-[#b46eff] text-[14px] font-sans uppercase tracking-wider mb-2">Open Source</p>
-                <p className="text-white/70 text-[16px] font-sans leading-relaxed">
+                <p className="text-accent-light text-[14px] font-sans uppercase tracking-wider mb-2">Open Source</p>
+                <p className="text-ink-inverse-muted text-[16px] font-sans leading-relaxed">
                   MakeShift is open source. If you want to extend it, fix bugs, or build on top of it, contributions are welcome.
                 </p>
               </div>
@@ -50,17 +50,17 @@ export default function About() {
           <div className="flex flex-col">
             <Link
               href="/calibration"
-              className="border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] rounded-tr-[8px] bg-[#fffdf7] relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] hover:bg-black/5 transition-colors"
+              className="border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] rounded-tr-[8px] bg-surface relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] hover:bg-black/5 transition-colors"
             >
               <span className="text-[20px] text-black font-sans whitespace-nowrap">Calibration</span>
             </Link>
             <Link
               href="/tutorial"
-              className="-mt-px border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] bg-[#fffdf7] relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] hover:bg-black/5 transition-colors"
+              className="-mt-px border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] bg-surface relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] hover:bg-black/5 transition-colors"
             >
               <span className="text-[20px] text-black font-sans whitespace-nowrap">Tutorial</span>
             </Link>
-            <div className="-mt-px border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] rounded-br-[8px] bg-[#e7d0ff] relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)]">
+            <div className="-mt-px border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] rounded-br-[8px] bg-accent-soft relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)]">
               <span className="text-[20px] text-black font-sans whitespace-nowrap">About</span>
             </div>
           </div>

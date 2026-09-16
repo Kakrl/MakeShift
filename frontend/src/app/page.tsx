@@ -20,7 +20,7 @@ function ChevronDown() {
   );
 }
 
-function PlayIcon({ color = "#1e1e1e" }: { color?: string }) {
+function PlayIcon({ color = "var(--color-ink)" }: { color?: string }) {
   return (
     <svg aria-hidden="true" width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="20" cy="20" r="18.5" stroke={color} strokeWidth="1.5" style={{ transition: "stroke 120ms ease" }} />
@@ -32,9 +32,9 @@ function PlayIcon({ color = "#1e1e1e" }: { color?: string }) {
 function PauseIcon() {
   return (
     <svg aria-hidden="true" width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="20" cy="20" r="18.5" stroke="#3b82f6" strokeWidth="1.5" />
-      <rect x="13" y="13" width="5" height="14" rx="1.5" fill="#3b82f6" />
-      <rect x="22" y="13" width="5" height="14" rx="1.5" fill="#3b82f6" />
+      <circle cx="20" cy="20" r="18.5" stroke="var(--color-info)" strokeWidth="1.5" />
+      <rect x="13" y="13" width="5" height="14" rx="1.5" fill="var(--color-info)" />
+      <rect x="22" y="13" width="5" height="14" rx="1.5" fill="var(--color-info)" />
     </svg>
   );
 }
@@ -42,8 +42,8 @@ function PauseIcon() {
 function StopIcon() {
   return (
     <svg aria-hidden="true" width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="20" cy="20" r="18.5" stroke="#1e1e1e" strokeWidth="1.5" />
-      <rect x="13" y="13" width="14" height="14" fill="#1e1e1e" />
+      <circle cx="20" cy="20" r="18.5" stroke="var(--color-ink)" strokeWidth="1.5" />
+      <rect x="13" y="13" width="14" height="14" fill="var(--color-ink)" />
     </svg>
   );
 }
@@ -196,7 +196,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex-1 bg-[#fffdf7] flex flex-col min-h-0 overflow-hidden">
+    <div className="flex-1 bg-surface flex flex-col min-h-0 overflow-hidden">
       <div aria-live="polite" className="sr-only">
         {isRecording ? "Recording started" : showRecordingComplete ? "Recording complete" : ""}
       </div>
@@ -204,21 +204,21 @@ export default function Home() {
       {/* ── Welcome Modal (first visit) ─────────────────────────────────────── */}
       {showWelcome && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-[#fffdf7] rounded-[20px] shadow-2xl w-[540px] max-w-[92vw] overflow-hidden">
+          <div className="bg-surface rounded-[20px] shadow-2xl w-[540px] max-w-[92vw] overflow-hidden">
 
             {/* Body */}
             <div className="px-10 pt-9 pb-8">
               {/* Piano icon */}
               <div className="flex items-center gap-3 mb-5">
                 <svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
-                  <rect x="1" y="6" width="34" height="24" rx="3" fill="#1e1e1e" />
+                  <rect x="1" y="6" width="34" height="24" rx="3" fill="var(--color-ink)" />
                   {/* White keys */}
                   {[4, 9, 14, 19, 24, 29].map((x) => (
                     <rect key={x} x={x} y="6" width="4" height="18" rx="1" fill="white" />
                   ))}
                   {/* Black keys */}
                   {[6.5, 11.5, 21.5, 26.5].map((x) => (
-                    <rect key={x} x={x} y="6" width="3" height="11" rx="1" fill="#1e1e1e" />
+                    <rect key={x} x={x} y="6" width="3" height="11" rx="1" fill="var(--color-ink)" />
                   ))}
                 </svg>
                 <h2 className="text-[28px] font-bold text-black font-sans tracking-tight">
@@ -226,7 +226,7 @@ export default function Home() {
                 </h2>
               </div>
 
-              <p className="text-[15px] text-black/65 font-sans leading-relaxed mb-7">
+              <p className="text-[15px] text-ink-muted font-sans leading-relaxed mb-7">
                 MakeShift turns a sheet of paper and your webcam into a playable piano, no hardware needed. Before you start, here&apos;s how to get going:
               </p>
 
@@ -234,19 +234,19 @@ export default function Home() {
                 {[
                   {
                     num: "1",
-                    color: "#b46eff",
+                    color: "var(--color-accent)",
                     title: "Read the Tutorial",
                     body: "Get familiar with the setup steps and how finger tracking works.",
                   },
                   {
                     num: "2",
-                    color: "#b46eff",
+                    color: "var(--color-accent)",
                     title: "Run Calibration",
                     body: "Place a sheet of paper in view of your camera and walk through the 5-step calibration so MakeShift can map your keys.",
                   },
                   {
                     num: "3",
-                    color: "#b46eff",
+                    color: "var(--color-accent)",
                     title: "Press Play and perform",
                     body: "Set your tempo, toggle the metronome, hit Play, and start tapping the paper to make music.",
                   },
@@ -260,7 +260,7 @@ export default function Home() {
                     </span>
                     <div>
                       <p className="text-[15px] font-semibold text-black font-sans">{title}</p>
-                      <p className="text-[14px] text-black/60 font-sans leading-relaxed">{body}</p>
+                      <p className="text-[14px] text-ink-muted font-sans leading-relaxed">{body}</p>
                     </div>
                   </div>
                 ))}
@@ -270,7 +270,7 @@ export default function Home() {
               <div className="flex gap-3">
                 <button
                   onClick={() => { setShowWelcome(false); router.push("/tutorial"); }}
-                  className="flex-1 border border-black bg-[#fffdf7] py-3 rounded-[10px] text-[15px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]"
+                  className="flex-1 border border-black bg-surface py-3 rounded-[10px] text-[15px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]"
                 >
                   Read Tutorial
                 </button>
@@ -284,7 +284,7 @@ export default function Home() {
 
               <button
                 onClick={() => setShowWelcome(false)}
-                className="w-full mt-3 py-2 text-[13px] text-black/40 font-sans hover:text-black/60 transition-colors"
+                className="w-full mt-3 py-2 text-[13px] text-ink-muted font-sans hover:text-black transition-colors"
               >
                 Skip for now
               </button>
@@ -306,9 +306,9 @@ export default function Home() {
             <div className="px-8 pt-8 pb-5">
               <h2 className="text-[26px] font-bold text-black font-sans">Before You Begin: Calibration</h2>
             </div>
-            <hr className="border-[#e5e5e5]" />
+            <hr className="border-divider-subtle" />
             <div className="px-8 py-6">
-              <p className="text-[15px] text-black/70 font-sans mb-5 leading-relaxed">
+              <p className="text-[15px] text-ink-subtle font-sans mb-5 leading-relaxed">
                 Calibration maps your paper keyboard to the screen. Make sure you have a sheet of paper, good lighting, and your webcam is unobstructed before starting.
               </p>
               <ol className="flex flex-col gap-3">
@@ -320,7 +320,7 @@ export default function Home() {
                   "Place hands flat on the paper to set note boundaries",
                 ].map((text, i) => (
                   <li key={i} className="flex items-start gap-3">
-                    <span className="shrink-0 w-6 h-6 rounded-full bg-[#b46eff] flex items-center justify-center text-white text-[13px] font-bold mt-0.5">
+                    <span className="shrink-0 w-6 h-6 rounded-full bg-accent flex items-center justify-center text-white text-[13px] font-bold mt-0.5">
                       {i + 1}
                     </span>
                     <span className="text-[15px] text-black/80 font-sans leading-relaxed">{text}</span>
@@ -331,7 +331,7 @@ export default function Home() {
             <div className="px-8 pb-8 flex gap-3 justify-end">
               <button
                 onClick={() => { setShowCalibrationIntro(false); router.push("/calibration"); }}
-                className="border border-black bg-[#fffdf7] px-6 py-3 rounded-[10px] text-[16px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]"
+                className="border border-black bg-surface px-6 py-3 rounded-[10px] text-[16px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]"
               >
                 Skip
               </button>
@@ -348,7 +348,7 @@ export default function Home() {
 
       <div className="flex pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)]">
         {/* Camera */}
-        <div className="flex-1 aspect-video bg-[#090909] relative overflow-hidden">
+        <div className="flex-1 aspect-video bg-surface-dark relative overflow-hidden">
           <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" />
 
           <CameraStatusOverlay />
@@ -387,10 +387,10 @@ export default function Home() {
             <div className="absolute inset-0 flex items-center justify-center z-50 bg-black/30">
               <div className="bg-white rounded-[14px] px-12 py-8 shadow-2xl flex flex-col items-center gap-3">
                 <div className="flex items-center gap-3">
-                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="#6dd99a"/><path d="M9 16L13.5 21L23 11" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="var(--color-success)"/><path d="M9 16L13.5 21L23 11" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   <p className="text-[28px] font-bold text-black font-sans">Recording Complete!</p>
                 </div>
-                <p className="text-[14px] text-black/50 font-sans">Use the sidebar to export or delete</p>
+                <p className="text-[14px] text-ink-subtle font-sans">Use the sidebar to export or delete</p>
                 <button
                   onClick={() => setShowRecordingComplete(false)}
                   className="mt-1 border border-black/20 px-6 py-2 rounded-[8px] text-[15px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]"
@@ -406,17 +406,17 @@ export default function Home() {
             <div className="absolute inset-0 flex items-center justify-center z-50 bg-black/30">
               <div className="bg-white rounded-[14px] px-10 py-8 shadow-2xl flex flex-col items-center gap-5 w-[360px]">
                 <p className="text-[20px] font-sans font-medium text-black text-center">Delete this MIDI recording?</p>
-                <p className="text-[14px] text-black/50 font-sans text-center -mt-2">This cannot be undone.</p>
+                <p className="text-[14px] text-ink-subtle font-sans text-center -mt-2">This cannot be undone.</p>
                 <div className="flex gap-4 w-full">
                   <button
                     onClick={() => setShowDeleteConfirm(false)}
-                    className="flex-1 border border-black bg-[#fffdf7] py-3 rounded-[8px] text-[16px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]"
+                    className="flex-1 border border-black bg-surface py-3 rounded-[8px] text-[16px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmDelete}
-                    className="flex-1 border border-[#e05c5c] bg-[#e05c5c] py-3 rounded-[8px] text-[16px] text-white font-sans hover:bg-[#c94f4f] active:scale-[0.97] transition-[background-color,transform]"
+                    className="flex-1 border border-danger bg-danger py-3 rounded-[8px] text-[16px] text-white font-sans hover:bg-danger-hover active:scale-[0.97] transition-[background-color,transform]"
                   >
                     Delete
                   </button>
@@ -438,14 +438,14 @@ export default function Home() {
           <div className="flex flex-col">
             <button
               onClick={() => setShowCalibrationIntro(true)}
-              className="border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] rounded-tr-[8px] bg-[#fffdf7] relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] hover:bg-black/5 transition-colors"
+              className="border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] rounded-tr-[8px] bg-surface relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] hover:bg-black/5 transition-colors"
             >
               <span className="text-[20px] text-black font-sans whitespace-nowrap">Calibration</span>
             </button>
-            <Link href="/tutorial" className="-mt-px border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] bg-[#fffdf7] relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] hover:bg-black/5 transition-colors">
+            <Link href="/tutorial" className="-mt-px border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] bg-surface relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] hover:bg-black/5 transition-colors">
               <span className="text-[20px] text-black font-sans whitespace-nowrap">Tutorial</span>
             </Link>
-            <Link href="/about" className="-mt-px border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] rounded-br-[8px] bg-[#fffdf7] relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] hover:bg-black/5 transition-colors">
+            <Link href="/about" className="-mt-px border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] rounded-br-[8px] bg-surface relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] hover:bg-black/5 transition-colors">
               <span className="text-[20px] text-black font-sans whitespace-nowrap">About</span>
             </Link>
           </div>
@@ -454,7 +454,7 @@ export default function Home() {
           <div className="flex flex-col gap-[23px] mt-[42px] pl-[43px]">
             {/* Tempo */}
             <div className="flex flex-col gap-2">
-              <label htmlFor="set-tempo" className="text-[16px] text-[#1e1e1e] font-sans leading-[1.4]">Set Tempo</label>
+              <label htmlFor="set-tempo" className="text-[16px] text-ink font-sans leading-[1.4]">Set Tempo</label>
               <div className="flex items-center gap-2">
                 <input
                   id="set-tempo"
@@ -463,38 +463,38 @@ export default function Home() {
                   max={300}
                   value={tempo}
                   onChange={(e) => handleTempoChange(e.target.value)}
-                  className="border border-[#d9d9d9] rounded-[8px] px-4 py-3 text-[16px] text-[#1e1e1e] bg-white w-[80px] leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+                  className="border border-control-border rounded-[8px] px-4 py-3 text-[16px] text-ink bg-white w-[80px] leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
                 />
-                <span className="text-[13px] text-black/50 font-sans">BPM</span>
+                <span className="text-[13px] text-ink-muted font-sans">BPM</span>
               </div>
             </div>
 
             {/* Time Signature */}
             <div className="flex flex-col gap-2">
-              <label htmlFor="time-signature" className="text-[16px] text-[#1e1e1e] font-sans leading-[1.4]">Time Signature</label>
+              <label htmlFor="time-signature" className="text-[16px] text-ink font-sans leading-[1.4]">Time Signature</label>
               <div className="relative w-[120px]">
                 <select
                   id="time-signature"
                   value={timeSignature}
                   onChange={(e) => setTimeSignature(e.target.value)}
-                  className="border border-[#d9d9d9] rounded-[8px] pl-4 pr-8 py-[10px] text-[16px] text-[#1e1e1e] bg-white w-full appearance-none leading-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+                  className="border border-control-border rounded-[8px] pl-4 pr-8 py-[10px] text-[16px] text-ink bg-white w-full appearance-none leading-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
                 >
                   <option>4/4</option>
                   <option>3/4</option>
                   <option>6/8</option>
                 </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#1e1e1e]"><ChevronDown /></div>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-ink"><ChevronDown /></div>
               </div>
             </div>
 
             {/* Metronome toggle */}
             <div className="flex items-center gap-3">
-              <span className="text-[16px] text-[#1e1e1e] font-sans leading-[1.4] whitespace-nowrap">Metronome</span>
+              <span className="text-[16px] text-ink font-sans leading-[1.4] whitespace-nowrap">Metronome</span>
               <button
                 onClick={() => setMetronome(!metronome)}
                 aria-label="Toggle metronome"
                 aria-pressed={metronome}
-                className={`relative w-[40px] h-[24px] rounded-full overflow-hidden transition-colors ${metronome ? "bg-[#1e1e1e]" : "bg-[#d9d9d9]"}`}
+                className={`relative w-[40px] h-[24px] rounded-full overflow-hidden transition-colors ${metronome ? "bg-ink" : "bg-control-inactive"}`}
               >
                 <span className={`absolute top-[2px] left-0 w-[20px] h-[20px] rounded-full bg-white shadow transition-transform duration-150 ease-out ${metronome ? "translate-x-[18px]" : "translate-x-[2px]"}`} />
               </button>
@@ -502,16 +502,16 @@ export default function Home() {
 
             {/* MIDI controls — only visible after Stop is pressed */}
             {hasFinishedRecording && (
-              <div className="flex flex-col gap-[10px] pt-[6px] border-t border-[#d9d9d9]">
+              <div className="flex flex-col gap-[10px] pt-[6px] border-t border-divider">
                 <button
                   onClick={() => setShowExportDialog(!showExportDialog)}
-                  className="border border-black bg-[#fffdf7] px-4 py-[10px] rounded-[8px] text-[14px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] text-left"
+                  className="border border-black bg-surface px-4 py-[10px] rounded-[8px] text-[14px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] text-left"
                 >
                   Export .MIDI Recording
                 </button>
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="border border-[#e05c5c] bg-[#fffdf7] px-4 py-[10px] rounded-[8px] text-[14px] text-[#e05c5c] font-sans hover:bg-red-50 active:scale-[0.97] transition-[background-color,transform] text-left"
+                  className="border border-danger bg-surface px-4 py-[10px] rounded-[8px] text-[14px] text-danger font-sans hover:bg-red-50 active:scale-[0.97] transition-[background-color,transform] text-left"
                 >
                   Delete .MIDI Recording
                 </button>
@@ -532,14 +532,14 @@ export default function Home() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-[22px] font-bold text-black font-sans mb-2">Export MIDI Recording</h2>
-            <p className="text-[15px] text-black/60 font-sans mb-6">Choose where to save the MIDI file.</p>
+            <p className="text-[15px] text-ink-subtle font-sans mb-6">Choose where to save the MIDI file.</p>
             <label htmlFor="export-path" className="text-[14px] font-medium text-black font-sans block mb-2">Save location</label>
             <input
               id="export-path"
               type="text"
               value={exportPath}
               onChange={(e) => setExportPath(e.target.value)}
-              className="w-full border border-[#d9d9d9] rounded-[8px] px-4 py-3 text-[16px] text-black bg-white mb-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+              className="w-full border border-control-border rounded-[8px] px-4 py-3 text-[16px] text-black bg-white mb-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
             />
             <div className="flex gap-3 justify-end">
               <button
@@ -563,7 +563,7 @@ export default function Home() {
       <div className="flex items-center shrink-0 pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)] pb-[clamp(12px,3dvh,36px)] pt-[clamp(8px,2dvh,24px)]">
         <div className="flex-1 relative flex items-center justify-center gap-[27px]">
           {hasFinishedRecording && (
-            <button className="absolute left-0 border-[1.5px] border-black bg-[#fffdf7] px-5 py-2 rounded-[8px] text-[17px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]">
+            <button className="absolute left-0 border-[1.5px] border-black bg-surface px-5 py-2 rounded-[8px] text-[17px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]">
               Listen to Recording
             </button>
           )}
@@ -577,8 +577,8 @@ export default function Home() {
           >
             {isRecording && !isPaused
               ? <PauseIcon />
-              : <PlayIcon color={isPaused ? "#3b82f6" : "#1e1e1e"} />}
-            <span className={`text-[13px] font-sans select-none ${isPaused ? "text-[#3b82f6]" : "text-[#1e1e1e]"}`}>
+              : <PlayIcon color={isPaused ? "var(--color-info)" : "var(--color-ink)"} />}
+            <span className={`text-[13px] font-sans select-none ${isPaused ? "text-info" : "text-ink"}`}>
               {isRecording && !isPaused ? "Pause" : isPaused ? "Resume" : "Play"}
             </span>
           </button>
@@ -591,7 +591,7 @@ export default function Home() {
             className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!canRecord || (!isRecording && countInBeat === null) ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
           >
             <StopIcon />
-            <span className="text-[13px] text-[#1e1e1e] font-sans select-none">Stop</span>
+            <span className="text-[13px] text-ink font-sans select-none">Stop</span>
           </button>
         </div>
         <div className="w-[267px] shrink-0" />
