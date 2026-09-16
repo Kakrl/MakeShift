@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCamera } from "../CameraContext";
 import CameraStatusOverlay from "../CameraStatusOverlay";
 import { useHandLandmarker } from "../useHandLandmarker";
+import { useElementSize } from "../useElementSize";
+import { useLiveHandLandmarks } from "../useLiveHandLandmarks";
+import HandLandmarkOverlay from "./HandLandmarkOverlay";
 import {
   LIGHTING_MESSAGES,
   MAX_BRIGHTNESS,
@@ -15,6 +18,16 @@ import {
 } from "../lighting";
 
 const TOTAL_STEPS = 5;
+
+/**
+ * What the detector could actually see during calibration. Stored rather than
+ * assumed, so a user who cannot present two open five-finger hands still
+ * finishes calibration instead of being blocked (#14).
+ */
+interface HandProfile {
+  hands: number;
+  fingertips: number;
+}
 
 const OCTAVE_OPTIONS = ["1", "2", "3", "4"];
 const NOTE_OPTIONS = ["A0", "A1", "A2", "A3", "A4", "A5"];
@@ -80,8 +93,9 @@ export default function Calibration() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [fingersShown, setFingersShown] = useState(false);
-  const [showingImage, setShowingImage] = useState(false);
   const [step5Success, setStep5Success] = useState(false);
+  // #14 — what the detector saw when the last hold succeeded
+  const [handProfile, setHandProfile] = useState<HandProfile | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [paperError, setPaperError] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
@@ -94,10 +108,11 @@ export default function Calibration() {
 
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const { stream, cameraReady } = useCamera();
   const brightnessCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { status: landmarkerStatus, detect, reload: reloadLandmarker } =
+  const cameraBoxRef = useRef<HTMLDivElement>(null);
+  const cameraBoxSize = useElementSize(cameraBoxRef);
+  const { status: landmarkerStatus, detectForVideo, reload: reloadLandmarker } =
     useHandLandmarker();
 
   useEffect(() => {
@@ -159,7 +174,6 @@ export default function Calibration() {
     setCountdown(null);
     setHasStarted(false);
     setFingersShown(false);
-    setShowingImage(false);
     setStep5Success(false);
     setShowHelpModal(false);
     setPaperError(false);
@@ -191,74 +205,31 @@ export default function Calibration() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [step]);
 
-  function canvasToImage(canvas: HTMLCanvasElement): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = canvas.toDataURL("image/png");
-    });
-  }
+  // Start is only meaningful once there is a frame to read and a detector to
+  // run on it (#12, #13).
+  const canDetect = cameraReady && frameReady && landmarkerStatus === "ready";
 
-  const capture = useCallback(async function capture() {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    // #13 — a 0x0 canvas throws on toDataURL and silently breaks detection
-    if (!video.videoWidth || !video.videoHeight) return;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvasToImage(canvas);
-  }, []);
+  // Live detection runs for the whole of steps 4 and 5, so the fingertip dots
+  // are visible while the user positions their hands rather than appearing
+  // only after a capture (#8, #20).
+  const liveStepActive = (step === 4 || step === 5) && canDetect;
+  const live = useLiveHandLandmarks(videoRef, detectForVideo, liveStepActive);
 
-  function detectFingers(image: HTMLImageElement) {
-    const res = detect(image);
-    const canvas = canvasRef.current;
-    if (!res || !canvas) {
-      setCaptureError("Hand detection is unavailable. Try again.");
-      return;
-    }
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    let fingertips = 0;
-    for (const hand of res.landmarks ?? []) {
-      for (const idx of [4, 8, 12, 16, 20]) {
-        const pt = hand[idx];
-        ctx.beginPath();
-        ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 20, 0, 2 * Math.PI);
-        ctx.fillStyle = "red";
-        ctx.fill();
-        fingertips++;
-      }
-    }
-    if (fingertips > 0) setFingersShown(true);
-    setShowingImage(true);
-  }
-
-  // Single countdown tick — behaviour at 0 differs per step
+  // Countdown tick. At zero, a hold succeeds only if the detector has held a
+  // steady hand count over its recent samples and saw at least one hand (#14).
   useEffect(() => {
     if (countdown === null || countdown < 0) return;
     if (countdown === 0) {
-      if (step === 4) {
-        capture()
-          .then((image) => {
-            if (image) {
-              detectFingers(image);
-            } else {
-              // #13 — no usable frame; stay on the live preview so Retry works
-              setCaptureError("The camera was not ready. Try again.");
-              setShowingImage(false);
-            }
-          })
-          .catch(() => {
-            setCaptureError("Could not read a frame from the camera. Try again.");
-            setShowingImage(false);
-          });
-      } else if (step === 5) {
-        setStep5Success(true);
+      if (live.stable && live.hands > 0) {
+        setHandProfile({ hands: live.hands, fingertips: live.fingertips.length });
+        if (step === 4) setFingersShown(true);
+        else if (step === 5) setStep5Success(true);
+      } else {
+        setCaptureError(
+          live.hands === 0
+            ? "No hand detected. Move your hands into view and try again."
+            : "Detection was unsteady. Hold still and try again.",
+        );
       }
       return;
     }
@@ -270,14 +241,18 @@ export default function Calibration() {
   const handleStartCountdown = () => {
     setHasStarted(true);
     setCountdown(3);
-    setShowingImage(false);
     setFingersShown(false);
     setStep5Success(false);
     setCaptureError(null);
   };
 
   const handleComplete = () => {
-    if (typeof window !== "undefined") localStorage.setItem("isCalibrated", "true");
+    if (typeof window !== "undefined") {
+      localStorage.setItem("isCalibrated", "true");
+      if (handProfile) {
+        localStorage.setItem("calibrationHandProfile", JSON.stringify(handProfile));
+      }
+    }
     router.push("/");
   };
 
@@ -292,10 +267,6 @@ export default function Calibration() {
 
   const isComplete = step > TOTAL_STEPS;
 
-  // Start is only meaningful once there is a frame to capture and a detector
-  // to run on it (#12, #13).
-  const canCapture = cameraReady && frameReady && landmarkerStatus === "ready";
-
   // Counting down right now?
   const isCounting = countdown !== null && countdown > 0;
   const isInteractiveStep = step === 2 || step === 4 || step === 5;
@@ -304,6 +275,20 @@ export default function Calibration() {
   // Step 1 is settings only; every later step asks the user to judge the camera feed.
   const showNextStep =
     !isComplete && (!isInteractiveStep || canAdvance()) && (step === 1 || cameraReady);
+
+  /** What the detector is seeing right now, for steps 4 and 5. */
+  const renderLiveReadout = (settled: boolean) => {
+    if (settled || !liveStepActive) return null;
+    const label =
+      live.hands === 0
+        ? "No hands detected yet"
+        : `${live.hands === 1 ? "1 hand" : `${live.hands} hands`}, ${live.fingertips.length} fingertips${live.stable ? "" : " — hold still"}`;
+    return (
+      <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-5 py-2">
+        <p className="font-sans text-[15px] text-white" aria-live="polite">{label}</p>
+      </div>
+    );
+  };
 
   // ── Camera overlays per step ──────────────────────────────────────────────
   const renderCameraOverlay = () => {
@@ -392,16 +377,12 @@ export default function Calibration() {
 
     // ── Step 4: hover hands ──
     if (step === 4) {
-      const handNotDetected = showingImage && !fingersShown;
       return (
         <>
-          {/* Paper + hover dots */}
+          {/* Paper outline */}
           <div className="absolute pointer-events-none" style={{ bottom: "18%", left: "10%", right: "10%" }}>
             <div className="relative w-full" style={{ height: 60, transform: "skewX(-8deg)" }}>
               <div className="absolute inset-0 border-2 border-[#e05c5c] bg-white/90" />
-              {[20, 28, 36, 44, 50, 58, 66, 72, 80, 88].map((pct, i) => (
-                <div key={i} className="absolute w-2 h-2 rounded-full bg-[#e05c5c]" style={{ bottom: "100%", left: `${pct}%`, marginBottom: 4 + (i % 3) * 6 }} />
-              ))}
             </div>
           </div>
 
@@ -423,15 +404,12 @@ export default function Calibration() {
             </div>
           )}
 
-          {/* Status banner: capture failure, detector failure, or no hands */}
-          {(captureError || landmarkerStatus === "error" || handNotDetected) && (
+          {/* Status banner: failed hold or detector failure */}
+          {(captureError || landmarkerStatus === "error") && (
             <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/50 px-4 py-2 rounded-full">
               <AlertTriangle />
               <p className="text-white text-[18px] font-sans pointer-events-none">
-                {captureError ??
-                  (landmarkerStatus === "error"
-                    ? "Hand detection failed to load."
-                    : "No hands detected. Try again")}
+                {captureError ?? "Hand detection failed to load."}
               </p>
               {landmarkerStatus === "error" && (
                 <button
@@ -456,6 +434,8 @@ export default function Calibration() {
             </div>
           )}
 
+          {renderLiveReadout(fingersShown)}
+
           {/* Help button */}
           {!isCounting && !step5Success && (
             <button onClick={() => setShowHelpModal(true)} aria-label="Show help" className="absolute bottom-4 right-4 w-10 h-10 bg-white rounded-[6px] flex items-center justify-center text-black text-[18px] font-bold shadow hover:bg-gray-100 transition-colors">?</button>
@@ -468,13 +448,10 @@ export default function Calibration() {
     if (step === 5) {
       return (
         <>
-          {/* Paper + fingertip dots on surface */}
+          {/* Paper outline */}
           <div className="absolute pointer-events-none" style={{ bottom: "18%", left: "10%", right: "10%" }}>
             <div className="relative w-full" style={{ height: 60, transform: "skewX(-8deg)" }}>
               <div className="absolute inset-0 border-2 border-[#e05c5c] bg-white/90" />
-              {[15, 22, 32, 42, 54, 62, 70, 78, 86, 92].map((pct, i) => (
-                <div key={i} className="absolute w-2 h-2 rounded-full bg-[#e05c5c]" style={{ top: "30%", left: `${pct}%` }} />
-              ))}
             </div>
           </div>
 
@@ -492,6 +469,13 @@ export default function Calibration() {
             </div>
           )}
 
+          {captureError && (
+            <div className="absolute top-5 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-black/50 px-4 py-2">
+              <AlertTriangle />
+              <p className="pointer-events-none font-sans text-[18px] text-white">{captureError}</p>
+            </div>
+          )}
+
           {/* Success overlay */}
           {step5Success && (
             <div className="absolute inset-0 flex flex-col items-center justify-start pt-[14%] gap-3 pointer-events-none">
@@ -502,6 +486,8 @@ export default function Calibration() {
               <p className="text-white/80 text-[15px] font-sans">Click Next Step to finish calibration</p>
             </div>
           )}
+
+          {renderLiveReadout(step5Success)}
 
           {/* Help button */}
           <button onClick={() => setShowHelpModal(true)} aria-label="Show help" className="absolute bottom-4 right-4 w-10 h-10 bg-white rounded-[6px] flex items-center justify-center text-black text-[18px] font-bold shadow hover:bg-gray-100 transition-colors">?</button>
@@ -616,11 +602,11 @@ export default function Calibration() {
         <div className="flex items-center gap-4">
           <p className="text-[24px] text-black font-sans shrink-0">Step 4: Hover hands above paper for 3 s</p>
           {!fingersShown && (
-            <button onClick={handleStartCountdown} disabled={isCounting || !canCapture} className="shrink-0 border-[1.5px] border-black bg-[#fffdf7] px-5 py-2 rounded-[8px] text-[20px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] disabled:opacity-40 disabled:cursor-not-allowed">
+            <button onClick={handleStartCountdown} disabled={isCounting || !canDetect} className="shrink-0 border-[1.5px] border-black bg-[#fffdf7] px-5 py-2 rounded-[8px] text-[20px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] disabled:opacity-40 disabled:cursor-not-allowed">
               {hasStarted && !isCounting ? "Retry" : "Start"}
             </button>
           )}
-          {!fingersShown && !canCapture && (
+          {!fingersShown && !canDetect && (
             <span className="text-[14px] text-black/60 font-sans" aria-live="polite">
               {landmarkerStatus === "loading"
                 ? "Loading hand detection…"
@@ -639,7 +625,7 @@ export default function Calibration() {
         <div className="flex items-center gap-4">
           <p className="text-[24px] text-black font-sans shrink-0">Step 5: Place hands on paper for 3 s</p>
           {!step5Success && (
-            <button onClick={handleStartCountdown} disabled={isCounting || !canCapture} className="shrink-0 border-[1.5px] border-black bg-[#fffdf7] px-5 py-2 rounded-[8px] text-[20px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] disabled:opacity-40 disabled:cursor-not-allowed">
+            <button onClick={handleStartCountdown} disabled={isCounting || !canDetect} className="shrink-0 border-[1.5px] border-black bg-[#fffdf7] px-5 py-2 rounded-[8px] text-[20px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] disabled:opacity-40 disabled:cursor-not-allowed">
               {hasStarted && !isCounting ? "Retry" : "Start"}
             </button>
           )}
@@ -656,9 +642,11 @@ export default function Calibration() {
       {/* Main area */}
       <div className="flex pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)]">
         {/* Camera */}
-        <div className="flex-1 aspect-video bg-[#090909] relative overflow-hidden">
-          <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" style={{ display: showingImage ? "none" : "block" }} />
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover" style={{ display: showingImage ? "block" : "none" }} />
+        <div ref={cameraBoxRef} className="flex-1 aspect-video bg-[#090909] relative overflow-hidden">
+          <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" />
+          {liveStepActive && (
+            <HandLandmarkOverlay fingertips={live.fingertips} frame={live.frame} size={cameraBoxSize} />
+          )}
           {renderCountdown()}
           {cameraReady && renderCameraOverlay()}
           <CameraStatusOverlay />

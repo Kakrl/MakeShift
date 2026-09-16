@@ -17,15 +17,15 @@ async function createLandmarker(): Promise<HandLandmarker> {
   const vision = await FilesetResolver.forVisionTasks(WASM_PATH);
   return HandLandmarker.createFromOptions(vision, {
     baseOptions: { modelAssetPath: "/models/hand_landmarker.task" },
-    runningMode: "IMAGE",
+    runningMode: "VIDEO",
     numHands: 2,
   });
 }
 
 /**
- * Loads one HandLandmarker and keeps it for the lifetime of the page, so
- * repeated calibration attempts reuse a single detector instead of building
- * (and leaking) a new one per capture. The detector is closed on unmount.
+ * Loads one HandLandmarker in video mode and keeps it for the lifetime of the
+ * page, so repeated calibration attempts reuse a single detector instead of
+ * building (and leaking) a new one. The detector is closed on unmount.
  */
 export function useHandLandmarker() {
   const landmarkerRef = useRef<HandLandmarker | null>(null);
@@ -64,10 +64,17 @@ export function useHandLandmarker() {
     };
   }, [attempt]);
 
-  /** Null until the detector has loaded. */
-  const detect = useCallback((image: HTMLImageElement) => {
-    return landmarkerRef.current?.detect(image) ?? null;
-  }, []);
+  /**
+   * Runs detection on the current video frame. Null until the detector has
+   * loaded. `timestamp` must increase monotonically across calls; MediaPipe
+   * uses it to track hands between frames.
+   */
+  const detectForVideo = useCallback(
+    (video: HTMLVideoElement, timestamp: number) => {
+      return landmarkerRef.current?.detectForVideo(video, timestamp) ?? null;
+    },
+    [],
+  );
 
-  return { status, detect, reload };
+  return { status, detectForVideo, reload };
 }
