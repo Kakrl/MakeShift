@@ -1,0 +1,136 @@
+name: Defect report
+description: Report a product defect found by a verification test, review, or normal use.
+title: "[Defect]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill this in so a teammate who has never seen the bug can reproduce and investigate it.
+        Severity rules and the RCA log are in `tests/README.md`. High severity defects need an RCA
+        comment on this issue once they are fixed.
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: "High: breaks a core workflow or a High priority requirement. Medium: degrades a requirement or has a workaround. Low: cosmetic, cleanup, or no user impact."
+      options:
+        - High
+        - Medium
+        - Low
+    validations:
+      required: true
+
+  - type: dropdown
+    id: subsystem
+    attributes:
+      label: Subsystem
+      multiple: true
+      options:
+        - Frontend / UI
+        - Calibration
+        - CV (markers, hands, collision)
+        - MIDI
+        - Audio engine
+        - CI / build
+        - Documentation
+    validations:
+      required: true
+
+  - type: input
+    id: requirement
+    attributes:
+      label: Affected requirement
+      description: RVTM software requirement ID (e.g. 2.3, 4.2). See `tests/verification_test_inventory.md`.
+      placeholder: "2.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: detection
+    attributes:
+      label: How was it found?
+      options:
+        - Automated test (local)
+        - Automated test (CI)
+        - Manual test
+        - Code review / audit
+        - Normal use / demo
+    validations:
+      required: true
+
+  - type: input
+    id: test-case
+    attributes:
+      label: Test case or report that exposed it
+      description: Test Case ID, CI run link, or manual report path. Write "None" if no test covers it yet.
+      placeholder: 6.2.2, tests/manual/2026-09-30_6.2.2.md
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences on what is wrong.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `npm run dev` in `frontend/`
+        2. Open http://localhost:3000
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: Reproducibility
+      options:
+        - Always
+        - Intermittent
+        - Once
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Commit SHA, branch, OS, browser, camera, audio device, and lighting where relevant.
+      placeholder: |
+        Commit: abc1234 (main)
+        OS: macOS 15 / Browser: Chrome 140
+        Camera: built-in 1080p
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Logs, screenshots, recordings, failing test output, or the suspected code location (`path:line`).
+
+  - type: textarea
+    id: suspected-cause
+    attributes:
+      label: Suspected cause (optional)
+      description: First guess at the root cause. The confirmed cause belongs in the RCA.
