@@ -7,11 +7,16 @@ MakeShift/
 ├── .github/
 │   ├── ISSUE_TEMPLATE/
 │   │   └── defect_report.yml        # defect (bug) report form
+│   ├── pull_request_template.md    # PR sections and RCA instructions
+│   ├── scripts/
+│   │   └── rca.cjs                 # trusted RCA validator/publisher
 │   └── workflows/
 │       ├── bypass-checks.yml        # no-op test/lint jobs for non-Python PRs
 │       ├── bypass-frontend.yml      # no-op frontend job for non-frontend PRs
 │       ├── frontend-ci.yml          # lint, type check, contrast audit, build
 │       ├── linting.yml              # ruff, mypy, clang-format
+│       ├── rca.yml                  # validate RCA evidence; publish after merge
+│       ├── rca-tests.yml            # regression tests for RCA automation
 │       └── testing.yml              # pytest, CMake build, CTest
 ├── backend/
 │   ├── CMakeLists.txt               # audio library, nanobind module, GoogleTest
@@ -61,6 +66,7 @@ MakeShift/
 │   ├── README.md                    # how to test, known defects, RCA log
 │   ├── verification_test_inventory.md
 │   ├── manual/                      # manual test template and reports
+│   ├── rca.test.cjs                 # RCA parser, validation, publication tests
 │   ├── check-contrast.mjs
 │   ├── test_audio.cpp
 │   ├── test_audio_events.cpp
@@ -137,8 +143,22 @@ and review the changes before committing. CI checks files without changing them.
   `tests/verification_test_inventory.md`.
 - Defects are filed with the defect report issue template. Severity decides
   how much documentation is needed (see `tests/README.md`).
-- High severity fixes get an RCA comment on the defect issue and an entry in
-  the RCA log in `tests/README.md`.
+- High severity fixes and the assignment example (regardless of severity)
+  require an RCA. Mark the assignment example in the defect issue form;
+  use the `rca-required` issue label for older issues or team-requested RCAs.
+- The author writes a separate RCA block for each target bug issue in the
+  fix PR description and includes `Closes #N` for each target. Complete the
+  corresponding RCA log row in `tests/README.md` in that PR. Open the PR as
+  a draft to obtain its URL before filling the Fix PR cell if necessary.
+- The `RCA requirements` check validates eligibility, seven required fields,
+  an evidence link, and a complete log row. Reviewers still verify the actual
+  root cause, test results, regression coverage, and any PR description edits
+  before merge. Automation checks structure, not the truth of the analysis.
+- After merge, `Publish RCA` posts the description captured by the merge
+  event to the selected issue. Authors do not need to copy comments manually.
+  See `tests/README.md` for the exact template and failed-run recovery.
+- Run `node --test tests/rca.test.cjs` on Node 22 when changing RCA automation.
+  The `RCA automation tests` workflow runs on every PR and main push.
 
 ### Review and Approval Rules
 

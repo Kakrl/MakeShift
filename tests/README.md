@@ -34,6 +34,7 @@ tests/
 ├── verification_test_inventory.md     # every test, its requirement, owner, and CI status
 ├── manual/
 │   └── manual_test_template.md        # copy for each manual test report
+├── rca.test.cjs                       # issue #81: RCA automation regression tests
 ├── check-contrast.mjs                 # 3.4.3: WCAG contrast audit
 ├── test_audio.cpp                     # 2.2.7: PortAudio init and stream lifecycle
 ├── test_audio_events.cpp              # 2.2.4-2.2.6, 2.2.8-2.2.12, 2.3.3-2.3.5: rendering, polyphony, SPSC queue
@@ -51,6 +52,7 @@ Vitest specs sit next to the module they test (for example,
 | Python | `python -m pytest --cov=backend --cov-report=term-missing` | `pip install -r requirements.txt` |
 | Frontend unit (Vitest) | `cd frontend && npx vitest run` | `npm ci` in `frontend/` |
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
+| RCA automation | `node --test tests/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
 
 ## Documentation Expectations by Severity
 
@@ -65,6 +67,56 @@ decide what to record.
 
 Aim for 2 to 3 postmortem RCAs per build checkpoint unless the team mentor
 asks for more.
+
+The defect selected for the assignment requires an RCA regardless of severity.
+Select **Assignment example (required)** in its issue form. On older issues, or
+when the team requests an additional RCA, apply the `rca-required` issue label
+(create that label if it does not exist). High severity is read from the issue
+form's **Severity** field. Defect targets must retain the `bug` label.
+
+## High Severity Bug Workflow
+
+Follow these steps from discovery through publication of the RCA. Automatic
+checks and comments are available once the RCA workflow is merged into `main`
+(see [initial rollout and recovery](#automated-checks-publication-and-recovery)).
+The assignment example follows the same RCA steps even at a lower severity.
+
+1. **Report the defect.** Create a GitHub issue with the
+   [defect report template](../.github/ISSUE_TEMPLATE/defect_report.yml), select
+   **High** severity, and keep the `bug` label. Include the affected requirement,
+   reproduction steps, expected and actual results, environment, and evidence.
+   Identify the test that exposed it, or explain if it was found another way.
+2. **Track it here.** Add or update its row in [Known Defects](#known-defects),
+   linking the issue and marking it Open. Reuse an existing row for the same bug.
+3. **Fix and verify.** Create a `fix/<issue>-short-description` branch using the
+   [repository workflow](../docs/dev_process.md). Reproduce the failure, make
+   the fix, add or identify a regression test that catches it, and run the checks
+   for the affected areas. Record actual results and evidence links.
+4. **Open the fix PR and write the RCA.** Target upstream `main` and include
+   `Closes #N`. Copy the [RCA PR template](#rca-pr-template) into the description,
+   set its explicit issue number, and complete all seven sections. Use a separate
+   block for each defect. Open as a draft if you still need its PR number to
+   complete the documentation.
+5. **Complete the records in the same PR.** Fill all eight cells of the
+   [RCA log](#root-cause-analysis-log), including the defect issue URL, fix PR
+   URL, and regression test. Update the
+   [verification inventory](verification_test_inventory.md) for any new or
+   changed tests. If manual testing validates a critical workflow or exposes
+   the defect, copy the [manual template](manual/manual_test_template.md) to
+   `manual/YYYY-MM-DD_<test-case-id>.md`, record the results, and link the report
+   in the inventory. Prepare the Known Defects status change so it records the
+   fix when the PR merges.
+6. **Review before merging.** Obtain at least one reviewer approval and passing
+   required checks. The `RCA requirements` check validates the RCA fields,
+   evidence link, target issues, and log rows. The reviewer verifies that the
+   analysis, test results, and regression coverage are accurate; the check does
+   not establish those facts. Request another review of substantive RCA edits.
+7. **Merge and confirm publication.** Automation posts the RCA to each explicit
+   defect issue with the fix PR and merged commit links. You do not need to copy
+   the comment manually. Confirm that `Publish RCA` succeeded and the comment
+   is present. For a failure, follow the
+   [recovery steps](#automated-checks-publication-and-recovery); rerunning the
+   job reuses existing bot comments instead of creating duplicates.
 
 ## Known Defects
 
@@ -92,31 +144,91 @@ defect report is filed.
 
 ## Root Cause Analysis Log
 
-Every completed RCA is listed here. The full analysis lives in a comment on
-the linked issue.
+Every completed RCA is listed here. Add its row in the fix PR so it receives
+review with the fix. The full analysis is automatically posted as an issue
+comment after merge. Link the issue before the comment exists.
 
 | Defect | Issue | Severity | Root Cause (one line) | Fix PR | Regression Test | RCA Date | Author |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | | | | | | | | |
 
-### RCA Comment Template
+### RCA PR Template
 
-Post this as a comment on the defect issue after the fix merges:
+Copy this block into the fix PR description, replacing `123` with the target
+defect issue number. Repeat the block for each defect and add `Closes #123`
+outside the block for each target. Only same-repository bug issues that GitHub
+recognizes as closed by the PR are eligible. Ordinary PRs need no RCA block.
+Keep the exact headings and replace every placeholder with actual analysis.
 
 ```markdown
-## Root Cause Analysis
+<!-- rca:start issue=123 -->
+### Root cause
+<The mechanism that caused the defect, not just its symptom.>
 
-**Root cause:** What actually caused the defect (the mechanism, not the symptom).
+### Discovery
+<How the defect was discovered.>
 
-**How was the defect discovered?**
+### Exposing test
+<Test ID or report. If no test caught it, explain why.>
 
-**Which test exposed the issue?** Test Case ID or report. If no test caught it, say so and why.
+### Fix verification
+<Actual test results and an HTTPS link to the CI run, report, or other evidence.>
 
-**How was the fix verified?** Tests run, manual steps, and evidence links (CI run, report).
+### Regression test
+<Test ID, file, and whether it runs in CI.>
 
-**What regression test prevents recurrence?** Test Case ID, file, and whether it runs in CI.
+### Remaining risk
+<Where else the issue could occur, what was checked, and what remains.>
 
-**Where else could this issue still occur?** Other files, patterns, or processes with the same weakness.
-
-**Process change (postmortem):** What we change so this class of defect is caught earlier.
+### Process improvement
+<What changes to catch this earlier, or explain why no change is needed.>
+<!-- rca:end -->
 ```
+
+Complete all eight cells of the log row above; do not leave `TBD` or placeholder
+values. Use Markdown links with full URLs in the Issue and Fix PR cells:
+`[#123](https://github.com/Kakrl/MakeShift/issues/123)` and
+`[#124](https://github.com/Kakrl/MakeShift/pull/124)`. Open a draft PR to get
+its number, then commit the log row before requesting review. Avoid table pipes
+inside cells. The regression test must be identified, not invented.
+
+### Automated checks, publication, and recovery
+
+The read-only `RCA requirements` job runs on PR opening, description edits,
+new commits, reopening, and readiness for review. It requires an RCA for every
+closing High severity or explicitly RCA-required issue. Changing issue fields
+does not itself trigger a PR run; rerun the check or edit the PR description
+after changing severity or assignment selection. Reviewers must ensure all
+fixed defects are linked and verify the evidence before merge.
+
+After merge, `Publish RCA` validates again using the merged README and posts
+one comment per explicit RCA target. It includes the fix PR and merged commit.
+A stable PR/issue marker identifies its own bot comment, so reruns update that
+comment instead of duplicating it. All targets validate before posting begins;
+an API failure may still leave some comments posted and others pending.
+
+If publication fails:
+
+1. Open **Actions → RCA**, select the run for the merged PR, and inspect the
+   `Publish RCA` failure. API/permission failures appear as failed jobs.
+2. Restore the required repository permissions or resolve the transient API
+   problem, then choose **Re-run failed jobs** (or **Re-run all jobs**).
+   Previously posted comments are reused, including after partial failure.
+3. A rerun uses the original merge event's PR description and original merged
+   README. Editing a merged PR does not repair that snapshot. If the RCA text
+   or log was incomplete, submit a reviewed follow-up PR with corrected RCA
+   blocks, closing references, and log rows pointing to the follow-up PR.
+   That PR publishes its own attributable correction; do not fabricate evidence
+   to make the old run pass.
+
+The workflow executes scripts only from the trusted base commit. PR descriptions
+and README files are fetched as data, never executed. Only the publication job
+has `issues: write`; regression tests run separately with a read-only token.
+There is no AI-generated analysis or automatic assertion that tests passed.
+
+**Initial rollout:** the trusted workflow becomes active after this change
+lands on `main`; its own regression suite runs in the introducing PR. Once the
+`RCA requirements` check appears, a maintainer should make it required in the
+branch protection/ruleset alongside existing checks. The workflow alone does
+not change repository merge settings. A missing required check on the first
+rollout is not evidence that an RCA was validated.

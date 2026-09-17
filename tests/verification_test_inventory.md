@@ -111,6 +111,34 @@ These checks guard code quality. They do not verify a requirement on their own.
 | clang-format 17 | `linting.yml` | C++ changes under `backend/src` |
 | `tests/test_dummy.py` | `testing.yml` | Placeholder so pytest collects a test. Replace it once Python code exists |
 
+## RCA Automation Verification
+
+These are repository-process tests for [issue #81](https://github.com/Kakrl/MakeShift/issues/81),
+not new product requirements. They do not replace any RVTM tests above.
+All run with `node --test tests/rca.test.cjs`; GitHub API calls are mocked.
+A live post-merge publication is not claimed by these tests.
+
+| Test ID | Level | Requirement | Description | Owner | Tool | Automated? | CI Integrated? | Evidence |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| RCA-01 | Unit / mocked integration | Issue #81 acceptance criteria | ordinary PR, including unchanged PR template, needs no RCA or log read | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+| RCA-02 | Unit / mocked integration | Issue #81 acceptance criteria | high severity, assignment selection and explicit issue label require RCA | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+| RCA-03 | Unit / mocked integration | Issue #81 acceptance criteria | complete RCA and log row validate | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+| RCA-04 | Unit / mocked integration | Issue #81 acceptance criteria | missing, empty and placeholder fields fail with useful errors | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+| RCA-05 | Unit / mocked integration | Issue #81 acceptance criteria | malformed and duplicate blocks are rejected | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+| RCA-06 | Unit / mocked integration | Issue #81 acceptance criteria | each target must be a closing bug issue, never a PR or unrelated issue | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+| RCA-07 | Unit / mocked integration | Issue #81 acceptance criteria | multiple required defects each need their own RCA and log row | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+| RCA-08 | Unit / mocked integration | Issue #81 acceptance criteria | log must have all columns and exact issue/PR links inside the RCA log section | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+| RCA-09 | Unit / mocked integration | Issue #81 acceptance criteria | merge publishes with correct target, commit and PR provenance | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+| RCA-10 | Unit / mocked integration | Issue #81 acceptance criteria | non-merged closures and non-closure events never read or write | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+| RCA-11 | Unit / mocked integration | Issue #81 acceptance criteria | ordinary merged PR is a no-op | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+| RCA-12 | Unit / mocked integration | Issue #81 acceptance criteria | validation reads PR head as data and never posts | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+| RCA-13 | Unit / mocked integration | Issue #81 acceptance criteria | rerun reuses bot comment; changed generated comment is updated | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+| RCA-14 | Unit / mocked integration | Issue #81 acceptance criteria | a human comment with the marker is never overwritten | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+| RCA-15 | Unit / mocked integration | Issue #81 acceptance criteria | partial API failure is surfaced; retry does not duplicate successful targets | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+| RCA-16 | Unit / mocked integration | Issue #81 acceptance criteria | all targets validate before any comments are written | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+| RCA-17 | Unit / mocked integration | Issue #81 acceptance criteria | recovery uses merge event body, not a later PR description edit | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+| RCA-18 | Unit / mocked integration | Issue #81 acceptance criteria | closing references paginate and cross-repository targets are excluded | Carl Xu | Node test runner | Yes | Yes (`rca-tests.yml`, PRs and main pushes) | [`rca.test.cjs`](rca.test.cjs) |
+
 ## Validation (not verification)
 
 User acceptance testing follows the V&V plan: at least 4 diverse subjects, run
