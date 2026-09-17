@@ -5,12 +5,12 @@ on:
     branches: ["main"]
     paths:
       - "frontend/**"
-      - "tests/check-contrast.mjs"
+      - "tests/frontend/**"
   pull_request:
     branches: ["main"]
     paths:
       - "frontend/**"
-      - "tests/check-contrast.mjs"
+      - "tests/frontend/**"
 
 jobs:
   frontend:

@@ -20,7 +20,11 @@ source of truth.
 | `frontend/` | Next.js web client: camera, calibration, CV overlays, MIDI utils |
 | `frontend/src/cv/` | ArUco marker detection, homography, keyboard geometry |
 | `backend/` | C++ audio engine (PortAudio) and its nanobind Python module |
-| `tests/` | C++ GoogleTest suites, Python tests, contrast audit, test docs |
+| `tests/` | Test inventory, testing guide, and suite subdirectories |
+| `tests/audio/` | C++ GoogleTest audio and queue suites |
+| `tests/frontend/` | Vitest MIDI tests and contrast audit |
+| `tests/python/` | Python tests (currently a placeholder) |
+| `tests/automation/` | Repository-process RCA tests |
 | `tests/manual/` | Manual test template and completed manual test reports |
 | `docs/` | Process, SDP, V&V plan, design document, subsystem notes |
 | `.github/workflows/` | CI: tests, linting, frontend checks, RCA validation/publication |
@@ -48,7 +52,7 @@ source of truth.
 | Python | `python -m ruff check backend/src tests`, `python -m mypy backend/src --check-untyped-defs`, `python -m pytest` |
 | C++ | `cmake -B build -S backend && cmake --build build --config Release && ctest --test-dir build -C Release --output-on-failure` |
 | C++ formatting | `clang-format --dry-run --Werror` on changed files (`.clang-format`, clang-format 17) |
-| RCA automation | `node --test tests/rca.test.cjs` (Node 22); CI: `rca-tests.yml` |
+| RCA automation | `node --test tests/automation/rca.test.cjs` (Node 22); CI: `rca-tests.yml` |
 
 The C++ build requires Python 3.12 and nanobind (`pip install -r requirements.txt`).
 If a check cannot run locally (for example, no audio device or no CMake),
@@ -58,9 +62,19 @@ say so in the PR description instead of claiming it passed.
 
 A change is not done until the matching documentation is updated:
 
-- **New or changed test:** add or update its row in
+- **New, changed, or moved test file:** add or update every affected test row in
   `tests/verification_test_inventory.md` (ID, level, requirement, owner, tool,
-  automation, CI status, evidence link).
+  automation, implementation status, CI status, source link, execution evidence).
+  When implementing a planned test, update its existing ID in that same PR;
+  do not leave it marked Planned or create a duplicate row. Audit the actual
+  test cases, not just filenames. Mark partial coverage and hardware skips
+  explicitly. Set CI integration only when the workflow invokes the test,
+  and link a specific GitHub Actions run/job log once execution is verified.
+  A source link, workflow landing page, or successful build alone is not
+  evidence that a test passed. Keep unverified results and dates pending.
+  Assign owners by the behavior tested: Carl Xu for audio/latency,
+  Jadden Picardal for UI, Francis Ozua for computer vision, and Harry Deng
+  for MIDI and other areas.
 - **New CI job or workflow change:** update the "CI Integrated?" column for
   affected tests and the check table above.
 - **Defect found:** High or Medium severity defects get a GitHub issue using the
@@ -88,10 +102,12 @@ A change is not done until the matching documentation is updated:
 ## Conventions
 
 - Frontend colors come from `--color-*` tokens in `frontend/src/app/globals.css`.
-  Do not hardcode hex values; add new token pairs to `tests/check-contrast.mjs`.
+  Do not hardcode hex values; add new token pairs to `tests/frontend/check-contrast.mjs`.
 - Python follows `ruff.toml` (79-character lines). C++ follows `.clang-format`.
-- Keep test files in `tests/` unless a tool requires colocation (Vitest specs
-  sit next to their module, such as `midiUtils.test.ts`).
+- Keep test implementations, helpers, and fixtures in the matching suite
+  subdirectory under `tests/`. Frontend Vitest specs belong in `tests/frontend/`;
+  configure discovery in `frontend/vitest.config.mts`. Keep package and build
+  configuration with its owning tool, and document any necessary exception.
 - Remove debug `console.log` calls before opening a PR, especially inside
   per-frame loops.
 - Tests that need hardware (camera, audio device) must skip explicitly

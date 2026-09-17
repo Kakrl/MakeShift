@@ -45,7 +45,7 @@ MakeShift/
 │   │   │   ├── calibration/
 │   │   │   ├── cv/                  # hand landmark overlay and drawing
 │   │   │   ├── documentation/
-│   │   │   ├── midi/                # MIDI recording utils and Vitest spec
+│   │   │   ├── midi/                # MIDI recording utils
 │   │   │   ├── tutorial/
 │   │   │   ├── CameraContext.tsx
 │   │   │   ├── CameraStatusOverlay.tsx
@@ -59,18 +59,24 @@ MakeShift/
 │   │   └── shims/
 │   ├── package.json
 │   ├── package-lock.json
+│   ├── vitest.config.mts            # discovers tests/frontend/
 │   ├── tsconfig.json
 │   ├── next.config.ts
 │   └── README.md
 ├── tests/
-│   ├── README.md                    # how to test, known defects, RCA log
+│   ├── README.md                    # commands, known defects, RCA log
 │   ├── verification_test_inventory.md
-│   ├── manual/                      # manual test template and reports
-│   ├── rca.test.cjs                 # RCA parser, validation, publication tests
-│   ├── check-contrast.mjs
-│   ├── test_audio.cpp
-│   ├── test_audio_events.cpp
-│   └── test_dummy.py
+│   ├── audio/
+│   │   ├── test_audio.cpp
+│   │   └── test_audio_events.cpp
+│   ├── automation/
+│   │   └── rca.test.cjs             # RCA parser, validation, publication tests
+│   ├── frontend/
+│   │   ├── midiUtils.test.ts
+│   │   └── check-contrast.mjs
+│   ├── python/
+│   │   └── test_dummy.py
+│   └── manual/                     # manual test template and completed reports
 ├── .clang-format
 ├── .gitignore
 ├── AGENTS.md                        # contributor and coding agent instructions
@@ -140,7 +146,10 @@ and review the changes before committing. CI checks files without changing them.
 ### Testing and Defect Documentation
 
 - A PR that adds or changes a test updates its row in
-  `tests/verification_test_inventory.md`.
+  `tests/verification_test_inventory.md`. Put test implementations, fixtures,
+  and helpers in the matching `tests/audio/`, `tests/frontend/`,
+  `tests/python/`, or `tests/automation/` directory. Keep runner configuration
+  with its owning package/build system. Commands are in [the testing guide](../tests/README.md#running-the-tests).
 - Defects are filed with the defect report issue template. Severity decides
   how much documentation is needed (see `tests/README.md`).
 - High severity fixes and the assignment example (regardless of severity)
@@ -157,7 +166,7 @@ and review the changes before committing. CI checks files without changing them.
 - After merge, `Publish RCA` posts the description captured by the merge
   event to the selected issue. Authors do not need to copy comments manually.
   See `tests/README.md` for the exact template and failed-run recovery.
-- Run `node --test tests/rca.test.cjs` on Node 22 when changing RCA automation.
+- Run `node --test tests/automation/rca.test.cjs` on Node 22 when changing RCA automation.
   The `RCA automation tests` workflow runs on every PR and main push.
 
 ### Review and Approval Rules

@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
-const { fields, parseRcas, requiresRca, validate, run } = require('../.github/scripts/rca.cjs');
+const { fields, parseRcas, requiresRca, validate, run } = require('../../.github/scripts/rca.cjs');
 
 const repository = 'Kakrl/MakeShift';
 const issue = (number = 12, severity = 'High') => ({ number, labels: [{ name: 'bug' }],
