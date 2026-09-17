@@ -23,7 +23,9 @@ source of truth.
 | `tests/` | C++ GoogleTest suites, Python tests, contrast audit, test docs |
 | `tests/manual/` | Manual test template and completed manual test reports |
 | `docs/` | Process, SDP, V&V plan, design document, subsystem notes |
-| `.github/workflows/` | CI: tests, linting, and frontend checks |
+| `.github/workflows/` | CI: tests, linting, frontend checks, RCA validation/publication |
+| `.github/scripts/` | Trusted RCA validation and comment automation |
+| `.github/pull_request_template.md` | PR description and RCA authoring instructions |
 | `.github/ISSUE_TEMPLATE/` | Defect report template |
 
 ## Workflow
@@ -46,6 +48,7 @@ source of truth.
 | Python | `python -m ruff check backend/src tests`, `python -m mypy backend/src --check-untyped-defs`, `python -m pytest` |
 | C++ | `cmake -B build -S backend && cmake --build build --config Release && ctest --test-dir build -C Release --output-on-failure` |
 | C++ formatting | `clang-format --dry-run --Werror` on changed files (`.clang-format`, clang-format 17) |
+| RCA automation | `node --test tests/rca.test.cjs` (Node 22); CI: `rca-tests.yml` |
 
 The C++ build requires Python 3.12 and nanobind (`pip install -r requirements.txt`).
 If a check cannot run locally (for example, no audio device or no CMake),
@@ -63,9 +66,17 @@ A change is not done until the matching documentation is updated:
 - **Defect found:** High or Medium severity defects get a GitHub issue using the
   defect report template, and a row in the known defects table in
   `tests/README.md`. Severity rules live in `tests/README.md`.
-- **High severity defect fixed:** complete the RCA in the issue and add a row
-  to the RCA log in `tests/README.md`. The fix PR must add or name a
-  regression test.
+- **RCA-required defect fixed:** High severity defects and the assignment
+  example (any severity) require an RCA. Keep the issue's severity and RCA
+  requirement fields accurate; use the `rca-required` issue label for older
+  reports or additional requested RCAs. Keep the `bug` label on defect issues.
+  Add one explicit RCA block per defect to the fix PR using the template in
+  `tests/README.md`, and close each target with `Closes #N`. Complete the RCA
+  log row in that same PR, including the issue URL, fix PR URL, and regression
+  test. Open a draft first if the PR number is needed for the row. Reviewers
+  check the analysis and actual evidence before approval. Automation posts
+  the merge-time RCA after merge; do not also post it manually. Recover a
+  failed publication through the Actions rerun procedure in `tests/README.md`.
 - **Manual test of a critical workflow, or one that exposes a critical defect:**
   copy `tests/manual/manual_test_template.md` into a new dated report in
   `tests/manual/`.

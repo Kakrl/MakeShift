@@ -8,7 +8,8 @@ body:
       value: |
         Fill this in so a teammate who has never seen the bug can reproduce and investigate it.
         Severity rules and the RCA log are in `tests/README.md`. High severity defects need an RCA
-        comment on this issue once they are fixed.
+        comment on this issue once they are fixed. The assignment example requires an RCA
+        regardless of severity. Authors write the RCA in the fix PR; automation posts it on merge.
 
   - type: dropdown
     id: severity
@@ -19,6 +20,17 @@ body:
         - High
         - Medium
         - Low
+    validations:
+      required: true
+
+  - type: dropdown
+    id: rca-requirement
+    attributes:
+      label: RCA requirement
+      description: Select the assignment example even if its severity is Medium or Low.
+      options:
+        - Standard severity policy
+        - Assignment example (required)
     validations:
       required: true
 
