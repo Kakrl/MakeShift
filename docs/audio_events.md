@@ -1,5 +1,10 @@
 # Audio Event Queue
 
+This document describes the existing **native C++/PortAudio implementation**.
+For planned browser playback and musical events, see the
+[browser architecture](architecture.md). Native hit/queue semantics below do not
+define the browser note-on/note-off or session-reset contract.
+
 Issue: [#23](https://github.com/Kakrl/MakeShift/issues/23).
 
 ## Submitting Hits
