@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const frontendDir = resolve(dirname(fileURLToPath(import.meta.url)), "../frontend");
+const frontendDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../frontend");
 
 // Colors come from the @theme tokens in globals.css so the audit always
 // matches what the app renders.

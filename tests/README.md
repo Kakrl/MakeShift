@@ -30,19 +30,30 @@ them.
 
 ```text
 tests/
-├── README.md                          # this file
-├── verification_test_inventory.md     # every test, its requirement, owner, and CI status
-├── manual/
-│   └── manual_test_template.md        # copy for each manual test report
-├── rca.test.cjs                       # issue #81: RCA automation regression tests
-├── check-contrast.mjs                 # 3.4.3: WCAG contrast audit
-├── test_audio.cpp                     # 2.2.7: PortAudio init and stream lifecycle
-├── test_audio_events.cpp              # 2.2.4-2.2.6, 2.2.8-2.2.12, 2.3.3-2.3.5: rendering, polyphony, SPSC queue
-└── test_dummy.py                      # placeholder so pytest collects a test
+├── README.md
+├── verification_test_inventory.md
+├── audio/
+│   ├── test_audio.cpp                # PortAudio lifecycle
+│   └── test_audio_events.cpp         # rendering, polyphony, SPSC queue
+├── automation/
+│   └── rca.test.cjs                  # repository-process regression tests
+├── frontend/
+│   ├── midiUtils.test.ts             # MIDI unit tests
+│   └── check-contrast.mjs            # theme token contrast audit
+├── python/
+│   └── test_dummy.py                 # existing placeholder, no product coverage
+└── manual/
+    └── manual_test_template.md
 ```
 
-Vitest specs sit next to the module they test (for example,
-`frontend/src/app/midi/midiUtils.test.ts`).
+Add future tests, helpers, and fixtures to the matching suite directory.
+Frontend tests import application modules from `../../frontend/src/`.
+`frontend/vitest.config.mts` selects `tests/frontend/` and resolves frontend
+package dependencies. The frontend TypeScript and ESLint commands also include
+that directory. Keep frontend dependencies and tool configuration in `frontend/`,
+C++ build definitions in `backend/CMakeLists.txt`, and CI workflows in `.github/`.
+Python's default recursive discovery finds `tests/python/` without extra config.
+No test implementation requires an exception to this layout.
 
 ## Running the Tests
 
@@ -52,7 +63,32 @@ Vitest specs sit next to the module they test (for example,
 | Python | `python -m pytest --cov=backend --cov-report=term-missing` | `pip install -r requirements.txt` |
 | Frontend unit (Vitest) | `cd frontend && npx vitest run` | `npm ci` in `frontend/` |
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
-| RCA automation | `node --test tests/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
+| RCA automation | `node --test tests/automation/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
+
+## Test relocation verification (issue #83)
+
+Local Windows verification on 2026-09-17, against baseline
+`e34d73624c4d776cb2dd7c4e23a5f1d7d37ce33a`. Counts below are runner results,
+not claims of CI execution. Node 22.20.0, Vitest 4.1.11, Python 3.12.10,
+pytest 8.2.2, and the Release CMake build were used.
+
+| Suite | Before relocation | After relocation | Source |
+| :--- | :--- | :--- | :--- |
+| MIDI | 7 passed | 7 passed | [MIDI unit tests](frontend/midiUtils.test.ts) |
+| Audio and queue | 14 reported passed | 14 reported passed | [Lifecycle](audio/test_audio.cpp), [events and queue](audio/test_audio_events.cpp) |
+| RCA | 18 passed | 18 passed | [RCA tests](automation/rca.test.cjs) |
+| Python placeholder | 1 passed | 1 passed | [Placeholder](python/test_dummy.py) |
+| Contrast audit | 18 pairs passed | 18 pairs passed | [Audit](frontend/check-contrast.mjs) |
+
+Assertions and test cases are unchanged; only location-dependent imports changed.
+The existing audio tests can report a pass without exercising stream operations
+when no audio device is available (D5). The Python placeholder verifies no
+product behavior (D14). Neither limitation is fixed by relocating files.
+Frontend type checking and production build, Ruff, and mypy passed locally.
+ESLint passed with the two existing application warnings. clang-format 17 was
+not available locally; the C++ files were moved without content changes.
+The frontend CI path filters now include `tests/frontend/**`; Vitest remains a
+local suite pending the separate CI integration work tracked as D3.
 
 ## Documentation Expectations by Severity
 
@@ -130,7 +166,7 @@ defect report is filed.
 | D2 | High | MIDI / UI | (Req 4.1, 4.2) Recording and export are UI-only. The home page recording state machine never calls `startRecording`, `noteOn`, `noteOff`, `stopRecording`, or `downloadMidi`, and the Export button only closes the dialog, so no MIDI file is produced | `frontend/src/app/page.tsx:150-190`, `:551-556` | | Open |
 | D3 | Medium | CI | The Vitest suite (4.1.3-4.1.7, 4.2.3) is not run in CI. `frontend-ci.yml` runs lint, type check, contrast, and build, but not `vitest run`, so MIDI regressions merge undetected | `.github/workflows/frontend-ci.yml` | | Open |
 | D4 | Medium | CI | The C++ test path filter `'CMakeLists.txt'` only matches a root-level file. A PR that only changes `backend/CMakeLists.txt` skips the C++ build and tests. It should be `'**/CMakeLists.txt'` | `.github/workflows/testing.yml:29` | | Open |
-| D5 | Medium | Tests | `AudioEngineTest.StreamStartsAndStops` and `MultipleStartStopCycles` `return` early when there is no audio device, so on CI they report PASS without testing anything. Use `GTEST_SKIP()` so the skip shows in results | `tests/test_audio.cpp:24-27`, `:35-38` | | Open |
+| D5 | Medium | Tests | `AudioEngineTest.StreamStartsAndStops` and `MultipleStartStopCycles` `return` early when there is no audio device, so on CI they report PASS without testing anything. Use `GTEST_SKIP()` so the skip shows in results | `tests/audio/test_audio.cpp:24-27`, `:35-38` | | Open |
 | D6 | Medium | Calibration | (Req 1.1, 1.2, 1.3, 6.2) Calibration doesn't validate or persist a real result. Only an `isCalibrated` boolean is stored (issue #19, closed, asked for a versioned calibration object). Step 3 paper rejection only fires on the `i` key (prototype trigger), step 5 succeeds when a countdown ends, and the flag is deleted on every page unload | `frontend/src/app/calibration/page.tsx:184-190`, `:261`, `:280`; `frontend/src/app/page.tsx:97-104` | | Open |
 | D7 | Medium | CV / performance | Debug `console.log` calls run in the marker detection `requestAnimationFrame` loop (about 60 per second) and on every detection update. That adds main-thread work that counts against requirement 2.3 (latency) once D1 is fixed | `frontend/src/app/MarkerTrackingOverlay.tsx:49,95,102,111,121`; `frontend/src/cv/markerDetector.ts:103,105,119` | | Open |
 | D8 | Medium | Audio | Calling `AudioEngine::startStream()` twice overwrites `stream` without closing it, which leaks the first PortAudio stream. `Pa_GetDeviceInfo` is dereferenced without a null check | `backend/src/audio/AudioEngine.cpp:89-119` | | Open |
@@ -139,7 +175,7 @@ defect report is filed.
 | D11 | Low | MIDI | `stopRecording` leaves `track` set, so `noteOn` and `noteOff` calls after stopping are still recorded | `frontend/src/app/midi/midiUtils.ts:66-82` | | Open |
 | D12 | Low | Backend | `backend/src/MIDI/noteMap.ts` is a TypeScript file inside the Python backend package and nothing imports it | `backend/src/MIDI/noteMap.ts` | | Open |
 | D13 | Low | Tests | The contrast audit only checks `--color-*` token pairs. Hardcoded canvas colors drawn over live video (`#00ff88`, `#ffd60a`, `#ff3b30`) aren't checked | `frontend/src/app/MarkerTrackingOverlay.tsx:136-192`, `frontend/src/app/cv/handLandmarkDrawing.ts:33-34` | | Open |
-| D14 | Low | Tests | The only Python test is `test_dummy.py`, so the pytest coverage report in CI measures nothing | `tests/test_dummy.py` | | Open |
+| D14 | Low | Tests | The only Python test is `test_dummy.py`, so the pytest coverage report in CI measures nothing | `tests/python/test_dummy.py` | | Open |
 | D15 | Low | Docs | The root README said Python 3.10+ for the C++ build, but `backend/CMakeLists.txt` requires Python 3.12 | `README.md` | | Fixed in #79 PR |
 
 ## Root Cause Analysis Log
