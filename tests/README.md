@@ -74,6 +74,50 @@ when the team requests an additional RCA, apply the `rca-required` issue label
 (create that label if it does not exist). High severity is read from the issue
 form's **Severity** field. Defect targets must retain the `bug` label.
 
+## High Severity Bug Workflow
+
+Follow these steps from discovery through publication of the RCA. Automatic
+checks and comments are available once the RCA workflow is merged into `main`
+(see [initial rollout and recovery](#automated-checks-publication-and-recovery)).
+The assignment example follows the same RCA steps even at a lower severity.
+
+1. **Report the defect.** Create a GitHub issue with the
+   [defect report template](../.github/ISSUE_TEMPLATE/defect_report.yml), select
+   **High** severity, and keep the `bug` label. Include the affected requirement,
+   reproduction steps, expected and actual results, environment, and evidence.
+   Identify the test that exposed it, or explain if it was found another way.
+2. **Track it here.** Add or update its row in [Known Defects](#known-defects),
+   linking the issue and marking it Open. Reuse an existing row for the same bug.
+3. **Fix and verify.** Create a `fix/<issue>-short-description` branch using the
+   [repository workflow](../docs/dev_process.md). Reproduce the failure, make
+   the fix, add or identify a regression test that catches it, and run the checks
+   for the affected areas. Record actual results and evidence links.
+4. **Open the fix PR and write the RCA.** Target upstream `main` and include
+   `Closes #N`. Copy the [RCA PR template](#rca-pr-template) into the description,
+   set its explicit issue number, and complete all seven sections. Use a separate
+   block for each defect. Open as a draft if you still need its PR number to
+   complete the documentation.
+5. **Complete the records in the same PR.** Fill all eight cells of the
+   [RCA log](#root-cause-analysis-log), including the defect issue URL, fix PR
+   URL, and regression test. Update the
+   [verification inventory](verification_test_inventory.md) for any new or
+   changed tests. If manual testing validates a critical workflow or exposes
+   the defect, copy the [manual template](manual/manual_test_template.md) to
+   `manual/YYYY-MM-DD_<test-case-id>.md`, record the results, and link the report
+   in the inventory. Prepare the Known Defects status change so it records the
+   fix when the PR merges.
+6. **Review before merging.** Obtain at least one reviewer approval and passing
+   required checks. The `RCA requirements` check validates the RCA fields,
+   evidence link, target issues, and log rows. The reviewer verifies that the
+   analysis, test results, and regression coverage are accurate; the check does
+   not establish those facts. Request another review of substantive RCA edits.
+7. **Merge and confirm publication.** Automation posts the RCA to each explicit
+   defect issue with the fix PR and merged commit links. You do not need to copy
+   the comment manually. Confirm that `Publish RCA` succeeded and the comment
+   is present. For a failure, follow the
+   [recovery steps](#automated-checks-publication-and-recovery); rerunning the
+   job reuses existing bot comments instead of creating duplicates.
+
 ## Known Defects
 
 Found in the codebase audit for issue #79 (2026-09-16, upstream `main` at
