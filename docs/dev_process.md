@@ -28,6 +28,8 @@ MakeShift/
 │       ├── Bindings.cpp             # nanobind Python bindings
 │       └── __init__.py
 ├── docs/
+│   ├── architecture.md              # browser target, tooling, delivery boundaries
+│   ├── rvtm_browser_addendum.md      # browser requirement/test reconciliation
 │   ├── audio.md                     # polyphony and voice stealing
 │   ├── audio_events.md              # audio event queue contract
 │   ├── dev_process.md

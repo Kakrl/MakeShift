@@ -4,6 +4,32 @@ These instructions apply to every contributor and coding agent (Codex, Claude,
 or anything else). `CLAUDE.md` points here, so keep this file as the single
 source of truth.
 
+## Project Scope and Architecture
+
+MakeShift is a browser-based virtual piano played on a printed keyboard using
+a webcam. Prioritize accurate intentional press/release detection and low-latency
+sound, with calibration, visual feedback, velocity and MIDI recording/export.
+Read [the architecture](docs/architecture.md) before changing subsystem boundaries;
+it separates existing behavior from planned work and links implementation issues.
+
+- Target pipeline: camera → CV worker → calibrated detection → musical events →
+  browser audio, MIDI and feedback. Vercel serves the application/assets; live
+  playing has no per-note network or WebRTC dependency.
+- Start browser synthesis with JavaScript in an AudioWorklet. C++/PortAudio
+  outputs on its host machine and remains a native reference, not browser
+  playback. A WebAssembly port needs a documented reason.
+- Process fresh frames with bounded pending work. Keep expensive CV off the UI
+  thread and audio dispatch independent of React renders and MIDI processing.
+  Avoid blocking work and avoidable allocations in audio rendering.
+- Use validated versioned calibration and explicit session/press identities.
+  Stop/invalidation releases notes and rejects stale events. Polygon overlap
+  alone does not establish finger contact.
+- Evaluate accuracy and latency together: under 3% combined detection errors and
+  under 50 ms physical-press-to-sound are verification targets, not current claims.
+  Follow the [RVTM addendum](docs/rvtm_browser_addendum.md) and inventory; report
+  conditions, hardware, distributions and measurement limits.
+- Keep versions in manifests/lockfiles and model/runtime assets compatible.
+  The architecture lists existing versus planned tools and verification.
 ## Read First
 
 - `docs/dev_process.md`: PR workflow, issue linking, branch and PR naming,
@@ -26,7 +52,7 @@ source of truth.
 | `tests/python/` | Python tests (currently a placeholder) |
 | `tests/automation/` | Repository-process RCA tests |
 | `tests/manual/` | Manual test template and completed manual test reports |
-| `docs/` | Process, SDP, V&V plan, design document, subsystem notes |
+| `docs/` | Architecture, browser RVTM addendum, process, SDP, V&V plan, design, subsystem notes |
 | `.github/workflows/` | CI: tests, linting, frontend checks, RCA validation/publication |
 | `.github/scripts/` | Trusted RCA validation and comment automation |
 | `.github/pull_request_template.md` | PR description and RCA authoring instructions |
