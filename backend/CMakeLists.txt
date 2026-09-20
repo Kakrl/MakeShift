@@ -78,7 +78,8 @@ set_target_properties(audio_engine PROPERTIES
 target_link_libraries(audio_engine PRIVATE MakeShiftAudio)
 
 set(TEST_SOURCES
-    ../tests/test_audio.cpp
+    ../tests/audio/test_audio.cpp
+    ../tests/audio/test_audio_events.cpp
 )
 add_executable(MakeShiftTests ${TEST_SOURCES})
 target_link_libraries(MakeShiftTests PRIVATE MakeShiftAudio gtest_main)

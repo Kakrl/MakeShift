@@ -13,6 +13,35 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/*
+ * App color palette. Each token becomes a Tailwind utility (e.g. bg-surface,
+ * text-ink) and a CSS variable (var(--color-ink)). Pairs are checked against
+ * WCAG contrast minimums by tests/frontend/check-contrast.mjs.
+ */
+@theme {
+  --color-white: #ffffff;
+  --color-surface: #fffdf7;
+  --color-surface-dark: #090909;
+  --color-ink: #1e1e1e;
+  --color-ink-muted: #595854;
+  --color-ink-subtle: #595959;
+  --color-ink-inverse-muted: #bdbdbd;
+  --color-ink-inverse: #d9d9d9;
+  --color-divider: #d9d9d9;
+  --color-divider-subtle: #e5e5e5;
+  --color-control-border: #767676;
+  --color-control-inactive: #8a8882;
+  --color-accent: #7440a8;
+  --color-accent-light: #c78cff;
+  --color-accent-soft: #e7d0ff;
+  --color-danger: #b42318;
+  --color-danger-hover: #8f1c13;
+  --color-success: #237a45;
+  --color-success-strong: #1a6b3a;
+  --color-success-soft: #e7faf0;
+  --color-info: #2563eb;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;

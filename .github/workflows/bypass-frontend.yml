@@ -5,6 +5,7 @@ on:
     branches: [ "main" ]
     paths-ignore:
       - "frontend/**"
+      - "tests/frontend/**"
 
 jobs:
   frontend:

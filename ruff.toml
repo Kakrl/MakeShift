@@ -1,0 +1,7 @@
+# Keep the existing 79-character Python line limit.
+line-length = 79
+target-version = "py312"
+
+[lint]
+# pycodestyle, Pyflakes, and import sorting replace Flake8 and isort.
+select = ["E", "F", "W", "I"]

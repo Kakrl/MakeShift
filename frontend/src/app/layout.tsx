@@ -27,14 +27,14 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased bg-[#fffdf7]`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased bg-surface`}
     >
-      <body className="h-dvh flex flex-col overflow-hidden bg-[#fffdf7]">
+      <body className="h-dvh flex flex-col overflow-hidden bg-surface">
         {/* Shared header — same height on every page, so camera position never shifts */}
-        <header className="h-14 shrink-0 flex items-center pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)] bg-[#fffdf7]">
+        <header className="h-14 shrink-0 flex items-center pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)] bg-surface">
           <Link
             href="/"
-            className="text-[22px] font-bold text-[#1e1e1e] font-sans tracking-tight hover:opacity-60 transition-opacity select-none"
+            className="text-[22px] font-bold text-ink font-sans tracking-tight hover:opacity-60 transition-opacity select-none"
           >
             MakeShift
           </Link>

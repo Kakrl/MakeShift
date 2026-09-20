@@ -50,7 +50,7 @@ import {
   noteOff,
   stopRecording,
   downloadMidi,
-} from "./midiUtils";
+} from "../../frontend/src/app/midi/midiUtils";
 
 describe("millisecondsToTicks", () => {
   it("converts 500 ms at 120 BPM to 128 ticks", () => {
