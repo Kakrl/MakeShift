@@ -15,3 +15,10 @@ Testing/
 .vscode
 
 docs/cv_local_plan.md
+# Generated frontend test evidence
+frontend/test-results/
+
+.vscode
+
+# Vitest cache under the external frontend test root
+tests/frontend/node_modules/

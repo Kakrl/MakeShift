@@ -5,10 +5,12 @@ on:
     branches: ["main"]
     paths:
       - "frontend/**"
+      - "tests/frontend/**"
   pull_request:
     branches: ["main"]
     paths:
       - "frontend/**"
+      - "tests/frontend/**"
 
 jobs:
   frontend:
@@ -36,6 +38,16 @@ jobs:
 
       - name: Type check
         run: npx tsc --noEmit
+
+      - name: Check WCAG color contrast
+        run: npm run test:contrast
+
+      - name: Upload color contrast evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contrast-report
+          path: frontend/test-results/contrast-report.json
 
       - name: Build
         run: npm run build

@@ -1,3 +1,28 @@
+## Browser architecture update (issue #85)
+
+The implementation direction is a browser-local virtual piano: camera capture,
+CV worker processing, calibrated contact detection, shared note events,
+AudioWorklet synthesis, MIDI recording/export, and feedback run on the user's
+device. Vercel hosts the application/assets; no per-note network or WebRTC
+transport is required.
+
+The initial browser synthesizer uses JavaScript in an AudioWorklet. The existing
+C++/PortAudio implementation remains a native reference. WebAssembly is optional
+future work justified by measurements or DSP reuse, not a prerequisite.
+Calibration validity, session cleanup, pitch correctness and measured
+latency/accuracy take priority over cosmetic features.
+
+See [architecture and delivery boundaries](architecture.md) and the
+[browser RVTM addendum](rvtm_browser_addendum.md). The addendum records this
+runtime change while preserving requirement IDs, the under-50 ms physical
+latency target, and the under-3% detection-error target. These are verification
+goals, not achieved performance. Existing requirements outside this transition,
+including recording persistence, are not silently removed.
+
+Implementation belongs to #28, #34, #35, #37, #86–#89 and related issues listed
+in the architecture. #85 changes documentation only. External SDP/V&V links
+below remain historical planning sources; this update does not edit them.
+
 **Previous SDP Work**
 
 [Initial SDP](https://docs.google.com/document/d/1dI5X3cngPTwBOdPjmCn8FGk9viVCrHLxQcX2h_NOIWU/edit?usp=sharing)
