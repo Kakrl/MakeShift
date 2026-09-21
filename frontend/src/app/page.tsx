@@ -6,6 +6,11 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCamera } from "./CameraContext";
 import CameraStatusOverlay from "./CameraStatusOverlay";
+import {
+  startRecording,
+  stopRecording,
+  downloadMidi,
+} from "./midi/midiUtils";
 
 const MarkerTrackingOverlay = dynamic(
   () => import("./MarkerTrackingOverlay"),
@@ -135,6 +140,9 @@ export default function Home() {
         setCountInBeat(null);
         setIsRecording(true);
         setIsPaused(false);
+
+        // Start recording session (MIDI capture)
+        startRecording(tempo);
       } else {
         setCountInBeat((b) => (b !== null ? b + 1 : null));
       }
@@ -180,6 +188,9 @@ export default function Home() {
     setIsPaused(false);
     setHasFinishedRecording(true);
     setShowRecordingComplete(true);
+
+    // Stop recording session (MIDI capture)
+    stopRecording();
   };
 
   const confirmDelete = () => {
@@ -549,7 +560,10 @@ export default function Home() {
                 Cancel
               </button>
               <button
-                onClick={() => setShowExportDialog(false)}
+                onClick={() => {
+                  setShowExportDialog(false)
+                  downloadMidi()
+                }}
                 className="border border-black bg-black px-6 py-3 rounded-[10px] text-[16px] text-white font-sans hover:bg-black/80 active:scale-[0.97] transition-[background-color,transform]"
               >
                 Export
