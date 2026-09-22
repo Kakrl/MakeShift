@@ -10,6 +10,7 @@ import {
 import {
   getCollidedKeyIndexes,
   getKeyCollisions,
+  updateKeyTransitions,
 } from "../cv/collision";
 import type { Fingertip } from "../cv/collision";
 import { MarkerDetector } from "../cv/markerDetector";
@@ -31,9 +32,13 @@ const PAGE_CORNERS: Point[] = [
 export default function MarkerTrackingOverlay({
   videoRef,
   fingertips,
+  onKeyTransitions,
+  trackingEnabled = false,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   fingertips: readonly Fingertip[];
+  onKeyTransitions?: (pressed: readonly number[], released: readonly number[]) => void;
+  trackingEnabled?: boolean;
 }) {
   const [markerDetection, setMarkerDetection] =
     useState<MarkerDetectionResult | null>(null);
@@ -42,6 +47,7 @@ export default function MarkerTrackingOverlay({
   const homographyRef = useRef<Homography | null>(null);
   const projectedPianoCornersRef = useRef<Point[] | null>(null);
   const projectedWhiteKeysRef = useRef<Point[][] | null>(null);
+  const previousKeysRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -115,6 +121,13 @@ export default function MarkerTrackingOverlay({
       detector?.dispose();
     };
   }, [videoRef]);
+
+  useEffect(() => {
+    if (!trackingEnabled && previousKeysRef.current.size > 0) {
+      onKeyTransitions?.([], [...previousKeysRef.current]);
+      previousKeysRef.current = new Set();
+    }
+  }, [onKeyTransitions, trackingEnabled]);
 
   useEffect(() => {
     if (
@@ -222,13 +235,32 @@ export default function MarkerTrackingOverlay({
             8,
           );
           const collidedKeys = getCollidedKeyIndexes(collisions);
+          if (trackingEnabled) {
+            const transitions = updateKeyTransitions(
+              previousKeysRef.current,
+              collidedKeys,
+            );
+
+            for (const keyIndex of transitions.pressed) {
+              console.log("Finger entered key:", keyIndex);
+            }
+
+            for (const keyIndex of transitions.released) {
+              console.log("Finger left key:", keyIndex);
+            }
+
+            if (transitions.pressed.length || transitions.released.length) {
+              onKeyTransitions?.(transitions.pressed, transitions.released);
+            }
+            previousKeysRef.current = collidedKeys;
+          }
 
           projectedWhiteKeys.forEach((key, index) => {
             if (collidedKeys.has(index)) pressWhiteKey(context, key);
             else releaseWhiteKey(context, key);
           });
     }
-  }, [fingertips, markerDetection]);
+  }, [fingertips, markerDetection, onKeyTransitions, trackingEnabled]);
 
   return (
     <>
