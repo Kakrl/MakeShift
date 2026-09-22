@@ -12,8 +12,8 @@ import {
   downloadMidi,
 } from "./midi/midiUtils";
 
-const MarkerTrackingOverlay = dynamic(
-  () => import("./MarkerTrackingOverlay"),
+const CVOverlayCoordinator = dynamic(
+  () => import("./CVOverlayCoordinator"),
   { ssr: false },
 );
 

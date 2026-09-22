@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
+import type { NormalizedLandmark } from "../../cv/collision";
 import { drawHandLandmarks } from "./handLandmarkDrawing";
 
 const VISION_WASM_PATH =
@@ -9,8 +10,10 @@ const VISION_WASM_PATH =
 
 export default function HandTrackingOverlay({
   videoRef,
+  onLandmarks,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
+  onLandmarks?: (hands: readonly (readonly NormalizedLandmark[])[]) => void;
 }) {
   const [status, setStatus] = useState("Loading MediaPipe…");
   const [handCount, setHandCount] = useState(0);
@@ -65,6 +68,8 @@ export default function HandTrackingOverlay({
           );
         }
 
+        onLandmarks?.(result?.landmarks ?? []);
+
         if (result && result.landmarks.length !== lastHandCount) {
           lastHandCount = result.landmarks.length;
           setHandCount(lastHandCount);
@@ -111,7 +116,7 @@ export default function HandTrackingOverlay({
       cancelAnimationFrame(animationFrame);
       handLandmarker?.close();
     };
-  }, [videoRef]);
+  }, [onLandmarks, videoRef]);
 
   return (
     <>
