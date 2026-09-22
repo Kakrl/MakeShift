@@ -1,212 +1,432 @@
 # Verification Test Inventory
 
+
+
 Every verification test for MakeShift. Test Case IDs and Req. IDs match the
+
 RVTM. Tests added since the RVTM are marked **Added** and numbered after the
+
 RVTM tests for the same requirement. Update this table in the same PR that
+
 adds, changes, or wires a test into CI (see `AGENTS.md`).
 
+
+
 - **Implementation Status** records whether test code or a completed manual procedure
+
   exists: Implemented, Partially implemented, Planned, or Blocked. CI integration
+
   and execution results are separate; a successful build is not a test result.
+
 - **Evidence Link** points to a specific Actions job log or completed manual report.
+
   Source links identify implementations, not passing runs. Proposed dates below
+
   are planning estimates requested by the user, not completion claims or
+
   confirmed commitments from individual owners.
+
 - **Owners:** Carl Xu owns audio and latency/performance tests; Jadden Picardal
+
   owns UI behavior, accessibility, navigation, and tutorial content; Francis Ozua
+
   owns CV detection and geometry; Harry Deng owns MIDI and remaining checks.
+
   Cross-subsystem tests use the behavior being asserted: audio output goes to
+
   Carl, visible recording controls to Jadden, MIDI file behavior to Harry.
+
 - Defect IDs (D1, D2, ...) refer to the Known Defects table in
+
   [`README.md`](README.md).
+
+
 
 ### Implementation and evidence audit (2026-09-17)
 
+
+
 Compared the local suite files with GitHub `main` at
+
 `e34d73624c4d776cb2dd7c4e23a5f1d7d37ce33a` and inspected Actions job logs.
+
 The six MIDI rows (4.1.3–4.1.7 and 4.2.3) represent seven existing unit tests;
+
 they are implemented but Vitest is not invoked by the frontend workflow (D3).
+
 No additional implementations were found for the remaining planned tests.
+
 Test 1.1.4 describes planned geometry tests, not existing coverage. Test 2.2.2
+
 has related rendering assertions, but pitch and volume/velocity ratio checks
+
 remain missing. No completed manual reports exist.
 
+
+
 The linked audio run reports 12 passes and two skipped stream tests; the contrast
+
 job passes 18 token pairs; the RCA job passes 18 mocked tests. These runs predate
+
 the local test relocation, so their logs use the old paths. They establish
+
 historical execution, not CI validation of the uncommitted relocation.
+
+
 
 ## Proposed delivery schedule: September 17–November 20, 2026
 
+
+
 The ready date is the target for test implementation and fixtures to be ready for
+
 review; for manual tests it means the procedure and equipment are ready.
+
 The CI / first-run date allows time for review, integration, and the first recorded
+
 execution. It is not a guaranteed passing date. Tests remain Blocked until their
+
 prerequisites are delivered. Product implementation dates below are assumptions
+
 for planning, not evidence that another issue is complete.
 
+
+
 - **09-17–09-25:** finish relocation, connect existing MIDI tests to CI, establish
+
   Selenium/fake-camera fixtures, verify hardware audio, and add geometry tests.
+
 - **09-28–10-16:** test calibration and recording states, implement missing audio
+
   pitch/ratio assertions, and verify octave/note selection and MIDI persistence.
+
   Assume calibration fixes, pause/resume, and volume transport arrive before
+
   their respective test-ready dates; collision detection and labeled videos
+
   must be available by 10-14.
+
 - **10-19–10-30:** connect collision, audio playback, and dynamics; verify file
+
   controls, overlays, and layouts. Assume browser audio transport is ready by
+
   10-23 and a deployed staging site is available by 10-28.
+
 - **11-02–11-10:** first full latency, dynamics, accessibility, HTTPS, loading,
+
   and clean-browser runs after integration is stable.
+
 - **11-11–11-18:** reserve for defect fixes and dependent test reruns across all
+
   four owners; rerun existing suites as well as new coverage on the release candidate.
+
 - **11-19–11-20:** review evidence, skipped/blocked coverage, and requirement
+
   traceability; use 11-20 as the final evidence handoff target.
 
+
+
 Related tests may share a harness or session (for example, the three tutorial
+
 reviews). The buffer is deliberate: a late dependency moves its downstream tests,
+
 not their implementation status. Review progress at Wednesday team meetings and
+
 revise these estimates if feature delivery or equipment availability slips.
+
 Already implemented RCA tests remain in CI; Harry should verify the relocated
+
 suite with the other CI reruns on 09-23 and during final regression.
+
+
 
 ## Browser architecture reconciliation (#85)
 
+
+
 The [RVTM addendum](../docs/rvtm_browser_addendum.md) maps existing requirements
+
 to the [browser architecture](../docs/architecture.md). Planned browser tests
+
 below use local events and AudioWorklet output rather than server audio transport.
+
 Native test IDs and historical evidence remain unchanged. This documentation
+
 update adds no executed tests and does not advance implementation/CI status.
+
 Existing proposed dates remain planning estimates, not renewed commitments.
+
+
 
 ## Requirement Coverage
 
+
+
 | Req ID | Software Requirement (short) | Tests |
+
 | :--- | :--- | :--- |
+
 | 1.1 | Calibrate to the piano sheet position | 1.1.1, 1.1.2, 1.1.3, 1.1.4 |
+
 | 1.2 | Change the number of octaves | 1.2.1, 1.2.2 |
+
 | 1.3 | Change the starting note | 1.3.1 |
+
 | 2.1 | Play notes for hand and key collisions | 2.1.1, 2.1.2 |
-| 2.2 | Play different octaves with configurable volume | 2.2.1 to 2.2.12 |
+
+| 2.2 | Play different octaves with configurable volume | 2.2.1 to 2.2.16 |
+
 | 2.3 | Low-latency live feedback | 2.3.1 to 2.3.5 |
+
 | 2.4 | Volume scales with key press speed | 2.4.1, 2.4.2 |
+
 | 3.1 | Clearly labeled, consistently positioned controls | 3.1.1, 3.1.2 |
+
 | 3.2 | Visual feedback for key presses, calibration, and recording | 3.2.1, 3.2.2 |
+
 | 3.3 | Minimal UI that keeps the piano visible | 3.3.1, 3.3.2 |
+
 | 3.4 | Visually accessible | 3.4.1, 3.4.2, 3.4.3 |
+
 | 4.1 | Start and stop recording from the UI | 4.1.1 to 4.1.7 |
+
 | 4.2 | Export a MIDI file after recording | 4.2.1, 4.2.2, 4.2.3 |
+
 | 5.1 | Runs entirely in the browser | 5.1.1 |
+
 | 5.2 | HTTPS only | 5.2.1, 5.2.2, 5.2.3 |
+
 | 5.3 | Loads quickly | 5.3.1 |
+
 | 6.1 | Documentation page | 6.1.1, 6.1.2 |
+
 | 6.2 | Guided calibration sequence | 6.2.1, 6.2.2 |
+
 | 6.3 | MIDI recording tutorial | 6.3.1, 6.3.2, 6.3.3 |
+
+
 
 ## Inventory
 
+
+
 | Test Case ID | Level (Unit / Integration / System) | Description | Req. ID | Test Owner | Tool | Automated? | Implementation Status | CI Integrated? | Proposed ready date | Proposed CI / first-run date | Prerequisites | Evidence Link |
+
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- | :--- | :---- | :--- | :--- | :--- | :---- |
+
 | 1.1.1 | Integration | Check that calibration correctly identifies the piano sheet position (ArUco markers 0 to 3 and homography) in recorded webcam video | 1.1 | Francis Ozua | Selenium (Chrome fake camera) + recorded video | Yes | Planned | No | 2026-09-30 | 2026-10-02 | 1.1.4; recorded sheet footage; fake-camera harness; calibration fixes (D6). | No execution evidence yet |
+
 | 1.1.2 | Integration | Check that each finger position during the hover phase of calibration is correctly identified | 1.1 | Francis Ozua | Selenium (Chrome fake camera) + recorded video | Yes | Planned | No | 2026-10-05 | 2026-10-07 | 1.1.1; labeled hover footage and stable hand tracking. | No execution evidence yet |
+
 | 1.1.3 | Integration | Check that each finger position during the place phase of calibration is correctly identified | 1.1 | Francis Ozua | Selenium (Chrome fake camera) + recorded video | Yes | Planned | No | 2026-10-08 | 2026-10-09 | 1.1.2; labeled placement footage and calibration state. | No execution evidence yet |
+
 | 1.1.4 | Unit | **Added (planned).** `computeHomography`, `projectPoint`, and `getWhiteKeyPolygons` map known paper corners to the expected key regions, and degenerate corners return `null` | 1.1 | Francis Ozua | Vitest | Yes | Planned | No | 2026-09-23 | 2026-09-25 | Known-corner fixtures; Vitest CI integration (D3). | No execution evidence yet |
+
 | 1.2.1 | Integration | For every available octave count, check that every note plays the correct pitch | 1.2 | Carl Xu | Vitest + browser offline rendering/FFT (planned) | Yes | Blocked | No (octave setting is not wired to audio yet, see D6) | 2026-10-12 | 2026-10-14 | 2.2.2; octave selection wired to audio (D6). | No execution evidence yet |
+
 | 1.2.2 | System | Check that the system warns when the selected octave range does not fit the paper, and behaves as selected if the user overrides the warning | 1.2 | Jadden Picardal | MakeShift + printed sheet | No | Planned | N/A (manual) | 2026-10-13 | 2026-10-16 | 1.1.1 and 1.2.1; paper-size warning and override implemented; printed sheet. | No execution evidence yet |
+
 | 1.3.1 | Integration | For every starting note and octave count, check that all notes shift pitch correctly | 1.3 | Carl Xu | Vitest + browser offline rendering/FFT (planned) | Yes | Blocked | No (starting note is not wired to audio yet, see D6) | 2026-10-15 | 2026-10-16 | 1.2.1; starting-note selection wired to audio (D6). | No execution evidence yet |
+
 | 2.1.1 | Unit | Run collision detection on labeled input videos and count false positives and false negatives. The combined rate must be under 3% | 2.1 | Francis Ozua | Vitest + labeled video set | Yes | Blocked | No (collision detection is issue #34) | 2026-10-14 | 2026-10-16 | 1.1.1–1.1.3; collision detection (#34) and labeled press/hover dataset. | No execution evidence yet |
+
 | 2.1.2 | Integration | Pipeline test: a detected key collision in the CV system produces browser note events that local audio plays | 2.1 | Carl Xu | Vitest + Selenium (planned) | Yes | Blocked | No | 2026-10-20 | 2026-10-22 | 2.1.1 and 2.2.2; shared browser events (#86) connected to AudioWorklet (#35, #28). | No execution evidence yet |
+
 | 2.2.1 | Integration | Use Selenium to change volume in the frontend and check that the setting reaches the audio system | 2.2 | Carl Xu | Selenium | Yes | Blocked | No (no volume control yet) | 2026-10-06 | 2026-10-08 | 2.2.2; UI volume control and local audio parameter delivery implemented. | No execution evidence yet |
-| 2.2.2 | Unit | Check that the audio engine renders the correct pitch for notes in each octave, and that output amplitude matches the volume and velocity ratios. Browser pitch/ratio coverage is planned under #35. Existing native related assertions: [rendering tests](audio/test_audio_events.cpp); pitch and amplitude ratios remain untested. | 2.2 | Carl Xu | GoogleTest / CTest (native); Vitest + browser offline rendering (planned) | Yes | Partially implemented | No (partly covered by 2.2.4 to 2.2.6) | 2026-09-29 | 2026-10-01 | browser renderer (#35), FFT pitch oracle and ratio fixtures; native tests remain separate evidence. | No execution evidence yet |
-| 2.2.3 | Integration | Check that shared browser note events produce audible local AudioWorklet output | 2.2 | Carl Xu | Selenium + audio loopback | Yes | Blocked | No | 2026-10-23 | 2026-10-27 | 2.1.2; AudioWorklet event delivery (#28, #35) and audio loopback runner available. | No execution evidence yet |
+
+| 2.2.2 | Unit | Browser pitch across eleven MIDI notes at 44.1/48/96 kHz (interpolated zero-crossing oracle, <0.1 Hz error), velocity amplitude ratio, attack/release ([source](frontend/browserAudio.test.ts)). User volume control remains unimplemented; native evidence remains separate. | 2.2 | Carl Xu | Vitest offline production DSP | Yes | Partially implemented — pitch/velocity implemented, user volume pending | No (D3) | Implemented 2026-09-22 (partial) | CI pending | Volume setting wiring (#28); no physical sound claim. | [Local verification](README.md#browser-audio-verification-issue-35) — passed 2026-09-22; Actions pending |
+
+| 2.2.3 | Integration | Browser-local note events produce AudioWorklet graph output ([source](frontend/browserAudio.browser.mjs)); shared #86 contract and measured loopback still pending. [User listening report](manual/2026-09-22_2.2.3.md). | 2.2 | Carl Xu | Playwright + Web Audio analyser; user listening reported; loopback pending | Yes (graph only) | Partially implemented | No | Partial 2026-09-22 | 2026-10-27 (loopback pending) | Shared event delivery (#86, #28), hardware listening/loopback. | [Local verification](README.md#browser-audio-verification-issue-35) — graph passed; user-reported listening passed (device unspecified); loopback and Actions pending |
+
 | 2.2.4 | Unit | **Added.** `AudioEventsTest.RejectsInvalidHitsWithoutFillingQueue`: out-of-range notes and velocities are rejected without using queue space ([source](audio/test_audio_events.cpp)) | 2.2 | Carl Xu | GoogleTest / CTest | Yes | Implemented | Yes (`testing.yml`, runs on C++ changes) | Already implemented | Already in CI; rerun 2026-09-23 | Validate relocated paths in CI; retain existing execution evidence. | [CTest job log](https://github.com/Kakrl/MakeShift/actions/runs/35151161579/job/104979531987) — passed |
+
 | 2.2.5 | Unit | **Added.** `AudioEventsTest.QueuedHitProducesBoundedStereoThenDecaysToSilence`: a hit renders clamped stereo audio that decays to silence ([source](audio/test_audio_events.cpp)) | 2.2 | Carl Xu | GoogleTest / CTest | Yes | Implemented | Yes (`testing.yml`) | Already implemented | Already in CI; rerun 2026-09-23 | Validate relocated paths in CI; retain existing execution evidence. | [CTest job log](https://github.com/Kakrl/MakeShift/actions/runs/35151161579/job/104979531987) — passed |
+
 | 2.2.6 | Unit | **Added.** `AudioEventsTest.VoiceStateContinuesAcrossCallbacks`: a note continues smoothly across audio buffers ([source](audio/test_audio_events.cpp)) | 2.2 | Carl Xu | GoogleTest / CTest | Yes | Implemented | Yes (`testing.yml`) | Already implemented | Already in CI; rerun 2026-09-23 | Validate relocated paths in CI; retain existing execution evidence. | [CTest job log](https://github.com/Kakrl/MakeShift/actions/runs/35151161579/job/104979531987) — passed |
+
 | 2.2.7 | Unit | **Added.** `AudioEngineTest.*`: PortAudio initializes, and the output stream starts, stops, and restarts ([source](audio/test_audio.cpp)) | 2.2 | Carl Xu | GoogleTest / CTest | Yes | Implemented | Yes; stream coverage requires hardware | Already implemented | 2026-09-24 (hardware rerun) | Audio output device; explicitly verify both stream cases execute. | [CTest job log](https://github.com/Kakrl/MakeShift/actions/runs/35151161579/job/104979531987) — initialization passed; two stream tests skipped |
+
 | 2.2.8 | Unit | **Added.** `AudioPolyphonyTest.DefaultLimitKeepsNewestTenHitsInQueueOrder`: with the default limit, the newest 10 hits play in queue order ([source](audio/test_audio_events.cpp)) | 2.2 | Carl Xu | GoogleTest / CTest | Yes | Implemented | Yes (`testing.yml`) | Already implemented | Already in CI; rerun 2026-09-23 | Validate relocated paths in CI; retain existing execution evidence. | [CTest job log](https://github.com/Kakrl/MakeShift/actions/runs/35151161579/job/104979531987) — passed |
+
 | 2.2.9 | Unit | **Added.** `AudioPolyphonyTest.StealsOldestAcrossCallbacksWithoutRestartingOtherVoices`: at the limit, the oldest voice is replaced and the other voices keep playing ([source](audio/test_audio_events.cpp)) | 2.2 | Carl Xu | GoogleTest / CTest | Yes | Implemented | Yes (`testing.yml`) | Already implemented | Already in CI; rerun 2026-09-23 | Validate relocated paths in CI; retain existing execution evidence. | [CTest job log](https://github.com/Kakrl/MakeShift/actions/runs/35151161579/job/104979531987) — passed |
+
 | 2.2.10 | Unit | **Added.** `AudioPolyphonyTest.ReusesExpiredVoicesBeforeStealing`: expired voices are reused before an active voice is replaced ([source](audio/test_audio_events.cpp)) | 2.2 | Carl Xu | GoogleTest / CTest | Yes | Implemented | Yes (`testing.yml`) | Already implemented | Already in CI; rerun 2026-09-23 | Validate relocated paths in CI; retain existing execution evidence. | [CTest job log](https://github.com/Kakrl/MakeShift/actions/runs/35151161579/job/104979531987) — passed |
+
 | 2.2.11 | Unit | **Added.** `AudioPolyphonyTest.RepeatedPitchIsANewHitAndSingleVoiceLimitWorks`: repeating a pitch starts a new hit, and a limit of 1 voice works ([source](audio/test_audio_events.cpp)) | 2.2 | Carl Xu | GoogleTest / CTest | Yes | Implemented | Yes (`testing.yml`) | Already implemented | Already in CI; rerun 2026-09-23 | Validate relocated paths in CI; retain existing execution evidence. | [CTest job log](https://github.com/Kakrl/MakeShift/actions/runs/35151161579/job/104979531987) — passed |
+
 | 2.2.12 | Unit | **Added.** `AudioPolyphonyTest.RejectsLimitsOutsideOneToTen`: voice limits outside 1 to 10 are rejected ([source](audio/test_audio_events.cpp)) | 2.2 | Carl Xu | GoogleTest / CTest | Yes | Implemented | Yes (`testing.yml`) | Already implemented | Already in CI; rerun 2026-09-23 | Validate relocated paths in CI; retain existing execution evidence. | [CTest job log](https://github.com/Kakrl/MakeShift/actions/runs/35151161579/job/104979531987) — passed |
+
+| 2.2.13 | Unit | Ten repeated-pitch voices sum linearly; oldest press stolen; late stolen release harmless; released slot reused; finite bounded mix and phase continuity ([source](frontend/browserAudio.test.ts)) | 2.2 | Carl Xu | Vitest offline production DSP | Yes | Implemented | No (D3) | 2026-09-22 | CI pending | No hardware required. | [Local verification](README.md#browser-audio-verification-issue-35) — passed; Actions pending |
+
+| 2.2.14 | Unit | Reject invalid note/velocity/session, duplicate and unordered presses; release-all/reset silence; stale-session note/release/reset ignored ([source](frontend/browserAudio.test.ts)) | 2.2 | Carl Xu | Vitest offline production DSP | Yes | Implemented | No (D3) | 2026-09-22 | CI pending | Audio-local adapter; shared #86 contract separate. | [Local verification](README.md#browser-audio-verification-issue-35) — passed; Actions pending |
+
+| 2.2.15 | Unit | User activation, concurrent initialization, module failure/retry, suspended startup, interruption/restart, old release identity, bounded overflow, processor failure and initialization teardown ([source](frontend/browserAudioLifecycle.test.ts)) | 2.2 | Carl Xu | Vitest mocked Web Audio ownership | Yes | Implemented | No (D3) | 2026-09-22 | CI pending | Mocks do not establish real browser support. | [Local verification](README.md#browser-audio-verification-issue-35) — passed; Actions pending |
+
+| 2.2.16 | Integration | Production worklet HTTP asset, soft/loud output ratio, ten-note graph output, stop silence, suspension/restart without replay and navigation cleanup ([source](frontend/browserAudio.browser.mjs)) | 2.2 | Carl Xu | Playwright / Edge + Web Audio analyser | Yes | Implemented — graph only | No | 2026-09-22 | CI pending | Production server and installed browser; hardware audible output excluded. | [Local verification](README.md#browser-audio-verification-issue-35) — passed; Actions pending |
+
 | 2.3.1 | System | Measure physical press to audible browser output against 50 ms using synchronized reference/audio capture; use recorded video separately for repeatable pipeline checks (#30) | 2.3 | Carl Xu | Custom latency harness | Yes (analysis); physical capture required | Planned | No | 2026-11-02 | 2026-11-04 | 2.3.2; synchronized input/output capture and latency harness (#30). | No execution evidence yet |
+
 | 2.3.2 | Unit | Measure the speed of each stage from key press to sound: frame capture, marker and hand detection, collision detection, browser event delivery, and audio render | 2.3 | Carl Xu | Browser Performance + Vitest analysis | Yes | Planned | No | 2026-10-27 | 2026-10-29 | 2.1.2 and 2.2.3; stage timers and reproducible performance runner. | No execution evidence yet |
+
 | 2.3.3 | Unit | **Added.** `SpscQueueTest.EmptyFullAndWraparoundPreserveOrder`: the lock-free hit queue rejects pushes when full and keeps FIFO order across wraparound ([source](audio/test_audio_events.cpp)) | 2.3 | Carl Xu | GoogleTest / CTest | Yes | Implemented | Yes (`testing.yml`) | Already implemented | Already in CI; rerun 2026-09-23 | Validate relocated paths in CI; retain existing execution evidence. | [CTest job log](https://github.com/Kakrl/MakeShift/actions/runs/35151161579/job/104979531987) — passed |
+
 | 2.3.4 | Unit | **Added.** `SpscQueueTest.CapacityOneCanBeReused`: the smallest queue is reusable ([source](audio/test_audio_events.cpp)) | 2.3 | Carl Xu | GoogleTest / CTest | Yes | Implemented | Yes (`testing.yml`) | Already implemented | Already in CI; rerun 2026-09-23 | Validate relocated paths in CI; retain existing execution evidence. | [CTest job log](https://github.com/Kakrl/MakeShift/actions/runs/35151161579/job/104979531987) — passed |
+
 | 2.3.5 | Unit | **Added.** `SpscQueueTest.ConcurrentProducerAndConsumerPreservePayloads`: payloads survive a real producer and consumer thread pair without locks ([source](audio/test_audio_events.cpp)) | 2.3 | Carl Xu | GoogleTest / CTest | Yes | Implemented | Yes (`testing.yml`) | Already implemented | Already in CI; rerun 2026-09-23 | Validate relocated paths in CI; retain existing execution evidence. | [CTest job log](https://github.com/Kakrl/MakeShift/actions/runs/35151161579/job/104979531987) — passed |
+
 | 2.4.1 | Integration | Check that the CV system sends finger speed to the audio system, and that volume scales on top of the user's volume setting | 2.4 | Carl Xu | Vitest + browser offline rendering (planned) | Yes | Blocked | No | 2026-10-28 | 2026-10-30 | 2.1.2 and 2.2.1; finger-speed estimation and velocity mapping implemented. | No execution evidence yet |
+
 | 2.4.2 | System | Play slow, normal, and fast presses and record the volume of each. Following the V&V plan, fast presses must be more than 5 dB louder than slow presses over 10 trials in a row | 2.4 | Carl Xu | MakeShift + decibel meter app | No | Planned | N/A (manual) | 2026-11-03 | 2026-11-05 | 2.4.1 and 2.2.3; audio device, meter, fixed setup, and ten trials. | No execution evidence yet |
+
 | 3.1.1 | Unit | Check that the Calibration, Tutorial, Documentation, and Record controls are visible on first load without scrolling | 3.1 | Jadden Picardal | Selenium | Yes | Planned | No | 2026-09-24 | 2026-09-25 | Selenium harness and agreed desktop viewport. | No execution evidence yet |
+
 | 3.1.2 | Unit | Check that controls stay in the same positions across every page and mode | 3.1 | Jadden Picardal | Selenium | Yes | Planned | No | 2026-09-28 | 2026-09-30 | 3.1.1; page/mode fixtures. | No execution evidence yet |
+
 | 3.2.1 | Integration | Check that a piano key changes color when a finger press is detected | 3.2 | Jadden Picardal | Selenium (Chrome fake camera) | Yes | Blocked | No (overlay not rendered, see D1. Collision detection is issue #34) | 2026-10-20 | 2026-10-23 | 2.1.1; overlay restored (D1); recorded key-press fixture. | No execution evidence yet |
+
 | 3.2.2 | Unit | Check that the recording status indicator changes when recording starts, pauses, and stops | 3.2 | Jadden Picardal | Selenium | Yes | Planned | No | 2026-10-08 | 2026-10-09 | 4.1.2; stable recording state transitions. | No execution evidence yet |
+
 | 3.3.1 | System | Check that the piano keys and sheet stay fully visible during active play | 3.3 | Jadden Picardal | MakeShift + screenshots | No | Planned | N/A (manual) | 2026-10-27 | 2026-10-29 | 3.2.1 and 2.2.3; active-play setup, webcam, printed sheet. | No execution evidence yet |
+
 | 3.3.2 | Unit | Check that popups and controls do not overlap the keyboard area (bounding box check) | 3.3 | Jadden Picardal | Selenium | Yes | Planned | No | 2026-10-22 | 2026-10-26 | 3.2.1; popup/mode fixtures and keyboard bounds. | No execution evidence yet |
+
 | 3.4.1 | Unit | Run Selenium tests for contrast and scaling: axe-core contrast rules on every page, plus layout at 200% zoom and at mobile, tablet, and desktop widths | 3.4 | Jadden Picardal | Selenium + axe-core | Yes | Planned | No | 2026-10-29 | 2026-11-02 | 3.3.2 and 4.2.2; axe-core setup, zoom and viewport matrix. | No execution evidence yet |
+
 | 3.4.2 | System | WCAG 2.2 AA compliance review: keyboard-only navigation, focus order, screen reader labels, and live regions | 3.4 | Jadden Picardal | Manual checklist + Lighthouse | No | Planned | N/A (manual) | 2026-11-03 | 2026-11-06 | 3.4.1; stable UI, screen reader and keyboard-only review checklist. | No execution evidence yet |
+
 | 3.4.3 | Unit | **Added.** WCAG contrast audit of every `--color-*` foreground and background pair: 4.5:1 for text, 3:1 for UI components ([source](frontend/check-contrast.mjs)) | 3.4 | Jadden Picardal | Node (`tests/frontend/check-contrast.mjs`) | Yes | Implemented | Yes (`frontend-ci.yml`) | Already implemented | Already in CI; rerun 2026-09-23 | Validate relocated paths in CI; retain existing execution evidence. | [Contrast job log](https://github.com/Kakrl/MakeShift/actions/runs/35165030186/job/105024100858) — 18 pairs passed |
+
 | 4.1.1 | Unit | Send the MIDI system a random stream of key inputs mixed with start, pause, resume, and stop, then compare the expected and actual MIDI files | 4.1 | Harry Deng | Vitest | Yes | Blocked | No (pause and resume are not in `midiUtils` yet. Vitest is not in CI, see D3) | 2026-10-01 | 2026-10-05 | Existing MIDI tests in CI; pause/resume implementation; seeded stream and MIDI parser oracle. | No execution evidence yet |
+
 | 4.1.2 | Unit | Check that the UI has a record button and shows when recording is active, paused, or stopped | 4.1 | Jadden Picardal | Selenium | Yes | Planned | No | 2026-10-06 | 2026-10-07 | 4.1.1; recording UI wired to MIDI state (D2). | No execution evidence yet |
+
 | 4.1.3 | Unit | **Added.** `millisecondsToTicks` converts 500 ms at 120 BPM to 128 ticks ([source](frontend/midiUtils.test.ts)) | 4.1 | Harry Deng | Vitest | Yes | Implemented | No — Vitest step missing (D3) | Already implemented | 2026-09-22 (CI) | Add Vitest to frontend CI (D3); confirm relocated test discovery. | No Actions execution; local result in [relocation verification](README.md#test-relocation-verification-issue-83) |
+
 | 4.1.4 | Unit | **Added.** `startRecording` sets the track tempo ([source](frontend/midiUtils.test.ts)) | 4.1 | Harry Deng | Vitest | Yes | Implemented | No — Vitest step missing (D3) | Already implemented | 2026-09-22 (CI) | Add Vitest to frontend CI (D3); confirm relocated test discovery. | No Actions execution; local result in [relocation verification](README.md#test-relocation-verification-issue-83) |
+
 | 4.1.5 | Unit | **Added.** `noteOn` and `noteOff` add events with the correct pitch, velocity, and tick ([source](frontend/midiUtils.test.ts)) | 4.1 | Harry Deng | Vitest | Yes | Implemented | No — Vitest step missing (D3) | Already implemented | 2026-09-22 (CI) | Add Vitest to frontend CI (D3); confirm relocated test discovery. | No Actions execution; local result in [relocation verification](README.md#test-relocation-verification-issue-83) |
+
 | 4.1.6 | Unit | **Added.** `stopRecording` adds a note-off event for every supplied pitch ([source](frontend/midiUtils.test.ts)) | 4.1 | Harry Deng | Vitest | Yes | Implemented | No — Vitest step missing (D3) | Already implemented | 2026-09-22 (CI) | Add Vitest to frontend CI (D3); confirm relocated test discovery. | No Actions execution; local result in [relocation verification](README.md#test-relocation-verification-issue-83) |
+
 | 4.1.7 | Unit | **Added.** Simultaneous notes (chords) produce multiple note-on events ([source](frontend/midiUtils.test.ts)) | 4.1 | Harry Deng | Vitest | Yes | Implemented | No — Vitest step missing (D3) | Already implemented | 2026-09-22 (CI) | Add Vitest to frontend CI (D3); confirm relocated test discovery. | No Actions execution; local result in [relocation verification](README.md#test-relocation-verification-issue-83) |
+
 | 4.2.1 | Integration | Check that MIDI files are saved and can be retrieved later, after a browser restart | 4.2 | Harry Deng | Selenium | Yes | Blocked | No (persistence is not implemented yet) | 2026-10-13 | 2026-10-15 | 4.1.1; storage/persistence implementation and fresh-browser fixtures. | No execution evidence yet |
+
 | 4.2.2 | Unit | Check that the UI has working buttons to access, delete, and download MIDI files | 4.2 | Jadden Picardal | Selenium | Yes | Blocked | No (export does not produce a file, see D2) | 2026-10-16 | 2026-10-20 | 4.2.1 and 4.2.3; file controls and export wired (D2). | No execution evidence yet |
+
 | 4.2.3 | Unit | **Added.** `downloadMidi` creates a `recording.mid` download ([source](frontend/midiUtils.test.ts)) | 4.2 | Harry Deng | Vitest | Yes | Implemented | No — Vitest step missing (D3) | Already implemented | 2026-09-22 (CI) | Add Vitest to frontend CI (D3); confirm relocated test discovery. | No Actions execution; local result in [relocation verification](README.md#test-relocation-verification-issue-83) |
+
 | 5.1.1 | System | Check that the app runs without errors on a clean machine and a fresh browser profile, with no installs and no console errors | 5.1 | Harry Deng | Fresh browser profile (Chrome, Firefox, Safari) | No | Planned | N/A (manual) | 2026-11-06 | 2026-11-10 | 2.2.3, 4.2.1 and deployed build; clean Chrome/Firefox/Safari profiles. | No execution evidence yet |
+
 | 5.2.1 | System | Check that traffic uses HTTPS encryption (valid certificate, TLS 1.2 or later) | 5.2 | Harry Deng | `curl` / SSL Labs | No | Blocked | N/A (manual, needs a deployed site) | 2026-10-29 | 2026-11-02 | Deployed staging site with hostname and certificate by 10-28. | No execution evidence yet |
+
 | 5.2.2 | System | Check that HTTP requests redirect to HTTPS | 5.2 | Harry Deng | `curl -I` | Yes | Blocked | No (needs a deployed site) | 2026-11-02 | 2026-11-03 | 5.2.1; HTTP endpoint and redirect policy configured. | No execution evidence yet |
+
 | 5.2.3 | Integration | Check that every API call from the frontend uses `https://` or `wss://` | 5.2 | Harry Deng | pytest / Selenium network log | Yes | Blocked | No (no network API yet) | 2026-11-03 | 2026-11-05 | 5.2.1; implemented API transport and complete network-call inventory; resolve scope if no API is needed. | No execution evidence yet |
+
 | 5.3.1 | System | Check that initial load takes under 3 seconds on a standard broadband connection | 5.3 | Carl Xu | Lighthouse CI | Yes | Planned | No | 2026-11-06 | 2026-11-09 | 2.3.1; deployed production build and repeatable broadband/throttling profile. | No execution evidence yet |
+
 | 6.1.1 | Unit | Check that the documentation page opens from the main navigation | 6.1 | Jadden Picardal | Selenium | Yes | Planned | No | 2026-09-29 | 2026-10-01 | 3.1.1; documentation route available. | No execution evidence yet |
+
 | 6.1.2 | Unit | Check that the documentation page loads with no missing content, broken links, or broken layout | 6.1 | Jadden Picardal | Selenium | Yes | Planned | No | 2026-10-01 | 2026-10-02 | 6.1.1; agreed page content and link expectations. | No execution evidence yet |
+
 | 6.2.1 | Unit | Check that the calibration sequence opens from the main navigation | 6.2 | Jadden Picardal | Selenium | Yes | Planned | No | 2026-10-02 | 2026-10-05 | 3.1.1; calibration route available. | No execution evidence yet |
+
 | 6.2.2 | System | Walk through calibration with a real webcam and printed sheet, including camera denial and retry, and check that each step guides the user (critical workflow, needs a manual report) | 6.2 | Jadden Picardal | MakeShift + webcam | No | Planned | N/A (manual) | 2026-10-12 | 2026-10-14 | 1.1.1–1.1.3 and 6.2.1; D6 fixes; webcam, sheet, permission-denial/retry scenarios. | No execution evidence yet |
+
 | 6.3.1 | System | Check that the tutorial explains how to start a MIDI recording | 6.3 | Jadden Picardal | Manual content review | No | Planned | N/A (manual) | 2026-10-21 | 2026-10-22 | 4.1.2; tutorial text matches implemented start flow. | No execution evidence yet |
+
 | 6.3.2 | System | Check that the tutorial explains how to stop a MIDI recording | 6.3 | Jadden Picardal | Manual content review | No | Planned | N/A (manual) | 2026-10-21 | 2026-10-22 | 4.1.2 and 4.2.2; tutorial text matches stop/export flow. | No execution evidence yet |
+
 | 6.3.3 | System | Check that the tutorial explains how to pause a MIDI recording | 6.3 | Jadden Picardal | Manual content review | No | Planned | N/A (manual) | 2026-10-21 | 2026-10-22 | 4.1.1 and 3.2.2; tutorial text matches pause/resume behavior. | No execution evidence yet |
+
+
 
 ## Supporting CI Checks
 
+
+
 These checks guard code quality. They do not verify a requirement on their own.
 
+
+
 | Check | Owner | Workflow | Runs on |
+
 | :--- | :--- | :--- | :--- |
+
 | ESLint, `tsc --noEmit`, `next build` | Jadden Picardal | `frontend-ci.yml` | Changes under `frontend/` or `tests/frontend/` |
+
 | Ruff, mypy | Harry Deng | `linting.yml` | Python changes |
+
 | clang-format 17 | Carl Xu | `linting.yml` | C++ changes under `backend/src` |
+
 | `tests/python/test_dummy.py` | Harry Deng | `testing.yml` | Placeholder so pytest collects a test. Replace it once Python code exists |
+
+
 
 ## RCA Automation Verification
 
+
+
 These are repository-process tests for [issue #81](https://github.com/Kakrl/MakeShift/issues/81),
+
 not new product requirements. They do not replace any RVTM tests above.
+
 All run with `node --test tests/automation/rca.test.cjs`; GitHub API calls are mocked.
+
 A live post-merge publication is not claimed by these tests.
 
+
+
 | Test ID | Level | Requirement | Description | Owner | Tool | Automated? | Implementation Status | CI Integrated? | Evidence |
+
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+
 | RCA-01 | Unit / mocked integration | Issue #81 acceptance criteria | ordinary PR, including unchanged PR template, needs no RCA or log read ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
 | RCA-02 | Unit / mocked integration | Issue #81 acceptance criteria | high severity, assignment selection and explicit issue label require RCA ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
 | RCA-03 | Unit / mocked integration | Issue #81 acceptance criteria | complete RCA and log row validate ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
 | RCA-04 | Unit / mocked integration | Issue #81 acceptance criteria | missing, empty and placeholder fields fail with useful errors ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
 | RCA-05 | Unit / mocked integration | Issue #81 acceptance criteria | malformed and duplicate blocks are rejected ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
 | RCA-06 | Unit / mocked integration | Issue #81 acceptance criteria | each target must be a closing bug issue, never a PR or unrelated issue ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
 | RCA-07 | Unit / mocked integration | Issue #81 acceptance criteria | multiple required defects each need their own RCA and log row ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
 | RCA-08 | Unit / mocked integration | Issue #81 acceptance criteria | log must have all columns and exact issue/PR links inside the RCA log section ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
 | RCA-09 | Unit / mocked integration | Issue #81 acceptance criteria | merge publishes with correct target, commit and PR provenance ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
 | RCA-10 | Unit / mocked integration | Issue #81 acceptance criteria | non-merged closures and non-closure events never read or write ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
 | RCA-11 | Unit / mocked integration | Issue #81 acceptance criteria | ordinary merged PR is a no-op ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
 | RCA-12 | Unit / mocked integration | Issue #81 acceptance criteria | validation reads PR head as data and never posts ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
 | RCA-13 | Unit / mocked integration | Issue #81 acceptance criteria | rerun reuses bot comment; changed generated comment is updated ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
 | RCA-14 | Unit / mocked integration | Issue #81 acceptance criteria | a human comment with the marker is never overwritten ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
 | RCA-15 | Unit / mocked integration | Issue #81 acceptance criteria | partial API failure is surfaced; retry does not duplicate successful targets ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
 | RCA-16 | Unit / mocked integration | Issue #81 acceptance criteria | all targets validate before any comments are written ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
 | RCA-17 | Unit / mocked integration | Issue #81 acceptance criteria | recovery uses merge event body, not a later PR description edit ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
 | RCA-18 | Unit / mocked integration | Issue #81 acceptance criteria | closing references paginate and cross-repository targets are excluded ([source](automation/rca.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`rca-tests.yml`, PRs and main pushes) | [RCA job log](https://github.com/Kakrl/MakeShift/actions/runs/35172706305/job/105047586914) — 18 tests passed |
+
+
 
 ## Validation (not verification)
 
+
+
 User acceptance testing follows the V&V plan: at least 4 diverse subjects, run
+
 twice (after the first milestone and at the end of the semester). Record
+
 results with the manual test template.
+
