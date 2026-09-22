@@ -11,6 +11,7 @@ import {
   stopRecording,
   downloadMidi,
 } from "./midi/midiUtils";
+import { initializeAudio } from "./audio/audioEngine";
 
 const CVOverlayCoordinator = dynamic(
   () => import("./CVOverlayCoordinator"),
@@ -157,6 +158,7 @@ export default function Home() {
   // ── Recording controls ───────────────────────────────────────────────────
   const handlePlay = () => {
     if (!canRecord) return;
+    initializeAudio();
     if (countInBeat !== null) return; // already counting in
     if (isRecording && !isPaused) {
       // Pause
@@ -218,7 +220,10 @@ export default function Home() {
             muted
             className="absolute inset-0 w-full h-full object-cover"
           />
-          <CVOverlayCoordinator videoRef={videoRef} />
+          <CVOverlayCoordinator
+            videoRef={videoRef}
+            enabled={isRecording && !isPaused}
+          />
         </div>
 
         {/* Right sidebar */}

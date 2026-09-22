@@ -40,6 +40,8 @@ export function noteOn(
     return;
   }
 
+  console.log("midi note one");
+
   const elapsedTime = performance.now() - recordingStartTime;
   const startTick = millisecondsToTicks(elapsedTime, recordingBpm);
 
@@ -60,6 +62,8 @@ export function noteOff(pitch: string): void {
     return;
   }
 
+  console.log("midi note off");
+
   const elapsedTime = performance.now() - recordingStartTime;
   const endTick = millisecondsToTicks(elapsedTime, recordingBpm);
 
@@ -75,6 +79,11 @@ export function noteOff(pitch: string): void {
   );
 
   activeNotes.delete(pitch);
+}
+
+/** Close every note currently held by the live CV session. */
+export function releaseAllNotes(): void {
+  for (const pitch of activeNotes.keys()) noteOff(pitch);
 }
 
 export function stopRecording(): void {
