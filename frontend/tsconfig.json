@@ -19,7 +19,11 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "midi-writer-js": [
+        "./node_modules/midi-writer-js/build/types/main.d.ts"
+      ],
+      "vitest": ["./node_modules/vitest"]
     }
   },
   "include": [
@@ -28,7 +32,9 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    "../tests/frontend/**/*.ts",
+    "../tests/frontend/**/*.tsx"
   ],
   "exclude": ["node_modules"]
 }

@@ -4,40 +4,89 @@
 
 ```text
 MakeShift/
-├── .claude/
 ├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   │   └── defect_report.yml        # defect (bug) report form
+│   ├── pull_request_template.md    # PR sections and RCA instructions
+│   ├── scripts/
+│   │   └── rca.cjs                 # trusted RCA validator/publisher
 │   └── workflows/
+│       ├── bypass-checks.yml        # no-op test/lint jobs for non-Python PRs
+│       ├── bypass-frontend.yml      # no-op frontend job for non-frontend PRs
+│       ├── frontend-ci.yml          # lint, type check, contrast audit, build
+│       ├── linting.yml              # ruff, mypy, clang-format
+│       ├── rca.yml                  # validate RCA evidence; publish after merge
+│       ├── rca-tests.yml            # regression tests for RCA automation
+│       └── testing.yml              # pytest, CMake build, CTest
 ├── backend/
+│   ├── CMakeLists.txt               # audio library, nanobind module, GoogleTest
 │   └── src/
 │       ├── API/
-│       ├── audio/
+│       ├── audio/                   # AudioEngine (PortAudio) and SpscQueue
 │       ├── CV/
 │       ├── MIDI/
+│       ├── Bindings.cpp             # nanobind Python bindings
 │       └── __init__.py
 ├── docs/
+│   ├── architecture.md              # browser target, tooling, delivery boundaries
+│   ├── rvtm_browser_addendum.md      # browser requirement/test reconciliation
+│   ├── audio.md                     # polyphony and voice stealing
+│   ├── audio_events.md              # audio event queue contract
 │   ├── dev_process.md
-│   └── sdp.md
+│   ├── piano_sheet.md               # printable sheet and ArUco marker IDs
+│   ├── Piano Sheet.png
+│   ├── sdp.md
+│   ├── Design Document.pdf
+│   └── Final Verification and Validation Plan.pdf
 ├── frontend/
 │   ├── public/
+│   │   └── models/                  # MediaPipe hand landmarker model
 │   ├── src/
-│   │   └── app/
-│   │       ├── calibration/
-│   │       ├── documentation/
-│   │       ├── tutorial/
-│   │       ├── CameraContext.tsx
-│   │       ├── globals.css
-│   │       ├── layout.tsx
-│   │       └── page.tsx
+│   │   ├── app/
+│   │   │   ├── about/
+│   │   │   ├── calibration/
+│   │   │   ├── cv/                  # hand landmark overlay and drawing
+│   │   │   ├── documentation/
+│   │   │   ├── midi/                # MIDI recording utils
+│   │   │   ├── tutorial/
+│   │   │   ├── CameraContext.tsx
+│   │   │   ├── CameraStatusOverlay.tsx
+│   │   │   ├── MarkerTrackingOverlay.tsx
+│   │   │   ├── globals.css          # --color-* theme tokens
+│   │   │   ├── layout.tsx
+│   │   │   ├── lighting.ts
+│   │   │   ├── page.tsx
+│   │   │   └── useHandLandmarker.ts
+│   │   ├── cv/                      # ArUco detection, homography, key geometry
+│   │   └── shims/
 │   ├── package.json
 │   ├── package-lock.json
+│   ├── vitest.config.mts            # discovers tests/frontend/
 │   ├── tsconfig.json
 │   ├── next.config.ts
 │   └── README.md
 ├── tests/
+│   ├── README.md                    # commands, known defects, RCA log
+│   ├── verification_test_inventory.md
+│   ├── audio/
+│   │   ├── test_audio.cpp
+│   │   └── test_audio_events.cpp
+│   ├── automation/
+│   │   └── rca.test.cjs             # RCA parser, validation, publication tests
+│   ├── frontend/
+│   │   ├── midiUtils.test.ts
+│   │   └── check-contrast.mjs
+│   ├── python/
+│   │   └── test_dummy.py
+│   └── manual/                     # manual test template and completed reports
+├── .clang-format
 ├── .gitignore
+├── AGENTS.md                        # contributor and coding agent instructions
+├── CLAUDE.md                        # points to AGENTS.md
 ├── LICENSE
 ├── README.md
-└── requirements.txt
+├── requirements.txt
+└── ruff.toml
 ```
 ### Project Structure
 
@@ -78,6 +127,49 @@ We use a fork-and-pull-request workflow:
   - tests passing
   - code quality/lint/cleanliness checks passing
 - PRs with failing CI checks are not eligible for merge.
+
+### Running Python Checks Locally
+
+From the repository root, install the dependencies and run the same Python
+checks as CI:
+
+```sh
+python -m pip install -r requirements.txt
+python -m ruff check backend/src tests
+python -m mypy backend/src --check-untyped-defs
+python -m pytest --cov=backend --cov-report=term-missing
+```
+
+Ruff checks Python style, common errors, and import sorting in one command.
+The rules and 79-character line limit are configured in `ruff.toml`. To apply
+available fixes locally, run `python -m ruff check --fix backend/src tests`
+and review the changes before committing. CI checks files without changing them.
+
+### Testing and Defect Documentation
+
+- A PR that adds or changes a test updates its row in
+  `tests/verification_test_inventory.md`. Put test implementations, fixtures,
+  and helpers in the matching `tests/audio/`, `tests/frontend/`,
+  `tests/python/`, or `tests/automation/` directory. Keep runner configuration
+  with its owning package/build system. Commands are in [the testing guide](../tests/README.md#running-the-tests).
+- Defects are filed with the defect report issue template. Severity decides
+  how much documentation is needed (see `tests/README.md`).
+- High severity fixes and the assignment example (regardless of severity)
+  require an RCA. Mark the assignment example in the defect issue form;
+  use the `rca-required` issue label for older issues or team-requested RCAs.
+- The author writes a separate RCA block for each target bug issue in the
+  fix PR description and includes `Closes #N` for each target. Complete the
+  corresponding RCA log row in `tests/README.md` in that PR. Open the PR as
+  a draft to obtain its URL before filling the Fix PR cell if necessary.
+- The `RCA requirements` check validates eligibility, seven required fields,
+  an evidence link, and a complete log row. Reviewers still verify the actual
+  root cause, test results, regression coverage, and any PR description edits
+  before merge. Automation checks structure, not the truth of the analysis.
+- After merge, `Publish RCA` posts the description captured by the merge
+  event to the selected issue. Authors do not need to copy comments manually.
+  See `tests/README.md` for the exact template and failed-run recovery.
+- Run `node --test tests/automation/rca.test.cjs` on Node 22 when changing RCA automation.
+  The `RCA automation tests` workflow runs on every PR and main push.
 
 ### Review and Approval Rules
 
