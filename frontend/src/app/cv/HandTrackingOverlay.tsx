@@ -93,16 +93,36 @@ export default function HandTrackingOverlay({
     const initialize = async () => {
       try {
         const vision = await FilesetResolver.forVisionTasks(VISION_WASM_PATH);
-        const createdHandLandmarker = await HandLandmarker.createFromOptions(
-          vision,
-          {
-            baseOptions: {
-              modelAssetPath: "/models/hand_landmarker.task",
+        let createdHandLandmarker: HandLandmarker;
+        let delegate = "GPU";
+
+        try {
+          createdHandLandmarker = await HandLandmarker.createFromOptions(
+            vision,
+            {
+              baseOptions: {
+                modelAssetPath: "/models/hand_landmarker.task",
+                delegate: "GPU",
+              },
+              runningMode: "VIDEO",
+              numHands: 2,
             },
-            runningMode: "VIDEO",
-            numHands: 2,
-          },
-        );
+          );
+        } catch (gpuError) {
+          console.warn(
+            "GPU hand tracking is unavailable; falling back to CPU",
+            gpuError,
+          );
+          delegate = "CPU";
+          createdHandLandmarker = await HandLandmarker.createFromOptions(
+            vision,
+            {
+              baseOptions: { modelAssetPath: "/models/hand_landmarker.task" },
+              runningMode: "VIDEO",
+              numHands: 2,
+            },
+          );
+        }
 
         if (cancelled) {
           createdHandLandmarker.close();
@@ -110,7 +130,7 @@ export default function HandTrackingOverlay({
         }
 
         handLandmarker = createdHandLandmarker;
-        setStatus("MediaPipe ready");
+        setStatus(`MediaPipe ready (${delegate})`);
         animationFrame = requestAnimationFrame(processFrame);
       } catch (error) {
         console.error("Unable to initialize MediaPipe hand tracking", error);
