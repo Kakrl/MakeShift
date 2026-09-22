@@ -222,8 +222,7 @@ export default function Home() {
           />
           <CVOverlayCoordinator
             videoRef={videoRef}
-            // enabled={isRecording && !isPaused}
-            enabled={true}
+            enabled={isRecording && !isPaused}
           />
         </div>
 
