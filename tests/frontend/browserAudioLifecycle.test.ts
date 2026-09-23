@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createAudioSession } from "../../frontend/src/events/audioSession";
 import { BrowserAudio } from "../../frontend/src/app/audio/audioEngine";
 
 class Context {
@@ -147,4 +148,91 @@ describe("browser audio owner lifecycle", () => {
     expect(audio.status).toBe("idle");
     expect(Worklet.instances).toHaveLength(2);
   });
+});
+
+describe("shared event audio adapter", () => {
+  const event = (
+    sessionId: string,
+    sequence: number,
+    pressId: number,
+    type = "note-on",
+  ) => ({
+    version: 1,
+    sessionId,
+    sequence,
+    pressId,
+    type,
+    timestampMs: 100,
+    pitch: 60,
+    velocity: 0.5,
+  });
+
+  it("maps simultaneous same-pitch presses to distinct worklet voices and rejects old releases", async () => {
+    const audio = new BrowserAudio();
+    await audio.initialize();
+    const bridge = createAudioSession(audio, () => 100);
+    const id = bridge.session.start();
+    expect(bridge.session.receive(event(id, 1, 1))).toBe("accepted");
+    expect(bridge.session.receive(event(id, 2, 2))).toBe("accepted");
+    const node = Worklet.instances[0];
+    const notes = node.port.postMessage.mock.calls
+      .map(([message]) => message)
+      .filter((e) => e.type === "note-on");
+    expect(notes).toHaveLength(2);
+    expect(notes[0].press).not.toBe(notes[1].press);
+    expect(bridge.session.receive(event(id, 3, 1, "note-off"))).toBe(
+      "accepted",
+    );
+    expect(node.port.postMessage).toHaveBeenLastCalledWith({
+      type: "note-off",
+      session: notes[0].session,
+      press: notes[0].press,
+    });
+    bridge.session.stop();
+    node.ack();
+    const next = bridge.session.start();
+    expect(bridge.session.receive(event(next, 1, 1))).toBe("accepted");
+    const count = node.port.postMessage.mock.calls.length;
+    expect(bridge.session.receive(event(id, 4, 2, "note-off"))).toBe("stale");
+    expect(node.port.postMessage).toHaveBeenCalledTimes(count);
+    bridge.dispose();
+    await audio.close();
+  });
+
+  it.each(["suspend", "overflow", "processor", "close"])(
+    "retires shared presses and deferred consumers on audio %s",
+    async (cause) => {
+      const audio = new BrowserAudio();
+      await audio.initialize();
+      const bridge = createAudioSession(audio, () => 100);
+      const received: string[] = [];
+      bridge.session.subscribe(({ event }) => received.push(event.type));
+      const id = bridge.session.start();
+      bridge.session.receive(event(id, 1, 1));
+      const context = Context.instances[0],
+        node = Worklet.instances[0];
+      if (cause === "suspend") {
+        context.state = "suspended";
+        context.onstatechange?.();
+      }
+      if (cause === "overflow")
+        for (let i = 2; i < 100; i++) bridge.session.receive(event(id, i, i));
+      if (cause === "processor") node.onprocessorerror?.();
+      if (cause === "close") await audio.close();
+      expect(bridge.session.sessionId).toBeNull();
+      expect(bridge.session.activePressCount).toBe(0);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(received.at(-1)).toBe("release-all");
+      expect(received.slice(0, -1).every((type) => type === "note-on")).toBe(
+        true,
+      );
+      if (cause !== "overflow") await audio.initialize();
+      Worklet.instances.at(-1)!.ack();
+      const next = bridge.session.start();
+      expect(bridge.session.receive(event(id, 100, 100))).toBe("stale");
+      expect(bridge.session.receive(event(next, 1, 1))).toBe("accepted");
+      bridge.dispose();
+      await audio.close();
+    },
+  );
 });

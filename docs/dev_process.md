@@ -32,7 +32,8 @@ MakeShift/
 │   ├── rvtm_browser_addendum.md      # browser requirement/test reconciliation
 │   ├── browser_audio.md             # browser DSP, transport and verification
 │   ├── audio.md                     # polyphony and voice stealing
-│   ├── audio_events.md              # audio event queue contract
+│   ├── audio_events.md              # native audio event queue contract
+│   ├── note_events.md               # shared browser event/session/clock contract
 │   ├── dev_process.md
 │   ├── piano_sheet.md               # printable sheet and ArUco marker IDs
 │   ├── Piano Sheet.png
@@ -61,6 +62,7 @@ MakeShift/
 │   │   │   ├── page.tsx
 │   │   │   └── useHandLandmarker.ts
 │   │   ├── cv/                      # ArUco detection, homography, key geometry
+│   │   ├── events/                  # shared schema, clocks, session and audio adapter
 │   │   └── shims/
 │   ├── package.json
 │   ├── package-lock.json
@@ -80,6 +82,7 @@ MakeShift/
 │   │   ├── browserAudio.test.ts      # production DSP offline rendering
 │   │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   │   ├── browserAudio.browser.mjs  # production browser graph check
+│   │   ├── noteEvents.test.ts        # shared events, lifecycle, clocks and MessagePort
 │   │   ├── midiUtils.test.ts
 │   │   └── check-contrast.mjs
 │   ├── python/

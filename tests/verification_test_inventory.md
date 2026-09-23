@@ -85,15 +85,15 @@ Existing proposed dates remain planning estimates, not renewed commitments.
 | 1.1 | Calibrate to the piano sheet position | 1.1.1, 1.1.2, 1.1.3, 1.1.4 |
 | 1.2 | Change the number of octaves | 1.2.1, 1.2.2 |
 | 1.3 | Change the starting note | 1.3.1 |
-| 2.1 | Play notes for hand and key collisions | 2.1.1, 2.1.2 |
+| 2.1 | Play notes for hand and key collisions | 2.1.1 to 2.1.4 |
 | 2.2 | Play different octaves with configurable volume | 2.2.1 to 2.2.16 |
-| 2.3 | Low-latency live feedback | 2.3.1 to 2.3.5 |
+| 2.3 | Low-latency live feedback | 2.3.1 to 2.3.6 |
 | 2.4 | Volume scales with key press speed | 2.4.1, 2.4.2 |
 | 3.1 | Clearly labeled, consistently positioned controls | 3.1.1, 3.1.2 |
 | 3.2 | Visual feedback for key presses, calibration, and recording | 3.2.1, 3.2.2 |
 | 3.3 | Minimal UI that keeps the piano visible | 3.3.1, 3.3.2 |
 | 3.4 | Visually accessible | 3.4.1, 3.4.2, 3.4.3 |
-| 4.1 | Start and stop recording from the UI | 4.1.1 to 4.1.7 |
+| 4.1 | Start and stop recording from the UI | 4.1.1 to 4.1.8 |
 | 4.2 | Export a MIDI file after recording | 4.2.1, 4.2.2, 4.2.3 |
 | 5.1 | Runs entirely in the browser | 5.1.1 |
 | 5.2 | HTTPS only | 5.2.1, 5.2.2, 5.2.3 |
@@ -129,7 +129,7 @@ Existing proposed dates remain planning estimates, not renewed commitments.
 | 2.2.12 | Unit | **Added.** `AudioPolyphonyTest.RejectsLimitsOutsideOneToTen`: voice limits outside 1 to 10 are rejected ([source](audio/test_audio_events.cpp)) | 2.2 | Carl Xu | GoogleTest / CTest | Yes | Implemented | Yes (`testing.yml`) | Already implemented | Already in CI; rerun 2026-09-23 | Validate relocated paths in CI; retain existing execution evidence. | [CTest job log](https://github.com/Kakrl/MakeShift/actions/runs/35151161579/job/104979531987) — passed |
 | 2.2.13 | Unit | Ten repeated-pitch voices sum linearly; oldest press stolen; late stolen release harmless; released slot reused; finite bounded mix and phase continuity ([source](frontend/browserAudio.test.ts)) | 2.2 | Carl Xu | Vitest offline production DSP | Yes | Implemented | No (D3) | 2026-09-22 | CI pending | No hardware required. | [Local verification](README.md#browser-audio-verification-issue-35) — passed; Actions pending |
 | 2.2.14 | Unit | Reject invalid note/velocity/session, duplicate and unordered presses; release-all/reset silence; stale-session note/release/reset ignored ([source](frontend/browserAudio.test.ts)) | 2.2 | Carl Xu | Vitest offline production DSP | Yes | Implemented | No (D3) | 2026-09-22 | CI pending | Audio-local adapter; shared #86 contract separate. | [Local verification](README.md#browser-audio-verification-issue-35) — passed; Actions pending |
-| 2.2.15 | Unit | User activation, concurrent initialization, module failure/retry, suspended startup, interruption/restart, old release identity, bounded overflow, processor failure and initialization teardown ([source](frontend/browserAudioLifecycle.test.ts)) | 2.2 | Carl Xu | Vitest mocked Web Audio ownership | Yes | Implemented | No (D3) | 2026-09-22 | CI pending | Mocks do not establish real browser support. | [Local verification](README.md#browser-audio-verification-issue-35) — passed; Actions pending |
+| 2.2.15 | Unit | User activation, concurrent initialization, module failure/retry, suspended startup, interruption/restart, old release identity, bounded overflow, processor failure and initialization teardown; shared adapter same-pitch identities, stale releases, suspension/overflow/failure/close propagation and fresh restart ([source](frontend/browserAudioLifecycle.test.ts)) | 2.2 | Carl Xu | Vitest mocked Web Audio ownership | Yes | Implemented | No (D3) | 2026-09-22 | CI pending | Mocks do not establish real browser support; shared adapter coverage added in #86. | [Local verification](README.md#shared-event-verification-issue-86) — 11 lifecycle tests passed; Actions pending |
 | 2.2.16 | Integration | Production worklet HTTP asset, soft/loud output ratio, ten-note graph output, stop silence, suspension/restart without replay and navigation cleanup ([source](frontend/browserAudio.browser.mjs)) | 2.2 | Carl Xu | Playwright / Edge + Web Audio analyser | Yes | Implemented — graph only | No | 2026-09-22 | CI pending | Production server and installed browser; hardware audible output excluded. | [Local verification](README.md#browser-audio-verification-issue-35) — passed; Actions pending |
 | 2.3.1 | System | Measure physical press to audible browser output against 50 ms using synchronized reference/audio capture; use recorded video separately for repeatable pipeline checks (#30) | 2.3 | Carl Xu | Custom latency harness | Yes (analysis); physical capture required | Planned | No | 2026-11-02 | 2026-11-04 | 2.3.2; synchronized input/output capture and latency harness (#30). | No execution evidence yet |
 | 2.3.2 | Unit | Measure the speed of each stage from key press to sound: frame capture, marker and hand detection, collision detection, browser event delivery, and audio render | 2.3 | Carl Xu | Browser Performance + Vitest analysis | Yes | Planned | No | 2026-10-27 | 2026-10-29 | 2.1.2 and 2.2.3; stage timers and reproducible performance runner. | No execution evidence yet |
@@ -214,3 +214,18 @@ A live post-merge publication is not claimed by these tests.
 User acceptance testing follows the V&V plan: at least 4 diverse subjects, run
 twice (after the first milestone and at the end of the semester). Record
 results with the manual test template.
+
+## Shared browser contract verification (#86)
+
+These added tests cover the shared event boundary. Full CV-to-sound test 2.1.2,
+physical latency tests 2.3.1/2.3.2, visible UI test 3.2.1 and recording lifecycle
+4.1.1 remain blocked/planned; event fixtures do not complete those workflows.
+All rows below ran locally on Windows on 2026-09-22. Vitest is not invoked by
+CI (D3); Actions execution remains pending. No new requirement is introduced.
+
+| Test ID | Level | Req. IDs | Description / source | Owner | Tool | Automated? | Implementation Status | CI Integrated? | Execution evidence |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 2.1.3 | Unit | 2.1 | Version/type/numeric boundary checks and immutable copies; repeated-pitch press identity, duplicate delivery, gaps, time regression/future events, wrong/unknown releases, malformed input, press reuse, stop/reset/interruption/release-all and stale restart ([source](frontend/noteEvents.test.ts)) | Harry Deng | Vitest | Yes | Implemented — event contract only | No (D3) | [Local record](README.md#shared-event-verification-issue-86) — passed; Actions pending |
+| 2.1.4 | Unit / integration | 2.1 | Bounded active presses and observer backlog, audio rejection/exception, observer failure/unsubscribe and accepted-history ordering across interruption of a deferred batch; real Node MessageChannel FIFO/structured-clone validation ([source](frontend/noteEvents.test.ts)) | Harry Deng | Vitest + Node MessageChannel | Yes | Implemented — no browser worker/CV pipeline | No (D3) | [Local record](README.md#shared-event-verification-issue-86) — passed; Actions pending |
+| 2.3.6 | Unit | 2.3 | Audio dispatch precedes deferred observers without React; observation versus receipt time; positive/negative worker-origin offsets, delayed delivery, invalid clock inputs, milliseconds-to-audio-seconds, late-event clamp and suspend/reanchor ([source](frontend/noteEvents.test.ts)) | Carl Xu | Vitest | Yes | Implemented — no physical latency measurement | No (D3) | [Local record](README.md#shared-event-verification-issue-86) — passed; Actions pending |
+| 4.1.8 | Unit | 4.1 | Recording-relative event time, before-start clamp, explicit excluded pause duration, fresh recording anchor and invalid duration rejection ([source](frontend/noteEvents.test.ts)) | Harry Deng | Vitest | Yes | Implemented — conversion only, #88 recording policy pending | No (D3) | [Local record](README.md#shared-event-verification-issue-86) — passed; Actions pending |
