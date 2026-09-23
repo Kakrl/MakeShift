@@ -38,6 +38,9 @@ tests/
 ├── automation/
 │   └── rca.test.cjs                  # repository-process regression tests
 ├── frontend/
+│   ├── browserAudio.test.ts      # production DSP offline rendering
+│   ├── browserAudioLifecycle.test.ts # browser owner mocks
+│   ├── browserAudio.browser.mjs  # production browser graph check
 │   ├── midiUtils.test.ts             # MIDI unit tests
 │   └── check-contrast.mjs            # theme token contrast audit
 ├── python/
@@ -64,6 +67,38 @@ No test implementation requires an exception to this layout.
 | Frontend unit (Vitest) | `cd frontend && npx vitest run` | `npm ci` in `frontend/` |
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
 | RCA automation | `node --test tests/automation/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
+
+## Browser audio verification (issue #35)
+
+Local Windows verification on 2026-09-22, branch
+`feature/35-browser-audio`, based on `30706c4`, with Node 22.20.0 and
+Vitest 4.1.11. This is local evidence, not a CI result.
+
+- Offline DSP: 37 tests passed, covering eleven pitches at 44.1/48/96 kHz,
+  linear velocity, attack/release, ten voices, deterministic stealing, slot
+  reuse, phase continuity, validation and session resets.
+- Browser ownership: six tests passed for user activation, concurrent
+  initialization, module failure/retry, suspended startup, interruption,
+  bounded backlog, processor failure and close during initialization.
+- Existing MIDI suite: seven tests passed.
+- Production Edge 153.0.4234.48, Playwright 1.62.1, headless:
+  `npm run test:audio-browser` passed. Soft/loud A4 RMS was
+  0.014200991 / 0.042602973 (3:1). The worklet asset returned HTTP 200;
+  ten-note graph output, stop silence, suspension/restart and navigation
+  cleanup passed. Graph samples do not establish hardware audibility.
+- Lint: zero errors, seven existing home-page unused-variable warnings.
+  TypeScript, 18 contrast pairs, and production build passed.
+- User-reported speaker listening passed for soft/loud A4, ten-note chord
+  and Stop sound; see [manual report](manual/2026-09-22_2.2.3.md).
+  Output device and browser details were not supplied. Physical latency,
+  full shared #86 event integration and deployed/cross-browser compatibility
+  remain pending. No native files changed.
+
+To repeat the production smoke test: install frontend dependencies, run
+`npm run build` and `npm start -- --hostname 127.0.0.1`; in another terminal
+run `npm run test:audio-browser`. It uses an installed Edge by default.
+See [browser audio](../docs/browser_audio.md) for environment overrides.
+The tests remain outside CI (D3); no Actions execution is claimed.
 
 ## Test relocation verification (issue #83)
 

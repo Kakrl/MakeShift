@@ -30,6 +30,7 @@ MakeShift/
 ├── docs/
 │   ├── architecture.md              # browser target, tooling, delivery boundaries
 │   ├── rvtm_browser_addendum.md      # browser requirement/test reconciliation
+│   ├── browser_audio.md             # browser DSP, transport and verification
 │   ├── audio.md                     # polyphony and voice stealing
 │   ├── audio_events.md              # audio event queue contract
 │   ├── dev_process.md
@@ -40,9 +41,11 @@ MakeShift/
 │   └── Final Verification and Validation Plan.pdf
 ├── frontend/
 │   ├── public/
+│   │   ├── audio/                   # piano-worklet.js and shared synth.js
 │   │   └── models/                  # MediaPipe hand landmarker model
 │   ├── src/
 │   │   ├── app/
+│   │   │   ├── audio/                  # browser owner and Audio check page
 │   │   │   ├── about/
 │   │   │   ├── calibration/
 │   │   │   ├── cv/                  # hand landmark overlay and drawing
@@ -74,6 +77,9 @@ MakeShift/
 │   ├── automation/
 │   │   └── rca.test.cjs             # RCA parser, validation, publication tests
 │   ├── frontend/
+│   │   ├── browserAudio.test.ts      # production DSP offline rendering
+│   │   ├── browserAudioLifecycle.test.ts # browser owner mocks
+│   │   ├── browserAudio.browser.mjs  # production browser graph check
 │   │   ├── midiUtils.test.ts
 │   │   └── check-contrast.mjs
 │   ├── python/

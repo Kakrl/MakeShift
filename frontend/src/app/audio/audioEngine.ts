@@ -1,44 +1,205 @@
-const activeOscillators = new Map<number, { oscillator: OscillatorNode; gain: GainNode }>();
-let audioContext: AudioContext | null = null;
+export type AudioStatus = "idle" | "loading" | "ready" | "suspended" | "error";
+export type AudioEvent =
+  | { type: "reset" | "release-all"; session: number }
+  | {
+      type: "note-on";
+      session: number;
+      press: number;
+      note: number;
+      velocity: number;
+    }
+  | { type: "note-off"; session: number; press: number };
 
-export function initializeAudio(): void {
-  if (!audioContext) {
-    audioContext = new AudioContext({ latencyHint: "interactive" });
+/** Owns one context. Call initialize only from a user gesture. */
+export class BrowserAudio {
+  private context: AudioContext | null = null;
+  private node: AudioWorkletNode | null = null;
+  private initializing: Promise<void> | null = null;
+  private session = 0;
+  private press = 0;
+  private outstanding = 0;
+  private recovering = false;
+  private generation = 0;
+  status: AudioStatus = "idle";
+  error = "";
+
+  private reset() {
+    this.session++;
+    this.press = 0;
+    if (this.node) {
+      this.node.port.postMessage({ type: "reset", session: this.session });
+      this.outstanding++;
+    }
   }
-  if (audioContext.state === "suspended") void audioContext.resume();
+
+  initialize(): Promise<void> {
+    if (this.initializing) return this.initializing;
+    if (this.status === "ready" && this.context?.state === "running")
+      return Promise.resolve();
+    const generation = ++this.generation;
+    const task = this.start(generation);
+    this.initializing = task;
+    void task
+      .finally(() => {
+        if (this.initializing === task) this.initializing = null;
+      })
+      .catch(() => {});
+    return task;
+  }
+
+  private async start(generation: number) {
+    this.status = "loading";
+    this.error = "";
+    try {
+      if (!this.context || this.context.state === "closed") {
+        this.context = new AudioContext({ latencyHint: "interactive" });
+      }
+      const context = this.context;
+      // Invoke resume before any await to retain user activation.
+      const resumed = context.resume();
+      const loaded = this.node
+        ? Promise.resolve()
+        : context.audioWorklet.addModule("/audio/piano-worklet.js");
+      await Promise.all([resumed, loaded]);
+      if (generation !== this.generation) return;
+      if (context.state !== "running")
+        throw new Error("Audio is suspended. Select Enable audio to retry.");
+      if (!this.node) {
+        const node = new AudioWorkletNode(context, "makeshift-piano", {
+          numberOfInputs: 0,
+          numberOfOutputs: 1,
+          outputChannelCount: [2],
+        });
+        this.node = node;
+        this.outstanding = 0;
+        this.recovering = false;
+        node.port.onmessage = ({ data }) => {
+          if (this.node !== node) return;
+          if (!Number.isSafeInteger(data) || data < 1) return;
+          this.outstanding = Math.max(0, this.outstanding - data);
+          if (this.outstanding === 0) this.recovering = false;
+        };
+        node.onprocessorerror = () => {
+          if (this.node !== node) return;
+          this.status = "error";
+          this.error = "Audio processing failed. Select Enable audio to retry.";
+          node.disconnect();
+          node.port.close();
+          if (this.node === node) this.node = null;
+          this.outstanding = 0;
+          this.recovering = false;
+        };
+        node.connect(context.destination);
+        context.onstatechange = () => {
+          if (context !== this.context || context.state === "running") return;
+          this.status = "suspended";
+          this.releaseAll();
+        };
+      }
+      if (!this.recovering) this.reset();
+      this.status = "ready";
+    } catch (error) {
+      if (generation !== this.generation) return;
+      this.status = "error";
+      this.error =
+        error instanceof Error ? error.message : "Audio initialization failed.";
+      this.node?.disconnect();
+      this.node?.port.close();
+      this.node = null;
+      const context = this.context;
+      this.context = null;
+      if (context) {
+        context.onstatechange = null;
+        await context.close().catch(() => {});
+      }
+      throw new Error(this.error);
+    }
+  }
+
+  private send(event: AudioEvent): boolean {
+    if (
+      !this.node ||
+      this.context?.state !== "running" ||
+      this.status !== "ready" ||
+      this.recovering
+    )
+      return false;
+    if (this.outstanding >= 64) {
+      this.recovering = true;
+      this.reset(); // Reject input until the reset is consumed; never drop only a release.
+      return false;
+    }
+    this.node.port.postMessage(event);
+    this.outstanding++;
+    return true;
+  }
+
+  noteOn(
+    note: number,
+    velocity = 0.8,
+  ): { session: number; press: number } | null {
+    if (
+      !Number.isInteger(note) ||
+      note < 0 ||
+      note > 127 ||
+      !Number.isFinite(velocity) ||
+      velocity <= 0 ||
+      velocity > 1
+    )
+      return null;
+    const token = { session: this.session, press: ++this.press };
+    return this.send({ type: "note-on", ...token, note, velocity })
+      ? token
+      : null;
+  }
+
+  noteOff(token: { session: number; press: number }) {
+    this.send({ type: "note-off", ...token });
+  }
+
+  releaseAll() {
+    if (!this.recovering) {
+      this.recovering = true;
+      this.reset();
+    }
+  }
+
+  async close() {
+    const generation = ++this.generation;
+    this.initializing = null;
+    this.node?.disconnect();
+    this.node?.port.close();
+    this.node = null;
+    const context = this.context;
+    this.context = null;
+    if (context) {
+      context.onstatechange = null;
+      await context.close();
+    }
+    if (generation !== this.generation) return;
+    this.status = "idle";
+    this.outstanding = 0;
+    this.recovering = false;
+  }
 }
 
-export function audioNoteOn(note: number, velocity = 0.8): void {
-  initializeAudio();
-  if (!audioContext || activeOscillators.has(note)) return;
-
-  console.log("playing sound!");
-
-  const now = audioContext.currentTime;
-  const oscillator = audioContext.createOscillator();
-  const gain = audioContext.createGain();
-  oscillator.type = "sine";
-  oscillator.frequency.value = 440 * Math.pow(2, (note - 69) / 12);
-  gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(Math.max(0.02, Math.min(1, velocity)) * 0.2, now + 0.01);
-  oscillator.connect(gain).connect(audioContext.destination);
-  oscillator.start(now);
-  activeOscillators.set(note, { oscillator, gain });
+export const browserAudio = new BrowserAudio();
+const pitches = new Map<number, { session: number; press: number }>();
+export async function initializeAudio() {
+  if (browserAudio.status !== "ready") pitches.clear();
+  await browserAudio.initialize();
 }
-
-export function audioNoteOff(note: number): void {
-  const active = activeOscillators.get(note);
-  if (!active || !audioContext) return;
-
-  console.log("stop playing sound!");
-
-  const now = audioContext.currentTime;
-  active.gain.gain.cancelScheduledValues(now);
-  active.gain.gain.setTargetAtTime(0, now, 0.04);
-  active.oscillator.stop(now + 0.2);
-  activeOscillators.delete(note);
+export function audioNoteOn(note: number, velocity = 0.8) {
+  if (pitches.has(note)) return;
+  const token = browserAudio.noteOn(note, velocity);
+  if (token) pitches.set(note, token);
 }
-
-export function releaseAllAudioNotes(): void {
-  for (const note of activeOscillators.keys()) audioNoteOff(note);
+export function audioNoteOff(note: number) {
+  const token = pitches.get(note);
+  if (token) browserAudio.noteOff(token);
+  pitches.delete(note);
+}
+export function releaseAllAudioNotes() {
+  pitches.clear();
+  browserAudio.releaseAll();
 }

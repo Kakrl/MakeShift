@@ -156,9 +156,16 @@ export default function Home() {
   const canRecord = isCalibrated && cameraReady;
 
   // ── Recording controls ───────────────────────────────────────────────────
-  const handlePlay = () => {
+  const [audioError, setAudioError] = useState("");
+  const handlePlay = async () => {
     if (!canRecord) return;
-    initializeAudio();
+    try {
+      await initializeAudio();
+      setAudioError("");
+    } catch (error) {
+      setAudioError(error instanceof Error ? error.message : "Audio unavailable. Try Play again.");
+      return;
+    }
     if (countInBeat !== null) return; // already counting in
     if (isRecording && !isPaused) {
       // Pause
@@ -210,6 +217,7 @@ export default function Home() {
 
   return (
     <div className="flex-1 bg-[#fffdf7] flex flex-col">
+      {audioError && <p role="alert" className="text-danger px-4">{audioError} Try Play again.</p>}
       <div className="flex flex-1 pt-[115px] pl-[61px] pr-[47px] pb-[226px]">
         {/* Camera feed */}
         <div className="flex-1 bg-[#090909] relative overflow-hidden">
