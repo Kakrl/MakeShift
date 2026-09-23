@@ -92,8 +92,8 @@ and Vitest 4.1.11. This is local execution evidence, not an Actions result.
   copy waiting for the unmount cleanup passed: asset HTTP 200, soft/loud RMS
   0.0140931503 / 0.0426029731, chord output, stop silence, suspension recovery
   and navigation closure. The diagnostic is not a passing result for the
-  unchanged test. See D16 below; the separate issue could not be filed because
-  the connector lacks permission and credential fallback was blocked.
+  unchanged test. See D16 and [issue #105](https://github.com/Kakrl/MakeShift/issues/105)
+  for the separate test-harness fix.
 - Vitest and the browser smoke runner remain outside CI (D3). No physical
   latency, camera accuracy, hardware listening, full MIDI recording lifecycle,
   live detector wiring or deployed cross-browser result is claimed.
@@ -242,7 +242,7 @@ defect report is filed.
 | D13 | Low | Tests | The contrast audit only checks `--color-*` token pairs. Hardcoded canvas colors drawn over live video (`#00ff88`, `#ffd60a`, `#ff3b30`) aren't checked | `frontend/src/app/MarkerTrackingOverlay.tsx:136-192`, `frontend/src/app/cv/handLandmarkDrawing.ts:33-34` | | Open |
 | D14 | Low | Tests | The only Python test is `test_dummy.py`, so the pytest coverage report in CI measures nothing | `tests/python/test_dummy.py` | | Open |
 | D15 | Low | Docs | The root README said Python 3.10+ for the C++ build, but `backend/CMakeLists.txt` requires Python 3.12 | `README.md` | | Fixed in #79 PR |
-| D16 | Low | Tests | Browser audio smoke runner checks context closure immediately after URL navigation, before React's unmount effect may run. The unchanged runner failed; a bounded cleanup-wait diagnostic passed during #86 verification | `tests/frontend/browserAudio.browser.mjs:95` | Filing blocked (connector permission / approval review) | Open; separate fix needed |
+| D16 | Low | Tests | Browser audio smoke runner checks context closure immediately after URL navigation, before React's unmount effect may run. The unchanged runner failed; a bounded cleanup-wait diagnostic passed during #86 verification | `tests/frontend/browserAudio.browser.mjs:95` | [#105](https://github.com/Kakrl/MakeShift/issues/105) | Open; separate fix needed |
 
 ## Root Cause Analysis Log
 
