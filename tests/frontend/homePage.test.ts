@@ -20,7 +20,9 @@ const camera = vi.hoisted(() => ({
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, back: vi.fn() }) }));
 vi.mock("next/dynamic", () => ({ default: () => () => null }));
 vi.mock("../../frontend/src/app/CameraContext", () => ({ useCamera: () => camera.value }));
-vi.mock("../../frontend/src/app/audio/audioEngine", () => ({ initializeAudio: vi.fn() }));
+vi.mock("../../frontend/src/app/audio/audioEngine", () => ({
+  initializeAudio: vi.fn(async () => {}),
+}));
 vi.mock("../../frontend/src/app/midi/midiUtils", () => ({
   startRecording: vi.fn(),
   stopRecording: vi.fn(),
@@ -96,14 +98,17 @@ describe("home page", () => {
     expect(screen.getByText("Camera access blocked")).toBeTruthy();
   });
 
-  it("shows the count-in, completion banner, and delete confirmation", () => {
+  it("shows the count-in, completion banner, and delete confirmation", async () => {
     localStorage.setItem("hasVisited", "true");
     localStorage.setItem("isCalibrated", "true");
     renderHome();
     // The metronome click needs Web Audio, which jsdom lacks.
     fireEvent.click(screen.getByLabelText("Toggle metronome"));
 
-    fireEvent.click(screen.getByLabelText("Start recording"));
+    // Play awaits audio initialization before starting the count-in.
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText("Start recording"));
+    });
     expect(screen.getByText("1")).toBeTruthy();
     // One 4/4 measure at 120 BPM. Each beat schedules the next after a render.
     for (let beat = 0; beat < 4; beat++) act(() => vi.advanceTimersByTime(500));
