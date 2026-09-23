@@ -41,6 +41,7 @@ tests/
 │   ├── browserAudio.test.ts      # production DSP offline rendering
 │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   ├── browserAudio.browser.mjs  # production browser graph check
+│   ├── homePage.test.ts              # home page modals and overlays (jsdom)
 │   ├── noteEvents.test.ts            # shared event validation, sessions and clocks
 │   ├── midiUtils.test.ts             # MIDI unit tests
 │   └── check-contrast.mjs            # theme token contrast audit
@@ -53,7 +54,9 @@ tests/
 Add future tests, helpers, and fixtures to the matching suite directory.
 Frontend tests import application modules from `../../frontend/src/`.
 `frontend/vitest.config.mts` selects `tests/frontend/` and resolves frontend
-package dependencies. The frontend TypeScript and ESLint commands also include
+package dependencies. Bare imports used by tests, including any module passed
+to `vi.mock`, need an alias there because `tests/` has no `node_modules`. Add a
+`// @vitest-environment jsdom` comment to tests that render components. The frontend TypeScript and ESLint commands also include
 that directory. Keep frontend dependencies and tool configuration in `frontend/`,
 C++ build definitions in `backend/CMakeLists.txt`, and CI workflows in `.github/`.
 Python's default recursive discovery finds `tests/python/` without extra config.
@@ -244,6 +247,7 @@ defect report is filed.
 | D15 | Low | Docs | The root README said Python 3.10+ for the C++ build, but `backend/CMakeLists.txt` requires Python 3.12 | `README.md` | | Fixed in #79 PR |
 | D16 | Low | Tests | Browser audio smoke runner checks context closure immediately after URL navigation, before React's unmount effect may run. The unchanged runner failed; a bounded cleanup-wait diagnostic passed during #86 verification | `tests/frontend/browserAudio.browser.mjs:95` | [#105](https://github.com/Kakrl/MakeShift/issues/105) | Open; separate fix needed |
 | D17 | Medium | UI | (Req 3.1, 3.4) The UI is not responsive. Home, calibration, and about use a fixed 267 px side column with no breakpoints, and `body` is `h-dvh overflow-hidden`, so at tablet or phone widths, short laptop screens, or 200% zoom the camera is squeezed and controls are clipped with no way to scroll to them | `frontend/src/app/layout.tsx:32`, `frontend/src/app/page.tsx:213-400`, `frontend/src/app/calibration/page.tsx:669-681`, `frontend/src/app/about/page.tsx:42-63` | [#109](https://github.com/Kakrl/MakeShift/issues/109) | Fixed in [#111](https://github.com/Kakrl/MakeShift/pull/111) |
+| D18 | High | UI | (Req 3.1, 3.2, 4.2, 6.2) Merge `30706c4` (PR #98) resolved `page.tsx` by keeping the branch's older JSX, dropping the welcome and Calibration intro modals, count-in overlay, Recording Complete banner, Delete confirmation, calibration prompt, `CameraStatusOverlay`, and the aria-live region. The home Calibration tab and Delete button did nothing. ESLint flagged the orphaned state only as warnings | `frontend/src/app/page.tsx` | [#112](https://github.com/Kakrl/MakeShift/issues/112) | Fixed in #112 PR |
 
 ## Root Cause Analysis Log
 

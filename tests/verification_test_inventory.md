@@ -89,17 +89,17 @@ Existing proposed dates remain planning estimates, not renewed commitments.
 | 2.2 | Play different octaves with configurable volume | 2.2.1 to 2.2.16 |
 | 2.3 | Low-latency live feedback | 2.3.1 to 2.3.6 |
 | 2.4 | Volume scales with key press speed | 2.4.1, 2.4.2 |
-| 3.1 | Clearly labeled, consistently positioned controls | 3.1.1, 3.1.2 |
-| 3.2 | Visual feedback for key presses, calibration, and recording | 3.2.1, 3.2.2 |
+| 3.1 | Clearly labeled, consistently positioned controls | 3.1.1, 3.1.2, 3.1.3 |
+| 3.2 | Visual feedback for key presses, calibration, and recording | 3.2.1 to 3.2.4 |
 | 3.3 | Minimal UI that keeps the piano visible | 3.3.1, 3.3.2 |
 | 3.4 | Visually accessible | 3.4.1, 3.4.2, 3.4.3 |
 | 4.1 | Start and stop recording from the UI | 4.1.1 to 4.1.8 |
-| 4.2 | Export a MIDI file after recording | 4.2.1, 4.2.2, 4.2.3 |
+| 4.2 | Export a MIDI file after recording | 4.2.1, 4.2.2, 4.2.3, 3.2.4 |
 | 5.1 | Runs entirely in the browser | 5.1.1 |
 | 5.2 | HTTPS only | 5.2.1, 5.2.2, 5.2.3 |
 | 5.3 | Loads quickly | 5.3.1 |
 | 6.1 | Documentation page | 6.1.1, 6.1.2 |
-| 6.2 | Guided calibration sequence | 6.2.1, 6.2.2 |
+| 6.2 | Guided calibration sequence | 6.2.1, 6.2.2, 6.2.3 |
 | 6.3 | MIDI recording tutorial | 6.3.1, 6.3.2, 6.3.3 |
 
 ## Inventory
@@ -140,8 +140,11 @@ Existing proposed dates remain planning estimates, not renewed commitments.
 | 2.4.2 | System | Play slow, normal, and fast presses and record the volume of each. Following the V&V plan, fast presses must be more than 5 dB louder than slow presses over 10 trials in a row | 2.4 | Carl Xu | MakeShift + decibel meter app | No | Planned | N/A (manual) | 2026-11-03 | 2026-11-05 | 2.4.1 and 2.2.3; audio device, meter, fixed setup, and ten trials. | No execution evidence yet |
 | 3.1.1 | Unit | Check that the Calibration, Tutorial, Documentation, and Record controls are visible on first load without scrolling | 3.1 | Jadden Picardal | Selenium | Yes | Planned | No | 2026-09-24 | 2026-09-25 | Selenium harness and agreed desktop viewport. | No execution evidence yet |
 | 3.1.2 | Unit | Check that controls stay in the same positions across every page and mode | 3.1 | Jadden Picardal | Selenium | Yes | Planned | No | 2026-09-28 | 2026-09-30 | 3.1.1; page/mode fixtures. | No execution evidence yet |
+| 3.1.3 | Unit | **Added.** `shows the welcome modal on the first visit only`: the first-visit welcome modal renders, Skip closes it, and it does not return on the next visit (regression for #112) ([source](frontend/homePage.test.ts)) | 3.1 | Jadden Picardal | Vitest + Testing Library (jsdom) | Yes | Implemented | No — Vitest step missing (D3) | Already implemented | Pending D3 | Add Vitest to frontend CI (D3). | No Actions execution; local run 2026-09-23 passed (fails on pre-fix `page.tsx`) |
 | 3.2.1 | Integration | Check that a piano key changes color when a finger press is detected | 3.2 | Jadden Picardal | Selenium (Chrome fake camera) | Yes | Blocked | No (overlay not rendered, see D1. Collision detection is issue #34) | 2026-10-20 | 2026-10-23 | 2.1.1; overlay restored (D1); recorded key-press fixture. | No execution evidence yet |
 | 3.2.2 | Unit | Check that the recording status indicator changes when recording starts, pauses, and stops | 3.2 | Jadden Picardal | Selenium | Yes | Planned | No | 2026-10-08 | 2026-10-09 | 4.1.2; stable recording state transitions. | No execution evidence yet |
+| 3.2.3 | Unit | **Added.** `prompts for calibration over a ready, uncalibrated camera` and `shows camera error feedback`: the home camera area shows the calibration prompt and camera error status (regression for #112) ([source](frontend/homePage.test.ts)) | 3.2 | Jadden Picardal | Vitest + Testing Library (jsdom) | Yes | Implemented | No — Vitest step missing (D3) | Already implemented | Pending D3 | Add Vitest to frontend CI (D3). | No Actions execution; local run 2026-09-23 passed (fails on pre-fix `page.tsx`) |
+| 3.2.4 | Unit | **Added.** `shows the count-in, completion banner, and delete confirmation`: the count-in overlay, aria-live recording status, Recording Complete banner, and Delete confirmation dialog render and work (regression for #112) ([source](frontend/homePage.test.ts)) | 3.2, 4.2 | Jadden Picardal | Vitest + Testing Library (jsdom) | Yes | Implemented | No — Vitest step missing (D3) | Already implemented | Pending D3 | Add Vitest to frontend CI (D3). | No Actions execution; local run 2026-09-23 passed (fails on pre-fix `page.tsx`) |
 | 3.3.1 | System | Check that the piano keys and sheet stay fully visible during active play | 3.3 | Jadden Picardal | MakeShift + screenshots | No | Planned | N/A (manual) | 2026-10-27 | 2026-10-29 | 3.2.1 and 2.2.3; active-play setup, webcam, printed sheet. | No execution evidence yet |
 | 3.3.2 | Unit | Check that popups and controls do not overlap the keyboard area (bounding box check) | 3.3 | Jadden Picardal | Selenium | Yes | Planned | No | 2026-10-22 | 2026-10-26 | 3.2.1; popup/mode fixtures and keyboard bounds. | No execution evidence yet |
 | 3.4.1 | Unit | Run Selenium tests for contrast and scaling: axe-core contrast rules on every page, plus layout at 200% zoom and at mobile, tablet, and desktop widths | 3.4 | Jadden Picardal | Selenium + axe-core | Yes | Planned | No | 2026-10-29 | 2026-11-02 | 3.3.2 and 4.2.2; axe-core setup, zoom and viewport matrix. | No execution evidence yet |
@@ -166,6 +169,7 @@ Existing proposed dates remain planning estimates, not renewed commitments.
 | 6.1.2 | Unit | Check that the documentation page loads with no missing content, broken links, or broken layout | 6.1 | Jadden Picardal | Selenium | Yes | Planned | No | 2026-10-01 | 2026-10-02 | 6.1.1; agreed page content and link expectations. | No execution evidence yet |
 | 6.2.1 | Unit | Check that the calibration sequence opens from the main navigation | 6.2 | Jadden Picardal | Selenium | Yes | Planned | No | 2026-10-02 | 2026-10-05 | 3.1.1; calibration route available. | No execution evidence yet |
 | 6.2.2 | System | Walk through calibration with a real webcam and printed sheet, including camera denial and retry, and check that each step guides the user (critical workflow, needs a manual report) | 6.2 | Jadden Picardal | MakeShift + webcam | No | Planned | N/A (manual) | 2026-10-12 | 2026-10-14 | 1.1.1–1.1.3 and 6.2.1; D6 fixes; webcam, sheet, permission-denial/retry scenarios. | No execution evidence yet |
+| 6.2.3 | Unit | **Added.** `opens the calibration intro from the Calibration tab and navigates`: the home Calibration tab opens the intro modal and Begin Calibration routes to `/calibration`. Partial unit-level coverage of 6.2.1 with a mocked router (regression for #112) ([source](frontend/homePage.test.ts)) | 6.2 | Jadden Picardal | Vitest + Testing Library (jsdom) | Yes | Implemented | No — Vitest step missing (D3) | Already implemented | Pending D3 | Add Vitest to frontend CI (D3). | No Actions execution; local run 2026-09-23 passed (fails on pre-fix `page.tsx`) |
 | 6.3.1 | System | Check that the tutorial explains how to start a MIDI recording | 6.3 | Jadden Picardal | Manual content review | No | Planned | N/A (manual) | 2026-10-21 | 2026-10-22 | 4.1.2; tutorial text matches implemented start flow. | No execution evidence yet |
 | 6.3.2 | System | Check that the tutorial explains how to stop a MIDI recording | 6.3 | Jadden Picardal | Manual content review | No | Planned | N/A (manual) | 2026-10-21 | 2026-10-22 | 4.1.2 and 4.2.2; tutorial text matches stop/export flow. | No execution evidence yet |
 | 6.3.3 | System | Check that the tutorial explains how to pause a MIDI recording | 6.3 | Jadden Picardal | Manual content review | No | Planned | N/A (manual) | 2026-10-21 | 2026-10-22 | 4.1.1 and 3.2.2; tutorial text matches pause/resume behavior. | No execution evidence yet |
