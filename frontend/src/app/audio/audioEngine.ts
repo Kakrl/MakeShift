@@ -1,5 +1,5 @@
 export type AudioStatus = "idle" | "loading" | "ready" | "suspended" | "error";
-export type AudioEvent =
+type AudioCommand =
   | { type: "reset" | "release-all"; session: number }
   | {
       type: "note-on";
@@ -20,8 +20,27 @@ export class BrowserAudio {
   private outstanding = 0;
   private recovering = false;
   private generation = 0;
+  private invalidationListeners = new Set<() => void>();
   status: AudioStatus = "idle";
   error = "";
+
+  /** Shared sessions retire their presses whenever this transport invalidates them. */
+  subscribeInvalidation(listener: () => void): () => void {
+    this.invalidationListeners.add(listener);
+    return () => {
+      this.invalidationListeners.delete(listener);
+    };
+  }
+
+  private invalidate() {
+    for (const listener of this.invalidationListeners) {
+      try {
+        listener();
+      } catch {
+        /* One owner cannot prevent transport recovery. */
+      }
+    }
+  }
 
   private reset() {
     this.session++;
@@ -30,6 +49,7 @@ export class BrowserAudio {
       this.node.port.postMessage({ type: "reset", session: this.session });
       this.outstanding++;
     }
+    this.invalidate();
   }
 
   initialize(): Promise<void> {
@@ -88,6 +108,7 @@ export class BrowserAudio {
           if (this.node === node) this.node = null;
           this.outstanding = 0;
           this.recovering = false;
+          this.invalidate();
         };
         node.connect(context.destination);
         context.onstatechange = () => {
@@ -106,6 +127,7 @@ export class BrowserAudio {
       this.node?.disconnect();
       this.node?.port.close();
       this.node = null;
+      this.invalidate();
       const context = this.context;
       this.context = null;
       if (context) {
@@ -116,7 +138,7 @@ export class BrowserAudio {
     }
   }
 
-  private send(event: AudioEvent): boolean {
+  private send(event: AudioCommand): boolean {
     if (
       !this.node ||
       this.context?.state !== "running" ||
@@ -154,7 +176,7 @@ export class BrowserAudio {
   }
 
   noteOff(token: { session: number; press: number }) {
-    this.send({ type: "note-off", ...token });
+    return this.send({ type: "note-off", ...token });
   }
 
   releaseAll() {
@@ -170,6 +192,7 @@ export class BrowserAudio {
     this.node?.disconnect();
     this.node?.port.close();
     this.node = null;
+    this.invalidate();
     const context = this.context;
     this.context = null;
     if (context) {

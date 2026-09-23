@@ -42,12 +42,14 @@ reused first. Repeated pitches with distinct press IDs occupy separate voices.
 Rendering visits at most ten voices per sample, allocates no buffers or voice
 objects, and performs no logging, waiting, network access, or React updates.
 
-## Audio-local transport pending #86
+## Private worklet transport and shared events
 
-This deliberately small adapter is not the shared timestamp/clock contract.
-#86 remains responsible for observation timestamps, cross-worker clock mapping
-and dispatch ordering. Events here are immediate FIFO commands from one owner,
-applied before the next available render quantum, without future scheduling.
+New consumers use the [shared event contract](note_events.md) and
+`createAudioSession` adapter (#86). It validates event ordering and timestamps,
+retains each press's private audio token, and propagates audio invalidation to
+shared consumers. The commands below remain internal immediate FIFO commands
+from one owner, applied before the next available render quantum without future
+scheduling. They are not a second public musical event schema.
 
 | Command | Fields / behavior |
 | :--- | :--- |
@@ -71,8 +73,8 @@ other code that deliberately writes directly to the private port.
 
 The legacy pitch-only exports adapt current CV callers by retaining one token
 per pitch. They cannot distinguish multiple fingers on one pitch. New consumers
-should retain tokens from `BrowserAudio.noteOn` and pass them to `noteOff`;
-full CV event/session/readiness wiring remains #86, #24 and #28.
+should use `createAudioSession` and the shared schema; full live CV/readiness
+wiring remains #24 and #28. Do not mix bridge-owned and legacy calls on one owner.
 
 ## Verification
 

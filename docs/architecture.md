@@ -36,7 +36,7 @@ flowchart TD
 | CV | MediaPipe still-image helper, video overlay code, OpenCV.js marker/geometry modules | Worker pipeline and intentional contact detection (#37, #34); module presence does not establish UI integration |
 | Calibration | Prototype flow/completion flag; known defect D6 | Versioned validated result (#87) |
 | Native audio | C++ PortAudio, nanobind, SPSC queue; ten 100 ms decaying sine hits at 44.1 kHz | Remains a native reference |
-| Browser audio | JavaScript AudioWorklet, ten held sine voices, press/session identities, velocity, basic attack/release and Audio check page ([details](browser_audio.md)); native engine preserved | Full ADSR (#27), shared event/readiness integration (#86, #24, #28) |
+| Browser audio | JavaScript AudioWorklet, ten held sine voices, press/session identities, velocity, basic attack/release and Audio check page ([details](browser_audio.md)); native engine preserved | Shared event adapter (#86) implemented; full ADSR (#27), live readiness/wiring (#24, #28) |
 | MIDI | midi-writer-js utilities and tests; UI/export gap D2 | Complete lifecycle and download (#88) |
 | Verification | Native audio/queue, MIDI, contrast, RCA suites; Python placeholder | Browser audio, labeled CV, physical latency and deployment tests (#39, #30, #89) |
 
@@ -60,8 +60,9 @@ frame transfer/copy costs and ownership; dispose of transferred resources.
 Reuse detectors. Stop media tracks and close workers/models when sessions end.
 Use VIDEO inference for live frames while preserving still-image calibration.
 
-Begin with ordinary worker messaging and bounded application queues. #86 must
-define overload recovery: dropping a release must not leave a stuck note.
+Use ordinary worker messaging and bounded application queues. The #86 shared
+session contract interrupts and releases all notes on sequence gaps or overflow;
+the worker frame scheduler still needs its own bounded producer policy (#37).
 Audio delivery must not await a React render or MIDI serialization. Direct
 message ports may be used where appropriate; shared memory requires profiling
 evidence and documented deployment constraints.
@@ -87,9 +88,13 @@ hysteresis against both accuracy and delay rather than assuming 25 ms debounce.
 
 ## Event and clock contract
 
-#86 owns the exact schema. Required semantics are note-on, note-off and
-release-all, with MIDI pitch, normalized note-on velocity, monotonic timestamp,
-session ID and press ID where applicable. Coordinates remain CV inputs.
+The implemented [shared event contract](note_events.md) (#86) defines versioned
+note-on, note-off and terminal release-all, MIDI pitch, normalized velocity,
+monotonic observation time, ordered sequence, session identity and press identity.
+`NoteSession` validates message data, dispatches audio before deferred observers,
+and retires sessions on loss, invalid input or overload. Its BrowserAudio adapter
+propagates audio interruption to all consumers. Coordinates remain CV inputs.
+Live detection/readiness and recording wiring remain #34/#24/#28/#88.
 
 Specify ordering, malformed/duplicate events, repeated pitches and same-key
 multi-finger policy. Match releases to presses; a late release for a stolen
