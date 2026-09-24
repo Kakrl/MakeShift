@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import SideNav from "../SideNav";
 import { useRouter } from "next/navigation";
 import { useCamera } from "../CameraContext";
 import CameraStatusOverlay from "../CameraStatusOverlay";
@@ -49,9 +50,9 @@ function SuccessBadge({ label }: { label: string }) {
   );
 }
 
-function ProgressBar({ total, current }: { total: number; current: number }) {
+function ProgressBar({ total, current, className = "" }: { total: number; current: number; className?: string }) {
   return (
-    <div className="flex flex-1 items-center" role="progressbar" aria-valuenow={current} aria-valuemin={1} aria-valuemax={total}>
+    <div className={`flex flex-1 items-center ${className}`} role="progressbar" aria-valuenow={current} aria-valuemin={1} aria-valuemax={total}>
       {Array.from({ length: total }, (_, i) => {
         const stepNum = i + 1;
         const circleFilled = stepNum <= current;
@@ -547,9 +548,9 @@ export default function Calibration() {
   const renderStepContent = () => {
     if (isComplete) {
       return (
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--color-success)"/><path d="M8 14L11.5 18L20 10" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          <p className="text-[24px] text-black font-sans">Calibration complete! You&apos;re ready to play.</p>
+          <p className="text-[18px] sm:text-[24px] text-black font-sans">Calibration complete! You&apos;re ready to play.</p>
         </div>
       );
     }
@@ -557,8 +558,8 @@ export default function Calibration() {
     if (step === 1) {
       return (
         <div className="flex items-center gap-5 flex-wrap">
-          <p className="text-[24px] text-black font-sans shrink-0">Step 1: Select octaves &amp; starting note</p>
-          <div className="flex items-end gap-4 shrink-0">
+          <p className="text-[18px] sm:text-[24px] text-black font-sans">Step 1: Select octaves &amp; starting note</p>
+          <div className="flex flex-wrap items-end gap-4">
             <div className="flex flex-col gap-1">
               <label htmlFor="octave-count" className="text-[13px] text-black font-sans"># of Octaves</label>
               <div className="relative">
@@ -587,8 +588,8 @@ export default function Calibration() {
       const pct = lighting ? Math.round(lighting.brightness * 100) : null;
       return (
         <div className="flex items-center gap-5 flex-wrap">
-          <p className="text-[24px] text-black font-sans shrink-0">Step 2: Check your lighting</p>
-          <div className="flex items-center gap-6 shrink-0">
+          <p className="text-[18px] sm:text-[24px] text-black font-sans">Step 2: Check your lighting</p>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <span className="text-[14px] text-ink-muted font-sans" aria-live="polite">
               Current: {pct === null ? "measuring…" : `${pct}% brightness`}
             </span>
@@ -608,13 +609,13 @@ export default function Calibration() {
     }
 
     if (step === 3) {
-      return <p className="text-[24px] text-black font-sans">Step 3: Align your paper</p>;
+      return <p className="text-[18px] sm:text-[24px] text-black font-sans">Step 3: Align your paper</p>;
     }
 
     if (step === 4) {
       return (
-        <div className="flex items-center gap-4">
-          <p className="text-[24px] text-black font-sans shrink-0">Step 4: Hover hands above paper for 3 s</p>
+        <div className="flex flex-wrap items-center gap-4">
+          <p className="text-[18px] sm:text-[24px] text-black font-sans">Step 4: Hover hands above paper for 3 s</p>
           {!fingersShown && (
             <button onClick={handleStartCountdown} disabled={isCounting || !canCapture} className="shrink-0 border-[1.5px] border-black bg-surface px-5 py-2 rounded-[8px] text-[20px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] disabled:opacity-40 disabled:cursor-not-allowed">
               {hasStarted && !isCounting ? "Retry" : "Start"}
@@ -636,8 +637,8 @@ export default function Calibration() {
 
     if (step === 5) {
       return (
-        <div className="flex items-center gap-4">
-          <p className="text-[24px] text-black font-sans shrink-0">Step 5: Place hands on paper for 3 s</p>
+        <div className="flex flex-wrap items-center gap-4">
+          <p className="text-[18px] sm:text-[24px] text-black font-sans">Step 5: Place hands on paper for 3 s</p>
           {!step5Success && (
             <button onClick={handleStartCountdown} disabled={isCounting || !canCapture} className="shrink-0 border-[1.5px] border-black bg-surface px-5 py-2 rounded-[8px] text-[20px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] disabled:opacity-40 disabled:cursor-not-allowed">
               {hasStarted && !isCounting ? "Retry" : "Start"}
@@ -652,11 +653,11 @@ export default function Calibration() {
   };
 
   return (
-    <div className="flex-1 bg-surface flex flex-col min-h-0 overflow-hidden">
+    <div className="flex-1 bg-surface flex flex-col">
       {/* Main area */}
-      <div className="flex pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)]">
+      <div className="flex flex-col lg:flex-row pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)]">
         {/* Camera */}
-        <div className="flex-1 aspect-video bg-surface-dark relative overflow-hidden">
+        <div className="w-full lg:w-auto lg:flex-1 aspect-video bg-surface-dark relative overflow-hidden">
           <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" style={{ display: showingImage ? "none" : "block" }} />
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover" style={{ display: showingImage ? "block" : "none" }} />
           {renderCountdown()}
@@ -665,45 +666,28 @@ export default function Calibration() {
           {renderHelpModal()}
         </div>
 
-        {/* Right sidebar — nav only */}
-        <div className="w-[267px] relative flex flex-col shrink-0">
-          <div className="absolute left-0 top-[50px] flex flex-col gap-[24px] z-10 pointer-events-none">
-            <div className="bg-black h-[46px] w-[140px] rounded-tr-[4px] rounded-br-[4px] shadow-[2px_1px_1px_0px_rgba(0,0,0,0.1)]" />
-            <div className="bg-black h-[46px] w-[140px] rounded-tr-[4px] rounded-br-[4px] shadow-[2px_1px_1px_0px_rgba(0,0,0,0.1)]" />
-          </div>
-          <div className="flex flex-col">
-            <div aria-current="page" className="border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] rounded-tr-[8px] bg-accent-soft relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)]">
-              <span className="text-[20px] text-black font-sans whitespace-nowrap">Calibration</span>
-            </div>
-            <Link href="/tutorial" className="-mt-px border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] bg-surface relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] hover:bg-black/5 transition-colors">
-              <span className="text-[20px] text-black font-sans whitespace-nowrap">Tutorial</span>
-            </Link>
-            <Link href="/about" className="-mt-px border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] rounded-br-[8px] bg-surface relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] hover:bg-black/5 transition-colors">
-              <span className="text-[20px] text-black font-sans whitespace-nowrap">About</span>
-            </Link>
-          </div>
-        </div>
+        <SideNav active="calibration" />
       </div>
 
       {/* Step content row */}
-      <div className="flex items-center gap-4 shrink-0 pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)] pt-[clamp(8px,2dvh,28px)] pb-[clamp(6px,1.5dvh,16px)]">
+      <div className="flex flex-wrap items-center gap-4 shrink-0 pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)] pt-[clamp(8px,2dvh,28px)] pb-[clamp(6px,1.5dvh,16px)]">
         {renderStepContent()}
       </div>
 
       {/* Bottom nav */}
-      <div className="flex items-center gap-6 shrink-0 pl-[clamp(20px,3.8vw,56px)] pr-[clamp(12px,3.2vw,47px)] pb-[clamp(10px,2.5dvh,30px)]">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:flex items-center shrink-0 pl-[clamp(20px,3.8vw,56px)] pr-[clamp(12px,3.2vw,47px)] pb-[clamp(10px,2.5dvh,30px)]">
         {showExitCalibration ? (
-          <Link href="/" className="shrink-0 border-[1.5px] border-black bg-surface px-6 py-3 rounded-[8px] text-[22px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]">Exit Calibration</Link>
+          <Link href="/" className="justify-self-start shrink-0 border-[1.5px] border-black bg-surface px-4 sm:px-6 py-2 sm:py-3 rounded-[8px] text-[18px] sm:text-[22px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]">Exit Calibration</Link>
         ) : showPreviousStep ? (
-          <button onClick={() => goToAdjacentStep(-1)} className="shrink-0 border-[1.5px] border-black bg-surface px-6 py-3 rounded-[8px] text-[22px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]">Previous Step</button>
+          <button onClick={() => goToAdjacentStep(-1)} className="justify-self-start shrink-0 border-[1.5px] border-black bg-surface px-4 sm:px-6 py-2 sm:py-3 rounded-[8px] text-[18px] sm:text-[22px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]">Previous Step</button>
         ) : <div aria-hidden="true" />}
 
-        <ProgressBar total={TOTAL_STEPS} current={isComplete ? TOTAL_STEPS : step} />
+        <ProgressBar total={TOTAL_STEPS} current={isComplete ? TOTAL_STEPS : step} className="col-span-2 row-start-1 sm:col-auto sm:row-auto" />
 
         {isComplete ? (
-          <button onClick={handleComplete} className="shrink-0 border-[1.5px] border-black bg-surface px-6 py-3 rounded-[8px] text-[22px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]">Start Playing</button>
+          <button onClick={handleComplete} className="justify-self-end shrink-0 border-[1.5px] border-black bg-surface px-4 sm:px-6 py-2 sm:py-3 rounded-[8px] text-[18px] sm:text-[22px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]">Start Playing</button>
         ) : showNextStep ? (
-          <button onClick={() => goToAdjacentStep(1)} className="shrink-0 border-[1.5px] border-black bg-surface px-6 py-3 rounded-[8px] text-[22px] text-black font-sans transition-[background-color,transform] hover:bg-black/5 active:scale-[0.97]">
+          <button onClick={() => goToAdjacentStep(1)} className="justify-self-end shrink-0 border-[1.5px] border-black bg-surface px-4 sm:px-6 py-2 sm:py-3 rounded-[8px] text-[18px] sm:text-[22px] text-black font-sans transition-[background-color,transform] hover:bg-black/5 active:scale-[0.97]">
             Next Step
           </button>
         ) : <div aria-hidden="true" />}
