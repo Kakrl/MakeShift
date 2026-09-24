@@ -36,7 +36,7 @@ flowchart TD
 | CV | MediaPipe still-image helper, video overlay code, OpenCV.js marker/geometry modules | Worker pipeline and intentional contact detection (#37, #34); module presence does not establish UI integration |
 | Calibration | Prototype flow/completion flag; known defect D6 | Versioned validated result (#87) |
 | Native audio | C++ PortAudio, nanobind, SPSC queue; ten 100 ms decaying sine hits at 44.1 kHz | Remains a native reference |
-| Browser audio | JavaScript AudioWorklet, ten held sine voices, press/session identities, velocity, basic attack/release and Audio check page ([details](browser_audio.md)); native engine preserved | Shared event adapter (#86) implemented; full ADSR (#27), live readiness/wiring (#24, #28) |
+| Browser audio | JavaScript AudioWorklet, ten held sine voices, press/session identities, velocity, sample-timed ADSR and Audio check page ([details](browser_audio.md)); native engine preserved | Shared event adapter (#86) implemented; ADSR (#27) implemented with listening review pending; live readiness/wiring (#24, #28) |
 | MIDI | midi-writer-js utilities and tests; UI/export gap D2 | Complete lifecycle and download (#88) |
 | Verification | Native audio/queue, MIDI, contrast, RCA suites; Python placeholder | Browser audio, labeled CV, physical latency and deployment tests (#39, #30, #89) |
 
@@ -143,7 +143,7 @@ a MIDI file. Audio cannot await file generation.
 | :--- | :--- |
 | Application | Next.js, React, TypeScript, npm lockfile |
 | CV | MediaPipe Tasks Vision, OpenCV.js/ArUco; live worker pipeline planned |
-| Audio | Native PortAudio reference; browser count-in and AudioWorklet synthesis implemented (#35), full envelopes planned (#27) |
+| Audio | Native PortAudio reference; browser count-in and AudioWorklet synthesis implemented (#35), ADSR implemented (#27), listening review pending |
 | MIDI | midi-writer-js; complete UI integration planned |
 | Native reference | C++23, CMake, PortAudio, nanobind, Python 3.12 |
 | Quality | Vitest, ESLint, TypeScript, contrast audit, build; GoogleTest/CTest, Ruff, mypy, clang-format for relevant areas |
