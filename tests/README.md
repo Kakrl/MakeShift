@@ -38,6 +38,10 @@ tests/
 ├── automation/
 │   └── rca.test.cjs                  # repository-process regression tests
 ├── frontend/
+│   ├── browserAudio.test.ts      # production DSP offline rendering
+│   ├── browserAudioLifecycle.test.ts # browser owner mocks
+│   ├── browserAudio.browser.mjs  # production browser graph check
+│   ├── noteEvents.test.ts            # shared event validation, sessions and clocks
 │   ├── midiUtils.test.ts             # MIDI unit tests
 │   └── check-contrast.mjs            # theme token contrast audit
 ├── python/
@@ -64,6 +68,67 @@ No test implementation requires an exception to this layout.
 | Frontend unit (Vitest) | `cd frontend && npx vitest run` | `npm ci` in `frontend/` |
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
 | RCA automation | `node --test tests/automation/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
+
+## Shared-event verification (issue #86)
+
+Local Windows verification on 2026-09-22, branch
+`feature/86-note-events`, stacked on #35 at `12d93f4`, with Node 22.20.0
+and Vitest 4.1.11. This is local execution evidence, not an Actions result.
+
+- All 98 Vitest tests passed: 43 shared event/clock/MessagePort cases,
+  11 browser-owner/adapter lifecycle cases, 37 offline DSP and seven MIDI.
+- Shared tests cover validation, immutable schema copies, ordered sequences,
+  duplicates and gaps, same-pitch press identities, release matching,
+  stop/reset/interruption/release-all, stale-session rejection, bounded
+  recovery, audio-first deferred observers, and invalid/delayed clock inputs.
+- The adapter tests use production BrowserAudio with mocked device objects.
+  Suspension, overload, processor failure and close retire shared presses,
+  deliver release-all to observers, and reject stale input after recovery.
+- TypeScript, lint (zero errors; seven existing home-page warnings), all 18
+  contrast pairs, and production build passed.
+- Extra production Edge 153.0.4234.48 / Playwright 1.62.1 smoke check:
+  the unchanged runner FAILED its final immediate navigation-cleanup
+  assertion (context still running after the URL changed). A local diagnostic
+  copy waiting for the unmount cleanup passed: asset HTTP 200, soft/loud RMS
+  0.0140931503 / 0.0426029731, chord output, stop silence, suspension recovery
+  and navigation closure. The diagnostic is not a passing result for the
+  unchanged test. See D16 and [issue #105](https://github.com/Kakrl/MakeShift/issues/105)
+  for the separate test-harness fix.
+- Vitest and the browser smoke runner remain outside CI (D3). No physical
+  latency, camera accuracy, hardware listening, full MIDI recording lifecycle,
+  live detector wiring or deployed cross-browser result is claimed.
+
+## Browser audio verification (issue #35)
+
+Local Windows verification on 2026-09-22, branch
+`feature/35-browser-audio`, based on `30706c4`, with Node 22.20.0 and
+Vitest 4.1.11. This is local evidence, not a CI result.
+
+- Offline DSP: 37 tests passed, covering eleven pitches at 44.1/48/96 kHz,
+  linear velocity, attack/release, ten voices, deterministic stealing, slot
+  reuse, phase continuity, validation and session resets.
+- Browser ownership: six tests passed for user activation, concurrent
+  initialization, module failure/retry, suspended startup, interruption,
+  bounded backlog, processor failure and close during initialization.
+- Existing MIDI suite: seven tests passed.
+- Production Edge 153.0.4234.48, Playwright 1.62.1, headless:
+  `npm run test:audio-browser` passed. Soft/loud A4 RMS was
+  0.014200991 / 0.042602973 (3:1). The worklet asset returned HTTP 200;
+  ten-note graph output, stop silence, suspension/restart and navigation
+  cleanup passed. Graph samples do not establish hardware audibility.
+- Lint: zero errors, seven existing home-page unused-variable warnings.
+  TypeScript, 18 contrast pairs, and production build passed.
+- User-reported speaker listening passed for soft/loud A4, ten-note chord
+  and Stop sound; see [manual report](manual/2026-09-22_2.2.3.md).
+  Output device and browser details were not supplied. Physical latency,
+  full shared #86 event integration and deployed/cross-browser compatibility
+  remain pending. No native files changed.
+
+To repeat the production smoke test: install frontend dependencies, run
+`npm run build` and `npm start -- --hostname 127.0.0.1`; in another terminal
+run `npm run test:audio-browser`. It uses an installed Edge by default.
+See [browser audio](../docs/browser_audio.md) for environment overrides.
+The tests remain outside CI (D3); no Actions execution is claimed.
 
 ## Test relocation verification (issue #83)
 
@@ -177,6 +242,7 @@ defect report is filed.
 | D13 | Low | Tests | The contrast audit only checks `--color-*` token pairs. Hardcoded canvas colors drawn over live video (`#00ff88`, `#ffd60a`, `#ff3b30`) aren't checked | `frontend/src/app/MarkerTrackingOverlay.tsx:136-192`, `frontend/src/app/cv/handLandmarkDrawing.ts:33-34` | | Open |
 | D14 | Low | Tests | The only Python test is `test_dummy.py`, so the pytest coverage report in CI measures nothing | `tests/python/test_dummy.py` | | Open |
 | D15 | Low | Docs | The root README said Python 3.10+ for the C++ build, but `backend/CMakeLists.txt` requires Python 3.12 | `README.md` | | Fixed in #79 PR |
+| D16 | Low | Tests | Browser audio smoke runner checks context closure immediately after URL navigation, before React's unmount effect may run. The unchanged runner failed; a bounded cleanup-wait diagnostic passed during #86 verification | `tests/frontend/browserAudio.browser.mjs:95` | [#105](https://github.com/Kakrl/MakeShift/issues/105) | Open; separate fix needed |
 
 ## Root Cause Analysis Log
 
