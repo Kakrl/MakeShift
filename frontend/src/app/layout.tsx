@@ -29,7 +29,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased bg-surface`}
     >
-      <body className="h-dvh flex flex-col overflow-hidden bg-surface">
+      <body className="min-h-dvh flex flex-col bg-surface">
         {/* Shared header — same height on every page, so camera position never shifts */}
         <header className="h-14 shrink-0 flex items-center pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)] bg-surface">
           <Link
@@ -41,7 +41,7 @@ export default function RootLayout({
           <Link href="/audio" className="ml-auto text-ink underline">Audio check</Link>
         </header>
         <CameraProvider>
-          <div className="flex-1 min-h-0 flex flex-col">{children}</div>
+          <div className="flex-1 flex flex-col">{children}</div>
         </CameraProvider>
       </body>
     </html>

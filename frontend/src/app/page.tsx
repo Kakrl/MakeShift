@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCamera } from "./CameraContext";
 import CameraStatusOverlay from "./CameraStatusOverlay";
+import SideNav from "./SideNav";
 import {
   startRecording,
   stopRecording,
@@ -216,11 +216,11 @@ export default function Home() {
   };
 
   return (
-    <div className="flex-1 bg-[#fffdf7] flex flex-col">
+    <div className="flex-1 bg-surface flex flex-col">
       {audioError && <p role="alert" className="text-danger px-4">{audioError} Try Play again.</p>}
-      <div className="flex flex-1 pt-[115px] pl-[61px] pr-[47px] pb-[226px]">
+      <div className="flex flex-col lg:flex-row lg:flex-1 pt-4 lg:pt-[clamp(16px,calc(100dvh_-_700px),115px)] pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)] lg:pb-[clamp(16px,calc(100dvh_-_660px),226px)]">
         {/* Camera feed */}
-        <div className="flex-1 bg-[#090909] relative overflow-hidden">
+        <div className="w-full aspect-video lg:w-auto lg:aspect-auto lg:flex-1 lg:min-h-[240px] bg-surface-dark relative overflow-hidden">
           <video
             ref={videoRef}
             autoPlay
@@ -234,32 +234,10 @@ export default function Home() {
           />
         </div>
 
-        {/* Right sidebar */}
-        <div className="w-[267px] relative flex flex-col shrink-0">
-          {/* Piano key bars */}
-          <div className="absolute left-0 top-[50px] flex flex-col gap-[24px] z-10 pointer-events-none">
-            <div className="bg-black h-[46px] w-[140px] rounded-tr-[4px] rounded-br-[4px] shadow-[2px_1px_1px_0px_rgba(0,0,0,0.1)]" />
-            <div className="bg-black h-[46px] w-[140px] rounded-tr-[4px] rounded-br-[4px] shadow-[2px_1px_1px_0px_rgba(0,0,0,0.1)]" />
-          </div>
-
-          {/* Nav tabs */}
-          <div className="flex flex-col">
-            <button
-              onClick={() => setShowCalibrationIntro(true)}
-              className="border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] rounded-tr-[8px] bg-surface relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] hover:bg-black/5 transition-colors"
-            >
-              <span className="text-[20px] text-black font-sans whitespace-nowrap">Calibration</span>
-            </button>
-            <Link href="/tutorial" className="-mt-px border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] bg-surface relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] hover:bg-black/5 transition-colors">
-              <span className="text-[20px] text-black font-sans whitespace-nowrap">Tutorial</span>
-            </Link>
-            <Link href="/about" className="-mt-px border border-black h-[72px] flex items-center justify-end pr-[19px] pl-[100px] rounded-br-[8px] bg-surface relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] hover:bg-black/5 transition-colors">
-              <span className="text-[20px] text-black font-sans whitespace-nowrap">About</span>
-            </Link>
-          </div>
-
+        {/* Right sidebar (below the camera under lg) */}
+        <SideNav onCalibrationClick={() => setShowCalibrationIntro(true)}>
           {/* Controls */}
-          <div className="flex flex-col gap-[23px] mt-[42px] pl-[43px]">
+          <div className="flex flex-row flex-wrap items-end lg:flex-col lg:items-stretch gap-[23px] mt-6 lg:mt-[42px] lg:pl-[43px]">
             {/* Tempo */}
             <div className="flex flex-col gap-2">
               <label htmlFor="set-tempo" className="text-[16px] text-ink font-sans leading-[1.4]">Set Tempo</label>
@@ -296,7 +274,7 @@ export default function Home() {
             </div>
 
             {/* Metronome toggle */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 h-[42px] lg:h-auto">
               <span className="text-[16px] text-ink font-sans leading-[1.4] whitespace-nowrap">Metronome</span>
               <button
                 onClick={() => setMetronome(!metronome)}
@@ -310,7 +288,7 @@ export default function Home() {
 
             {/* MIDI controls — only visible after Stop is pressed */}
             {hasFinishedRecording && (
-              <div className="flex flex-col gap-[10px] pt-[6px] border-t border-divider">
+              <div className="w-full flex flex-col gap-[10px] pt-[6px] border-t border-divider">
                 <button
                   onClick={() => setShowExportDialog(!showExportDialog)}
                   className="border border-black bg-surface px-4 py-[10px] rounded-[8px] text-[14px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] text-left"
@@ -326,7 +304,7 @@ export default function Home() {
               </div>
             )}
           </div>
-        </div>
+        </SideNav>
       </div>
 
       {/* ── Export Modal ────────────────────────────────────────────────────── */}
@@ -372,9 +350,9 @@ export default function Home() {
 
       {/* Bottom: Listen (left) + Play/Stop (centre) */}
       <div className="flex items-center shrink-0 pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)] pb-[clamp(12px,3dvh,36px)] pt-[clamp(8px,2dvh,24px)]">
-        <div className="flex-1 relative flex items-center justify-center gap-[27px]">
+        <div className="flex-1 relative flex flex-wrap items-center justify-center gap-[27px]">
           {hasFinishedRecording && (
-            <button className="absolute left-0 border-[1.5px] border-black bg-surface px-5 py-2 rounded-[8px] text-[17px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]">
+            <button className="lg:absolute lg:left-0 border-[1.5px] border-black bg-surface px-5 py-2 rounded-[8px] text-[17px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]">
               Listen to Recording
             </button>
           )}
@@ -405,7 +383,7 @@ export default function Home() {
             <span className="text-[13px] text-ink font-sans select-none">Stop</span>
           </button>
         </div>
-        <div className="w-[267px] shrink-0" />
+        <div className="hidden lg:block w-[267px] shrink-0" />
       </div>
     </div>
   );

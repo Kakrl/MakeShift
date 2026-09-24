@@ -60,6 +60,7 @@ MakeShift/
 │   │   │   ├── layout.tsx
 │   │   │   ├── lighting.ts
 │   │   │   ├── page.tsx
+│   │   │   ├── SideNav.tsx          # shared responsive nav tabs
 │   │   │   └── useHandLandmarker.ts
 │   │   ├── cv/                      # ArUco detection, homography, key geometry
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
