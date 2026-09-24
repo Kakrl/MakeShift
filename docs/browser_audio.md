@@ -122,7 +122,7 @@ checks. `tests/frontend/browserAudio.test.ts` renders the exact production DSP
 offline at 44.1, 48 and 96 kHz. Interpolated positive zero crossings estimate
 pitch within 0.1 Hz across eleven notes; steady-state RMS allows finite-window
 error. Tests cover velocity ratios, attack/release, ten voices, stealing,
-slot reuse, buffer continuity, invalid input and session resets. ADSR cases additionally check every default stage sample at 8/44.1/48/96/192/384 kHz, early release in every stage, duplicate releases, independent retriggers, zero/sub-sample durations, parameter limits, and sample discontinuity bounds. See the [#27 listening report](../tests/manual/2026-09-24_2.2.18.md) for the separately pending audible review.
+slot reuse, buffer continuity, invalid input and session resets. ADSR cases additionally check every default stage sample at 8/44.1/48/96/192/384 kHz, early release in every stage, duplicate releases, independent retriggers, zero/sub-sample durations, parameter limits, and sample discontinuity bounds. See the [#27 listening report](../tests/manual/2026-09-24_2.2.18.md) for the user-reported audible pass and its environment/evidence limitations.
 `browserAudioLifecycle.test.ts` mocks browser ownership to test loading,
 suspension, errors, retry, overflow and teardown.
 

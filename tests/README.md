@@ -356,7 +356,8 @@ Local Windows verification on 2026-09-24, branch
   worklet HTTP 200, soft/loud RMS 0.0099406937 / 0.0298220811, chord output,
   stop silence, suspension recovery and navigation closure. This run passed
   despite the previously recorded D16 timing race; D16 is not fixed here.
-- [Listening report 2.2.18](manual/2026-09-24_2.2.18.md) is BLOCKED pending a
-  human listener and device/browser details. No speaker audibility, physical
-  latency, seamless stealing, or realistic piano timbre is claimed.
+- [Listening report 2.2.18](manual/2026-09-24_2.2.18.md): user-reported PASS
+  on 2026-09-24: intended behavior, no sudden stopping and no audible pops.
+  Browser/device and exact tested commit were not supplied. No measured physical
+  latency, universally seamless stealing, or realistic piano timbre is claimed.
 - Vitest remains outside CI (D3); no GitHub Actions execution is claimed.
