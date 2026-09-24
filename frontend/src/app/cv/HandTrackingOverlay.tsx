@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 import type { NormalizedLandmark } from "../../cv/collision";
+import {
+  recordCameraFrame,
+  recordHandInference,
+} from "../../cv/performanceMetrics";
 import { drawHandLandmarks } from "./handLandmarkDrawing";
 
 const VISION_WASM_PATH =
@@ -45,6 +49,7 @@ export default function HandTrackingOverlay({
       }
 
       if (!cancelled && video && canvas && video.readyState >= 2) {
+        recordCameraFrame(performance.now());
         if (
           canvas.width !== video.videoWidth ||
           canvas.height !== video.videoHeight
@@ -54,7 +59,11 @@ export default function HandTrackingOverlay({
         }
 
         const context = canvas.getContext("2d");
+        const inferenceStartedAt = performance.now();
         const result = handLandmarker?.detectForVideo(video, timestamp);
+        if (result) {
+          recordHandInference(performance.now() - inferenceStartedAt);
+        }
         if (context) {
           context.clearRect(0, 0, canvas.width, canvas.height);
         }
