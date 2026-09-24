@@ -38,6 +38,7 @@ export default function RootLayout({
           >
             MakeShift
           </Link>
+          <Link href="/audio" className="ml-auto text-ink underline">Audio check</Link>
         </header>
         <CameraProvider>
           <div className="flex-1 min-h-0 flex flex-col">{children}</div>

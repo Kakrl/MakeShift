@@ -1,0 +1,1 @@
+how to communicate ebetween javascript and python: is hte latency too slow?

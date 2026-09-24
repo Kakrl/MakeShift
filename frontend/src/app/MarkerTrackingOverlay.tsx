@@ -39,9 +39,13 @@ const LOCKED_MARKER_CHECK_INTERVAL_MS = 10_000;
 export default function MarkerTrackingOverlay({
   videoRef,
   fingertips,
+  onKeyTransitions,
+  trackingEnabled = false,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   fingertips: readonly Fingertip[];
+  onKeyTransitions?: (pressed: readonly number[], released: readonly number[]) => void;
+  trackingEnabled?: boolean;
 }) {
   const [markerDetection, setMarkerDetection] =
     useState<MarkerDetectionResult | null>(null);
@@ -237,22 +241,32 @@ export default function MarkerTrackingOverlay({
             8,
           );
           const collidedKeys = getCollidedKeyIndexes(collisions);
-          const transitions = updateKeyTransitions(
-            previousKeysRef.current,
-            collidedKeys,
-          );
-          recordKeyTransitions(
-            transitions.pressed.length,
-            transitions.released.length,
-          );
-          previousKeysRef.current = collidedKeys;
+          if (trackingEnabled) {
+            const transitions = updateKeyTransitions(
+              previousKeysRef.current,
+              collidedKeys,
+            );
+
+            for (const keyIndex of transitions.pressed) {
+              console.log("Finger entered key:", keyIndex);
+            }
+
+            for (const keyIndex of transitions.released) {
+              console.log("Finger left key:", keyIndex);
+            }
+
+            if (transitions.pressed.length || transitions.released.length) {
+              onKeyTransitions?.(transitions.pressed, transitions.released);
+            }
+            previousKeysRef.current = collidedKeys;
+          }
 
           projectedWhiteKeys.forEach((key, index) => {
             if (collidedKeys.has(index)) pressWhiteKey(context, key);
             else releaseWhiteKey(context, key);
           });
     }
-  }, [fingertips, markerDetection]);
+  }, [fingertips, markerDetection, onKeyTransitions, trackingEnabled]);
 
   return (
     <>
