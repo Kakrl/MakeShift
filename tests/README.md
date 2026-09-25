@@ -341,3 +341,28 @@ lands on `main`; its own regression suite runs in the introducing PR. Once the
 branch protection/ruleset alongside existing checks. The workflow alone does
 not change repository merge settings. A missing required check on the first
 rollout is not evidence that an RCA was validated.
+
+## Browser envelope verification (issue #27)
+
+Local Windows verification on 2026-09-24, branch
+`feature/27-browser-envelopes`, Node 22.20.0 and Vitest 4.1.11:
+
+- All 132 Vitest tests passed (71 DSP, including 34 new ADSR cases; 43 shared
+  events, 11 browser lifecycle, seven MIDI). Default sustain RMS expectation
+  changed from full level to 0.7; pitch/velocity/session coverage still passes.
+- ADSR cases cover sample timing at six rates (8–384 kHz), every active-stage
+  note-off, duplicate release, independent repeated-pitch presses, hard stealing
+  during attack/decay/sustain/release, zero/sub-sample durations, parameter
+  validation, slot reuse, block continuity, and boundary discontinuity bounds.
+- Lint passed with zero errors and eight existing warnings in the home page
+  and marker overlay. TypeScript and all 18 contrast pairs passed.
+- Production build passed (Next.js 16.2.3).
+- The unchanged production browser runner passed locally in Edge 153.0.4234.48:
+  worklet HTTP 200, soft/loud RMS 0.0099406937 / 0.0298220811, chord output,
+  stop silence, suspension recovery and navigation closure. This run passed
+  despite the previously recorded D16 timing race; D16 is not fixed here.
+- [Listening report 2.2.18](manual/2026-09-24_2.2.18.md): user-reported PASS
+  on 2026-09-24: intended behavior, no sudden stopping and no audible pops.
+  Browser/device and exact tested commit were not supplied. No measured physical
+  latency, universally seamless stealing, or realistic piano timbre is claimed.
+- Vitest remains outside CI (D3); no GitHub Actions execution is claimed.

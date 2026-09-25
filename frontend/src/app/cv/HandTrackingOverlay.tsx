@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 import type { NormalizedLandmark } from "../../cv/collision";
+import {
+  recordCameraFrame,
+  recordHandInference,
+} from "../../cv/performanceMetrics";
 import { drawHandLandmarks } from "./handLandmarkDrawing";
 
 const VISION_WASM_PATH =
@@ -45,6 +49,7 @@ export default function HandTrackingOverlay({
       }
 
       if (!cancelled && video && canvas && video.readyState >= 2) {
+        recordCameraFrame(performance.now());
         if (
           canvas.width !== video.videoWidth ||
           canvas.height !== video.videoHeight
@@ -54,7 +59,11 @@ export default function HandTrackingOverlay({
         }
 
         const context = canvas.getContext("2d");
+        const inferenceStartedAt = performance.now();
         const result = handLandmarker?.detectForVideo(video, timestamp);
+        if (result) {
+          recordHandInference(performance.now() - inferenceStartedAt);
+        }
         if (context) {
           context.clearRect(0, 0, canvas.width, canvas.height);
         }
@@ -84,16 +93,36 @@ export default function HandTrackingOverlay({
     const initialize = async () => {
       try {
         const vision = await FilesetResolver.forVisionTasks(VISION_WASM_PATH);
-        const createdHandLandmarker = await HandLandmarker.createFromOptions(
-          vision,
-          {
-            baseOptions: {
-              modelAssetPath: "/models/hand_landmarker.task",
+        let createdHandLandmarker: HandLandmarker;
+        let delegate = "GPU";
+
+        try {
+          createdHandLandmarker = await HandLandmarker.createFromOptions(
+            vision,
+            {
+              baseOptions: {
+                modelAssetPath: "/models/hand_landmarker.task",
+                delegate: "GPU",
+              },
+              runningMode: "VIDEO",
+              numHands: 2,
             },
-            runningMode: "VIDEO",
-            numHands: 2,
-          },
-        );
+          );
+        } catch (gpuError) {
+          console.warn(
+            "GPU hand tracking is unavailable; falling back to CPU",
+            gpuError,
+          );
+          delegate = "CPU";
+          createdHandLandmarker = await HandLandmarker.createFromOptions(
+            vision,
+            {
+              baseOptions: { modelAssetPath: "/models/hand_landmarker.task" },
+              runningMode: "VIDEO",
+              numHands: 2,
+            },
+          );
+        }
 
         if (cancelled) {
           createdHandLandmarker.close();
@@ -101,7 +130,7 @@ export default function HandTrackingOverlay({
         }
 
         handLandmarker = createdHandLandmarker;
-        setStatus("MediaPipe ready");
+        setStatus(`MediaPipe ready (${delegate})`);
         animationFrame = requestAnimationFrame(processFrame);
       } catch (error) {
         console.error("Unable to initialize MediaPipe hand tracking", error);

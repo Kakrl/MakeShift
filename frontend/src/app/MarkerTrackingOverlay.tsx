@@ -21,6 +21,10 @@ import {
 } from "../cv/homography";
 import type { MarkerDetectionResult } from "../cv/types";
 import type { Point } from "../cv/types";
+import {
+  recordKeyTransitions,
+  recordMarkerDetection,
+} from "../cv/performanceMetrics";
 
 const PAGE_CORNERS: Point[] = [
   { x: 0, y: 0 },
@@ -28,6 +32,9 @@ const PAGE_CORNERS: Point[] = [
   { x: 1, y: 1 },
   { x: 0, y: 1 },
 ];
+
+const INITIAL_MARKER_CHECK_INTERVAL_MS = 100;
+const LOCKED_MARKER_CHECK_INTERVAL_MS = 10_000;
 
 export default function MarkerTrackingOverlay({
   videoRef,
@@ -48,6 +55,7 @@ export default function MarkerTrackingOverlay({
   const projectedPianoCornersRef = useRef<Point[] | null>(null);
   const projectedWhiteKeysRef = useRef<Point[][] | null>(null);
   const previousKeysRef = useRef<Set<number>>(new Set());
+  const geometryLockedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,7 +64,6 @@ export default function MarkerTrackingOverlay({
     let lastDetectionTime = 0;
 
     const detect = (time: number) => {
-      console.log("detect")
       const video = videoRef.current;
       const processingCanvas = processingCanvasRef.current;
 
@@ -82,7 +89,10 @@ export default function MarkerTrackingOverlay({
             }
           }
 
-            if (time - lastDetectionTime >= 100) {
+            const markerCheckInterval = geometryLockedRef.current
+              ? LOCKED_MARKER_CHECK_INTERVAL_MS
+              : INITIAL_MARKER_CHECK_INTERVAL_MS;
+            if (time - lastDetectionTime >= markerCheckInterval) {
               const context = processingCanvas.getContext("2d");
               if (context && detector) {
                 context.drawImage(
@@ -92,7 +102,13 @@ export default function MarkerTrackingOverlay({
                   processingCanvas.width,
                   processingCanvas.height,
                 );
-                setMarkerDetection(detector.detect(processingCanvas));
+                const detectionStartedAt = performance.now();
+                const detection = detector.detect(processingCanvas);
+                recordMarkerDetection(
+                  performance.now() - detectionStartedAt,
+                  detection.missingIds.length === 0,
+                );
+                setMarkerDetection(detection);
                 lastDetectionTime = time;
               }
             }
@@ -123,18 +139,7 @@ export default function MarkerTrackingOverlay({
   }, [videoRef]);
 
   useEffect(() => {
-    if (!trackingEnabled && previousKeysRef.current.size > 0) {
-      onKeyTransitions?.([], [...previousKeysRef.current]);
-      previousKeysRef.current = new Set();
-    }
-  }, [onKeyTransitions, trackingEnabled]);
-
-  useEffect(() => {
-    if (
-      homographyRef.current ||
-      !markerDetection ||
-      markerDetection.missingIds.length > 0
-    ) {
+    if (!markerDetection || markerDetection.missingIds.length > 0) {
       return;
     }
 
@@ -178,6 +183,7 @@ export default function MarkerTrackingOverlay({
     homographyRef.current = homography;
     projectedPianoCornersRef.current = projectedPianoCorners;
     projectedWhiteKeysRef.current = projectedWhiteKeys;
+    geometryLockedRef.current = true;
   }, [markerDetection]);
 
   useEffect(() => {
