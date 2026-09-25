@@ -9,6 +9,7 @@ export default function AudioCheck() {
     "Select Enable audio, then play a test tone.",
   );
   const [ready, setReady] = useState(false);
+  const held = useRef<NonNullable<ReturnType<BrowserAudio["noteOn"]>>[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
@@ -38,6 +39,8 @@ export default function AudioCheck() {
   function play(notes: number[], velocity: number) {
     const audio = engine.current;
     if (!audio) return;
+    for (const token of held.current) audio.noteOff(token);
+    held.current = [];
     const tokens = notes.map((note) => audio.noteOn(note, velocity));
     if (tokens.some((token) => token === null)) {
       setReady(false);
@@ -45,7 +48,11 @@ export default function AudioCheck() {
       return;
     }
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => audio.releaseAll(), 1000);
+    held.current = tokens.filter((token) => token !== null);
+    timer.current = setTimeout(() => {
+      for (const token of held.current) audio.noteOff(token);
+      held.current = [];
+    }, 1000);
     setStatus(
       notes.length === 1
         ? "Playing A4 (440 Hz)."
@@ -91,6 +98,8 @@ export default function AudioCheck() {
         <button
           className="border border-control-border rounded p-3"
           onClick={() => {
+            if (timer.current) clearTimeout(timer.current);
+            held.current = [];
             engine.current?.releaseAll();
             setStatus("Stopped.");
           }}
