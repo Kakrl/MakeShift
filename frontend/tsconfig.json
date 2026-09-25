@@ -23,7 +23,9 @@
       "midi-writer-js": [
         "./node_modules/midi-writer-js/build/types/main.d.ts"
       ],
-      "vitest": ["./node_modules/vitest"]
+      "vitest": ["./node_modules/vitest"],
+      "react": ["./node_modules/@types/react"],
+      "@testing-library/react": ["./node_modules/@testing-library/react"]
     }
   },
   "include": [
