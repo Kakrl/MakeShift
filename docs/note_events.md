@@ -137,8 +137,10 @@ resumes contribute no resumed note. A key held through the entire pause creates
 two note events, not one sustained event; paused/count-in time is excluded.
 Capture is based on detector observations, not a claim of exact physical timing.
 
-CV/audio behavior is unchanged: pausing disables key-transition output,
-releases audio notes, and resets tracked keys. On resume the next collision
+Pausing disables key-transition output, releases audio notes, and resets tracked
+keys. The reset was restored when integrating current upstream for this PR;
+without it, keys held before Pause were not recorded again on Resume.
+On resume the next collision
 evaluation reports currently held keys as new presses, implementing that policy.
 Five integration tests mount the real page, coordinator, marker overlay and
 recorder with simulated marker/hand input and mocked audio/canvas. They verify

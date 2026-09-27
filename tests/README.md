@@ -124,6 +124,22 @@ same working tree/branch as the note-list recorder record above.
   remains pending. Inventory 4.1.1 remains partial for seeded/random-file coverage;
   4.1.2 and 3.2.2 now have partial simulated DOM coverage.
 
+### Upstream integration verification (2026-09-27)
+
+Prepared `feature/115-midi-recording-pause-resume` from upstream `019e2f0`,
+applying only the #108/#115 work and excluding unrelated fork commits.
+Upstream had removed the disabled-tracking reset in `MarkerTrackingOverlay`.
+Two existing held-key integration tests failed; restoring that reset made both
+pass without changing the chosen policy or audio behavior.
+
+- Windows, Node 22.17.0, Vitest 4.1.11: all **150 tests passed in five files**,
+  including the same 20 MIDI and five recording-control cases. Upstream added
+  34 audio tests since the earlier run.
+- TypeScript, lint (eight existing warnings), all 18 contrast pairs and production
+  build passed. Physical webcam and real-file verification remain pending.
+- This supersedes the earlier branch's results for PR delivery. Actions evidence
+  remains pending; Vitest is still not in CI.
+
 ## Shared-event verification (issue #86)
 
 Local Windows verification on 2026-09-22, branch

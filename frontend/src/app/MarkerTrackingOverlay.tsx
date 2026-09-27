@@ -58,6 +58,14 @@ export default function MarkerTrackingOverlay({
   const geometryLockedRef = useRef(false);
 
   useEffect(() => {
+    if (!trackingEnabled && previousKeysRef.current.size > 0) {
+      onKeyTransitions?.([], [...previousKeysRef.current]);
+      // Resume treats currently held keys as fresh presses for the new segment.
+      previousKeysRef.current = new Set();
+    }
+  }, [onKeyTransitions, trackingEnabled]);
+
+  useEffect(() => {
     let cancelled = false;
     let animationFrame = 0;
     let detector: MarkerDetector | null = null;
