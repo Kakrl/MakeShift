@@ -69,6 +69,61 @@ No test implementation requires an exception to this layout.
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
 | RCA automation | `node --test tests/automation/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
 
+## Note-list recorder verification (issues #108 and #115)
+
+Local execution on Windows, 2026-09-26, Node 22.17.0 and Vitest 4.1.11,
+on `feature/115-note-list-recorder`, working tree based on `3506cb5`.
+
+- `npx.cmd vitest run`: 111 tests passed across four files, including 20
+  cases in `tests/frontend/midiUtils.test.ts` (replacing the seven old cases).
+- Recorder cases cover metadata, BPM validation, millisecond note pairing,
+  duplicate and unknown events, repeated pitches, overlapping notes, zero
+  duration, stop/release-all, pause boundaries, excluded time, repeated pauses,
+  ignored idle/stopped input, independent instances/takes and copied snapshots.
+- Three export adapter cases mock MidiWriter and the DOM. They check tempo,
+  tick rounding, note values, paused-time removal, input preservation, empty
+  and repeated exports, filename and click. They do not parse an actual MIDI
+  file or prove browser download behavior.
+- TypeScript passed; lint passed with seven existing unused-variable warnings
+  in `page.tsx`; all 18 contrast pairs passed. Production build passed after
+  rerunning with network access for Google Fonts (sandboxed attempt failed
+  fetching Geist fonts).
+- Vitest is still not invoked by `frontend-ci.yml` (D3); no Actions evidence
+  exists for this run. Inventory 4.1.1 is partial: seeded random streams and a
+  real MIDI parser oracle are pending. UI count-in/Stop interactions, CV-held-key
+  behavior, camera workflows and actual file export remain unverified.
+
+### Recording controls integration verification (#108)
+
+Local execution on Windows, 2026-09-26, Node 22.17.0, Vitest 4.1.11,
+same working tree/branch as the note-list recorder record above.
+
+- `npx.cmd vitest run`: **116 tests passed in five files**, including five new
+  cases in [recordingControls.test.tsx](frontend/recordingControls.test.tsx).
+- These mount the production Home page, CV coordinator, marker overlay,
+  homography/collision/transition code and recorder. Marker detector observations,
+  MediaPipe hand landmarks, camera readiness, audio initialization and canvas
+  drawing are fixtures/mocks. Next dynamic imports are replaced with direct
+  components; jsdom provides the DOM under the Node test environment. Test
+  aliases in frontend Vitest/TypeScript configuration resolve package dependencies
+  for specs located outside `frontend/`.
+- Verified held keys (including keys pressed during Pause) become new recorded
+  notes after the resume count-in; keys released before resumption are omitted;
+  repeated pauses preserve prior notes and exclude elapsed pause/count-in time.
+  Buttons show the expected recording/paused/stopped state. Stop cancels both
+  initial and resume count-ins; resume cancellation retains the completed take.
+- The delayed-audio-initialization case failed before the fix: after Stop, the
+  stale Resume continuation started another count-in and the UI showed recording.
+  `playRequestRef` now invalidates that continuation on Stop/unmount; the same
+  regression passed afterward. This was found in the uncommitted #108 work.
+- TypeScript, lint (seven existing unused-variable warnings), all 18 contrast
+  pairs and production build passed. Build used network access for Google Fonts.
+- No CI execution evidence: Vitest remains outside the frontend workflow (D3).
+  No physical webcam, calibration procedure, actual browser download, audio
+  listening, or MIDI parser result is claimed. A physical manual workflow/report
+  remains pending. Inventory 4.1.1 remains partial for seeded/random-file coverage;
+  4.1.2 and 3.2.2 now have partial simulated DOM coverage.
+
 ## Shared-event verification (issue #86)
 
 Local Windows verification on 2026-09-22, branch

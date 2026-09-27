@@ -37,7 +37,7 @@ flowchart TD
 | Calibration | Prototype flow/completion flag; known defect D6 | Versioned validated result (#87) |
 | Native audio | C++ PortAudio, nanobind, SPSC queue; ten 100 ms decaying sine hits at 44.1 kHz | Remains a native reference |
 | Browser audio | JavaScript AudioWorklet, ten held sine voices, press/session identities, velocity, sample-timed ADSR and Audio check page ([details](browser_audio.md)); native engine preserved | Shared event adapter (#86) implemented; ADSR (#27) implemented with user-reported listening pass; live readiness/wiring (#24, #28) |
-| MIDI | midi-writer-js utilities and tests; UI/export gap D2 | Complete lifecycle and download (#88) |
+| MIDI | Instance-owned note-list recorder with pause/resume and on-demand midi-writer-js export (#108, #115); recorder/mocked export unit tests pass locally, browser verification pending | Complete lifecycle verification (#88), export verification (#107), persistence and playback |
 | Verification | Native audio/queue, MIDI, contrast, RCA suites; Python placeholder | Browser audio, labeled CV, physical latency and deployment tests (#39, #30, #89) |
 
 See [known defects](../tests/README.md#known-defects). Native tests do not establish

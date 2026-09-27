@@ -103,6 +103,50 @@ not move an event later in the recording. A new recording uses a new start ancho
 Tests cover known positive/negative worker offsets, delayed delivery, audio
 suspend/reanchor, recording reset and explicit excluded pause time.
 
+### Note-list recorder and pause/resume (#115, #108)
+
+The current `midiUtils.ts` recorder has recording, paused, and stopped states.
+Pause closes active MIDI notes at one timestamp and freezes the recording
+timeline. Note input while paused or stopped is ignored. Resume retains the
+note list and excludes the paused interval, including the UI's resume count-in.
+Stop during pause or resume count-in preserves the take for export; cancelling
+an initial count-in does not create a take. Starting a new take resets timing
+and active notes. The recording BPM remains the value chosen at initial start.
+
+`createRecorder()` owns session state inside each instance. `RecordedNote`
+stores pitch, the existing writer-compatible velocity, `startMs`, and
+`durationMs`. `Recording` contains an id, display name, BPM, ISO creation time,
+and notes. Stop returns copied note objects sorted by start time. Later takes
+and caller mutations cannot modify the recorder's previous returned snapshots.
+The page owns one instance and passes MIDI callbacks to the CV coordinator.
+
+`downloadMidi(recording)` builds a temporary MIDI track on demand, converting
+each note's start and end from milliseconds to ticks before calculating duration.
+Recordings remain in memory; persistence and playback are separate work.
+The migrated MIDI suite covers recorder instances, note pairing, pause timing,
+snapshot isolation and mocked export calls. See the
+[local verification record](../tests/README.md#note-list-recorder-verification-issues-108-and-115).
+Actual MIDI parsing and browser workflow verification remain pending.
+
+This recorder still uses local `performance.now()` timestamps and pitch-based
+note matching; it does not yet consume the shared event history described above.
+The held-key policy is to end recorded notes on Pause and begin new recorded
+notes for keys detected as held when capture resumes after the count-in. This
+includes keys first pressed during the pause. Keys released before capture
+resumes contribute no resumed note. A key held through the entire pause creates
+two note events, not one sustained event; paused/count-in time is excluded.
+Capture is based on detector observations, not a claim of exact physical timing.
+
+CV/audio behavior is unchanged: pausing disables key-transition output,
+releases audio notes, and resets tracked keys. On resume the next collision
+evaluation reports currently held keys as new presses, implementing that policy.
+Five integration tests mount the real page, coordinator, marker overlay and
+recorder with simulated marker/hand input and mocked audio/canvas. They verify
+held keys, paused releases, repeated resumes, UI labels and count-in cancellation.
+Stop invalidates any pending audio initialization so a delayed Resume request
+cannot restart a stopped take. Physical camera and real browser verification
+remain pending; simulated integration is not hardware evidence.
+
 ## Dispatch and integration
 
 Audio runs synchronously before any observer and without a React state update.
