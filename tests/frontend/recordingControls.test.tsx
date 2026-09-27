@@ -1,0 +1,268 @@
+import { JSDOM } from "jsdom";
+import { act, createElement, type ComponentProps } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import type { Recording } from "../../frontend/src/app/midi/midiUtils";
+import type { NormalizedLandmark } from "../../frontend/src/cv/collision";
+
+const fixtures = vi.hoisted(() => ({
+  landmarks: null as null | ((hands: NormalizedLandmark[][]) => void),
+  initializeAudio: vi.fn(async () => {}),
+  takes: [] as Recording[],
+  download: vi.fn(),
+  camera: { stream: null, cameraReady: true },
+}));
+vi.mock("../../frontend/src/app/CameraContext", () => ({
+  useCamera: () => fixtures.camera,
+}));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("../../frontend/src/app/audio/audioEngine", () => ({
+  initializeAudio: fixtures.initializeAudio,
+  audioNoteOn: vi.fn(),
+  audioNoteOff: vi.fn(),
+  releaseAllAudioNotes: vi.fn(),
+}));
+vi.mock("../../frontend/src/app/midi/midiUtils", async (original) => {
+  const actual = await original<typeof import("../../frontend/src/app/midi/midiUtils")>();
+  return {
+    ...actual,
+    downloadMidi: fixtures.download,
+    createRecorder: () => {
+      const recorder = actual.createRecorder();
+      const stop = recorder.stopRecording;
+      recorder.stopRecording = () => {
+        const take = stop();
+        if (take) fixtures.takes.push(take);
+        return take;
+      };
+      return recorder;
+    },
+  };
+});
+vi.mock("../../frontend/src/cv/markerDetector", () => ({
+  MarkerDetector: {
+    create: async () => ({
+      dispose: vi.fn(),
+      detect: () => ({
+        missingIds: [],
+        observations: [[100, 100], [900, 100], [900, 900], [100, 900]]
+          .map(([x, y], id) => ({
+            id, center: { x, y },
+            corners: [{ x, y }, { x: x + 1, y }, { x: x + 1, y: y + 1 }, { x, y: y + 1 }],
+          })),
+      }),
+    }),
+  },
+}));
+vi.mock("next/dynamic", async () => {
+  return {
+    default: (loader: () => unknown) => {
+      const source = loader.toString();
+      if (source.includes("CVOverlayCoordinator")) {
+        return function CoordinatorFixture(props: ComponentProps<typeof Coordinator>) {
+          return createElement(Coordinator, props);
+        };
+      }
+      if (source.includes("MarkerTrackingOverlay")) {
+        return function MarkerFixture(props: ComponentProps<typeof Marker>) {
+          return createElement(Marker, props);
+        };
+      }
+      return function HandFixture({ onLandmarks }: {
+        onLandmarks: (hands: NormalizedLandmark[][]) => void;
+      }) {
+        fixtures.landmarks = onLandmarks;
+        return null;
+      };
+    },
+  };
+});
+
+import Home from "../../frontend/src/app/page";
+import Coordinator from "../../frontend/src/app/CVOverlayCoordinator";
+import Marker from "../../frontend/src/app/MarkerTrackingOverlay";
+
+let root: Root;
+let host: HTMLDivElement;
+let now: number;
+let animationFrame: FrameRequestCallback | undefined;
+let dom: JSDOM;
+
+beforeEach(async () => {
+  dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost" });
+  for (const name of ["window", "self", "document", "localStorage", "HTMLCanvasElement", "HTMLVideoElement"]) {
+    vi.stubGlobal(name, Reflect.get(dom.window, name));
+  }
+  vi.useFakeTimers();
+  vi.clearAllMocks();
+  now = 1000;
+  fixtures.takes.length = 0;
+  fixtures.camera.cameraReady = true;
+  fixtures.initializeAudio.mockImplementation(async () => {});
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.spyOn(performance, "now").mockImplementation(() => now);
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    animationFrame = callback;
+    return 1;
+  });
+  vi.stubGlobal("cancelAnimationFrame", vi.fn());
+  const context = Object.fromEntries(
+    ["clearRect", "drawImage", "beginPath", "moveTo", "lineTo", "closePath",
+      "fill", "stroke", "fillText"].map((name) => [name, vi.fn()]),
+  );
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext")
+    .mockReturnValue(context as unknown as CanvasRenderingContext2D);
+  for (const [name, value] of Object.entries({ readyState: 4, videoWidth: 1000, videoHeight: 1000 })) {
+    vi.spyOn(HTMLVideoElement.prototype, name as "readyState", "get").mockReturnValue(value);
+  }
+  vi.spyOn(console, "log").mockImplementation(() => {});
+  localStorage.setItem("isCalibrated", "true");
+  localStorage.setItem("hasVisited", "true");
+  host = document.createElement("div");
+  document.body.append(host);
+  root = createRoot(host);
+  await act(async () => root.render(<Home />));
+  await advance(0);
+  // Disable count-in audio; audio hardware is outside this fixture.
+  const metronome = host.querySelector<HTMLButtonElement>('button[aria-label="Toggle metronome"]');
+  if (!metronome) throw new Error("Metronome control missing");
+  await click(metronome);
+  await frame();
+});
+
+afterEach(async () => {
+  await act(async () => root.unmount());
+  host.remove();
+  localStorage.clear();
+  dom.window.close();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+function button(label: string): HTMLButtonElement {
+  const result = host.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+  if (!result) throw new Error(`Missing button: ${label}`);
+  return result;
+}
+
+async function click(target: HTMLButtonElement) {
+  await act(async () => target.click());
+}
+
+async function advance(ms: number) {
+  now += ms;
+  await act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+}
+
+async function countIn() {
+  for (let i = 0; i < 4; i++) await advance(500);
+}
+
+async function frame() {
+  await act(async () => animationFrame?.(now));
+}
+
+async function keys(...xs: number[]) {
+  const hand = Array.from({ length: 21 }, () => ({ x: -10, y: -10 }));
+  for (let i = 0; i < xs.length; i++) hand[[4, 8, 12, 16, 20][i]] = { x: xs[i] / 1000, y: 0.5 };
+  await act(async () => fixtures.landmarks?.(xs.length ? [hand] : []));
+  await frame();
+}
+
+async function start() {
+  await click(button("Start recording"));
+  await countIn();
+  expect(button("Pause recording").disabled).toBe(false);
+}
+
+it("uses the real page/coordinator/marker transitions to capture held keys after resume", async () => {
+  await start();
+  await keys(115); // First key, via real geometry and transitions.
+  await advance(500);
+  await click(button("Pause recording"));
+  expect(button("Resume recording").disabled).toBe(false);
+  await keys(115, 225); // Second key first pressed during pause.
+  await advance(1000);
+  await click(button("Resume recording"));
+  expect(button("Resume recording").disabled).toBe(true);
+  await countIn();
+  await advance(250);
+  await keys();
+  await click(button("Stop recording"));
+  const notes = fixtures.takes.at(-1)!.notes;
+  expect(notes).toHaveLength(3);
+  expect(notes[0]).toMatchObject({ startMs: 0, durationMs: 500 });
+  expect(notes[1]).toMatchObject({ pitch: notes[0].pitch, startMs: 500, durationMs: 250 });
+  expect(notes[2]).toMatchObject({ startMs: 500, durationMs: 250 });
+  expect(notes[2].pitch).not.toBe(notes[0].pitch);
+  expect(host.textContent).toContain("Export .MIDI Recording");
+  expect(button("Start recording").disabled).toBe(false);
+});
+
+it("omits keys released during pause and preserves timing across repeated resumes", async () => {
+  await start();
+  await keys(115);
+  await advance(200);
+  await click(button("Pause recording"));
+  await keys(225);
+  await advance(1000);
+  await keys();
+  await click(button("Resume recording"));
+  await countIn();
+  await advance(300);
+  await keys(115);
+  await advance(100);
+  await click(button("Pause recording"));
+  await click(button("Resume recording"));
+  await countIn();
+  await advance(100);
+  await click(button("Stop recording"));
+  expect(fixtures.takes.at(-1)!.notes.map(({ startMs, durationMs }) => ({ startMs, durationMs })))
+    .toEqual([
+      { startMs: 0, durationMs: 200 },
+      { startMs: 500, durationMs: 100 },
+      { startMs: 600, durationMs: 100 },
+    ]);
+});
+
+it("Stop during resume count-in preserves the take and cancels the pending resume", async () => {
+  await start();
+  await keys(115);
+  await advance(500);
+  await click(button("Pause recording"));
+  await click(button("Resume recording"));
+  await advance(500);
+  await click(button("Stop recording"));
+  await countIn();
+  expect(fixtures.takes).toHaveLength(1);
+  expect(fixtures.takes[0].notes).toHaveLength(1);
+  expect(fixtures.takes[0].notes[0].durationMs).toBe(500);
+  expect(button("Start recording").disabled).toBe(false);
+  expect(button("Stop recording").disabled).toBe(true);
+});
+
+it("cancels an initial count-in without making a take", async () => {
+  await click(button("Start recording"));
+  await advance(500);
+  await click(button("Stop recording"));
+  await countIn();
+  expect(fixtures.takes).toEqual([]);
+  expect(host.textContent).not.toContain("Export .MIDI Recording");
+  expect(button("Start recording").disabled).toBe(false);
+});
+
+it("Stop while audio initialization is pending cannot resume a stopped take", async () => {
+  await start();
+  await keys(115);
+  await advance(500);
+  await click(button("Pause recording"));
+  let resolveAudio!: () => void;
+  fixtures.initializeAudio.mockImplementation(() => new Promise<void>((resolve) => { resolveAudio = resolve; }));
+  await click(button("Resume recording"));
+  await click(button("Stop recording"));
+  await act(async () => resolveAudio());
+  await countIn();
+  expect(button("Start recording").disabled).toBe(false);
+  expect(button("Stop recording").disabled).toBe(true);
+});
