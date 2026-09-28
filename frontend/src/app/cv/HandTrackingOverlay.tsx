@@ -8,9 +8,8 @@ import {
   recordHandInference,
 } from "../../cv/performanceMetrics";
 import { drawHandLandmarks } from "./handLandmarkDrawing";
+import { WASM_PATH as VISION_WASM_PATH } from "../useHandLandmarker";
 
-const VISION_WASM_PATH =
-  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm";
 
 export default function HandTrackingOverlay({
   videoRef,
