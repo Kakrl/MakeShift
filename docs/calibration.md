@@ -63,7 +63,9 @@ No silent in-memory fallback claims that a result was saved.
 
 See the [inventory](../tests/verification_test_inventory.md) and
 [execution record](../tests/README.md#calibration-verification-issue-87).
-Simulated DOM/camera tests cover workflow and lifecycle. Real webcam and printed
-sheet acceptance remains pending in the [manual report](../tests/manual/2026-09-27_6.2.2.md).
+Simulated DOM/camera tests cover workflow and lifecycle. Carl Xu reported successful completion of the manual webcam/printed-sheet
+checklist on 2026-09-28; see the [manual report](../tests/manual/2026-09-27_6.2.2.md)
+for the tested scenarios and evidence limits. Browser/device details and the
+exact tested commit were not supplied.
 The existing marker detector still runs on the main thread; worker migration
 belongs to #37. The 100 ms validation cadence is not a physical latency result.
