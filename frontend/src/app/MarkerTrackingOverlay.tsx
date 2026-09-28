@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useCamera } from "./CameraContext";
+import { cameraSignature, compatibleCalibration, loadCalibration, markerCorners } from "../cv/calibration";
 import {
   getWhiteKeyPolygons,
   PIANO_CORNERS,
@@ -22,7 +24,6 @@ import {
 import type { MarkerDetectionResult } from "../cv/types";
 import type { Point } from "../cv/types";
 import {
-  recordKeyTransitions,
   recordMarkerDetection,
 } from "../cv/performanceMetrics";
 
@@ -33,20 +34,23 @@ const PAGE_CORNERS: Point[] = [
   { x: 0, y: 1 },
 ];
 
-const INITIAL_MARKER_CHECK_INTERVAL_MS = 100;
-const LOCKED_MARKER_CHECK_INTERVAL_MS = 10_000;
+const MARKER_CHECK_INTERVAL_MS = 100;
 
 export default function MarkerTrackingOverlay({
   videoRef,
   fingertips,
   onKeyTransitions,
   trackingEnabled = false,
+  onCalibrationValidity,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   fingertips: readonly Fingertip[];
   onKeyTransitions?: (pressed: readonly number[], released: readonly number[]) => void;
   trackingEnabled?: boolean;
+  onCalibrationValidity?: (valid: boolean) => void;
 }) {
+  const { stream, cameraReady } = useCamera();
+  const calibrationValidRef = useRef<boolean | null>(null);
   const [markerDetection, setMarkerDetection] =
     useState<MarkerDetectionResult | null>(null);
   const processingCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -55,7 +59,6 @@ export default function MarkerTrackingOverlay({
   const projectedPianoCornersRef = useRef<Point[] | null>(null);
   const projectedWhiteKeysRef = useRef<Point[][] | null>(null);
   const previousKeysRef = useRef<Set<number>>(new Set());
-  const geometryLockedRef = useRef(false);
 
   useEffect(() => {
     if (!trackingEnabled && previousKeysRef.current.size > 0) {
@@ -97,10 +100,7 @@ export default function MarkerTrackingOverlay({
             }
           }
 
-            const markerCheckInterval = geometryLockedRef.current
-              ? LOCKED_MARKER_CHECK_INTERVAL_MS
-              : INITIAL_MARKER_CHECK_INTERVAL_MS;
-            if (time - lastDetectionTime >= markerCheckInterval) {
+            if (time - lastDetectionTime >= MARKER_CHECK_INTERVAL_MS) {
               const context = processingCanvas.getContext("2d");
               if (context && detector) {
                 context.drawImage(
@@ -111,17 +111,22 @@ export default function MarkerTrackingOverlay({
                   processingCanvas.height,
                 );
                 const detectionStartedAt = performance.now();
-                const detection = detector.detect(processingCanvas);
-                recordMarkerDetection(
-                  performance.now() - detectionStartedAt,
-                  detection.missingIds.length === 0,
-                );
-                setMarkerDetection(detection);
+                try {
+                  const detection = detector.detect(processingCanvas);
+                  recordMarkerDetection(
+                    performance.now() - detectionStartedAt,
+                    detection.missingIds.length === 0,
+                  );
+                  setMarkerDetection(detection);
+                } catch {
+                  setMarkerDetection(null);
+                }
                 lastDetectionTime = time;
               }
             }
           }
         }
+        if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) setMarkerDetection(null);
         animationFrame = requestAnimationFrame(detect);
       }
     };
@@ -147,9 +152,20 @@ export default function MarkerTrackingOverlay({
   }, [videoRef]);
 
   useEffect(() => {
-    if (!markerDetection || markerDetection.missingIds.length > 0) {
+    const camera = cameraReady ? cameraSignature(stream, videoRef.current) : null;
+    const corners = camera && markerDetection ? markerCorners(markerDetection, camera) : null;
+    const saved = loadCalibration();
+    const valid = !!(camera && corners && saved && compatibleCalibration(saved, camera, corners));
+    if (calibrationValidRef.current !== valid) onCalibrationValidity?.(valid);
+    calibrationValidRef.current = valid;
+    if (!valid) {
+      if (previousKeysRef.current.size) onKeyTransitions?.([], [...previousKeysRef.current]);
+      previousKeysRef.current = new Set();
+      projectedPianoCornersRef.current = null;
+      projectedWhiteKeysRef.current = null;
       return;
     }
+    if (!markerDetection) return;
 
     const markerCenters = new Map(
       markerDetection.observations.map((observation) => [
@@ -191,8 +207,7 @@ export default function MarkerTrackingOverlay({
     homographyRef.current = homography;
     projectedPianoCornersRef.current = projectedPianoCorners;
     projectedWhiteKeysRef.current = projectedWhiteKeys;
-    geometryLockedRef.current = true;
-  }, [markerDetection]);
+  }, [markerDetection, stream, cameraReady, videoRef, onCalibrationValidity, onKeyTransitions]);
 
   useEffect(() => {
     const overlay = overlayCanvasRef.current;
@@ -249,19 +264,11 @@ export default function MarkerTrackingOverlay({
             8,
           );
           const collidedKeys = getCollidedKeyIndexes(collisions);
-          if (trackingEnabled) {
+          if (trackingEnabled && calibrationValidRef.current) {
             const transitions = updateKeyTransitions(
               previousKeysRef.current,
               collidedKeys,
             );
-
-            for (const keyIndex of transitions.pressed) {
-              console.log("Finger entered key:", keyIndex);
-            }
-
-            for (const keyIndex of transitions.released) {
-              console.log("Finger left key:", keyIndex);
-            }
 
             if (transitions.pressed.length || transitions.released.length) {
               onKeyTransitions?.(transitions.pressed, transitions.released);

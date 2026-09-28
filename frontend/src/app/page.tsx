@@ -89,7 +89,6 @@ export default function Home() {
 
   // ── Auth / calibration ───────────────────────────────────────────────────
   const [isCalibrated, setIsCalibrated] = useState(false);
-  const [showCalibrationIntro, setShowCalibrationIntro] = useState(false);
 
   // ── Recording state machine ──────────────────────────────────────────────
   //   countInBeat      → 1 … beatsPerMeasure (one measure count-in), then recording
@@ -115,16 +114,15 @@ export default function Home() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setIsCalibrated(localStorage.getItem("isCalibrated") === "true");
       // Show welcome modal only on the very first visit
-      if (!localStorage.getItem("hasVisited")) {
-        setShowWelcome(true);
-        localStorage.setItem("hasVisited", "true");
-      }
+      try {
+        if (!localStorage.getItem("hasVisited")) {
+          setShowWelcome(true);
+          localStorage.setItem("hasVisited", "true");
+        }
+      } catch { /* Calibration displays storage recovery separately. */ }
     }, 0);
-    const handleBeforeUnload = () => localStorage.removeItem("isCalibrated");
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => { clearTimeout(timer); window.removeEventListener("beforeunload", handleBeforeUnload); };
+    return () => clearTimeout(timer);
   }, []);
 
   // ── Audio click (used only for count-in) ────────────────────────────────
@@ -175,6 +173,18 @@ export default function Home() {
 
   // Recording needs both a stored calibration and a live camera feed.
   const canRecord = isCalibrated && cameraReady;
+  const handleCalibrationValidity = useCallback((valid: boolean) => {
+    setIsCalibrated(valid);
+    if (!valid) {
+      playRequestRef.current++;
+      countInActionRef.current = null;
+      setCountInBeat(null);
+      const take = recorder.stopRecording();
+      if (take) setCompletedRecording(take);
+      setIsRecording(false);
+      setIsPaused(false);
+    }
+  }, [recorder]);
 
   // ── Recording controls ───────────────────────────────────────────────────
   const [audioError, setAudioError] = useState("");
@@ -254,16 +264,18 @@ export default function Home() {
             className="absolute inset-0 w-full h-full object-cover"
           />
           <CVOverlayCoordinator
+            onCalibrationValidity={handleCalibrationValidity}
             videoRef={videoRef}
-            enabled={isRecording && !isPaused}
+            enabled={canRecord && isRecording && !isPaused}
             onNoteOn={recorder.noteOn}
             onNoteOff={recorder.noteOff}
             onReleaseAllNotes={recorder.releaseAllNotes}
           />
+          {!canRecord && <p role="status" className="absolute bottom-2 left-2 right-2 z-20 bg-surface px-4 text-ink">Show the calibrated sheet and camera, or <a href="/calibration" className="underline">calibrate again</a>. Saved data is checked before playing.</p>}
         </div>
 
         {/* Right sidebar (below the camera under lg) */}
-        <SideNav onCalibrationClick={() => setShowCalibrationIntro(true)}>
+        <SideNav onCalibrationClick={() => router.push("/calibration")}>
           {/* Controls */}
           <div className="flex flex-row flex-wrap items-end lg:flex-col lg:items-stretch gap-[23px] mt-6 lg:mt-[42px] lg:pl-[43px]">
             {/* Tempo */}

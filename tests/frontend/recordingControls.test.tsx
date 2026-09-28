@@ -10,7 +10,7 @@ const fixtures = vi.hoisted(() => ({
   initializeAudio: vi.fn(async () => {}),
   takes: [] as Recording[],
   download: vi.fn(),
-  camera: { stream: null, cameraReady: true },
+  camera: { stream: { getVideoTracks: () => [{ readyState: "live", getSettings: () => ({ deviceId: "camera-1" }) }] }, cameraReady: true },
 }));
 vi.mock("../../frontend/src/app/CameraContext", () => ({
   useCamera: () => fixtures.camera,
@@ -116,7 +116,13 @@ beforeEach(async () => {
     vi.spyOn(HTMLVideoElement.prototype, name as "readyState", "get").mockReturnValue(value);
   }
   vi.spyOn(console, "log").mockImplementation(() => {});
-  localStorage.setItem("isCalibrated", "true");
+  localStorage.setItem("makeshift.calibration.v1", JSON.stringify({
+    version: 1, coordinates: "unmirrored-frame-pixels/marker-unit-square", sheet: "aruco-0-3-white-keys-v1",
+    camera: { deviceId: "camera-1", width: 1000, height: 1000, facingMode: "" },
+    layout: { octaves: 1, startingMidi: 48, whiteKeys: 8 },
+    corners: [{ x: 100, y: 100 }, { x: 900, y: 100 }, { x: 900, y: 900 }, { x: 100, y: 900 }],
+    contact: { model: "landmark-reference-v1", hover: [Array(21).fill({ x: 0.5, y: 0.4, z: 0 })], rest: [Array(21).fill({ x: 0.5, y: 0.5, z: 0 })] },
+  }));
   localStorage.setItem("hasVisited", "true");
   host = document.createElement("div");
   document.body.append(host);
@@ -265,4 +271,18 @@ it("Stop while audio initialization is pending cannot resume a stopped take", as
   await countIn();
   expect(button("Start recording").disabled).toBe(false);
   expect(button("Stop recording").disabled).toBe(true);
+});
+
+
+it("rejects a legacy boolean and interrupts recording when persisted calibration changes", async () => {
+  await start();
+  await keys(150);
+  localStorage.removeItem("makeshift.calibration.v1");
+  localStorage.setItem("isCalibrated", "true");
+  await advance(150);
+  await frame();
+  expect(button("Start recording").disabled).toBe(true);
+  expect(fixtures.takes).toHaveLength(1);
+  await keys(250);
+  expect(fixtures.takes).toHaveLength(1);
 });

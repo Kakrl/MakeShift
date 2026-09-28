@@ -303,7 +303,7 @@ defect report is filed.
 | D3 | Medium | CI | The Vitest suite (4.1.3-4.1.7, 4.2.3) is not run in CI. `frontend-ci.yml` runs lint, type check, contrast, and build, but not `vitest run`, so MIDI regressions merge undetected | `.github/workflows/frontend-ci.yml` | | Open |
 | D4 | Medium | CI | The C++ test path filter `'CMakeLists.txt'` only matches a root-level file. A PR that only changes `backend/CMakeLists.txt` skips the C++ build and tests. It should be `'**/CMakeLists.txt'` | `.github/workflows/testing.yml:29` | | Open |
 | D5 | Medium | Tests | `AudioEngineTest.StreamStartsAndStops` and `MultipleStartStopCycles` `return` early when there is no audio device, so on CI they report PASS without testing anything. Use `GTEST_SKIP()` so the skip shows in results | `tests/audio/test_audio.cpp:24-27`, `:35-38` | | Open |
-| D6 | Medium | Calibration | (Req 1.1, 1.2, 1.3, 6.2) Calibration doesn't validate or persist a real result. Only an `isCalibrated` boolean is stored (issue #19, closed, asked for a versioned calibration object). Step 3 paper rejection only fires on the `i` key (prototype trigger), step 5 succeeds when a countdown ends, and the flag is deleted on every page unload | `frontend/src/app/calibration/page.tsx:184-190`, `:261`, `:280`; `frontend/src/app/page.tsx:97-104` | | Open |
+| D6 | Medium | Calibration | Versioned geometry/camera/layout and hover/rest inputs replace the boolean; live compatibility gates reuse. Physical workflow verification remains pending. | `frontend/src/cv/calibration.ts`, `frontend/src/app/calibration/page.tsx` | [#87](https://github.com/Kakrl/MakeShift/issues/87) | Implemented locally; review and physical verification pending |
 | D7 | Medium | CV / performance | Debug `console.log` calls run in the marker detection `requestAnimationFrame` loop (about 60 per second) and on every detection update. That adds main-thread work that counts against requirement 2.3 (latency) once D1 is fixed | `frontend/src/app/MarkerTrackingOverlay.tsx:49,95,102,111,121`; `frontend/src/cv/markerDetector.ts:103,105,119` | | Open |
 | D8 | Medium | Audio | Calling `AudioEngine::startStream()` twice overwrites `stream` without closing it, which leaks the first PortAudio stream. `Pa_GetDeviceInfo` is dereferenced without a null check | `backend/src/audio/AudioEngine.cpp:89-119` | | Open |
 | D9 | Medium | Audio / Python | Importing `backend.src.audio` builds an `AudioEngine` and calls `Pa_Initialize()` as a side effect. Any import (including from pytest) touches audio hardware and fails if the extension is not built. The example in `docs/audio_events.md` creates a second engine | `backend/src/audio/__init__.py:3-5` | | Open |
@@ -432,3 +432,24 @@ Local Windows verification on 2026-09-24, branch
   Browser/device and exact tested commit were not supplied. No measured physical
   latency, universally seamless stealing, or realistic piano timbre is claimed.
 - Vitest remains outside CI (D3); no GitHub Actions execution is claimed.
+
+## Calibration verification (issue #87)
+
+Windows, 2026-09-27, Node 22.20.0, Vitest 4.1.11, working tree based on
+614203f on fix/87-calibration-result. `npm ci` restored locked dependencies.
+
+- All 169 tests passed across seven files: 12 calibration contract/geometry
+  cases, six simulated calibration workflow cases, and six recording controls
+  cases including invalidation while holding a key. Other existing suites passed.
+- TypeScript passed. ESLint passed with five pre-existing unused-variable
+  warnings in the home page. All 18 contrast pairs and production build passed.
+- Calibration cases cover copied validated data, legacy flags, versions,
+  coordinate convention, missing/duplicate markers, degenerate geometry,
+  finite complete hand samples, MIDI bounds, perspective/key round trips,
+  corrupt/denied storage, and camera/sheet/layout/movement compatibility.
+- Workflow cases cover missing markers with retry, hover/rest capture failures,
+  validated save, denied writes without navigation, and rechecking before save.
+- Vitest is still absent from frontend CI (D3). These are local results;
+  Actions execution and reviewer approval remain pending. No physical camera,
+  contact classification or sound/latency claim. See the blocked
+  [manual workflow report](manual/2026-09-27_6.2.2.md).
