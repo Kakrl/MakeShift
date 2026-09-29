@@ -327,7 +327,7 @@ defect report is filed.
 | D4 | Medium | CI | The C++ test path filter `'CMakeLists.txt'` only matches a root-level file. A PR that only changes `backend/CMakeLists.txt` skips the C++ build and tests. It should be `'**/CMakeLists.txt'` | `.github/workflows/testing.yml:29` | | Open |
 | D5 | Medium | Tests | `AudioEngineTest.StreamStartsAndStops` and `MultipleStartStopCycles` `return` early when there is no audio device, so on CI they report PASS without testing anything. Use `GTEST_SKIP()` so the skip shows in results | `tests/audio/test_audio.cpp:24-27`, `:35-38` | | Open |
 | D6 | Medium | Calibration | Versioned geometry/camera/layout and hover/rest inputs replace the boolean; live compatibility gates reuse. Manual calibration checklist passed (Carl Xu, user-reported 2026-09-28). | `frontend/src/cv/calibration.ts`, `frontend/src/app/calibration/page.tsx` | [#87](https://github.com/Kakrl/MakeShift/issues/87) | Manual verification passed (user-reported); review/merge pending |
-| D7 | Medium | CV / performance | Remaining automatic CV telemetry and detector debug logging at #140 base; older per-frame logs were already removed upstream. #38 replaces telemetry with opt-in bounded reports and removes debug logging. | `frontend/src/cv/performanceMetrics.ts`, `frontend/src/cv/markerDetector.ts`; [diagnostics](../docs/performance.md) | Defect report publication pending: GitHub connector returned 403; report draft prepared locally | Implementation verified locally; remains open pending required defect issue / publication |
+| D7 | Medium | CV / performance | Remaining automatic CV telemetry and detector debug logging at #140 base; older per-frame logs were already removed upstream. #38 replaces telemetry with opt-in bounded reports and removes debug logging. | `frontend/src/cv/performanceMetrics.ts`, `frontend/src/cv/markerDetector.ts`; [diagnostics](../docs/performance.md) | [#149](https://github.com/Kakrl/MakeShift/issues/149) | Fixed on feature/38-pipeline-metrics; verified locally, merge pending |
 | D8 | Medium | Audio | Calling `AudioEngine::startStream()` twice overwrites `stream` without closing it, which leaks the first PortAudio stream. `Pa_GetDeviceInfo` is dereferenced without a null check | `backend/src/audio/AudioEngine.cpp:89-119` | | Open |
 | D9 | Medium | Audio / Python | Importing `backend.src.audio` builds an `AudioEngine` and calls `Pa_Initialize()` as a side effect. Any import (including from pytest) touches audio hardware and fails if the extension is not built. The example in `docs/audio_events.md` creates a second engine | `backend/src/audio/__init__.py:3-5` | | Open |
 | D10 | Low | CV | `HandTrackingOverlay` loads MediaPipe WASM from `@latest`, the version mismatch that #12 fixed in `useHandLandmarker`. The component isn't used right now | `frontend/src/app/cv/HandTrackingOverlay.tsx:7-8` | | Open |
@@ -661,8 +661,7 @@ conflicts, with output identical to the feature tree. After real squash merges,
 use the documented rebase boundary and rerun checks; later edits and unrelated
 contributor PR #113 are not covered. No existing branch or PR was modified.
 
-Publishing the required Medium D7 report and PR remains pending: the GitHub
-connector returned 403 and automatic approval review rejected reuse of the
-stored Git credential for a manual API request. Reviewable drafts are saved
-locally in `frontend/test-results/issue38-d7-defect.md` and `issue38-pr.md`.
-D7 is not marked closed and no RCA is claimed (standard Medium policy).
+The required Medium D7 defect is tracked in
+[#149](https://github.com/Kakrl/MakeShift/issues/149), with the bug label and
+standard severity policy. Its fix is verified locally; issue closure follows
+PR merge. No RCA is required under the standard Medium policy.
