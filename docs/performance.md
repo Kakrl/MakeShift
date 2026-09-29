@@ -118,7 +118,9 @@ counters, asynchronous audio closure and overhead isolation.
 `performanceResources.test.tsx` mounts the real CameraProvider with mocked
 media acquisition to verify repeated teardown and ended-track cleanup.
 Existing audio/session suites continue to cover interruption and failure paths.
-Execution evidence is recorded in [the testing guide](../tests/README.md#pipeline-diagnostics-verification-issue-38).
+The synthetic run measured 20.028 delivered FPS against a reported 20 FPS
+camera and distinguished 38.809 media-time processing polls/s. Stage and overhead
+results, including cold-start and variability limits, are recorded in [the testing guide](../tests/README.md#pipeline-diagnostics-verification-issue-38).
 Vitest and this browser runner remain outside CI (D3); no Actions pass is claimed.
 
 Built on #140 branch `fix/140-midi-export-import` at
