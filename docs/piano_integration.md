@@ -51,9 +51,13 @@ and inventory rows 2.1.2 and 3.2.1. Deterministic tests exercise the production
 DSP with a simulated audio transport, plus the real page/geometry with mocked
 hardware. They do not establish physical contact, hardware audibility or latency.
 
-The [manual checklist](../tests/manual/2026-09-29_2.1.2.md) is pending physical
-execution. #30/#39 must supply latency and accuracy evidence. Keep #28 open:
-its full acceptance criteria are not met by deterministic integration alone.
+The [manual checklist](../tests/manual/2026-09-29_2.1.2.md) passed, as reported
+by Carl Xu on 2026-09-29. Export initially exposed #140 and passed retest after
+the separate [#141 fix](https://github.com/Kakrl/MakeShift/pull/141); PR #139
+alone does not contain that fix. Browser/device details, exact tested commit
+and individual artifacts were not supplied. Independent review remains pending.
+#30/#39 must still supply measured latency and accuracy evidence. Keep #28 open:
+manual preview success does not complete intentional-contact or measurement work.
 
 ## Dependency merge handling
 
