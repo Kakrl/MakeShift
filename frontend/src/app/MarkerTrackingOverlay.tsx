@@ -26,6 +26,7 @@ import type { Point } from "../cv/types";
 import { keyIndexToMidi } from "../cv/noteMap";
 import {
   recordMarkerDetection,
+  pipelineMetrics,
 } from "../cv/performanceMetrics";
 
 const PAGE_CORNERS: Point[] = [
@@ -115,12 +116,11 @@ export default function MarkerTrackingOverlay({
                   processingCanvas.width,
                   processingCanvas.height,
                 );
-                const detectionStartedAt = performance.now();
+                const detectionStartedAt = pipelineMetrics.enabled ? performance.now() : null;
                 try {
                   const detection = detector.detect(processingCanvas);
-                  recordMarkerDetection(
+                  if (detectionStartedAt !== null) recordMarkerDetection(
                     performance.now() - detectionStartedAt,
-                    detection.missingIds.length === 0,
                   );
                   setMarkerDetection(detection);
                 } catch {
@@ -264,6 +264,7 @@ export default function MarkerTrackingOverlay({
 
           context.strokeStyle = "rgba(255, 255, 255, 0.9)";
           context.lineWidth = 3;
+          const collisionStartedAt = pipelineMetrics.enabled ? performance.now() : null;
           const collisions = getKeyCollisions(
             fingertips,
             projectedWhiteKeys,
@@ -276,6 +277,7 @@ export default function MarkerTrackingOverlay({
               collidedKeys,
             );
 
+            if (collisionStartedAt !== null) pipelineMetrics.record("detection", performance.now() - collisionStartedAt);
             if (transitions.pressed.length || transitions.released.length) {
               onKeyTransitions?.(transitions.pressed, transitions.released);
             }

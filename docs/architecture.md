@@ -150,7 +150,7 @@ a MIDI file. Audio cannot await file generation.
 | Native reference | C++23, CMake, PortAudio, nanobind, Python 3.12 |
 | Quality | Vitest, ESLint, TypeScript, contrast audit, build; GoogleTest/CTest, Ruff, mypy, clang-format for relevant areas |
 | Browser/system | Selenium/fake-camera fixtures planned; real camera/audio checks still required |
-| Performance | Browser Performance tools, bounded instrumentation (#38), physical harness (#30) planned |
+| Performance | [Opt-in bounded stage/resource diagnostics](performance.md) (#38); physical harness (#30) planned |
 | Delivery | GitHub Actions exists; Vercel runtime verification tracked by #89 |
 
 Versions belong in manifests/lockfiles. Keep JS/WASM/model assets compatible and

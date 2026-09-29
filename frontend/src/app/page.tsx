@@ -12,6 +12,7 @@ import {
   type Recorder,
   type Recording,
 } from "./midi/midiUtils";
+import { trackAudioContext, closeTrackedAudioContext } from "../cv/performanceMetrics";
 import { browserAudio } from "./audio/audioEngine";
 import { LiveSession } from "../events/liveSession";
 import { connectPianoConsumers } from "../events/pianoConsumers";
@@ -132,7 +133,7 @@ export default function Home() {
 
   // ── Audio click (used only for count-in) ────────────────────────────────
   const playClick = useCallback((accent: boolean) => {
-    if (!audioCtxRef.current) audioCtxRef.current = new AudioContext();
+    if (!audioCtxRef.current) audioCtxRef.current = trackAudioContext(new AudioContext());
     const ctx = audioCtxRef.current;
     if (ctx.state === "suspended") ctx.resume();
     const osc = ctx.createOscillator();
@@ -218,7 +219,7 @@ export default function Home() {
       session.flushNotes();
       disconnectNotes();
       recorder.stopRecording();
-      void audioCtxRef.current?.close();
+      if (audioCtxRef.current) void closeTrackedAudioContext(audioCtxRef.current);
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("pagehide", leave);
     };

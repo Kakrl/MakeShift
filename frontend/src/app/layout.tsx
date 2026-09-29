@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
+import PipelineDiagnostics from "./PipelineDiagnostics";
 import { CameraProvider } from "./CameraContext";
 
 const geistSans = Geist({
@@ -42,6 +43,7 @@ export default function RootLayout({
         </header>
         <CameraProvider>
           <div className="flex-1 flex flex-col">{children}</div>
+          <PipelineDiagnostics />
         </CameraProvider>
       </body>
     </html>

@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 import type { NormalizedLandmark } from "../../cv/collision";
 import {
+  pipelineMetrics,
+  acquireResource,
   recordCameraFrame,
   recordHandInference,
 } from "../../cv/performanceMetrics";
@@ -30,6 +32,7 @@ export default function HandTrackingOverlay({
     let cancelled = false;
     let animationFrame = 0;
     let handLandmarker: HandLandmarker | null = null;
+    let releaseModel: (() => void) | undefined;
     let lastHandCount = -1;
     let lastVideoTime = -1;
     let fpsStartTimestamp = 0;
@@ -53,7 +56,7 @@ export default function HandTrackingOverlay({
 
       if (!cancelled && video && canvas && video.readyState >= 2 && video.currentTime !== lastVideoTime) {
         lastVideoTime = video.currentTime;
-        recordCameraFrame(performance.now());
+        if (pipelineMetrics.enabled) recordCameraFrame(performance.now());
         if (
           canvas.width !== video.videoWidth ||
           canvas.height !== video.videoHeight
@@ -63,7 +66,7 @@ export default function HandTrackingOverlay({
         }
 
         const context = canvas.getContext("2d");
-        const inferenceStartedAt = performance.now();
+        const inferenceStartedAt = pipelineMetrics.enabled ? performance.now() : null;
         let result;
         try {
           result = handLandmarker?.detectForVideo(video, timestamp);
@@ -72,7 +75,7 @@ export default function HandTrackingOverlay({
           setStatus("Tracking failed. Reload to retry.");
           return;
         }
-        if (result) {
+        if (result && inferenceStartedAt !== null) {
           recordHandInference(performance.now() - inferenceStartedAt);
         }
         if (context) {
@@ -141,6 +144,7 @@ export default function HandTrackingOverlay({
         }
 
         handLandmarker = createdHandLandmarker;
+        releaseModel = acquireResource("handModels");
         setStatus(`MediaPipe ready (${delegate})`);
         animationFrame = requestAnimationFrame(processFrame);
       } catch (error) {
@@ -156,6 +160,8 @@ export default function HandTrackingOverlay({
       cancelled = true;
       cancelAnimationFrame(animationFrame);
       handLandmarker?.close();
+      releaseModel?.();
+      pipelineMetrics.endFrameStream();
     };
   }, [onLandmarks, onTrackingFailure, videoRef]);
 
