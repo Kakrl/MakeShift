@@ -1,11 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useMemo, useState, type RefObject } from "react";
 import type { LiveSession } from "../events/liveSession";
 import type { CameraSignature } from "../cv/calibration";
 import type { Point } from "../cv/types";
-import { keyIndexToMidi, midiToPitch } from "../cv/noteMap";
+import { createKeyEventProducer } from "../events/keyEventProducer";
 import { getFingertips } from "../cv/collision";
 import type { Fingertip, NormalizedLandmark } from "../cv/collision";
 
@@ -23,20 +23,17 @@ export default function CVOverlayCoordinator({
   videoRef,
   session,
   enabled = false,
-  onNoteOn,
-  onNoteOff,
-  onReleaseAllNotes,
+  activePitches,
   onCalibrationValidity,
 }: {
   videoRef: RefObject<HTMLVideoElement | null>;
   enabled?: boolean;
   session: LiveSession;
-  onNoteOn: (pitch: string, velocity: number) => void;
-  onNoteOff: (pitch: string) => void;
-  onReleaseAllNotes: () => void;
+  activePitches: ReadonlySet<number>;
   onCalibrationValidity?: (valid: boolean) => void;
 }) {
-  const producer = useRef({ id: "", sequence: 0, press: 0, keys: new Map<number, number>() });
+  const id = session.sessionId;
+  const producer = useMemo(() => id ? createKeyEventProducer(session, id) : null, [session, id]);
   const [fingertips, setFingertips] = useState<Fingertip[]>([]);
 
   const handleLandmarks = useCallback(
@@ -54,45 +51,23 @@ export default function CVOverlayCoordinator({
 
   const handleKeyTransitions = useCallback(
     (pressed: readonly number[], released: readonly number[]) => {
-      const id = session.sessionId;
-      if (!enabled || !id) return;
-      if (producer.current.id !== id)
-        producer.current = { id, sequence: 0, press: 0, keys: new Map() };
-      const source = producer.current;
-      for (const keyIndex of released) {
-        const midi = keyIndexToMidi(keyIndex);
-        const pressId = source.keys.get(keyIndex);
-        if (midi === null || pressId === undefined) continue;
-        source.keys.delete(keyIndex);
-        const result = session.receive({ version: 1, sessionId: id, sequence: ++source.sequence,
-          timestampMs: performance.now(), type: "note-off", pressId, pitch: midi });
-        if (result === "accepted") onNoteOff(midiToPitch(midi));
-      }
-      for (const keyIndex of pressed) {
-        const midi = keyIndexToMidi(keyIndex);
-        if (midi === null || source.keys.has(keyIndex)) continue;
-        const pressId = ++source.press;
-        source.keys.set(keyIndex, pressId);
-        const result = session.receive({ version: 1, sessionId: id, sequence: ++source.sequence,
-          timestampMs: performance.now(), type: "note-on", pressId, pitch: midi, velocity: 0.8 });
-        if (result === "accepted") onNoteOn(midiToPitch(midi), 100);
-      }
+      if (!enabled || !producer) return;
+      // Legacy overlap preview has no measured contact velocity (#34).
+      producer(pressed.map((keyIndex) => ({ keyIndex, velocity: 0.8 })), released, performance.now());
     },
-    [enabled, onNoteOn, onNoteOff, session],
+    [enabled, producer],
   );
   const observeCalibration = useCallback((saved: unknown, camera: CameraSignature | null, corners: Point[] | null) => {
     session.observeCalibration(saved, camera, corners);
   }, [session]);
   const trackingFailed = useCallback(() => session.trackingFailed(), [session]);
-  useEffect(() => {
-    if (!enabled) onReleaseAllNotes();
-  }, [enabled, onReleaseAllNotes]);
 
   return (
     <>
       <MarkerTrackingOverlay
         videoRef={videoRef}
         fingertips={fingertips}
+        activePitches={activePitches}
         onKeyTransitions={handleKeyTransitions}
         trackingEnabled={enabled}
         onCalibrationValidity={onCalibrationValidity}

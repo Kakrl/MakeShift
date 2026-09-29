@@ -5,7 +5,7 @@ import {
 } from "../cv/calibration";
 import type { Point } from "../cv/types";
 import type { BrowserAudio } from "../app/audio/audioEngine";
-import { NoteSession, type DispatchResult } from "./noteSession";
+import { NoteSession, type DispatchResult, type Delivery } from "./noteSession";
 
 export type LiveState =
   | "stopped"
@@ -96,6 +96,14 @@ export class LiveSession {
   }
   get sessionId() {
     return this.notes.sessionId;
+  }
+
+  subscribeNotes(listener: (delivery: Delivery) => void) {
+    return this.notes.subscribe(listener);
+  }
+
+  flushNotes() {
+    this.notes.flushObservers();
   }
 
   private expireBeforeRefresh() {

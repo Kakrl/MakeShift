@@ -506,3 +506,26 @@ Local Windows execution on 2026-09-28, Node 22.20.0, Vitest 4.1.11,
   user-reported; browser/device details, exact tested commit and per-step
   artifacts were not supplied. No quantitative latency/accuracy claim follows.
   Required independent review remains pending.
+
+## One-octave integration verification (issue #28)
+
+Windows, 2026-09-29, branch feature/28-browser-piano-integration, based on
+#24 at 5d5f0b8 plus #137 at 7c2f77c (combined base b37db8d).
+
+- All 213 Vitest tests passed across nine files. The 15 new deterministic
+  pianoIntegration cases exercise eight pitches through production DSP, accepted
+  note feedback and recording, velocity conversion, observer timing, chords,
+  repeated presses, immediate Stop, same-pitch identities, tracking interruption,
+  stale producers, audio rejection, invalid keys and invalid velocity.
+- recordingControls now has 12 cases: the original ten still pass; added canvas
+  highlight gating and immediate-Stop recording assertions use the real page,
+  coordinator and geometry with simulated camera/hand/audio inputs.
+- TypeScript passed. Lint passed with five existing home-page unused-variable
+  warnings. All 18 contrast pairs and the Next.js 16.2.3 production build passed. Vitest remains outside CI (D3); no Actions
+  execution is claimed.
+- MIDI uses event observation times, independent press identities and normalized
+  velocity × 100 for the writer. Existing recorder default-time/pause/export
+  tests passed unchanged. Accepted history drains before lifecycle snapshots.
+- This does not establish real contact, finger-speed velocity, audible hardware
+  output, deployed browser behavior, under-50-ms latency or under-3% errors.
+  The [manual checklist](manual/2026-09-29_2.1.2.md) is BLOCKED, not a pass.

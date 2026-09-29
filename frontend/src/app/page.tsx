@@ -14,6 +14,7 @@ import {
 } from "./midi/midiUtils";
 import { browserAudio } from "./audio/audioEngine";
 import { LiveSession } from "../events/liveSession";
+import { connectPianoConsumers } from "../events/pianoConsumers";
 
 const CVOverlayCoordinator = dynamic(
   () => import("./CVOverlayCoordinator"),
@@ -60,6 +61,7 @@ export default function Home() {
   const router = useRouter();
   const [session] = useState(() => new LiveSession(browserAudio));
   const [liveStatus, setLiveStatus] = useState(session.status);
+  const [activePitches, setActivePitches] = useState<ReadonlySet<number>>(new Set());
   const recorderRef = useRef<Recorder | null>(null);
   if (recorderRef.current === null) {
     recorderRef.current = createRecorder();
@@ -187,6 +189,7 @@ export default function Home() {
   // ── Recording controls ───────────────────────────────────────────────────
   useEffect(() => {
     const detach = session.attach();
+    const disconnectNotes = connectPianoConsumers(session, recorder, setActivePitches);
     let previousState = session.status.state;
     const unsubscribe = session.subscribe(() => {
       const status = session.status;
@@ -197,6 +200,7 @@ export default function Home() {
         playRequestRef.current++;
         countInActionRef.current = null;
         setCountInBeat(null);
+        session.flushNotes();
         const take = recorder.stopRecording();
         if (take) setCompletedRecording(take);
         setIsRecording(false);
@@ -211,6 +215,8 @@ export default function Home() {
     return () => {
       unsubscribe();
       detach();
+      session.flushNotes();
+      disconnectNotes();
       recorder.stopRecording();
       void audioCtxRef.current?.close();
       document.removeEventListener("visibilitychange", visibility);
@@ -221,6 +227,7 @@ export default function Home() {
     if (countInBeat !== null || session.status.state === "starting") return;
     if (isRecording && !isPaused) {
       session.stop();
+      session.flushNotes();
       recorder.pauseRecording();
       setIsPaused(true);
       return;
@@ -248,6 +255,7 @@ export default function Home() {
 
   const handleStop = () => {
     session.stop();
+    session.flushNotes();
     playRequestRef.current += 1;
     countInActionRef.current = null;
     setCountInBeat(null);
@@ -291,9 +299,7 @@ export default function Home() {
             onCalibrationValidity={handleCalibrationValidity}
             videoRef={videoRef}
             enabled={canRecord && isRecording && !isPaused}
-            onNoteOn={recorder.noteOn}
-            onNoteOff={recorder.noteOff}
-            onReleaseAllNotes={recorder.releaseAllNotes}
+            activePitches={activePitches}
           />
           {!canRecord && <p role="status" className="absolute bottom-2 left-2 right-2 z-20 bg-surface px-4 text-ink">Show the calibrated sheet and camera, or <a href="/calibration" className="underline">calibrate again</a>. Saved data is checked before playing.</p>}
         </div>

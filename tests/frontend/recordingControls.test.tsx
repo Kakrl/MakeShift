@@ -11,7 +11,12 @@ const fixtures = vi.hoisted(() => ({
   initializeAudio: vi.fn(async () => {}),
   takes: [] as Recording[],
   download: vi.fn(),
+  highlight: vi.fn(),
   camera: { stream: { getVideoTracks: () => [{ readyState: "live", getSettings: () => ({ deviceId: "camera-1" }) }] }, cameraReady: true },
+}));
+vi.mock("../../frontend/src/cv/keyboardGeometry", async (original) => ({
+  ...await original<typeof import("../../frontend/src/cv/keyboardGeometry")>(),
+  pressWhiteKey: fixtures.highlight,
 }));
 vi.mock("../../frontend/src/app/CameraContext", () => ({
   useCamera: () => fixtures.camera,
@@ -353,4 +358,25 @@ it("ignores repeated Play while audio is starting", async () => {
   await countIn();
   expect(button("Pause recording").disabled).toBe(false);
   expect(fixtures.initializeAudio).toHaveBeenCalledTimes(1);
+});
+
+it("highlights accepted notes only and clears highlights when Stop is pressed", async () => {
+  await keys(115);
+  expect(fixtures.highlight).not.toHaveBeenCalled();
+  await start();
+  await advance(0);
+  expect(fixtures.highlight).toHaveBeenCalled();
+  await click(button("Stop recording"));
+  fixtures.highlight.mockClear();
+  await keys(115, 225);
+  await advance(100);
+  expect(fixtures.highlight).not.toHaveBeenCalled();
+  expect(fixtures.takes.at(-1)!.notes).toHaveLength(1);
+});
+
+it("records a same-turn press before Stop drains deferred consumers", async () => {
+  await start();
+  await keys(115);
+  await click(button("Stop recording"));
+  expect(fixtures.takes.at(-1)!.notes).toMatchObject([{ pitch: "C3", velocity: 80, durationMs: 0 }]);
 });
