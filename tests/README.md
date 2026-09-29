@@ -38,6 +38,9 @@ tests/
 ├── automation/
 │   └── rca.test.cjs                  # repository-process regression tests
 ├── frontend/
+│   ├── performanceMetrics.test.ts # aggregation, clocks, bounds and overhead
+│   ├── performanceResources.test.tsx # CameraProvider lifecycle
+│   ├── performanceMetrics.browser.mjs # profiles and paired overhead
 │   ├── browserAudio.test.ts      # production DSP offline rendering
 │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   ├── browserAudio.browser.mjs  # production browser graph check

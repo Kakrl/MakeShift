@@ -2,7 +2,9 @@ import { toMainTime } from "../events/noteEvents";
 
 export const METRICS = {
   frameInterval:
-    "ms between fresh video frames observed by hand overlay (not sensor FPS)",
+    "ms between changed media-time polls in hand overlay; can repeat decoded frames",
+  presentationInterval:
+    "ms between diagnostic video presentation callbacks; gaps can span multiple frames",
   frameAge: "ms from browser presentationTime to callback; not exposure age",
   transfer:
     "ms from sender post start to receiver entry after origin conversion; includes queueing",
@@ -75,6 +77,9 @@ export class PipelineMetrics {
   private ended: number | null = null;
   private previousFrame: number | null = null;
   private frames = 0;
+  private presentation: { now: number; frame: number } | null = null;
+  private presentedAdvance = 0;
+  private presentationCallbacks = 0;
   private dropped: number | null = null;
   private stages = new Map<Metric, Aggregate>();
   private snapshots: {
@@ -92,6 +97,8 @@ export class PipelineMetrics {
     this.started = this.now();
     this.ended = this.previousFrame = null;
     this.frames = 0;
+    this.presentation = null;
+    this.presentedAdvance = this.presentationCallbacks = 0;
     this.dropped = null;
     this.stages.clear();
     this.snapshots = [];
@@ -128,6 +135,28 @@ export class PipelineMetrics {
     this.previousFrame = now;
     this.frames++;
   }
+  presentedFrame(now: number, frame: number) {
+    if (
+      !this.enabled ||
+      !Number.isFinite(now) ||
+      now < 0 ||
+      !Number.isSafeInteger(frame) ||
+      frame < 0
+    )
+      return;
+    const previous = this.presentation;
+    if (previous && (now <= previous.now || frame === previous.frame)) return;
+    if (previous && frame > previous.frame) {
+      this.record("presentationInterval", now - previous.now);
+      this.presentedAdvance += frame - previous.frame;
+      this.dropFrames(frame - previous.frame - 1);
+    }
+    this.presentation = { now, frame };
+    this.presentationCallbacks++;
+  }
+  endPresentationStream() {
+    this.presentation = null;
+  }
   endFrameStream() {
     this.previousFrame = null;
   }
@@ -152,6 +181,7 @@ export class PipelineMetrics {
   report() {
     const elapsed = (this.ended ?? this.now()) - this.started;
     const intervals = this.stages.get("frameInterval");
+    const presentationIntervals = this.stages.get("presentationInterval");
     return {
       schemaVersion: 1,
       metadata: this.metadata && { ...this.metadata },
@@ -161,12 +191,19 @@ export class PipelineMetrics {
       elapsedMs: this.metadata ? elapsed : null,
       enabled: this.enabled,
       frames: this.frames,
-      deliveredFps:
+      processedFps:
         intervals && intervals.sum > 0
           ? (intervals.count * 1000) / intervals.sum
           : null,
+      processedFpsBoundary:
+        "changed media-time polls in hand overlay; may repeat decoded frames; excludes unmounted gaps",
+      presentationCallbacks: this.presentationCallbacks,
+      deliveredFps:
+        presentationIntervals && presentationIntervals.sum > 0
+          ? (this.presentedAdvance * 1000) / presentationIntervals.sum
+          : null,
       deliveredFpsBoundary:
-        "fresh frames observed by hand overlay; excludes gaps across overlay unmounts, includes inference stalls",
+        "browser presentedFrames advance / presentation callback interval; excludes video-element replacement gaps; not sensor FPS",
       droppedFrames: this.dropped,
       droppedFrameBoundary:
         "presentation callback gaps only; unavailable without requestVideoFrameCallback; not sensor or worker drops",

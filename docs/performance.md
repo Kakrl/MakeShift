@@ -36,7 +36,8 @@ physical sound output time. See [note events](note_events.md) for audio mapping.
 
 | Field | Boundary and limitation |
 | :--- | :--- |
-| deliveredFps / frameInterval | Fresh `video.currentTime` observations in the hand overlay. Rate is interval count / accumulated interval seconds. Duplicate frames are excluded and unmount resets the previous-frame timestamp. Stalls within a mounted stream remain included. This is processed/observed frame rate, not sensor delivery FPS. |
+| processedFps / frameInterval | Changed `video.currentTime` polls in the hand overlay; these can repeat decoded frames. Unmount resets interval tracking. This is processing rate, not camera FPS. |
+| deliveredFps / presentationInterval | Browser `presentedFrames` advance divided by elapsed video callback intervals. Includes missed callback presentations; resets across video-element replacement. Null without video callbacks. Not sensor FPS. |
 | frameAge | Diagnostic `requestVideoFrameCallback` entry timestamp minus `presentationTime`; browser presentation-to-callback age, not exposure or physical press age. Unsupported callbacks leave the metric null. |
 | droppedFrames | Sum of gaps in `presentedFrames` between diagnostic callbacks on the same video element. Starts unavailable until two callbacks establish a gap (including zero). Does not count sensor, decoder or worker scheduler drops. |
 | inference | Around synchronous `detectForVideo`, including cold calls. Drawing and React work are excluded. |
@@ -50,7 +51,7 @@ measured zero; sample count zero means no valid observation. Invalid/negative
 stage durations are ignored. Means and maxima cover the whole run. p50/p95 use
 nearest rank over only the **latest 256 samples per stage**, not the whole run.
 Startup and warmed work must be profiled separately if that distinction matters.
-There are seven fixed stage slots, at most 1,792 retained durations, and at most
+There are eight fixed stage slots, at most 2,048 retained durations, and at most
 32 resource snapshots. Extra snapshots discard the oldest and increment a
 reported discard count. Text metadata is length-limited; there is no frame,
 event, media-track or model-object history retained by the metrics collector.

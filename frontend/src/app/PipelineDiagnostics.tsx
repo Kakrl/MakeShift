@@ -24,17 +24,9 @@ export default function PipelineDiagnostics() {
     if (!running) return;
     let video: HTMLVideoElement | null = null;
     let callback: number | null = null;
-    let previousPresented: number | null = null;
     const observe = (now: number, metadata: VideoFrameCallbackMetadata) => {
       pipelineMetrics.record("frameAge", now - metadata.presentationTime);
-      if (
-        previousPresented !== null &&
-        metadata.presentedFrames >= previousPresented
-      )
-        pipelineMetrics.dropFrames(
-          Math.max(0, metadata.presentedFrames - previousPresented - 1),
-        );
-      previousPresented = metadata.presentedFrames;
+      pipelineMetrics.presentedFrame(now, metadata.presentedFrames);
       callback = video!.requestVideoFrameCallback(observe);
     };
     const sample = () => {
@@ -45,7 +37,7 @@ export default function PipelineDiagnostics() {
           video.cancelVideoFrameCallback(callback);
         video = current;
         callback = null;
-        previousPresented = null;
+        pipelineMetrics.endPresentationStream();
         if (video?.requestVideoFrameCallback)
           callback = video.requestVideoFrameCallback(observe);
       }
@@ -54,6 +46,7 @@ export default function PipelineDiagnostics() {
     const timer = setInterval(sample, 1000);
     return () => {
       clearInterval(timer);
+      pipelineMetrics.endPresentationStream();
       if (video && callback !== null) video.cancelVideoFrameCallback(callback);
     };
   }, [running]);

@@ -88,7 +88,7 @@ describe("bounded pipeline diagnostics", () => {
     now = 100;
     expect(metrics.report()).toMatchObject({
       frames: 2,
-      deliveredFps: 20,
+      processedFps: 20,
       droppedFrames: null,
     });
     metrics.dropFrames(0);
@@ -99,6 +99,25 @@ describe("bounded pipeline diagnostics", () => {
     metrics.endFrameStream();
     metrics.frame(10000);
     expect(metrics.report().metrics.frameInterval.mean).toBe(50);
+  });
+  it("measures delivered rate from presentation advances, not media-time polling", () => {
+    const metrics = new PipelineMetrics();
+    metrics.start(metadata);
+    for (let i = 0; i < 20; i++) metrics.frame(i * 10);
+    expect(metrics.report().deliveredFps).toBeNull();
+    metrics.presentedFrame(0, 100);
+    metrics.presentedFrame(50, 101);
+    metrics.presentedFrame(150, 103);
+    metrics.presentedFrame(151, 103);
+    expect(metrics.report()).toMatchObject({
+      deliveredFps: 20,
+      processedFps: 100,
+      droppedFrames: 1,
+      presentationCallbacks: 3,
+    });
+    metrics.endPresentationStream();
+    metrics.presentedFrame(10000, 1);
+    expect(metrics.report().deliveredFps).toBe(20);
   });
   it("freezes elapsed time on stop and resets all run data on restart", () => {
     let now = 0;
