@@ -23,9 +23,8 @@ vi.mock("../../frontend/src/app/CameraContext", () => ({ useCamera: () => camera
 vi.mock("../../frontend/src/app/audio/audioEngine", () => ({
   initializeAudio: vi.fn(async () => {}),
 }));
-vi.mock("../../frontend/src/app/midi/midiUtils", () => ({
-  startRecording: vi.fn(),
-  stopRecording: vi.fn(),
+vi.mock("../../frontend/src/app/midi/midiUtils", async (original) => ({
+  ...(await original<typeof import("../../frontend/src/app/midi/midiUtils")>()),
   downloadMidi: vi.fn(),
 }));
 

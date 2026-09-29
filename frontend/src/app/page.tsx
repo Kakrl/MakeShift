@@ -7,9 +7,10 @@ import { useCamera } from "./CameraContext";
 import CameraStatusOverlay from "./CameraStatusOverlay";
 import SideNav from "./SideNav";
 import {
-  startRecording,
-  stopRecording,
+  createRecorder,
   downloadMidi,
+  type Recorder,
+  type Recording,
 } from "./midi/midiUtils";
 import { initializeAudio } from "./audio/audioEngine";
 
@@ -56,6 +57,13 @@ function StopIcon() {
 
 export default function Home() {
   const router = useRouter();
+  const recorderRef = useRef<Recorder | null>(null);
+  if (recorderRef.current === null) {
+    recorderRef.current = createRecorder();
+  }
+  const recorder = recorderRef.current;
+  const [completedRecording, setCompletedRecording] =
+    useState<Recording | null>(null);
 
   // ── Tempo & time signature (controlled) ─────────────────────────────────
   const [tempo, setTempo] = useState(120);
@@ -68,6 +76,13 @@ export default function Home() {
 
   // ── Count-in beat (1 → beatsPerMeasure, then recording starts) ──────────
   const [countInBeat, setCountInBeat] = useState<number | null>(null);
+  const countInActionRef = useRef<"start" | "resume" | null>(null);
+  const playRequestRef = useRef(0);
+
+  useEffect(() => () => {
+    // Ignore audio initialization that finishes after leaving this page.
+    playRequestRef.current += 1;
+  }, []);
 
   // ── Welcome modal (first visit only) ────────────────────────────────────
   const [showWelcome, setShowWelcome] = useState(false);
@@ -83,7 +98,7 @@ export default function Home() {
   //   hasFinishedRecording → stop pressed; MIDI controls visible
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [hasFinishedRecording, setHasFinishedRecording] = useState(false);
+  const hasFinishedRecording = completedRecording !== null;
   const [showRecordingComplete, setShowRecordingComplete] = useState(false);
 
   // ── Export / delete ──────────────────────────────────────────────────────
@@ -136,14 +151,20 @@ export default function Home() {
     if (metronome) playClick(countInBeat === 1);
     const intervalMs = (60 / tempo) * 1000;
     const timer = setTimeout(() => {
+      if (countInActionRef.current === null) return;
       if (countInBeat >= beatsPerMeasure) {
         // Measure complete — start recording
         setCountInBeat(null);
         setIsRecording(true);
         setIsPaused(false);
 
-        // Start recording session (MIDI capture)
-        startRecording(tempo);
+        // Resume keeps the existing take and excludes the count-in time.
+        if (countInActionRef.current === "resume") {
+          recorder.resumeRecording();
+        } else {
+          recorder.startRecording(tempo);
+        }
+        countInActionRef.current = null;
       } else {
         setCountInBeat((b) => (b !== null ? b + 1 : null));
       }
@@ -158,52 +179,56 @@ export default function Home() {
   // ── Recording controls ───────────────────────────────────────────────────
   const [audioError, setAudioError] = useState("");
   const handlePlay = async () => {
+    if (countInBeat !== null) return;
+    if (isRecording && !isPaused) {
+      recorder.pauseRecording();
+      setIsPaused(true);
+      return;
+    }
     if (!canRecord) return;
+    const request = ++playRequestRef.current;
     try {
       await initializeAudio();
+      if (request !== playRequestRef.current) return;
       setAudioError("");
     } catch (error) {
+      if (request !== playRequestRef.current) return;
       setAudioError(error instanceof Error ? error.message : "Audio unavailable. Try Play again.");
       return;
     }
     if (countInBeat !== null) return; // already counting in
-    if (isRecording && !isPaused) {
-      // Pause
-      setIsPaused(true);
-      return;
-    }
     if (isRecording && isPaused) {
-      // Resume via count-in
-      setIsPaused(false);
-      setIsRecording(false);
+      // Keep the existing take paused until the count-in finishes.
+      countInActionRef.current = "resume";
       setCountInBeat(1);
       return;
     }
     // Start fresh — clear previous session and begin count-in
     setIsRecording(false);
     setIsPaused(false);
-    setHasFinishedRecording(false);
+    setCompletedRecording(null);
     setShowRecordingComplete(false);
     setShowExportDialog(false);
     setShowDeleteConfirm(false);
+    countInActionRef.current = "start";
     setCountInBeat(1);
   };
 
   const handleStop = () => {
-    if (!canRecord) return;
-    if (countInBeat !== null) { setCountInBeat(null); return; } // cancel count-in
+    playRequestRef.current += 1;
+    countInActionRef.current = null;
+    setCountInBeat(null);
+    // An initial count-in has no take; a resume count-in does.
     if (!isRecording) return;
+    const recording = recorder.stopRecording();
+    setCompletedRecording(recording);
     setIsRecording(false);
     setIsPaused(false);
-    setHasFinishedRecording(true);
-    setShowRecordingComplete(true);
-
-    // Stop recording session (MIDI capture)
-    stopRecording();
+    setShowRecordingComplete(recording !== null);
   };
 
   const confirmDelete = () => {
-    setHasFinishedRecording(false);
+    setCompletedRecording(null);
     setShowRecordingComplete(false);
     setShowExportDialog(false);
     setShowDeleteConfirm(false);
@@ -381,6 +406,9 @@ export default function Home() {
           <CVOverlayCoordinator
             videoRef={videoRef}
             enabled={isRecording && !isPaused}
+            onNoteOn={recorder.noteOn}
+            onNoteOff={recorder.noteOff}
+            onReleaseAllNotes={recorder.releaseAllNotes}
           />
           <CameraStatusOverlay />
 
@@ -559,8 +587,9 @@ export default function Home() {
               </button>
               <button
                 onClick={() => {
-                  setShowExportDialog(false)
-                  downloadMidi()
+                  if (completedRecording === null) return;
+                  downloadMidi(completedRecording);
+                  setShowExportDialog(false);
                 }}
                 className="border border-black bg-black px-6 py-3 rounded-[10px] text-[16px] text-white font-sans hover:bg-black/80 active:scale-[0.97] transition-[background-color,transform]"
               >
@@ -599,8 +628,8 @@ export default function Home() {
           <button
             onClick={handleStop}
             aria-label="Stop recording"
-            disabled={!canRecord || (!isRecording && countInBeat === null)}
-            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!canRecord || (!isRecording && countInBeat === null) ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
+            disabled={!isRecording && countInBeat === null}
+            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!isRecording && countInBeat === null ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
           >
             <StopIcon />
             <span className="text-[13px] text-ink font-sans select-none">Stop</span>

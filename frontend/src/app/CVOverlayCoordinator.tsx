@@ -3,7 +3,6 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState, type RefObject } from "react";
 import { audioNoteOff, audioNoteOn, releaseAllAudioNotes } from "./audio/audioEngine";
-import { noteOff, noteOn, releaseAllNotes } from "./midi/midiUtils";
 import { keyIndexToMidi, midiToPitch } from "../cv/noteMap";
 import { getFingertips } from "../cv/collision";
 import type { Fingertip, NormalizedLandmark } from "../cv/collision";
@@ -21,9 +20,15 @@ const HandTrackingOverlay = dynamic(
 export default function CVOverlayCoordinator({
   videoRef,
   enabled = false,
+  onNoteOn,
+  onNoteOff,
+  onReleaseAllNotes,
 }: {
   videoRef: RefObject<HTMLVideoElement | null>;
   enabled?: boolean;
+  onNoteOn: (pitch: string, velocity: number) => void;
+  onNoteOff: (pitch: string) => void;
+  onReleaseAllNotes: () => void;
 }) {
   const [fingertips, setFingertips] = useState<Fingertip[]>([]);
 
@@ -46,7 +51,7 @@ export default function CVOverlayCoordinator({
         const midi = keyIndexToMidi(keyIndex);
         if (midi === null) continue;
         audioNoteOff(midi);
-        noteOff(midiToPitch(midi));
+        onNoteOff(midiToPitch(midi));
       }
       if (!enabled) return;
       for (const keyIndex of pressed) {
@@ -54,18 +59,18 @@ export default function CVOverlayCoordinator({
         if (midi === null) continue;
         const pitch = midiToPitch(midi);
         audioNoteOn(midi);
-        noteOn(pitch, 100);
+        onNoteOn(pitch, 100);
       }
     },
-    [enabled],
+    [enabled, onNoteOn, onNoteOff],
   );
 
   useEffect(() => {
     if (!enabled) {
       releaseAllAudioNotes();
-      releaseAllNotes();
+      onReleaseAllNotes();
     }
-  }, [enabled]);
+  }, [enabled, onReleaseAllNotes]);
 
   useEffect(() => () => releaseAllAudioNotes(), []);
 
