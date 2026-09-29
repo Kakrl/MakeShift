@@ -763,7 +763,7 @@ export default function Calibration() {
           {/* Instruction pill — before the first capture */}
           {!hasStarted && !step5Success && (
             <div className="absolute top-[35%] left-1/2 -translate-x-1/2 flex items-center gap-2 bg-surface-dark px-5 py-2 rounded-full pointer-events-none">
-              <span className="text-white text-[16px] font-sans">Capture your right hand at the front, middle, and back</span>
+                  <span className="text-white text-[16px] font-sans">Capture your right hand at the four corners and center</span>
             </div>
           )}
 
@@ -914,7 +914,7 @@ export default function Calibration() {
         <div className="flex flex-wrap items-center gap-4">
           <div className="w-full max-w-[720px]">
             <p className="mb-3 text-[18px] sm:text-[24px] text-black font-sans">
-              Step 5: Calibrate depth at the front, middle, and back
+              Step 5: Calibrate depth at the four corners and center
             </p>
             {!step5Success && depthPositionIndex < DEPTH_CALIBRATION_POSITIONS.length && (
               <DepthCalibrationCapture

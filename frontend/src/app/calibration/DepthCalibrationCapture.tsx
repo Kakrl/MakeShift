@@ -13,9 +13,11 @@ interface DepthCalibrationCaptureProps {
 }
 
 const POSITION_LABELS: Record<DepthCalibrationPosition, string> = {
-  front: "front",
-  middle: "middle",
-  back: "back",
+  "top-left": "top-left corner",
+  "top-right": "top-right corner",
+  "bottom-left": "bottom-left corner",
+  "bottom-right": "bottom-right corner",
+  center: "center",
 };
 
 /** Button-driven UI for collecting one right-hand depth position. */

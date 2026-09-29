@@ -64,6 +64,7 @@ export const knuckleBoundaryHeuristic: ContactHeuristic = (frame) => {
 
   const boundaryY = getKnuckleBoundaryY(
     frame.depthCalibration,
+    frame.finger,
     frame.knuckleDistance,
   );
   return booleanEvidence(

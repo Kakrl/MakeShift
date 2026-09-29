@@ -41,6 +41,8 @@ const PAGE_CORNERS: Point[] = [
 const INITIAL_MARKER_CHECK_INTERVAL_MS = 100;
 const LOCKED_MARKER_CHECK_INTERVAL_MS = 10_000;
 const KNUCKLE_LANDMARK_INDICES = [5, 9, 13, 17] as const;
+const KNUCKLE_RANGE_TOLERANCE = 0.002;
+const BOUNDARY_Y_TOLERANCE = 0.012;
 
 type FingerContactState = "invalid" | "hover" | "press candidate";
 
@@ -266,10 +268,19 @@ export default function MarkerTrackingOverlay({
       if (canEvaluate) {
         const boundaryY = getKnuckleBoundaryY(
           depthCalibration!,
+          finger,
           knuckleDistance!,
+          false,
+          KNUCKLE_RANGE_TOLERANCE,
         );
-        pressed =
-          boundaryY !== null && fingertipScreenY! >= boundaryY;
+        if (boundaryY !== null) {
+          const previousState = fingerStatesRef.current.get(fingertip.id);
+          const threshold =
+            previousState === "press candidate"
+              ? boundaryY - BOUNDARY_Y_TOLERANCE
+              : boundaryY + BOUNDARY_Y_TOLERANCE;
+          pressed = fingertipScreenY! >= threshold;
+        }
       }
       const state: FingerContactState = !canEvaluate
         ? "invalid"
@@ -295,10 +306,12 @@ export default function MarkerTrackingOverlay({
     for (const id of fingerStatesRef.current.keys()) {
       if (!activeIds.has(id)) fingerStatesRef.current.delete(id);
     }
+    // This state is the intentionally derived data shown in the prototype debug panel.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFingerDebug(nextDebug);
 
     // Console logging is intentionally disabled while tuning the visual prototype.
-  }, [depthCalibration, fingertips, hands, markerDetection]);
+  }, [depthCalibration, fingertips, hands, markerDetection, videoRef]);
 
   useEffect(() => {
     const overlay = overlayCanvasRef.current;
@@ -382,7 +395,9 @@ export default function MarkerTrackingOverlay({
 
           if (depthCalibration && videoRef.current?.videoHeight) {
             fingertips
-              .filter(({ landmarkIndex }) => landmarkIndex === 8)
+              .filter(({ landmarkIndex }) =>
+                [4, 8, 12, 16, 20].includes(landmarkIndex),
+              )
               .forEach((fingertip) => {
                 const keyOverlap = getKeyCollisions(
                   [fingertip],
@@ -391,13 +406,19 @@ export default function MarkerTrackingOverlay({
                 ).length > 0;
                 if (!keyOverlap) return;
                 const hand = hands[fingertip.handIndex];
-                const landmark = hand?.landmarks[8];
+                const landmark = hand?.landmarks[fingertip.landmarkIndex];
                 const knuckleDistance = hand
                   ? getKnuckleDistance(hand.landmarks)
                   : null;
                 if (!landmark || knuckleDistance === null) return;
+                const fingerIndex = [4, 8, 12, 16, 20].indexOf(
+                  fingertip.landmarkIndex,
+                );
+                if (fingerIndex < 0) return;
+                const finger = DEPTH_FINGERS[fingerIndex];
                 const boundaryY = getKnuckleBoundaryY(
                   depthCalibration,
+                  finger,
                   knuckleDistance,
                   true,
                 );
@@ -412,9 +433,17 @@ export default function MarkerTrackingOverlay({
                   knuckleDistance < Math.min(...calibrationDistances) ||
                   knuckleDistance > Math.max(...calibrationDistances);
                 context.save();
-                context.strokeStyle = "#ff66cc";
-                context.fillStyle = "#ff66cc";
-                context.lineWidth = 5;
+                const colors = [
+                  "#ff9f0a",
+                  "#ff375f",
+                  "#bf5af2",
+                  "#64d2ff",
+                  "#30d158",
+                ];
+                const color = colors[fingerIndex];
+                context.strokeStyle = color;
+                context.fillStyle = color;
+                context.lineWidth = 3;
                 context.setLineDash([16, 10]);
                 context.beginPath();
                 context.moveTo(0, screenY);
@@ -423,7 +452,7 @@ export default function MarkerTrackingOverlay({
                 context.setLineDash([]);
                 context.font = "bold 18px Arial";
                 context.fillText(
-                  `index knuckle boundary${outsideRange ? " (outside range)" : ""}`,
+                  `${finger} knuckle boundary${outsideRange ? " (outside range)" : ""}`,
                   12,
                   screenY - 8,
                 );
@@ -461,15 +490,19 @@ export default function MarkerTrackingOverlay({
         <div className="mb-1 font-bold">Finger debug</div>
         <div className="mb-2 border-b border-white/20 pb-1">
           calibration={depthCalibration ? "ready" : "missing"} mapping={
-            homographyRef.current ? "ready" : "waiting"
+            markerDetection?.missingIds.length === 0 ? "ready" : "waiting"
           }
           <br />
-          knuckle front={depthCalibration
-            ? depthCalibration.knuckleDistances.front.toFixed(5)
-            : "n/a"} middle={depthCalibration
-            ? depthCalibration.knuckleDistances.middle.toFixed(5)
-            : "n/a"} back={depthCalibration
-            ? depthCalibration.knuckleDistances.back.toFixed(5)
+          knuckle TL={depthCalibration
+            ? depthCalibration.knuckleDistances["top-left"].toFixed(5)
+            : "n/a"} TR={depthCalibration
+            ? depthCalibration.knuckleDistances["top-right"].toFixed(5)
+            : "n/a"} BL={depthCalibration
+            ? depthCalibration.knuckleDistances["bottom-left"].toFixed(5)
+            : "n/a"} BR={depthCalibration
+            ? depthCalibration.knuckleDistances["bottom-right"].toFixed(5)
+            : "n/a"} C={depthCalibration
+            ? depthCalibration.knuckleDistances.center.toFixed(5)
             : "n/a"} current={fingerDebug[0]?.knuckleDistance?.toFixed(5) ?? "n/a"}
         </div>
         {fingerDebug.length === 0 ? (

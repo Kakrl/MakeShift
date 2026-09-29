@@ -1,9 +1,11 @@
 import { FINGERTIP_LANDMARK_INDICES } from "./collision";
 
 export const DEPTH_CALIBRATION_POSITIONS = [
-  "front",
-  "middle",
-  "back",
+  "top-left",
+  "top-right",
+  "bottom-left",
+  "bottom-right",
+  "center",
 ] as const;
 
 export const DEPTH_CALIBRATION_STORAGE_KEY = "depthCalibrationLines";
@@ -68,7 +70,7 @@ export interface PersistedDepthCalibration {
     Record<DepthCalibrationPosition, number>
   >;
   knuckleBoundaryYs: Readonly<
-    Record<DepthCalibrationPosition, number>
+    Record<DepthFinger, Readonly<Record<DepthCalibrationPosition, number>>>
   >;
   knuckleLines: Readonly<
     Record<DepthFinger, Pick<DepthLine, "slope" | "intercept">>
@@ -167,28 +169,36 @@ export function isBeyondDepthBoundary(
 
 /**
  * Interpolate the captured fingertip Y boundary for a knuckle distance.
- * Distances outside the captured front-to-back range are not contact evidence.
+ * Distances outside the captured calibration range are not contact evidence.
  */
 export function getKnuckleBoundaryY(
   calibration: PersistedDepthCalibration,
+  finger: DepthFinger,
   knuckleDistance: number,
   allowOutside = false,
+  rangeTolerance = 0,
 ): number | null {
   if (!Number.isFinite(knuckleDistance)) return null;
 
   const points = DEPTH_CALIBRATION_POSITIONS.map((position) => ({
     distance: calibration.knuckleDistances[position],
-    y: calibration.knuckleBoundaryYs[position],
+    y: calibration.knuckleBoundaryYs[finger][position],
   })).sort((first, second) => first.distance - second.distance);
 
   if (points.some(({ distance, y }) => !Number.isFinite(distance) || !Number.isFinite(y))) {
     return null;
   }
   if (knuckleDistance < points[0].distance) {
-    return allowOutside ? points[0].y : null;
+    return allowOutside ||
+      knuckleDistance >= points[0].distance - rangeTolerance
+      ? points[0].y
+      : null;
   }
   if (knuckleDistance > points[points.length - 1].distance) {
-    return allowOutside ? points[points.length - 1].y : null;
+    return allowOutside ||
+      knuckleDistance <= points[points.length - 1].distance + rangeTolerance
+      ? points[points.length - 1].y
+      : null;
   }
 
   for (let index = 1; index < points.length; index += 1) {
@@ -358,9 +368,14 @@ export function toPersistedDepthCalibration(
       ]),
     ) as PersistedDepthCalibration["knuckleDistances"],
     knuckleBoundaryYs: Object.fromEntries(
-      DEPTH_CALIBRATION_POSITIONS.map((position) => [
-        position,
-        model.samplesByPosition[position].fingertipSheetYs[1],
+      DEPTH_FINGERS.map((finger, fingerIndex) => [
+        finger,
+        Object.fromEntries(
+          DEPTH_CALIBRATION_POSITIONS.map((position) => [
+            position,
+            model.samplesByPosition[position].fingertipSheetYs[fingerIndex],
+          ]),
+        ),
       ]),
     ) as PersistedDepthCalibration["knuckleBoundaryYs"],
     knuckleLines: Object.fromEntries(
@@ -421,7 +436,7 @@ export function parsePersistedDepthCalibration(
     >;
     const knuckleBoundaryYs = candidate.knuckleBoundaryYs as Record<
       string,
-      unknown
+      Record<string, unknown>
     >;
     const knuckleLines = candidate.knuckleLines as Record<string, unknown>;
     const zLines = candidate.zLines as Record<string, unknown>;
@@ -432,8 +447,11 @@ export function parsePersistedDepthCalibration(
     );
     const hasAllKnuckleBoundaryYs = DEPTH_CALIBRATION_POSITIONS.every(
       (position) =>
-        typeof knuckleBoundaryYs[position] === "number" &&
-        Number.isFinite(knuckleBoundaryYs[position]),
+        DEPTH_FINGERS.every(
+          (finger) =>
+            typeof knuckleBoundaryYs[finger]?.[position] === "number" &&
+            Number.isFinite(knuckleBoundaryYs[finger]?.[position]),
+        ),
     );
     const hasAllLines = DEPTH_FINGERS.every(
       (finger) => hasLine(knuckleLines[finger]) && hasLine(zLines[finger]),
