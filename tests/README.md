@@ -529,3 +529,12 @@ Windows, 2026-09-29, branch feature/28-browser-piano-integration, based on
 - This does not establish real contact, finger-speed velocity, audible hardware
   output, deployed browser behavior, under-50-ms latency or under-3% errors.
   The [manual checklist](manual/2026-09-29_2.1.2.md) is BLOCKED, not a pass.
+
+Merge compatibility at implementation commit fc8f4f6: normal merge against the
+resolved dependency base b37db8d produced the identical implementation tree
+3142af798b00f2cc5287dd7bcd1d8076c230e90e. A simulated squash of all dependency
+contents onto main 614203f conflicts if merged naively (ancestry is lost).
+Transplanting only #28, using b37db8d as the merge base, passed with the same
+identical tree. Follow the explicit rebase command in docs/piano_integration.md
+after squash merges; do not replay the dependency commits. These checks use the
+current heads, not unknown future edits. No existing PR or main was modified.
