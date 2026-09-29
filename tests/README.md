@@ -528,9 +528,14 @@ Windows, 2026-09-29, branch feature/28-browser-piano-integration, based on
 - MIDI uses event observation times, independent press identities and normalized
   velocity × 100 for the writer. Existing recorder default-time/pause/export
   tests passed unchanged. Accepted history drains before lifecycle snapshots.
-- This does not establish real contact, finger-speed velocity, audible hardware
-  output, deployed browser behavior, under-50-ms latency or under-3% errors.
-  The [manual checklist](manual/2026-09-29_2.1.2.md) is BLOCKED, not a pass.
+- Carl Xu reported the [manual checklist](manual/2026-09-29_2.1.2.md) passed
+  on 2026-09-29, including successful export retest after the separate #141 fix
+  for #140. That export fix is not included in PR #139 alone. Browser/device
+  details, exact tested commit and per-step artifacts were not supplied.
+- This user-reported pass does not establish intentional contact, measured
+  finger-speed velocity, deployed cross-browser behavior, under-50-ms latency
+  or under-3% errors. Independent review remains pending. This update changes
+  documentation only; prior automated results are retained without a rerun.
 
 Merge compatibility at implementation commit fc8f4f6: normal merge against the
 resolved dependency base b37db8d produced the identical implementation tree
