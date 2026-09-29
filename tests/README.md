@@ -573,4 +573,4 @@ Local Windows execution on 2026-09-29; fix implementation 45304f6, based on
   requirement or scope change. Listen and Delete remain separate unfinished UI.
 
 User baseline failure and automated fix are recorded separately in the
-[manual report](manual/2026-09-29_4.2.3.md); user fix retest is pending.
+[manual report](manual/2026-09-29_4.2.3.md); Carl Xu reported the export fix retest passed on 2026-09-29.
