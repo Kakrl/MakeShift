@@ -66,7 +66,7 @@ MakeShift/
 │   │   │   └── useHandLandmarker.ts
 │   │   ├── cv/                      # ArUco detection, homography, key geometry
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
-│   │   └── shims/
+│   │   └── shims/                # empty fs shim and type-only MIDI declaration bridge
 │   ├── package.json
 │   ├── package-lock.json
 │   ├── vitest.config.mts            # discovers tests/frontend/
@@ -88,6 +88,7 @@ MakeShift/
 │   │   ├── pianoIntegration.test.ts # deterministic note-to-audio/MIDI/feedback
 │   │   ├── liveSession.test.ts       # readiness transitions and stale-input safety
 │   │   ├── noteEvents.test.ts        # shared events, lifecycle, clocks and MessagePort
+│   │   ├── midiExport.browser.mjs  # production Export UI and downloaded MIDI bytes
 │   │   ├── midiUtils.test.ts
 │   │   └── check-contrast.mjs
 │   ├── python/

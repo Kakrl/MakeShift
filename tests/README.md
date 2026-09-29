@@ -67,6 +67,7 @@ No test implementation requires an exception to this layout.
 | Python | `python -m pytest --cov=backend --cov-report=term-missing` | `pip install -r requirements.txt` |
 | Frontend unit (Vitest) | `cd frontend && npx vitest run` | `npm ci` in `frontend/` |
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
+| MIDI production download | `cd frontend && npm run test:midi-browser` | Running production server; Playwright and Edge; optional MAKE_SHIFT_URL / MIDI_BROWSER_CHANNEL |
 | RCA automation | `node --test tests/automation/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
 
 ## Note-list recorder verification (issues #108 and #115)
@@ -333,6 +334,7 @@ defect report is filed.
 | D15 | Low | Docs | The root README said Python 3.10+ for the C++ build, but `backend/CMakeLists.txt` requires Python 3.12 | `README.md` | | Fixed in #79 PR |
 | D16 | Low | Tests | Browser audio smoke runner checks context closure immediately after URL navigation, before React's unmount effect may run. The unchanged runner failed; a bounded cleanup-wait diagnostic passed during #86 verification | `tests/frontend/browserAudio.browser.mjs` | [#105](https://github.com/Kakrl/MakeShift/issues/105) | Fix implemented for #105; bounded wait and final assertion verified locally ([evidence](#navigation-cleanup-verification-issue-105)); merge pending |
 | D17 | Medium | UI | (Req 3.1, 3.4) The UI is not responsive. Home, calibration, and about use a fixed 267 px side column with no breakpoints, and `body` is `h-dvh overflow-hidden`, so at tablet or phone widths, short laptop screens, or 200% zoom the camera is squeezed and controls are clipped with no way to scroll to them | `frontend/src/app/layout.tsx:32`, `frontend/src/app/page.tsx:213-400`, `frontend/src/app/calibration/page.tsx:669-681`, `frontend/src/app/about/page.tsx:42-63` | [#109](https://github.com/Kakrl/MakeShift/issues/109) | Fixed in [#111](https://github.com/Kakrl/MakeShift/pull/111) |
+| D18 | High | MIDI / UI | Runtime path alias points midi-writer-js at a declarations-only file, so final Export throws on undefined Track and produces no download (Req 4.2) | `frontend/tsconfig.json` | [#140](https://github.com/Kakrl/MakeShift/issues/140) | Fix verified locally in [#141](https://github.com/Kakrl/MakeShift/pull/141); review/merge pending |
 
 ## Root Cause Analysis Log
 
@@ -343,7 +345,7 @@ comment after merge. Link the issue before the comment exists.
 | Defect | Issue | Severity | Root Cause (one line) | Fix PR | Regression Test | RCA Date | Author |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | MIDI note-off events missing required duration information | [#91](https://github.com/Kakrl/MakeShift/issues/91) | Medium | Custom MidiWriterJS TypeScript declarations hid the library's required note event fields, allowing invalid note-off event construction. | [#92](https://github.com/Kakrl/MakeShift/pull/92) | `tests/frontend/midiUtils.test.ts` — `creates a note event using the note start time and duration` (not currently run in CI) | 2026-09-20 | harrydeng104 |
-| | | | | | | | |
+| Production MIDI export fails | [#140](https://github.com/Kakrl/MakeShift/issues/140) | High | TypeScript path alias to a .d.ts file erased the runtime MIDI module in Turbopack; mocked tests bypassed it. | [#141](https://github.com/Kakrl/MakeShift/pull/141) | 4.2.3; `tests/frontend/midiExport.browser.mjs`, production download bytes and dialog closure; local only | 2026-09-29 | Codex |
 
 ### RCA PR Template
 
@@ -538,3 +540,32 @@ Transplanting only #28, using b37db8d as the merge base, passed with the same
 identical tree. Follow the explicit rebase command in docs/piano_integration.md
 after squash merges; do not replay the dependency commits. These checks use the
 current heads, not unknown future edits. No existing PR or main was modified.
+
+## MIDI export runtime verification (issue #140)
+
+Local Windows execution on 2026-09-29; fix implementation 45304f6, based on
+#139 head 025588e. Edge 154.0.4258.37, Playwright 1.62.1, Next.js 16.2.3.
+
+- Baseline production page: seed a C3 completed take, open export and click the
+  final Export button. Browser raised "Cannot read properties of undefined
+  (reading 'Track')" in client chunk 15z31avwcs4s~.js; no download occurred.
+  The user independently reported the same visible failure; browser unspecified.
+- Root cause is the midi-writer-js paths entry targeting build/types/main.d.ts.
+  Turbopack compiled the runtime import to undefined. Removing it and adding
+  a type-only bridge to the shipped declarations preserves actual runtime code.
+- Fixed production build: npm run test:midi-browser passed. Two downloads named
+  recording.mid had exact valid MIDI bytes: one track, 128 ticks/quarter,
+  120 BPM, C3/MIDI 48, velocity 102 and note-off after 128 ticks (500 ms).
+  Both final Export clicks closed the dialog; no browser page errors.
+- All 213 Vitest tests, TypeScript, production build and all 18 contrast pairs
+  passed. Lint passed with five existing unused-variable home-page warnings.
+- Browser regression uses guarded private React state injection for a completed
+  take and actual production UI/library/downloads. It intentionally excludes CV,
+  physical recording, audible playback, other browsers and timing requirements.
+  UI hook changes require updating the fixture; failures are never skipped.
+- Source: [browser regression](frontend/midiExport.browser.mjs). CI does not run
+  this browser test or Vitest (D3); Actions execution remains pending. No new
+  requirement or scope change. Listen and Delete remain separate unfinished UI.
+
+User baseline failure and automated fix are recorded separately in the
+[manual report](manual/2026-09-29_4.2.3.md); user fix retest is pending.
