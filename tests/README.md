@@ -201,6 +201,24 @@ run `npm run test:audio-browser`. It uses an installed Edge by default.
 See [browser audio](../docs/browser_audio.md) for environment overrides.
 The tests remain outside CI (D3); no Actions execution is claimed.
 
+## Navigation cleanup verification (issue #105)
+
+Local Windows verification on 2026-09-28, Node 22.20.0, Playwright 1.62.1,
+headless Edge 154.0.4258.37, based on `614203f`.
+
+- The production browser audio runner now waits up to 5 seconds for the
+  AudioContext to close after client navigation, then retains its final
+  closed-state assertion. URL completion alone does not prove React cleanup
+  has run; missing cleanup still fails with a bounded timeout.
+- `npm run test:audio-browser` passed against the production build at
+  `http://127.0.0.1:3105`: worklet HTTP 200, soft/loud RMS
+  0.009940531 / 0.029822081, chord output, stop silence, suspension recovery
+  without replay, navigation closure and no page errors.
+- All 150 Vitest tests, TypeScript, 18 contrast pairs and production build
+  passed. Lint passed with eight existing unused-variable warnings.
+- This verifies browser graph behavior only. Hardware audibility, physical
+  latency and Actions execution remain unverified; the runner is outside CI.
+
 ## Test relocation verification (issue #83)
 
 Local Windows verification on 2026-09-17, against baseline
@@ -313,7 +331,7 @@ defect report is filed.
 | D13 | Low | Tests | The contrast audit only checks `--color-*` token pairs. Hardcoded canvas colors drawn over live video (`#00ff88`, `#ffd60a`, `#ff3b30`) aren't checked | `frontend/src/app/MarkerTrackingOverlay.tsx:136-192`, `frontend/src/app/cv/handLandmarkDrawing.ts:33-34` | | Open |
 | D14 | Low | Tests | The only Python test is `test_dummy.py`, so the pytest coverage report in CI measures nothing | `tests/python/test_dummy.py` | | Open |
 | D15 | Low | Docs | The root README said Python 3.10+ for the C++ build, but `backend/CMakeLists.txt` requires Python 3.12 | `README.md` | | Fixed in #79 PR |
-| D16 | Low | Tests | Browser audio smoke runner checks context closure immediately after URL navigation, before React's unmount effect may run. The unchanged runner failed; a bounded cleanup-wait diagnostic passed during #86 verification | `tests/frontend/browserAudio.browser.mjs:95` | [#105](https://github.com/Kakrl/MakeShift/issues/105) | Open; separate fix needed |
+| D16 | Low | Tests | Browser audio smoke runner checks context closure immediately after URL navigation, before React's unmount effect may run. The unchanged runner failed; a bounded cleanup-wait diagnostic passed during #86 verification | `tests/frontend/browserAudio.browser.mjs` | [#105](https://github.com/Kakrl/MakeShift/issues/105) | Fix implemented for #105; bounded wait and final assertion verified locally ([evidence](#navigation-cleanup-verification-issue-105)); merge pending |
 | D17 | Medium | UI | (Req 3.1, 3.4) The UI is not responsive. Home, calibration, and about use a fixed 267 px side column with no breakpoints, and `body` is `h-dvh overflow-hidden`, so at tablet or phone widths, short laptop screens, or 200% zoom the camera is squeezed and controls are clipped with no way to scroll to them | `frontend/src/app/layout.tsx:32`, `frontend/src/app/page.tsx:213-400`, `frontend/src/app/calibration/page.tsx:669-681`, `frontend/src/app/about/page.tsx:42-63` | [#109](https://github.com/Kakrl/MakeShift/issues/109) | Fixed in [#111](https://github.com/Kakrl/MakeShift/pull/111) |
 
 ## Root Cause Analysis Log
