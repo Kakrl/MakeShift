@@ -11,6 +11,21 @@ export const DEPTH_CALIBRATION_STORAGE_KEY = "depthCalibrationLines";
 export type DepthCalibrationPosition =
   (typeof DEPTH_CALIBRATION_POSITIONS)[number];
 
+export const DEPTH_FINGERS = [
+  "thumb",
+  "index",
+  "middle",
+  "ring",
+  "pinky",
+] as const;
+
+export type DepthFinger = (typeof DEPTH_FINGERS)[number];
+
+export type DepthBoundarySide = "greater" | "less";
+
+/** The prototype treats larger sheet Y as below the fitted boundary. */
+export const DEPTH_BOUNDARY_SIDE: DepthBoundarySide = "greater";
+
 const MCP_LANDMARK_INDICES = [5, 9, 13, 17] as const;
 
 export interface DepthLandmark {
@@ -23,8 +38,8 @@ export interface DepthObservation {
   handedness: "Right" | "Left" | "Unknown";
   sheetY: number;
   knuckleDistance: number;
-  fingertipZ: number;
   fingertipSheetYs: readonly number[];
+  fingertipZs: readonly number[];
 }
 
 export interface DepthCalibrationSample extends DepthObservation {
@@ -37,18 +52,30 @@ export interface DepthLine {
   predictSheetY: (depth: number) => number;
 }
 
+export type DepthLineCoefficients = Pick<DepthLine, "slope" | "intercept">;
+
 export interface DepthCalibrationModel {
   hand: "Right";
-  knuckleLine: DepthLine;
-  zLine: DepthLine;
+  knuckleLines: Readonly<Record<DepthFinger, DepthLine>>;
+  zLines: Readonly<Record<DepthFinger, DepthLine>>;
   samplesByPosition: Readonly<Record<DepthCalibrationPosition, DepthCalibrationSample>>;
 }
 
 export interface PersistedDepthCalibration {
   version: 1;
   hand: "Right";
-  knuckleLine: Pick<DepthLine, "slope" | "intercept">;
-  zLine: Pick<DepthLine, "slope" | "intercept">;
+  knuckleDistances: Readonly<
+    Record<DepthCalibrationPosition, number>
+  >;
+  knuckleBoundaryYs: Readonly<
+    Record<DepthCalibrationPosition, number>
+  >;
+  knuckleLines: Readonly<
+    Record<DepthFinger, Pick<DepthLine, "slope" | "intercept">>
+  >;
+  zLines: Readonly<
+    Record<DepthFinger, Pick<DepthLine, "slope" | "intercept">>
+  >;
 }
 
 export interface CaptureResult {
@@ -88,14 +115,17 @@ export function getKnuckleDistance(
   return distances.every(isFiniteNumber) ? median(distances) : null;
 }
 
-export function getMeanFingertipZ(
+export function getFingertipZs(
   landmarks: readonly DepthLandmark[],
-): number | null {
-  const depths = FINGERTIP_LANDMARK_INDICES
-    .map((index) => landmarks[index]?.z)
-    .filter((value): value is number => value !== undefined && isFiniteNumber(value));
-
-  return depths.length === 0 ? null : median(depths);
+): number[] | null {
+  const depths = FINGERTIP_LANDMARK_INDICES.map(
+    (index) => landmarks[index]?.z,
+  );
+  return depths.every(
+    (value): value is number => value !== undefined && isFiniteNumber(value),
+  )
+    ? depths
+    : null;
 }
 
 /** Build a sample from one right-hand detection captured by the button. */
@@ -108,32 +138,86 @@ export function makeDepthObservation(
   if (handedness !== "Right" || !isFiniteNumber(sheetY)) return null;
 
   const knuckleDistance = getKnuckleDistance(landmarks);
-  const fingertipZ = getMeanFingertipZ(landmarks);
-  if (knuckleDistance === null || fingertipZ === null) return null;
+  const fingertipZs = getFingertipZs(landmarks);
+  if (knuckleDistance === null || fingertipZs === null) return null;
+  if (fingertipSheetYs.length !== DEPTH_FINGERS.length) return null;
 
   return {
     handedness,
     sheetY,
     knuckleDistance,
-    fingertipZ,
     fingertipSheetYs: [...fingertipSheetYs],
+    fingertipZs,
   };
+}
+
+/** Return whether a fingertip is on the selected side of a calibrated line. */
+export function isBeyondDepthBoundary(
+  line: DepthLineCoefficients,
+  depth: number,
+  sheetY: number,
+  side: DepthBoundarySide = "greater",
+  tolerance = 0,
+): boolean {
+  const expectedY = line.slope * depth + line.intercept;
+  return side === "greater"
+    ? sheetY >= expectedY - tolerance
+    : sheetY <= expectedY + tolerance;
+}
+
+/**
+ * Interpolate the captured fingertip Y boundary for a knuckle distance.
+ * Distances outside the captured front-to-back range are not contact evidence.
+ */
+export function getKnuckleBoundaryY(
+  calibration: PersistedDepthCalibration,
+  knuckleDistance: number,
+  allowOutside = false,
+): number | null {
+  if (!Number.isFinite(knuckleDistance)) return null;
+
+  const points = DEPTH_CALIBRATION_POSITIONS.map((position) => ({
+    distance: calibration.knuckleDistances[position],
+    y: calibration.knuckleBoundaryYs[position],
+  })).sort((first, second) => first.distance - second.distance);
+
+  if (points.some(({ distance, y }) => !Number.isFinite(distance) || !Number.isFinite(y))) {
+    return null;
+  }
+  if (knuckleDistance < points[0].distance) {
+    return allowOutside ? points[0].y : null;
+  }
+  if (knuckleDistance > points[points.length - 1].distance) {
+    return allowOutside ? points[points.length - 1].y : null;
+  }
+
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1];
+    const current = points[index];
+    if (knuckleDistance > current.distance) continue;
+    const distanceSpan = current.distance - previous.distance;
+    if (distanceSpan === 0) return current.y;
+    const fraction = (knuckleDistance - previous.distance) / distanceSpan;
+    return previous.y + fraction * (current.y - previous.y);
+  }
+
+  return points[points.length - 1].y;
 }
 
 function fitLine(
   samples: readonly DepthCalibrationSample[],
   getDepth: (sample: DepthCalibrationSample) => number,
+  getY: (sample: DepthCalibrationSample) => number = (sample) => sample.sheetY,
 ): DepthLine | null {
   if (samples.length < 2) return null;
 
   const meanDepth =
     samples.reduce((sum, sample) => sum + getDepth(sample), 0) / samples.length;
   const meanY =
-    samples.reduce((sum, sample) => sum + sample.sheetY, 0) / samples.length;
+    samples.reduce((sum, sample) => sum + getY(sample), 0) / samples.length;
   const numerator = samples.reduce(
     (sum, sample) =>
-      sum +
-      (getDepth(sample) - meanDepth) * (sample.sheetY - meanY),
+      sum + (getDepth(sample) - meanDepth) * (getY(sample) - meanY),
     0,
   );
   const denominator = samples.reduce(
@@ -160,9 +244,31 @@ function summarizeSamples(
     handedness: "Right",
     sheetY: median(samples.map((sample) => sample.sheetY)),
     knuckleDistance: median(samples.map((sample) => sample.knuckleDistance)),
-    fingertipZ: median(samples.map((sample) => sample.fingertipZ)),
-    fingertipSheetYs: samples[0].fingertipSheetYs,
+    fingertipSheetYs: DEPTH_FINGERS.map((_, index) =>
+      median(samples.map((sample) => sample.fingertipSheetYs[index])),
+    ),
+    fingertipZs: DEPTH_FINGERS.map((_, index) =>
+      median(samples.map((sample) => sample.fingertipZs[index])),
+    ),
   };
+}
+
+function fitFingerLines(
+  samples: readonly DepthCalibrationSample[],
+  getDepth: (sample: DepthCalibrationSample, fingerIndex: number) => number,
+  getY: (sample: DepthCalibrationSample, fingerIndex: number) => number,
+): Readonly<Record<DepthFinger, DepthLine>> | null {
+  const lines = DEPTH_FINGERS.map((finger, fingerIndex) => [
+    finger,
+    fitLine(
+      samples,
+      (sample) => getDepth(sample, fingerIndex),
+      (sample) => getY(sample, fingerIndex),
+    ),
+  ] as const);
+  if (lines.some(([, line]) => line === null)) return null;
+
+  return Object.fromEntries(lines) as Record<DepthFinger, DepthLine>;
 }
 
 /** Collects button-triggered right-hand samples for the three sheet positions. */
@@ -183,8 +289,8 @@ export class DepthCalibrationCollector {
     const values = [
       observation.sheetY,
       observation.knuckleDistance,
-      observation.fingertipZ,
       ...observation.fingertipSheetYs,
+      ...observation.fingertipZs,
     ];
     if (values.some((value) => !isFiniteNumber(value))) {
       return { accepted: false, reason: "invalid-observation" };
@@ -218,14 +324,22 @@ export class DepthCalibrationCollector {
     const samples = DEPTH_CALIBRATION_POSITIONS.map(
       (position) => summaries[position],
     );
-    const knuckleLine = fitLine(samples, (sample) => sample.knuckleDistance);
-    const zLine = fitLine(samples, (sample) => sample.fingertipZ);
-    if (!knuckleLine || !zLine) return null;
+    const knuckleLines = fitFingerLines(
+      samples,
+      (sample) => sample.knuckleDistance,
+      (sample, fingerIndex) => sample.fingertipSheetYs[fingerIndex],
+    );
+    const zLines = fitFingerLines(
+      samples,
+      (sample, fingerIndex) => sample.fingertipZs[fingerIndex],
+      (sample, fingerIndex) => sample.fingertipSheetYs[fingerIndex],
+    );
+    if (!knuckleLines || !zLines) return null;
 
     return {
       hand: "Right",
-      knuckleLine,
-      zLine,
+      knuckleLines,
+      zLines,
       samplesByPosition: summaries,
     };
   }
@@ -237,13 +351,103 @@ export function toPersistedDepthCalibration(
   return {
     version: 1,
     hand: model.hand,
-    knuckleLine: {
-      slope: model.knuckleLine.slope,
-      intercept: model.knuckleLine.intercept,
-    },
-    zLine: {
-      slope: model.zLine.slope,
-      intercept: model.zLine.intercept,
-    },
+    knuckleDistances: Object.fromEntries(
+      DEPTH_CALIBRATION_POSITIONS.map((position) => [
+        position,
+        model.samplesByPosition[position].knuckleDistance,
+      ]),
+    ) as PersistedDepthCalibration["knuckleDistances"],
+    knuckleBoundaryYs: Object.fromEntries(
+      DEPTH_CALIBRATION_POSITIONS.map((position) => [
+        position,
+        model.samplesByPosition[position].fingertipSheetYs[1],
+      ]),
+    ) as PersistedDepthCalibration["knuckleBoundaryYs"],
+    knuckleLines: Object.fromEntries(
+      DEPTH_FINGERS.map((finger) => [
+        finger,
+        {
+          slope: model.knuckleLines[finger].slope,
+          intercept: model.knuckleLines[finger].intercept,
+        },
+      ]),
+    ) as PersistedDepthCalibration["knuckleLines"],
+    zLines: Object.fromEntries(
+      DEPTH_FINGERS.map((finger) => [
+        finger,
+        {
+          slope: model.zLines[finger].slope,
+          intercept: model.zLines[finger].intercept,
+        },
+      ]),
+    ) as PersistedDepthCalibration["zLines"],
   };
+}
+
+function hasLine(value: unknown): value is DepthLineCoefficients {
+  if (!value || typeof value !== "object") return false;
+  const line = value as Record<string, unknown>;
+  return (
+    typeof line.slope === "number" &&
+    Number.isFinite(line.slope) &&
+    typeof line.intercept === "number" &&
+    Number.isFinite(line.intercept)
+  );
+}
+
+/** Parse saved calibration defensively so stale data cannot break live CV. */
+export function parsePersistedDepthCalibration(
+  raw: string | null,
+): PersistedDepthCalibration | null {
+  if (!raw) return null;
+
+  try {
+    const value: unknown = JSON.parse(raw);
+    if (!value || typeof value !== "object") return null;
+    const candidate = value as Record<string, unknown>;
+    if (candidate.version !== 1 || candidate.hand !== "Right") return null;
+    if (
+      !candidate.knuckleDistances ||
+      !candidate.knuckleBoundaryYs ||
+      !candidate.knuckleLines ||
+      !candidate.zLines
+    ) {
+      return null;
+    }
+
+    const knuckleDistances = candidate.knuckleDistances as Record<
+      string,
+      unknown
+    >;
+    const knuckleBoundaryYs = candidate.knuckleBoundaryYs as Record<
+      string,
+      unknown
+    >;
+    const knuckleLines = candidate.knuckleLines as Record<string, unknown>;
+    const zLines = candidate.zLines as Record<string, unknown>;
+    const hasAllKnuckleDistances = DEPTH_CALIBRATION_POSITIONS.every(
+      (position) =>
+        typeof knuckleDistances[position] === "number" &&
+        Number.isFinite(knuckleDistances[position]),
+    );
+    const hasAllKnuckleBoundaryYs = DEPTH_CALIBRATION_POSITIONS.every(
+      (position) =>
+        typeof knuckleBoundaryYs[position] === "number" &&
+        Number.isFinite(knuckleBoundaryYs[position]),
+    );
+    const hasAllLines = DEPTH_FINGERS.every(
+      (finger) => hasLine(knuckleLines[finger]) && hasLine(zLines[finger]),
+    );
+    if (
+      !hasAllKnuckleDistances ||
+      !hasAllKnuckleBoundaryYs ||
+      !hasAllLines
+    ) {
+      return null;
+    }
+
+    return value as PersistedDepthCalibration;
+  } catch {
+    return null;
+  }
 }

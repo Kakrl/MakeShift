@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
-import type { NormalizedLandmark } from "../../cv/collision";
+import type {
+  HandObservation,
+  NormalizedLandmark,
+} from "../../cv/collision";
 import {
   recordCameraFrame,
   recordHandInference,
@@ -17,7 +20,7 @@ export default function HandTrackingOverlay({
   onLandmarks,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
-  onLandmarks?: (hands: readonly (readonly NormalizedLandmark[])[]) => void;
+  onLandmarks?: (hands: readonly HandObservation[]) => void;
 }) {
   const [status, setStatus] = useState("Loading MediaPipe…");
   const [handCount, setHandCount] = useState(0);
@@ -77,7 +80,20 @@ export default function HandTrackingOverlay({
           );
         }
 
-        onLandmarks?.(result?.landmarks ?? []);
+        const hands: HandObservation[] = (result?.landmarks ?? []).map(
+          (landmarks, index) => {
+            const categoryName =
+              result?.handednesses[index]?.[0]?.categoryName;
+            return {
+              landmarks: landmarks as readonly NormalizedLandmark[],
+              handedness:
+                categoryName === "Right" || categoryName === "Left"
+                  ? categoryName
+                  : "Unknown",
+            };
+          },
+        );
+        onLandmarks?.(hands);
 
         if (result && result.landmarks.length !== lastHandCount) {
           lastHandCount = result.landmarks.length;

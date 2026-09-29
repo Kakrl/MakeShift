@@ -2,6 +2,11 @@ import type {
   ContactEvidence,
   ContactHeuristic,
 } from "./contactScore";
+import {
+  DEPTH_BOUNDARY_SIDE,
+  getKnuckleBoundaryY,
+  isBeyondDepthBoundary,
+} from "./depthCalibration";
 
 function booleanEvidence(
   id: ContactEvidence["id"],
@@ -19,11 +24,54 @@ function booleanEvidence(
 export const keyOverlapHeuristic: ContactHeuristic = (frame) =>
   booleanEvidence("key-overlap", frame.keyOverlap, 1);
 
-export const zBoundaryHeuristic: ContactHeuristic = (frame) =>
-  booleanEvidence("z-boundary", frame.zBoundaryCrossed, 1);
+export const zBoundaryHeuristic: ContactHeuristic = (frame) => {
+  if (frame.zBoundaryCrossed !== undefined) {
+    return booleanEvidence("z-boundary", frame.zBoundaryCrossed, 1);
+  }
+  if (
+    !frame.finger ||
+    frame.fingertipSheetY === undefined ||
+    frame.fingertipZ === undefined ||
+    !frame.depthCalibration
+  ) {
+    return booleanEvidence("z-boundary", undefined, 1);
+  }
 
-export const knuckleBoundaryHeuristic: ContactHeuristic = (frame) =>
-  booleanEvidence("knuckle-boundary", frame.knuckleBoundaryCrossed, 1);
+  return booleanEvidence(
+    "z-boundary",
+    isBeyondDepthBoundary(
+      frame.depthCalibration.zLines[frame.finger],
+      frame.fingertipZ,
+      frame.fingertipSheetY,
+      frame.depthBoundarySide ?? DEPTH_BOUNDARY_SIDE,
+    ),
+    1,
+  );
+};
+
+export const knuckleBoundaryHeuristic: ContactHeuristic = (frame) => {
+  if (frame.knuckleBoundaryCrossed !== undefined) {
+    return booleanEvidence("knuckle-boundary", frame.knuckleBoundaryCrossed, 1);
+  }
+  if (
+    !frame.finger ||
+    frame.fingertipSheetY === undefined ||
+    frame.knuckleDistance === undefined ||
+    !frame.depthCalibration
+  ) {
+    return booleanEvidence("knuckle-boundary", undefined, 1);
+  }
+
+  const boundaryY = getKnuckleBoundaryY(
+    frame.depthCalibration,
+    frame.knuckleDistance,
+  );
+  return booleanEvidence(
+    "knuckle-boundary",
+    boundaryY !== null && frame.fingertipSheetY >= boundaryY,
+    1,
+  );
+};
 
 export const fingerPostureHeuristic: ContactHeuristic = (frame) =>
   booleanEvidence("finger-posture", frame.fingerIsCurved, 0.5);

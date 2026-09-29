@@ -1,10 +1,21 @@
 import { CONTACT_HEURISTICS } from "./contactHeuristics";
+import type {
+  DepthBoundarySide,
+  DepthFinger,
+  PersistedDepthCalibration,
+} from "./depthCalibration";
 
 /** Inputs available to the modular contact heuristics for one fingertip. */
 export interface ContactFrame {
   keyOverlap: boolean;
   zBoundaryCrossed?: boolean;
   knuckleBoundaryCrossed?: boolean;
+  finger?: DepthFinger;
+  fingertipSheetY?: number;
+  fingertipZ?: number;
+  knuckleDistance?: number;
+  depthCalibration?: PersistedDepthCalibration;
+  depthBoundarySide?: DepthBoundarySide;
   fingerIsCurved?: boolean;
   motion?: "approaching" | "stationary" | "retracting" | "unknown";
   shadow?: "darkening" | "disappeared" | "stable" | "returning" | "unknown";

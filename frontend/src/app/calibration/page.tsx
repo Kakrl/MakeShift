@@ -19,6 +19,7 @@ import type { DepthCalibrationModel } from "../../cv/depthCalibration";
 import { MarkerDetector } from "../../cv/markerDetector";
 import { getWhiteKeyPolygons, PIANO_CORNERS } from "../../cv/keyboardGeometry";
 import { computeHomography, projectPoint } from "../../cv/homography";
+import type { Homography } from "../../cv/homography";
 import type { Point } from "../../cv/types";
 import {
   LIGHTING_MESSAGES,
@@ -110,6 +111,7 @@ export default function Calibration() {
   const [sheetGeometry, setSheetGeometry] = useState<{
     pianoCorners: Point[];
     whiteKeys: Point[][];
+    homography: Homography;
   } | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [paperError, setPaperError] = useState(false);
@@ -348,6 +350,12 @@ export default function Calibration() {
           return;
         }
         depthModelRef.current = model;
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(
+            DEPTH_CALIBRATION_STORAGE_KEY,
+            JSON.stringify(toPersistedDepthCalibration(model)),
+          );
+        }
         setStep5Success(true);
         setDepthCaptureMessage("Depth calibration captured successfully.");
       } else {
@@ -413,6 +421,7 @@ export default function Calibration() {
                   setSheetGeometry({
                     pianoCorners,
                     whiteKeys,
+                    homography,
                   });
                   sheetGeometryLockedRef.current = true;
                 }

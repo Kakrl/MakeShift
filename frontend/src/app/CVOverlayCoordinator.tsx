@@ -5,7 +5,12 @@ import { useCallback, useEffect, useState, type RefObject } from "react";
 import { audioNoteOff, audioNoteOn, releaseAllAudioNotes } from "./audio/audioEngine";
 import { keyIndexToMidi, midiToPitch } from "../cv/noteMap";
 import { getFingertips } from "../cv/collision";
-import type { Fingertip, NormalizedLandmark } from "../cv/collision";
+import type { Fingertip, HandObservation } from "../cv/collision";
+import {
+  DEPTH_CALIBRATION_STORAGE_KEY,
+  parsePersistedDepthCalibration,
+} from "../cv/depthCalibration";
+import type { PersistedDepthCalibration } from "../cv/depthCalibration";
 
 const MarkerTrackingOverlay = dynamic(
   () => import("./MarkerTrackingOverlay"),
@@ -31,14 +36,27 @@ export default function CVOverlayCoordinator({
   onReleaseAllNotes: () => void;
 }) {
   const [fingertips, setFingertips] = useState<Fingertip[]>([]);
+  const [hands, setHands] = useState<HandObservation[]>([]);
+  const [depthCalibration] = useState<PersistedDepthCalibration | null>(() =>
+    typeof window === "undefined"
+      ? null
+      : parsePersistedDepthCalibration(
+          window.localStorage.getItem(DEPTH_CALIBRATION_STORAGE_KEY),
+        ),
+  );
 
   const handleLandmarks = useCallback(
-    (hands: readonly (readonly NormalizedLandmark[])[]) => {
+    (observations: readonly HandObservation[]) => {
       const video = videoRef.current;
       if (!video) return;
 
+      setHands([...observations]);
       setFingertips(
-        getFingertips(hands, video.videoWidth, video.videoHeight),
+        getFingertips(
+          observations.map(({ landmarks }) => landmarks),
+          video.videoWidth,
+          video.videoHeight,
+        ),
       );
     },
     [videoRef],
@@ -46,7 +64,6 @@ export default function CVOverlayCoordinator({
 
   const handleKeyTransitions = useCallback(
     (pressed: readonly number[], released: readonly number[]) => {
-      console.log("handling key transitions");
       for (const keyIndex of released) {
         const midi = keyIndexToMidi(keyIndex);
         if (midi === null) continue;
@@ -79,6 +96,8 @@ export default function CVOverlayCoordinator({
       <MarkerTrackingOverlay
         videoRef={videoRef}
         fingertips={fingertips}
+        hands={hands}
+        depthCalibration={depthCalibration}
         onKeyTransitions={handleKeyTransitions}
         trackingEnabled={enabled}
       />
