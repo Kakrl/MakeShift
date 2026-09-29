@@ -65,8 +65,12 @@ the camera panel. Stop is available while audio initialization is pending.
 
 See the [inventory](../tests/verification_test_inventory.md#live-session-readiness-24)
 and [local execution](../tests/README.md#session-readiness-verification-issue-24).
-Unit and simulated page tests use mocked audio; physical calibration-loss and
-audio-interruption checks are [pending](../tests/manual/2026-09-28_2.1.6.md).
+Unit and simulated page tests use mocked audio. Carl Xu reported all manual
+session-readiness checks passing on 2026-09-28, including physical calibration
+loss and audio interruption/recovery; see the
+[manual report](../tests/manual/2026-09-28_2.1.6.md). Browser/device details and
+the exact tested commit were not supplied. Results are user-reported; independent
+review and quantitative latency/accuracy verification remain separate.
 
 `feature/24-session-gating` starts at #87 PR #136 commit
 `71d44b2e36801df91210f92260bdb9cc616cd668`. Only #24 changes belong in commits after

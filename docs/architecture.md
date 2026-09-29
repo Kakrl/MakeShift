@@ -32,7 +32,7 @@ flowchart TD
 
 | Area | Existing implementation | Planned delivery |
 | :--- | :--- | :--- |
-| UI/camera | Next.js/React camera and calibration UI | Validated calibration and [live readiness controller](live_session.md) (#87, #24); physical interruption checks pending |
+| UI/camera | Next.js/React camera and calibration UI | Validated calibration and [live readiness controller](live_session.md) (#87, #24); manual session-recovery checks passed (Carl Xu, user-reported 2026-09-28) |
 | CV | MediaPipe still-image helper, video overlay code, OpenCV.js marker/geometry modules | Worker pipeline and intentional contact detection (#37, #34); module presence does not establish UI integration |
 | Calibration | Versioned validated result, captured hover/rest inputs and live compatibility gates ([contract](calibration.md)) | Manual calibration checklist passed (user-reported 2026-09-28); contact inference (#34), expanded layouts (#36) |
 | Native audio | C++ PortAudio, nanobind, SPSC queue; ten 100 ms decaying sine hits at 44.1 kHz | Remains a native reference |

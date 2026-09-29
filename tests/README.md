@@ -481,6 +481,10 @@ Local Windows execution on 2026-09-28, Node 22.20.0, Vitest 4.1.11,
   warnings in the home page. All 18 contrast pairs and production build passed.
 - Vitest is not invoked by CI (D3); Actions evidence remains pending. These
   mocks establish neither device audibility nor physical latency/accuracy.
-- Physical calibration-loss and audio-interruption checks are explicitly
-  [not run](manual/2026-09-28_2.1.6.md). The prior #87 manual pass does not
-  establish #24's behavior. Required human review remains pending.
+- Carl Xu reported all manual session-readiness checks passing on 2026-09-28,
+  including calibration loss/recovery, audio suspension/reactivation, background
+  and navigation, camera loss, startup recovery, Stop/restart and Pause/resume.
+  See the [passing manual report](manual/2026-09-28_2.1.6.md). Results are
+  user-reported; browser/device details, exact tested commit and per-step
+  artifacts were not supplied. No quantitative latency/accuracy claim follows.
+  Required independent review remains pending.
