@@ -32,11 +32,11 @@ flowchart TD
 
 | Area | Existing implementation | Planned delivery |
 | :--- | :--- | :--- |
-| UI/camera | Next.js/React camera and calibration UI | Validated session lifecycle (#24, #87) |
+| UI/camera | Next.js/React camera and calibration UI | Validated calibration and [live readiness controller](live_session.md) (#87, #24); physical interruption checks pending |
 | CV | MediaPipe still-image helper, video overlay code, OpenCV.js marker/geometry modules | Worker pipeline and intentional contact detection (#37, #34); module presence does not establish UI integration |
 | Calibration | Versioned validated result, captured hover/rest inputs and live compatibility gates ([contract](calibration.md)) | Manual calibration checklist passed (user-reported 2026-09-28); contact inference (#34), expanded layouts (#36) |
 | Native audio | C++ PortAudio, nanobind, SPSC queue; ten 100 ms decaying sine hits at 44.1 kHz | Remains a native reference |
-| Browser audio | JavaScript AudioWorklet, ten held sine voices, press/session identities, velocity, sample-timed ADSR and Audio check page ([details](browser_audio.md)); native engine preserved | Shared event adapter (#86) implemented; ADSR (#27) implemented with user-reported listening pass; live readiness/wiring (#24, #28) |
+| Browser audio | JavaScript AudioWorklet, ten held sine voices, press/session identities, velocity, sample-timed ADSR and Audio check page ([details](browser_audio.md)); native engine preserved | Shared event adapter (#86) implemented; ADSR (#27) implemented with user-reported listening pass; readiness gate (#24) implemented; full intentional-contact integration (#28) pending |
 | MIDI | Instance-owned note-list recorder with pause/resume and on-demand midi-writer-js export (#108, #115); recorder/mocked export unit tests pass locally, browser verification pending | Complete lifecycle verification (#88), export verification (#107), persistence and playback |
 | Verification | Native audio/queue, MIDI, contrast, RCA suites; Python placeholder | Browser audio, labeled CV, physical latency and deployment tests (#39, #30, #89) |
 

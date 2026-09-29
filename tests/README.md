@@ -458,3 +458,29 @@ Windows, 2026-09-27, Node 22.20.0, Vitest 4.1.11, working tree based on
   Browser/device details and exact tested commit were not supplied. This is
   user-reported evidence, not independently observed or measured contact/latency
   verification.
+
+
+## Session readiness verification (issue #24)
+
+Local Windows execution on 2026-09-28, Node 22.20.0, Vitest 4.1.11,
+`feature/24-session-gating`, stacked on #87 commit `71d44b2`:
+
+- 196 tests passed across eight files. New `liveSession.test.ts` has 22 cases:
+  invalid/mismatched calibration, missing tracking, transition sequence, startup
+  cancellation, fresh identities, stale events, release on interruption,
+  watchdog expiry/delayed execution, independent detector freshness, audio
+  rejection, malformed events, retry, changed calibration and teardown.
+- `recordingControls.test.tsx` now has ten simulated page/coordinator/marker
+  cases. Existing pause/resume and calibration tests still pass through the
+  gate; new cases cover audio interruption/restart, initial pending-start Stop,
+  pagehide and repeated Play during initialization.
+- `browserAudioLifecycle.test.ts` now has twelve cases, adding the real
+  BrowserAudio owner with mocked context/worklet: startup reset, suspension,
+  reset command, explicit reactivation and obsolete-session rejection.
+- TypeScript passed. ESLint passed with five pre-existing unused-variable
+  warnings in the home page. All 18 contrast pairs and production build passed.
+- Vitest is not invoked by CI (D3); Actions evidence remains pending. These
+  mocks establish neither device audibility nor physical latency/accuracy.
+- Physical calibration-loss and audio-interruption checks are explicitly
+  [not run](manual/2026-09-28_2.1.6.md). The prior #87 manual pass does not
+  establish #24's behavior. Required human review remains pending.

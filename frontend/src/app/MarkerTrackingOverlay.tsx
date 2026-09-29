@@ -42,12 +42,14 @@ export default function MarkerTrackingOverlay({
   onKeyTransitions,
   trackingEnabled = false,
   onCalibrationValidity,
+  onCalibrationObservation,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   fingertips: readonly Fingertip[];
   onKeyTransitions?: (pressed: readonly number[], released: readonly number[]) => void;
   trackingEnabled?: boolean;
   onCalibrationValidity?: (valid: boolean) => void;
+  onCalibrationObservation?: (saved: unknown, camera: ReturnType<typeof cameraSignature>, corners: Point[] | null) => void;
 }) {
   const { stream, cameraReady } = useCamera();
   const calibrationValidRef = useRef<boolean | null>(null);
@@ -155,6 +157,7 @@ export default function MarkerTrackingOverlay({
     const camera = cameraReady ? cameraSignature(stream, videoRef.current) : null;
     const corners = camera && markerDetection ? markerCorners(markerDetection, camera) : null;
     const saved = loadCalibration();
+    onCalibrationObservation?.(saved, camera, corners);
     const valid = !!(camera && corners && saved && compatibleCalibration(saved, camera, corners));
     if (calibrationValidRef.current !== valid) onCalibrationValidity?.(valid);
     calibrationValidRef.current = valid;
@@ -207,7 +210,7 @@ export default function MarkerTrackingOverlay({
     homographyRef.current = homography;
     projectedPianoCornersRef.current = projectedPianoCorners;
     projectedWhiteKeysRef.current = projectedWhiteKeys;
-  }, [markerDetection, stream, cameraReady, videoRef, onCalibrationValidity, onKeyTransitions]);
+  }, [markerDetection, stream, cameraReady, videoRef, onCalibrationValidity, onCalibrationObservation, onKeyTransitions]);
 
   useEffect(() => {
     const overlay = overlayCanvasRef.current;

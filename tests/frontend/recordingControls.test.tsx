@@ -6,6 +6,7 @@ import type { Recording } from "../../frontend/src/app/midi/midiUtils";
 import type { NormalizedLandmark } from "../../frontend/src/cv/collision";
 
 const fixtures = vi.hoisted(() => ({
+  invalidate: null as null | (() => void),
   landmarks: null as null | ((hands: NormalizedLandmark[][]) => void),
   initializeAudio: vi.fn(async () => {}),
   takes: [] as Recording[],
@@ -17,7 +18,17 @@ vi.mock("../../frontend/src/app/CameraContext", () => ({
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("../../frontend/src/app/audio/audioEngine", () => ({
-  initializeAudio: fixtures.initializeAudio,
+  browserAudio: {
+    initialize: fixtures.initializeAudio,
+    status: "ready",
+    subscribeInvalidation: (listener: () => void) => {
+      fixtures.invalidate = listener;
+      return () => { fixtures.invalidate = null; };
+    },
+    noteOn: vi.fn(() => ({ session: 1, press: 1 })),
+    noteOff: vi.fn(() => true),
+    releaseAll: vi.fn(),
+  },
   audioNoteOn: vi.fn(),
   audioNoteOff: vi.fn(),
   releaseAllAudioNotes: vi.fn(),
@@ -87,15 +98,17 @@ let host: HTMLDivElement;
 let now: number;
 let animationFrame: FrameRequestCallback | undefined;
 let dom: JSDOM;
+let currentHands: NormalizedLandmark[][] = [];
 
 beforeEach(async () => {
-  dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost" });
+  dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost", pretendToBeVisual: true });
   for (const name of ["window", "self", "document", "localStorage", "HTMLCanvasElement", "HTMLVideoElement"]) {
     vi.stubGlobal(name, Reflect.get(dom.window, name));
   }
   vi.useFakeTimers();
   vi.clearAllMocks();
   now = 1000;
+  currentHands = [];
   fixtures.takes.length = 0;
   fixtures.camera.cameraReady = true;
   fixtures.initializeAudio.mockImplementation(async () => {});
@@ -133,7 +146,7 @@ beforeEach(async () => {
   const metronome = host.querySelector<HTMLButtonElement>('button[aria-label="Toggle metronome"]');
   if (!metronome) throw new Error("Metronome control missing");
   await click(metronome);
-  await frame();
+  await keys();
 });
 
 afterEach(async () => {
@@ -157,8 +170,14 @@ async function click(target: HTMLButtonElement) {
 }
 
 async function advance(ms: number) {
-  now += ms;
-  await act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+  for (let elapsed = 0; elapsed < ms; elapsed += 100) {
+    const step = Math.min(100, ms - elapsed);
+    now += step;
+    await act(async () => fixtures.landmarks?.(currentHands));
+    await frame();
+    await act(async () => { await vi.advanceTimersByTimeAsync(step); });
+  }
+  if (ms === 0) await act(async () => { await vi.advanceTimersByTimeAsync(0); });
 }
 
 async function countIn() {
@@ -172,7 +191,8 @@ async function frame() {
 async function keys(...xs: number[]) {
   const hand = Array.from({ length: 21 }, () => ({ x: -10, y: -10 }));
   for (let i = 0; i < xs.length; i++) hand[[4, 8, 12, 16, 20][i]] = { x: xs[i] / 1000, y: 0.5 };
-  await act(async () => fixtures.landmarks?.(xs.length ? [hand] : []));
+  currentHands = xs.length ? [hand] : [];
+  await act(async () => fixtures.landmarks?.(currentHands));
   await frame();
 }
 
@@ -285,4 +305,52 @@ it("rejects a legacy boolean and interrupts recording when persisted calibration
   expect(fixtures.takes).toHaveLength(1);
   await keys(250);
   expect(fixtures.takes).toHaveLength(1);
+});
+
+
+it("audio interruption closes the take and recovery needs another Play", async () => {
+  await start();
+  await keys(115);
+  await advance(100);
+  await act(async () => fixtures.invalidate?.());
+  expect(fixtures.takes).toHaveLength(1);
+  expect(host.textContent).toContain("Audio interrupted");
+  await keys(225);
+  expect(fixtures.takes[0].notes).toHaveLength(1);
+  await start();
+  await click(button("Stop recording"));
+});
+
+it("Stop cancels initial audio startup and offers a clean retry", async () => {
+  let resolve!: () => void;
+  fixtures.initializeAudio.mockImplementationOnce(() => new Promise<void>((done) => { resolve = done; }));
+  await click(button("Start recording"));
+  expect(button("Stop recording").disabled).toBe(false);
+  await click(button("Stop recording"));
+  await act(async () => resolve());
+  await countIn();
+  expect(fixtures.takes).toHaveLength(0);
+  await start();
+});
+
+it("backgrounding releases the session and closes the recording", async () => {
+  await start();
+  await keys(115);
+  await act(async () => window.dispatchEvent(new window.Event("pagehide")));
+  expect(fixtures.takes).toHaveLength(1);
+  expect(button("Start recording").disabled).toBe(true);
+  expect(host.textContent).toContain("background");
+});
+
+
+it("ignores repeated Play while audio is starting", async () => {
+  let resolve!: () => void;
+  fixtures.initializeAudio.mockImplementationOnce(() => new Promise<void>((done) => { resolve = done; }));
+  await click(button("Start recording"));
+  expect(button("Start recording").disabled).toBe(true);
+  await click(button("Start recording"));
+  await act(async () => resolve());
+  await countIn();
+  expect(button("Pause recording").disabled).toBe(false);
+  expect(fixtures.initializeAudio).toHaveBeenCalledTimes(1);
 });
