@@ -13,15 +13,15 @@ on:
 
 permissions: {}
 
-concurrency:
-  group: preview-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 jobs:
   deploy:
     name: Deploy preview
     if: github.event.label.name == 'preview-link'
     runs-on: ubuntu-latest
+    # Job-level so other label events (skipped jobs) never cancel a deploy.
+    concurrency:
+      group: preview-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     permissions:
       contents: read
       issues: write
@@ -55,10 +55,12 @@ jobs:
             exit 1
           fi
           npm install --global vercel@59.11.7
-          vercel deploy --cwd pr --yes --format json \
+          # --non-interactive fixes the JSON shape; agent sessions default to
+          # it, CI runners do not. Accept both shapes to be safe.
+          vercel deploy --cwd pr --yes --non-interactive --format json \
             --meta githubPr="$PR_NUMBER" --meta githubCommitSha="$HEAD_SHA" \
             > deploy.json
-          url=$(node -p "require('./deploy.json').deployment.url")
+          url=$(node -p "const d = require('./deploy.json'); (d.deployment || d).url || ''")
           case "$url" in
             https://*.vercel.app) echo "url=$url" >> "$GITHUB_OUTPUT" ;;
             *) echo "::error::Unexpected deployment URL"; exit 1 ;;
