@@ -23,16 +23,12 @@ export default function CVOverlayCoordinator({
   videoRef,
   session,
   enabled = false,
-  onNoteOn,
-  onNoteOff,
-  onReleaseAllNotes,
+  activePitches,
 }: {
   videoRef: RefObject<HTMLVideoElement | null>;
   enabled?: boolean;
   session: LiveSession;
-  onNoteOn: (pitch: string, velocity: number) => void;
-  onNoteOff: (pitch: string) => void;
-  onReleaseAllNotes: () => void;
+  activePitches: ReadonlySet<number>;
 }) {
   const id = session.sessionId;
   const producer = useMemo(() => id ? createKeyEventProducer(session, id) : null, [session, id]);

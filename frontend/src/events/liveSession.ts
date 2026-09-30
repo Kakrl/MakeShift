@@ -8,7 +8,7 @@ import {
 import type { Point } from "../cv/types";
 import type { BrowserAudio } from "../app/audio/audioEngine";
 import { createAudioSink } from "./audioSession";
-import { NoteSession, type DispatchResult } from "./noteSession";
+import { NoteSession, type DispatchResult, type Delivery } from "./noteSession";
 
 export type LiveState =
   | "stopped"

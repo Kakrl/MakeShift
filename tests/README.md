@@ -611,3 +611,15 @@ changes based on `0fecdb5` (Node 22, Vitest 4.1.11):
   removed unused pitch-based audio wrappers, which had no production callers.
 - Two-second marker jitter slack is provisional. Hardware timing, physical
   camera/audio behavior and GitHub Actions execution remain unverified.
+
+## PR 139 frontend CI merge repair
+
+On 2026-09-30, restored the coordinator's accepted-event `activePitches`
+prop and the missing `Delivery` type import on the PR branch based on
+`e0a4a95`. Merge conflict resolution had retained obsolete note callback props
+and removed an import still used by the MIDI observer subscription.
+
+Local Windows verification: lint passed with four existing unused-variable
+warnings in page.tsx; TypeScript passed; all 228 Vitest tests in nine files
+passed; all 18 contrast pairs passed; production build passed.
+No test cases changed. GitHub Actions execution for this repair is pending.
