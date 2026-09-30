@@ -26,7 +26,6 @@ export default function CVOverlayCoordinator({
   onNoteOn,
   onNoteOff,
   onReleaseAllNotes,
-  onCalibrationValidity,
 }: {
   videoRef: RefObject<HTMLVideoElement | null>;
   enabled?: boolean;
@@ -34,7 +33,6 @@ export default function CVOverlayCoordinator({
   onNoteOn: (pitch: string, velocity: number) => void;
   onNoteOff: (pitch: string) => void;
   onReleaseAllNotes: () => void;
-  onCalibrationValidity?: (valid: boolean) => void;
 }) {
   const producer = useRef({ id: "", press: 0, keys: new Map<number, number>() });
   const [fingertips, setFingertips] = useState<Fingertip[]>([]);
@@ -79,7 +77,7 @@ export default function CVOverlayCoordinator({
     [enabled, onNoteOn, onNoteOff, session],
   );
   const observeCalibration = useCallback((saved: unknown, camera: CameraSignature | null, corners: Point[] | null) => {
-    session.observeCalibration(saved, camera, corners);
+    return session.observeCalibration(saved, camera, corners);
   }, [session]);
   const trackingFailed = useCallback(() => session.trackingFailed(), [session]);
   useEffect(() => {
@@ -93,7 +91,6 @@ export default function CVOverlayCoordinator({
         fingertips={fingertips}
         onKeyTransitions={handleKeyTransitions}
         trackingEnabled={enabled}
-        onCalibrationValidity={onCalibrationValidity}
         onCalibrationObservation={observeCalibration}
       />
       <HandTrackingOverlay

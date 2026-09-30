@@ -285,3 +285,21 @@ it("fresh hand tracking allows ten-second marker cadence but cannot hide marker 
   expect(gate.status.canStart).toBe(true);
   expect(gate.noteOn(id, 2, 64, 0.8)).toBe("stale");
 });
+
+it("accepts marker detector jitter beyond the old 500 ms slack with fresh hands", async () => {
+  const id = await play();
+  expect(gate.noteOn(id, 1, 60, 0.8)).toBe("accepted");
+  for (let elapsed = 100; elapsed <= 11_000; elapsed += 100) {
+    now += 100;
+    vi.advanceTimersByTime(100);
+    gate.observeTracking();
+  }
+  const saved = calibration();
+  expect(gate.observeCalibration(saved, saved.camera, saved.corners)).toBe(true);
+  expect(gate.status.state).toBe("playing");
+  expect(gate.sessionId).toBe(id);
+  expect(audio.releaseAll).not.toHaveBeenCalled();
+  expect(gate.observeCalibration(null, saved.camera, saved.corners)).toBe(false);
+  expect(gate.status.canStart).toBe(false);
+  expect(audio.releaseAll).toHaveBeenCalledTimes(1);
+});

@@ -537,3 +537,22 @@ following merge of main at 4dc41ab (PR #136) into feature/24-session-gating.
 - The earlier manual pass predates these changes. Physical/manual verification
   of this merged behavior and Actions execution remain pending. Vitest remains
   outside frontend CI (D3); no FPS, detection accuracy or physical latency claim.
+
+## PR #138 follow-up review verification
+
+Local Windows execution on 2026-09-30, `feature/24-session-gating`, working
+changes based on `0fecdb5` (Node 22, Vitest 4.1.11):
+
+- All 205 Vitest tests passed across eight files, including 26 live-session
+  cases and 15 simulated page/coordinator/marker integration cases.
+- The new case preserves a playing session across an 11-second marker gap
+  with fresh hand tracking, then verifies invalid calibration releases notes.
+  Existing cases verify marker expiry, stale hands and token-paired releases.
+- TypeScript and production build passed. Lint passed with five existing
+  unused-variable warnings. All 18 contrast pairs passed.
+- Readiness now comes from the session; marker geometry uses its returned
+  compatibility decision. Both audio adapters share one press-token sink.
+- Low-severity review cleanup: repaired UTF-8 mojibake in the inventory and
+  removed unused pitch-based audio wrappers, which had no production callers.
+- Two-second marker jitter slack is provisional. Hardware timing, physical
+  camera/audio behavior and GitHub Actions execution remain unverified.
