@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCamera } from "./CameraContext";
-import CameraStatusOverlay from "./CameraStatusOverlay";
 import SideNav from "./SideNav";
 import {
   createRecorder,
@@ -94,9 +93,6 @@ export default function Home() {
   // ── Welcome modal (first visit only) ────────────────────────────────────
   const [showWelcome, setShowWelcome] = useState(false);
 
-  // ── Auth / calibration ───────────────────────────────────────────────────
-  const [isCalibrated, setIsCalibrated] = useState(false);
-
   // ── Recording state machine ──────────────────────────────────────────────
   //   countInBeat      → 1 … beatsPerMeasure (one measure count-in), then recording
   //   isRecording      → actively recording (or paused)
@@ -113,7 +109,7 @@ export default function Home() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { stream, cameraReady } = useCamera();
+  const { stream } = useCamera();
 
   useEffect(() => {
     if (stream && videoRef.current) videoRef.current.srcObject = stream;
@@ -185,10 +181,7 @@ export default function Home() {
   }, [countInBeat]);
 
   // Playing and recording share readiness, but have independent lifetimes.
-  const canPlay = isCalibrated && cameraReady && liveStatus.canStart;
-  const handleCalibrationValidity = useCallback((valid: boolean) => {
-    setIsCalibrated(valid);
-  }, []);
+  const canPlay = liveStatus.canStart;
 
   // ── Recording controls ───────────────────────────────────────────────────
   useEffect(() => {
@@ -307,7 +300,6 @@ export default function Home() {
           />
           <CVOverlayCoordinator
             session={session}
-            onCalibrationValidity={handleCalibrationValidity}
             videoRef={videoRef}
             enabled={canPlay && liveStatus.state === "playing"}
             activePitches={activePitches}

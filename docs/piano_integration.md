@@ -35,7 +35,8 @@ adopt a restarted session. Invalid velocity fails closed through the contract.
 `connectPianoConsumers` subscribes to accepted history on a deferred task:
 
 - MIDI records the event observation timestamp, not observer delivery time.
-  Normalized velocity is multiplied by 100 for midi-writer-js. Session/press
+  Normalized velocity is multiplied by 100, rounded to an integer and
+  bounded below by 1 for midi-writer-js, including held-note capture. Session/press
   identity pairs keep simultaneous instances of the same pitch independent.
 - Feedback derives active pitches from those same press identities. Releasing
   one of two same-pitch presses keeps that pitch highlighted.

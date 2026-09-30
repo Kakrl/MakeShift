@@ -213,22 +213,3 @@ export class BrowserAudio {
 }
 
 export const browserAudio = new BrowserAudio();
-const pitches = new Map<number, { session: number; press: number }>();
-export async function initializeAudio() {
-  if (browserAudio.status !== "ready") pitches.clear();
-  await browserAudio.initialize();
-}
-export function audioNoteOn(note: number, velocity = 0.8) {
-  if (pitches.has(note)) return;
-  const token = browserAudio.noteOn(note, velocity);
-  if (token) pitches.set(note, token);
-}
-export function audioNoteOff(note: number) {
-  const token = pitches.get(note);
-  if (token) browserAudio.noteOff(token);
-  pitches.delete(note);
-}
-export function releaseAllAudioNotes() {
-  pitches.clear();
-  browserAudio.releaseAll();
-}
