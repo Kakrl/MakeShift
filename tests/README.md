@@ -224,7 +224,19 @@ Frontend type checking and production build, Ruff, and mypy passed locally.
 ESLint passed with the two existing application warnings. clang-format 17 was
 not available locally; the C++ files were moved without content changes.
 The frontend CI path filters now include `tests/frontend/**`; Vitest remains a
-local suite pending the separate CI integration work tracked as D3.
+local suite pending the separate CI integration work tracked as D3 (since
+fixed by #152).
+
+## Vitest CI verification (issue #152)
+
+Local macOS execution on 2026-09-30, Node 26.8.1 and Vitest 4.1.11, branch
+`fix/152-vitest-in-frontend-ci` from upstream `main`.
+
+- `.github/workflows/frontend-ci.yml` adds a `Unit tests` step
+  (`npx vitest run`) after type checking, so a failing Vitest case fails the job.
+- Frontend-configured `npx vitest run`: **174 tests passed across seven files**.
+- CI runs Node 20; the Actions job log for this PR is the execution evidence
+  and remains pending until it is linked in the inventory.
 
 ## Documentation Expectations by Severity
 
@@ -300,7 +312,7 @@ defect report is filed.
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | D1 | High | CV / UI | (Req 1.1, 3.2) The ArUco marker and virtual keyboard overlay from PR #63 never renders. `MarkerTrackingOverlay` is imported in `page.tsx` but no JSX uses it. The `<MarkerTrackingOverlay videoRef={videoRef} />` element was dropped while resolving conflicts in merge `1669079` ("Merge branch 'main' into feature/visual-keyboard"). ESLint flags it as an unused variable, but warnings don't fail CI | `frontend/src/app/page.tsx:10` | | Open |
 | D2 | High | MIDI / UI | (Req 4.1, 4.2) Recording and export are UI-only. The home page recording state machine never calls `startRecording`, `noteOn`, `noteOff`, `stopRecording`, or `downloadMidi`, and the Export button only closes the dialog, so no MIDI file is produced | `frontend/src/app/page.tsx:150-190`, `:551-556` | | Open |
-| D3 | Medium | CI | The Vitest suite (4.1.3-4.1.7, 4.2.3) is not run in CI. `frontend-ci.yml` runs lint, type check, contrast, and build, but not `vitest run`, so MIDI regressions merge undetected | `.github/workflows/frontend-ci.yml` | | Open |
+| D3 | Medium | CI | The Vitest suite (4.1.3-4.1.7, 4.2.3) is not run in CI. `frontend-ci.yml` runs lint, type check, contrast, and build, but not `vitest run`, so MIDI regressions merge undetected | `.github/workflows/frontend-ci.yml` | [#152](https://github.com/Kakrl/MakeShift/issues/152) | Fixed; Actions run evidence pending |
 | D4 | Medium | CI | The C++ test path filter `'CMakeLists.txt'` only matches a root-level file. A PR that only changes `backend/CMakeLists.txt` skips the C++ build and tests. It should be `'**/CMakeLists.txt'` | `.github/workflows/testing.yml:29` | | Open |
 | D5 | Medium | Tests | `AudioEngineTest.StreamStartsAndStops` and `MultipleStartStopCycles` `return` early when there is no audio device, so on CI they report PASS without testing anything. Use `GTEST_SKIP()` so the skip shows in results | `tests/audio/test_audio.cpp:24-27`, `:35-38` | | Open |
 | D6 | Medium | Calibration | Versioned geometry/camera/layout and hover/rest inputs replace the boolean; live compatibility gates reuse. Manual calibration checklist passed (Carl Xu, user-reported 2026-09-28). | `frontend/src/cv/calibration.ts`, `frontend/src/app/calibration/page.tsx` | [#87](https://github.com/Kakrl/MakeShift/issues/87) | Manual verification passed (user-reported); review/merge pending |

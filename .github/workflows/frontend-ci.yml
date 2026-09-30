@@ -39,6 +39,9 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
+      - name: Unit tests
+        run: npx vitest run
+
       - name: Check WCAG color contrast
         run: npm run test:contrast
 
