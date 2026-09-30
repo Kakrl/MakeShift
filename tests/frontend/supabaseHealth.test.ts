@@ -18,8 +18,10 @@ describe("checkRecordingsTable", () => {
   it("sends a row-free HEAD request with the secret key", async () => {
     const fetchImpl = vi.fn(async () => new Response(null, { status: 200 }));
     const times = [10, 42];
-    const result = await checkRecordingsTable(env, fetchImpl, () =>
-      times.shift()!,
+    const result = await checkRecordingsTable(
+      env,
+      fetchImpl,
+      () => times.shift()!,
     );
     expect(result).toEqual({ status: "ok", latencyMs: 32 });
     const [url, init] = fetchImpl.mock.calls[0] as unknown as [

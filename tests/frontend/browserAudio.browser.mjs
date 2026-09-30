@@ -92,7 +92,14 @@ const { chromium } = requireFromFrontend("playwright");
     assert((await readRms()) > 0.005);
     await page.getByRole("link", { name: "MakeShift", exact: true }).click();
     await page.waitForURL(base + "/");
-    assert.equal(await page.evaluate(() => window.testContext.state), "closed");
+    // AudioContext.close() resolves asynchronously after navigation.
+    await page.waitForFunction(
+      () => window.testContext.state === "closed",
+      null,
+      {
+        timeout: 5000,
+      },
+    );
     assert.deepEqual(errors, []);
     console.log(
       JSON.stringify(

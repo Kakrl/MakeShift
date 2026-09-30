@@ -14,9 +14,8 @@ const requireFromFrontend = createRequire(
 );
 const { chromium } = requireFromFrontend("playwright");
 // The runtime WASM must match the exactly pinned npm wrapper version.
-const tasksVisionVersion = requireFromFrontend("./package.json").dependencies[
-  "@mediapipe/tasks-vision"
-];
+const tasksVisionVersion =
+  requireFromFrontend("./package.json").dependencies["@mediapipe/tasks-vision"];
 
 const base = (process.env.MAKE_SHIFT_URL || "http://127.0.0.1:3000").replace(
   /\/+$/,
