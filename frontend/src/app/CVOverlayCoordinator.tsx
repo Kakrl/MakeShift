@@ -23,12 +23,14 @@ export default function CVOverlayCoordinator({
   onNoteOn,
   onNoteOff,
   onReleaseAllNotes,
+  onCalibrationValidity,
 }: {
   videoRef: RefObject<HTMLVideoElement | null>;
   enabled?: boolean;
   onNoteOn: (pitch: string, velocity: number) => void;
   onNoteOff: (pitch: string) => void;
   onReleaseAllNotes: () => void;
+  onCalibrationValidity?: (valid: boolean) => void;
 }) {
   const [fingertips, setFingertips] = useState<Fingertip[]>([]);
 
@@ -46,7 +48,6 @@ export default function CVOverlayCoordinator({
 
   const handleKeyTransitions = useCallback(
     (pressed: readonly number[], released: readonly number[]) => {
-      console.log("handling key transitions");
       for (const keyIndex of released) {
         const midi = keyIndexToMidi(keyIndex);
         if (midi === null) continue;
@@ -81,6 +82,7 @@ export default function CVOverlayCoordinator({
         fingertips={fingertips}
         onKeyTransitions={handleKeyTransitions}
         trackingEnabled={enabled}
+        onCalibrationValidity={onCalibrationValidity}
       />
       <HandTrackingOverlay
         videoRef={videoRef}
