@@ -825,3 +825,23 @@ passed. Lint passed with four existing Home warnings. The production browser
 regression passed in Edge 154.0.4258.37: two downloads with exact MIDI bytes,
 dialog closure and no page errors. It uses a seeded take, not physical capture.
 No tests changed. GitHub Actions execution for this reconciliation is pending.
+
+## PR 150 reconciliation with updated PR 141
+
+On 2026-09-30, merged PR #141 head `1642bdf` (including PR #139 head
+`277491a`) into PR #150 at merge commit `a4de88b`. Preserved both verification
+records in the README conflict. Current main `46ed0c7` is already an ancestor.
+Merge #139, then #141, then #150; the branch includes these dependency heads.
+This supersedes the original dependency transplant instructions.
+
+Local Windows verification: all 243 Vitest cases in eleven files passed;
+TypeScript, 18 contrast pairs, production build and whitespace checks passed.
+Lint passed with four existing Home warnings. Edge 154.0.4258.37 production
+regressions passed: two exact-byte MIDI downloads with dialog closure, profile
+JSON export, three audio/CV navigation cycles with closed AudioContexts, and
+paired diagnostics off/on trials. No page errors occurred. Final ownership
+counts were one shared camera track, zero audio contexts/nodes/hand models/marker
+detectors; worker count remained unavailable. Reports are generated under
+frontend/test-results/performance/. The synthetic camera and seeded MIDI take
+do not verify physical recording, contact accuracy or press-to-sound latency.
+No test cases changed. GitHub Actions execution for this reconciliation is pending.
