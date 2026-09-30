@@ -304,7 +304,7 @@ defect report is filed.
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | D1 | High | CV / UI | (Req 1.1, 3.2) The ArUco marker and virtual keyboard overlay from PR #63 never renders. `MarkerTrackingOverlay` is imported in `page.tsx` but no JSX uses it. The `<MarkerTrackingOverlay videoRef={videoRef} />` element was dropped while resolving conflicts in merge `1669079` ("Merge branch 'main' into feature/visual-keyboard"). ESLint flags it as an unused variable, but warnings don't fail CI | `frontend/src/app/page.tsx:10` | | Open |
 | D2 | High | MIDI / UI | (Req 4.1, 4.2) Recording and export are UI-only. The home page recording state machine never calls `startRecording`, `noteOn`, `noteOff`, `stopRecording`, or `downloadMidi`, and the Export button only closes the dialog, so no MIDI file is produced | `frontend/src/app/page.tsx:150-190`, `:551-556` | | Open |
-| D3 | Medium | CI | The Vitest suite (4.1.3-4.1.7, 4.2.3) is not run in CI. `frontend-ci.yml` runs lint, type check, contrast, and build, but not `vitest run`, so MIDI regressions merge undetected | `.github/workflows/frontend-ci.yml` | [#152](https://github.com/Kakrl/MakeShift/issues/152) | Fixed on `feature/116-89-supabase-vercel` (#89): Vitest step added; Actions evidence pending |
+| D3 | Medium | CI | The Vitest suite (4.1.3-4.1.7, 4.2.3) is not run in CI. `frontend-ci.yml` runs lint, type check, contrast, and build, but not `vitest run`, so MIDI regressions merge undetected | `.github/workflows/frontend-ci.yml` | [#152](https://github.com/Kakrl/MakeShift/issues/152) | Fixed in PR #153: Vitest step added; [Actions job log](https://github.com/Kakrl/MakeShift/actions/runs/36735042554/job/109954414324) ran 178 tests; merge pending |
 | D4 | Medium | CI | The C++ test path filter `'CMakeLists.txt'` only matches a root-level file. A PR that only changes `backend/CMakeLists.txt` skips the C++ build and tests. It should be `'**/CMakeLists.txt'` | `.github/workflows/testing.yml:29` | | Open |
 | D5 | Medium | Tests | `AudioEngineTest.StreamStartsAndStops` and `MultipleStartStopCycles` `return` early when there is no audio device, so on CI they report PASS without testing anything. Use `GTEST_SKIP()` so the skip shows in results | `tests/audio/test_audio.cpp:24-27`, `:35-38` | | Open |
 | D6 | Medium | Calibration | Versioned geometry/camera/layout and hover/rest inputs replace the boolean; live compatibility gates reuse. Manual calibration checklist passed (Carl Xu, user-reported 2026-09-28). | `frontend/src/cv/calibration.ts`, `frontend/src/app/calibration/page.tsx` | [#87](https://github.com/Kakrl/MakeShift/issues/87) | Manual verification passed (user-reported); review/merge pending |
@@ -508,4 +508,8 @@ Local macOS execution on 2026-09-30, Node 26.8.1, Playwright Chromium
   `200 {"status":"ok"}` using secrets synced from Infisical.
 - Not covered: real cameras, audible output, Firefox/Safari, backgrounding,
   and the home-page camera overlay (#112). These stay manual or pending.
-  Actions evidence is pending until the PR runs frontend CI.
+- GitHub Actions (ubuntu-latest, Node 20, Chromium): [frontend job](https://github.com/Kakrl/MakeShift/actions/runs/36735042554/job/109954414324)
+  passed Vitest, the deployment smoke test (without database secrets:
+  `unconfigured`) and the browser audio smoke test on PR #153. The first run
+  exposed a race in the audio test's navigation-cleanup check, fixed by
+  waiting for the context to close.
