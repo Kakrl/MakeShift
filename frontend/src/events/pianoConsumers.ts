@@ -8,7 +8,7 @@ export function connectPianoConsumers(
   recorder: Recorder,
   feedback: (pitches: ReadonlySet<number>) => void,
 ) {
-  const active = new Map<string, number>();
+  const active = new Map<string, { pitch: number; velocity: number }>();
   const unsubscribe = session.subscribeNotes(({ event }) => {
     if (event.type === "release-all") {
       active.clear();
@@ -17,14 +17,21 @@ export function connectPianoConsumers(
       const identity = `${event.sessionId}:${event.pressId}`;
       const pitch = midiToPitch(event.pitch);
       if (event.type === "note-on") {
-        active.set(identity, event.pitch);
+        active.set(identity, { pitch: event.pitch, velocity: event.velocity });
         recorder.noteOn(pitch, event.velocity * 100, event.timestampMs, identity);
       } else {
         active.delete(identity);
         recorder.noteOff(pitch, event.timestampMs, identity);
       }
     }
-    feedback(new Set(active.values()));
+    feedback(new Set([...active.values()].map(note => note.pitch)));
   });
-  return unsubscribe;
+  return Object.assign(unsubscribe, {
+    /** Call after draining history and opening/resuming the recording boundary. */
+    captureHeld(timestampMs = performance.now()) {
+      for (const [identity, note] of active) {
+        recorder.noteOn(midiToPitch(note.pitch), note.velocity * 100, timestampMs, identity);
+      }
+    },
+  });
 }

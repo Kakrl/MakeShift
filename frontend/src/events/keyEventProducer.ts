@@ -6,7 +6,6 @@ export type KeyPress = Readonly<{ keyIndex: number; velocity: number }>;
 /** One producer belongs to one session; delayed callbacks cannot adopt a new ID.
  * Contact classification belongs upstream (#34/#29), not in pitch mapping. */
 export function createKeyEventProducer(session: LiveSession, sessionId: string) {
-  let sequence = 0;
   let press = 0;
   const keys = new Map<number, number>();
   return (pressed: readonly KeyPress[], released: readonly number[], timestampMs: number) => {
@@ -15,8 +14,7 @@ export function createKeyEventProducer(session: LiveSession, sessionId: string) 
       const pitch = keyIndexToMidi(keyIndex);
       const pressId = keys.get(keyIndex);
       if (pitch === null || pressId === undefined) continue;
-      const result = session.receive({ version: 1, sessionId, sequence: ++sequence,
-        timestampMs, type: "note-off", pressId, pitch });
+      const result = session.noteOff(sessionId, pressId, pitch, timestampMs);
       if (result !== "accepted") return;
       keys.delete(keyIndex);
     }
@@ -24,8 +22,7 @@ export function createKeyEventProducer(session: LiveSession, sessionId: string) 
       const pitch = keyIndexToMidi(keyIndex);
       if (pitch === null || keys.has(keyIndex)) continue;
       const pressId = ++press;
-      const result = session.receive({ version: 1, sessionId, sequence: ++sequence,
-        timestampMs, type: "note-on", pressId, pitch, velocity });
+      const result = session.noteOn(sessionId, pressId, pitch, velocity, timestampMs);
       if (result !== "accepted") return;
       keys.set(keyIndex, pressId);
     }
