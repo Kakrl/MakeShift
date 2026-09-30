@@ -13,6 +13,7 @@ export type CameraErrorKind =
   | "permission-denied"
   | "no-device"
   | "device-in-use"
+  | "disconnected"
   | "unsupported"
   | "unknown";
 
@@ -121,6 +122,14 @@ function describeError(err: unknown): CameraError {
   }
 }
 
+/** Shown when a live track ends: unplugged device or permission revoked. */
+const DISCONNECTED_ERROR: CameraError = {
+  kind: "disconnected",
+  title: "Camera disconnected",
+  detail:
+    "The camera stopped sending video. Reconnect it or re-allow access, then try again.",
+};
+
 export function CameraProvider({ children }: { children: React.ReactNode }) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [status, setStatus] = useState<CameraStatus>("requesting");
@@ -146,6 +155,14 @@ export function CameraProvider({ children }: { children: React.ReactNode }) {
           s.getTracks().forEach((t) => t.stop());
           return;
         }
+        s.getVideoTracks().forEach((track) =>
+          track.addEventListener("ended", () => {
+            if (cancelled) return;
+            setStream(null);
+            setError(DISCONNECTED_ERROR);
+            setStatus("error");
+          }),
+        );
         setStream(s);
         setStatus("ready");
       })

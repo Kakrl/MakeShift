@@ -39,6 +39,9 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
+      - name: Unit tests (Vitest)
+        run: npx vitest run
+
       - name: Check WCAG color contrast
         run: npm run test:contrast
 
@@ -51,3 +54,24 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start production server
+        run: |
+          npm start -- -p 3000 > next-start.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://127.0.0.1:3000/ && exit 0
+            sleep 1
+          done
+          cat next-start.log
+          exit 1
+
+      - name: Deployment smoke test
+        run: npm run test:deployment
+
+      - name: Browser audio smoke test
+        env:
+          AUDIO_BROWSER_CHANNEL: chromium
+        run: npm run test:audio-browser
