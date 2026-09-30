@@ -77,6 +77,7 @@ MakeShift/
 │   │   │   ├── shadowHeuristics.ts   # prototype RGB k-means dark-region segmentation
 │   │   │   └── shadowWorker.ts       # bounded background shadow segmentation
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
+│   │   ├── lib/                     # shared browser utilities (versioned storage)
 │   │   ├── server/                  # server-only Supabase access
 │   │   └── shims/                   # empty fs shim and type-only MIDI declaration bridge
 │   ├── package.json
@@ -112,6 +113,7 @@ MakeShift/
 │   │   ├── midiExport.browser.mjs  # production Export UI and downloaded MIDI bytes
 │   │   ├── cameraLayout.browser.mjs # home camera feed 16:9 across viewports
 │   │   ├── midiUtils.test.ts
+│   │   ├── storage.test.ts           # versioned localStorage module
 │   │   └── check-contrast.mjs
 │   ├── python/
 │   │   └── test_dummy.py
