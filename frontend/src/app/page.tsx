@@ -12,7 +12,8 @@ import {
   type Recorder,
   type Recording,
 } from "./midi/midiUtils";
-import { initializeAudio } from "./audio/audioEngine";
+import { browserAudio } from "./audio/audioEngine";
+import { LiveSession } from "../events/liveSession";
 
 const CVOverlayCoordinator = dynamic(
   () => import("./CVOverlayCoordinator"),
@@ -57,13 +58,14 @@ function StopIcon() {
 
 export default function Home() {
   const router = useRouter();
+  const [session] = useState(() => new LiveSession(browserAudio));
+  const [liveStatus, setLiveStatus] = useState(session.status);
   const recorderRef = useRef<Recorder | null>(null);
   if (recorderRef.current === null) {
     recorderRef.current = createRecorder();
   }
   const recorder = recorderRef.current;
   const heldNotesRef = useRef(new Map<string, number>());
-  const [audioReady, setAudioReady] = useState(false);
   const handleNoteOn = useCallback((pitch: string, velocity: number) => {
     heldNotesRef.current.set(pitch, velocity);
     recorder.noteOn(pitch, velocity);
@@ -101,9 +103,6 @@ export default function Home() {
   // ── Welcome modal (first visit only) ────────────────────────────────────
   const [showWelcome, setShowWelcome] = useState(false);
 
-  // ── Auth / calibration ───────────────────────────────────────────────────
-  const [isCalibrated, setIsCalibrated] = useState(false);
-
   // ── Recording state machine ──────────────────────────────────────────────
   //   countInBeat      → 1 … beatsPerMeasure (one measure count-in), then recording
   //   isRecording      → actively recording (or paused)
@@ -120,7 +119,7 @@ export default function Home() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { stream, cameraReady } = useCamera();
+  const { stream } = useCamera();
 
   useEffect(() => {
     if (stream && videoRef.current) videoRef.current.srcObject = stream;
@@ -166,6 +165,10 @@ export default function Home() {
       if (countInActionRef.current === null) return;
       if (countInBeat >= beatsPerMeasure) {
         // Measure complete — start recording
+        if (session.status.state !== "playing") {
+          session.interrupt("Readiness changed during count-in. Wait for tracking, then select Enable audio.");
+          return;
+        }
         setCountInBeat(null);
         setIsRecording(true);
         setIsPaused(false);
@@ -188,38 +191,51 @@ export default function Home() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countInBeat]);
 
-  // Playing and recording both require compatible calibration and a live camera.
-  const canPlay = isCalibrated && cameraReady;
-  const handleCalibrationValidity = useCallback((valid: boolean) => {
-    setIsCalibrated(valid);
-    if (!valid) {
-      playRequestRef.current++;
-      countInActionRef.current = null;
-      setCountInBeat(null);
-      const take = recorder.stopRecording();
-      if (take) setCompletedRecording(take);
-      setIsRecording(false);
-      setIsPaused(false);
-    }
-  }, [recorder]);
+  // Playing and recording share readiness, but have independent lifetimes.
+  const canPlay = liveStatus.canStart;
 
   // ── Recording controls ───────────────────────────────────────────────────
-  const [audioError, setAudioError] = useState("");
+  useEffect(() => {
+    const detach = session.attach();
+    let previousState = session.status.state;
+    const unsubscribe = session.subscribe(() => {
+      const status = session.status;
+      setLiveStatus(status);
+      const changed = previousState !== status.state;
+      previousState = status.state;
+      if (changed && (status.state === "interrupted" || status.state === "error")) {
+        heldNotesRef.current.clear();
+        playRequestRef.current++;
+        countInActionRef.current = null;
+        setCountInBeat(null);
+        const take = recorder.stopRecording();
+        if (take) setCompletedRecording(take);
+        setIsRecording(false);
+        setIsPaused(false);
+      }
+    });
+    const visibility = () => session.setHidden(document.hidden);
+    const leave = () => session.setHidden(true);
+    document.addEventListener("visibilitychange", visibility);
+    window.addEventListener("pagehide", leave);
+    visibility();
+    return () => {
+      unsubscribe();
+      detach();
+      recorder.stopRecording();
+      void audioCtxRef.current?.close();
+      document.removeEventListener("visibilitychange", visibility);
+      window.removeEventListener("pagehide", leave);
+    };
+  }, [session, recorder]);
   const enableAudio = async () => {
-    if (!canPlay) return;
-    const request = ++playRequestRef.current;
-    try {
-      await initializeAudio();
-      if (request !== playRequestRef.current) return;
-      setAudioReady(true);
-      setAudioError("");
-    } catch (error) {
-      if (request !== playRequestRef.current) return;
-      setAudioError(error instanceof Error ? error.message : "Audio unavailable.");
-    }
+    if (!canPlay) return false;
+    if (session.status.state === "playing") return true;
+    if (!await session.prepare()) return false;
+    return session.play() !== null;
   };
   const handlePlay = async () => {
-    if (countInBeat !== null) return;
+    if (countInBeat !== null || session.status.state === "starting") return;
     if (isRecording && !isPaused) {
       recorder.pauseRecording();
       setIsPaused(true);
@@ -227,16 +243,7 @@ export default function Home() {
     }
     if (!canPlay) return;
     const request = ++playRequestRef.current;
-    try {
-      await initializeAudio();
-      if (request !== playRequestRef.current) return;
-      setAudioReady(true);
-      setAudioError("");
-    } catch (error) {
-      if (request !== playRequestRef.current) return;
-      setAudioError(error instanceof Error ? error.message : "Audio unavailable.");
-      return;
-    }
+    if (!await enableAudio() || request !== playRequestRef.current) return;
     if (countInBeat !== null) return; // already counting in
     if (isRecording && isPaused) {
       // Keep the existing take paused until the count-in finishes.
@@ -256,6 +263,7 @@ export default function Home() {
   };
 
   const handleStop = () => {
+    if (session.status.state === "starting") session.stop();
     playRequestRef.current += 1;
     countInActionRef.current = null;
     setCountInBeat(null);
@@ -283,7 +291,7 @@ export default function Home() {
 
   return (
     <div className="flex-1 bg-surface flex flex-col">
-      {audioError && <p role="alert" className="text-danger px-4">{audioError} Select Enable audio to retry.</p>}
+      <p role={liveStatus.state === "error" ? "alert" : "status"} className="text-ink px-4">{liveStatus.message}</p>
       <div className="flex flex-col lg:flex-row lg:flex-1 pt-4 lg:pt-[clamp(16px,calc(100dvh_-_700px),115px)] pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)] lg:pb-[clamp(16px,calc(100dvh_-_660px),226px)]">
         {/* Camera feed */}
         <div className="w-full aspect-video lg:w-auto lg:aspect-auto lg:flex-1 lg:min-h-[240px] bg-surface-dark relative overflow-hidden">
@@ -295,9 +303,9 @@ export default function Home() {
             className="absolute inset-0 w-full h-full object-cover"
           />
           <CVOverlayCoordinator
-            onCalibrationValidity={handleCalibrationValidity}
+            session={session}
             videoRef={videoRef}
-            enabled={canPlay && audioReady}
+            enabled={canPlay && liveStatus.state === "playing"}
             onNoteOn={handleNoteOn}
             onNoteOff={handleNoteOff}
             onReleaseAllNotes={handleReleaseAllNotes}
@@ -431,7 +439,7 @@ export default function Home() {
 
           <button
             onClick={enableAudio}
-            disabled={!canPlay}
+            disabled={!canPlay || liveStatus.state === "starting" || liveStatus.state === "playing"}
             className="border border-black rounded-[8px] px-4 py-2 text-ink disabled:opacity-30"
           >
             Enable audio
@@ -440,8 +448,8 @@ export default function Home() {
           <button
             onClick={handlePlay}
             aria-label={isRecording && !isPaused ? "Pause recording" : isPaused ? "Resume recording" : "Start recording"}
-            disabled={!canPlay || countInBeat !== null}
-            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!canPlay || countInBeat !== null ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
+            disabled={!canPlay || countInBeat !== null || liveStatus.state === "starting"}
+            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!canPlay || countInBeat !== null || liveStatus.state === "starting" ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
           >
             {isRecording && !isPaused
               ? <PauseIcon />
@@ -455,8 +463,8 @@ export default function Home() {
           <button
             onClick={handleStop}
             aria-label="Stop recording"
-            disabled={!isRecording && countInBeat === null}
-            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!isRecording && countInBeat === null ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
+            disabled={!isRecording && countInBeat === null && liveStatus.state !== "starting"}
+            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!isRecording && countInBeat === null && liveStatus.state !== "starting" ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
           >
             <StopIcon />
             <span className="text-[13px] text-ink font-sans select-none">Stop</span>

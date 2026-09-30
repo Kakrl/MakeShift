@@ -478,6 +478,35 @@ Windows, 2026-09-27, Node 22.20.0, Vitest 4.1.11, working tree based on
   verification.
 
 
+## Session readiness verification (issue #24)
+
+Local Windows execution on 2026-09-28, Node 22.20.0, Vitest 4.1.11,
+`feature/24-session-gating`, stacked on #87 commit `71d44b2`:
+
+- 196 tests passed across eight files. New `liveSession.test.ts` has 22 cases:
+  invalid/mismatched calibration, missing tracking, transition sequence, startup
+  cancellation, fresh identities, stale events, release on interruption,
+  watchdog expiry/delayed execution, independent detector freshness, audio
+  rejection, malformed events, retry, changed calibration and teardown.
+- `recordingControls.test.tsx` now has ten simulated page/coordinator/marker
+  cases. Existing pause/resume and calibration tests still pass through the
+  gate; new cases cover audio interruption/restart, initial pending-start Stop,
+  pagehide and repeated Play during initialization.
+- `browserAudioLifecycle.test.ts` now has twelve cases, adding the real
+  BrowserAudio owner with mocked context/worklet: startup reset, suspension,
+  reset command, explicit reactivation and obsolete-session rejection.
+- TypeScript passed. ESLint passed with five pre-existing unused-variable
+  warnings in the home page. All 18 contrast pairs and production build passed.
+- Vitest is not invoked by CI (D3); Actions evidence remains pending. These
+  mocks establish neither device audibility nor physical latency/accuracy.
+- Carl Xu reported all manual session-readiness checks passing on 2026-09-28,
+  including calibration loss/recovery, audio suspension/reactivation, background
+  and navigation, camera loss, startup recovery, Stop/restart and Pause/resume.
+  See the [passing manual report](manual/2026-09-28_2.1.6.md). Results are
+  user-reported; browser/device details, exact tested commit and per-step
+  artifacts were not supplied. No quantitative latency/accuracy claim follows.
+  Required independent review remains pending.
+
 ## PR #136 review verification
 
 Local Windows execution on 2026-09-29, Node 22.20.0, Vitest 4.1.11,
@@ -498,3 +527,50 @@ branch `fix/87-calibration-result`, following review of issue #87 / PR #136.
   frame loss still interrupts on the next animation frame. The earlier user
   manual report predates these edits; new physical/manual verification is pending.
 - Vitest remains outside frontend CI (D3); Actions execution is pending.
+
+
+## PR #138 review verification
+
+Local Windows execution on 2026-09-30, Node 22.20.0, Vitest 4.1.11,
+following merge of main at 4dc41ab (PR #136) into feature/24-session-gating.
+
+- All 204 tests passed across eight files, including 25 readiness cases and
+  15 page/coordinator/marker integration cases. Named note methods cover press
+  pairing, obsolete identities, malformed values and readiness loss. Separate
+  deadlines preserve ten-second marker checks and 500 ms hand-tracking expiry;
+  continuing hand observations cannot conceal an expired marker observation.
+- Combined page coverage preserves free play before recording, through count-in
+  and Pause, and after Stop; held notes enter MIDI at capture boundaries without
+  retriggering sound. Resume keeps the live session without reinitializing audio.
+  Calibration/frame loss, startup cancellation and audio interruption still gate
+  playback. Audio and camera hardware are mocked.
+- TypeScript, ESLint (five existing unused-variable warnings), all 18 contrast
+  pairs, production build and git diff --check passed.
+- An accidental root-level Vitest run used an unconfigured runner and failed;
+  only the frontend-configured run above is verification evidence. Its temporary
+  cache was removed. The new deadline fixture initially advanced its fake clocks
+  in the wrong order; corrected before the passing run.
+- Inventory ID 2.1.7 preserves PR #136's playback regression coverage, which
+  independently used the same 2.1.5 ID as this branch's readiness unit tests.
+- The earlier manual pass predates these changes. Physical/manual verification
+  of this merged behavior and Actions execution remain pending. Vitest remains
+  outside frontend CI (D3); no FPS, detection accuracy or physical latency claim.
+
+## PR #138 follow-up review verification
+
+Local Windows execution on 2026-09-30, `feature/24-session-gating`, working
+changes based on `0fecdb5` (Node 22, Vitest 4.1.11):
+
+- All 205 Vitest tests passed across eight files, including 26 live-session
+  cases and 15 simulated page/coordinator/marker integration cases.
+- The new case preserves a playing session across an 11-second marker gap
+  with fresh hand tracking, then verifies invalid calibration releases notes.
+  Existing cases verify marker expiry, stale hands and token-paired releases.
+- TypeScript and production build passed. Lint passed with five existing
+  unused-variable warnings. All 18 contrast pairs passed.
+- Readiness now comes from the session; marker geometry uses its returned
+  compatibility decision. Both audio adapters share one press-token sink.
+- Low-severity review cleanup: repaired UTF-8 mojibake in the inventory and
+  removed unused pitch-based audio wrappers, which had no production callers.
+- Two-second marker jitter slack is provisional. Hardware timing, physical
+  camera/audio behavior and GitHub Actions execution remain unverified.
