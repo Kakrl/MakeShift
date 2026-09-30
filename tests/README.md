@@ -488,3 +488,52 @@ Local Windows execution on 2026-09-28, Node 22.20.0, Vitest 4.1.11,
   user-reported; browser/device details, exact tested commit and per-step
   artifacts were not supplied. No quantitative latency/accuracy claim follows.
   Required independent review remains pending.
+
+## PR #136 review verification
+
+Local Windows execution on 2026-09-29, Node 22.20.0, Vitest 4.1.11,
+branch `fix/87-calibration-result`, following review of issue #87 / PR #136.
+
+- Frontend-configured `npx vitest run`: **174 tests passed across seven files**,
+  including eleven recording-control integration cases. Five added cases cover
+  immediate/ten-second marker cadence, free play across MIDI recording states,
+  calibration loss, immediate frame-loss recovery, and stale audio initialization.
+  Existing held-key resume and cancellation cases also pass. Audio dispatch is
+  mocked; no hardware sound, FPS improvement or physical latency is measured.
+- TypeScript, ESLint (five existing unused-variable warnings), all 18 contrast
+  pairs and production build passed. Run commands from `frontend/`.
+- An initial accidental repository-root Vitest invocation used an unconfigured
+  runner and failed dependency/mock resolution; the configured frontend run above
+  is the verification result. Its temporary root cache was removed.
+- The ten-second cadence permits up to ten seconds before detecting sheet loss;
+  frame loss still interrupts on the next animation frame. The earlier user
+  manual report predates these edits; new physical/manual verification is pending.
+- Vitest remains outside frontend CI (D3); Actions execution is pending.
+
+
+## PR #138 review verification
+
+Local Windows execution on 2026-09-30, Node 22.20.0, Vitest 4.1.11,
+following merge of main at 4dc41ab (PR #136) into feature/24-session-gating.
+
+- All 204 tests passed across eight files, including 25 readiness cases and
+  15 page/coordinator/marker integration cases. Named note methods cover press
+  pairing, obsolete identities, malformed values and readiness loss. Separate
+  deadlines preserve ten-second marker checks and 500 ms hand-tracking expiry;
+  continuing hand observations cannot conceal an expired marker observation.
+- Combined page coverage preserves free play before recording, through count-in
+  and Pause, and after Stop; held notes enter MIDI at capture boundaries without
+  retriggering sound. Resume keeps the live session without reinitializing audio.
+  Calibration/frame loss, startup cancellation and audio interruption still gate
+  playback. Audio and camera hardware are mocked.
+- TypeScript, ESLint (five existing unused-variable warnings), all 18 contrast
+  pairs, production build and git diff --check passed.
+- An accidental root-level Vitest run used an unconfigured runner and failed;
+  only the frontend-configured run above is verification evidence. Its temporary
+  cache was removed. The new deadline fixture initially advanced its fake clocks
+  in the wrong order; corrected before the passing run.
+- Inventory ID 2.1.7 preserves PR #136's playback regression coverage, which
+  independently used the same 2.1.5 ID as this branch's readiness unit tests.
+- The earlier manual pass predates these changes. Physical/manual verification
+  of this merged behavior and Actions execution remain pending. Vitest remains
+  outside frontend CI (D3); no FPS, detection accuracy or physical latency claim.

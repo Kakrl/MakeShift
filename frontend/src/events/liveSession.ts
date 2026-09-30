@@ -15,6 +15,8 @@ export type LiveState =
   | "interrupted"
   | "error";
 export const TRACKING_TIMEOUT_MS = 500;
+// Marker checks run every ten seconds; allow one hand-tracking deadline of slack.
+export const CALIBRATION_TIMEOUT_MS = 10_000 + TRACKING_TIMEOUT_MS;
 export type LiveStatus = Readonly<{
   state: LiveState;
   message: string;
@@ -25,11 +27,12 @@ export type LiveStatus = Readonly<{
 export class LiveSession {
   private state: LiveState = "stopped";
   private message =
-    "Show the calibrated sheet and wait for tracking, then select Play.";
+    "Show the calibrated sheet and wait for tracking, then select Enable audio.";
   private calibrationAt = -Infinity;
   private trackingAt = -Infinity;
   private calibrationKey = "";
   private generation = 0;
+  private sequence = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private listeners = new Set<() => void>();
   private tokens = new Map<number, { session: number; press: number }>();
@@ -63,7 +66,7 @@ export class LiveSession {
     const unsubscribe = this.audio.subscribeInvalidation(() => {
       // initialize() resets its transport before reporting ready.
       if (this.state === "playing" || this.state === "ready")
-        this.interrupt("Audio interrupted. Select Play to enable audio again.");
+        this.interrupt("Audio interrupted. Select Enable audio to resume playing.");
     });
     return () => {
       this.stop();
@@ -83,7 +86,7 @@ export class LiveSession {
   private fresh() {
     return (
       !this.hidden &&
-      this.now() - this.calibrationAt < TRACKING_TIMEOUT_MS &&
+      this.now() - this.calibrationAt < CALIBRATION_TIMEOUT_MS &&
       this.now() - this.trackingAt < TRACKING_TIMEOUT_MS
     );
   }
@@ -101,7 +104,7 @@ export class LiveSession {
   private expireBeforeRefresh() {
     if (["starting", "ready", "playing"].includes(this.state) && !this.fresh())
       this.interrupt(
-        "Tracking timed out. Wait for fresh tracking, then select Play again.",
+        "Tracking timed out. Wait for fresh tracking, then select Enable audio again.",
       );
   }
 
@@ -127,7 +130,7 @@ export class LiveSession {
     const key = JSON.stringify(valid);
     if (this.calibrationKey && key !== this.calibrationKey)
       this.interrupt(
-        "Calibration changed. Select Play to start a new session.",
+        "Calibration changed. Select Enable audio to start a new session.",
       );
     this.calibrationKey = key;
     const wasFresh = this.fresh();
@@ -144,19 +147,19 @@ export class LiveSession {
   trackingFailed() {
     this.trackingAt = -Infinity;
     this.interrupt(
-      "Tracking failed. Reload to retry the detector, then select Play.",
+      "Tracking failed. Reload to retry the detector, then select Enable audio.",
     );
   }
   private watch(wasFresh: boolean) {
     clearTimeout(this.timer);
     const remaining =
-      Math.min(this.calibrationAt, this.trackingAt) +
-      TRACKING_TIMEOUT_MS -
+      Math.min(this.calibrationAt + CALIBRATION_TIMEOUT_MS,
+        this.trackingAt + TRACKING_TIMEOUT_MS) -
       this.now();
     if (remaining > 0)
       this.timer = setTimeout(() => {
         this.interrupt(
-          "Tracking timed out. Restore the camera and sheet, wait for tracking, then select Play.",
+          "Tracking timed out. Restore the camera and sheet, wait for tracking, then select Enable audio.",
         );
       }, remaining);
     if (wasFresh !== this.fresh()) this.emit();
@@ -166,7 +169,7 @@ export class LiveSession {
     if (hidden) {
       this.calibrationAt = this.trackingAt = -Infinity;
       this.interrupt(
-        "Playing stopped in the background. Return, wait for tracking, then select Play.",
+        "Playing stopped in the background. Return, wait for tracking, then select Enable audio.",
       );
     }
   }
@@ -182,19 +185,19 @@ export class LiveSession {
       if (request !== this.generation) return false;
       if (!this.fresh() || this.audio.status !== "ready") {
         this.interrupt(
-          "Readiness changed. Wait for tracking, then select Play again.",
+          "Readiness changed. Wait for tracking, then select Enable audio again.",
         );
         return false;
       }
       this.state = "ready";
-      this.message = "Audio ready. Counting in…";
+      this.message = "Audio ready.";
       this.emit();
       return true;
     } catch {
       if (request !== this.generation) return false;
       this.state = "error";
       this.message =
-        "Audio could not start. Select Play to retry; check browser audio permissions.";
+        "Audio could not start. Select Enable audio to retry; check browser audio permissions.";
       this.emit();
       return false;
     }
@@ -207,10 +210,28 @@ export class LiveSession {
     )
       return null;
     const id = this.notes.start();
+    this.sequence = 0;
     this.state = "playing";
     this.message = "Playing";
     this.emit();
     return id;
+  }
+  /** Local CV producer API; retain the captured identity to reject obsolete input.
+   * Use either these methods or receive() for a session, never mixed producers.
+   */
+  noteOn(sessionId: string, pressId: number, pitch: number, velocity: number): DispatchResult {
+    if (sessionId !== this.sessionId) return "stale";
+    return this.receive({
+      version: 1, sessionId, sequence: ++this.sequence,
+      timestampMs: this.now(), type: "note-on", pressId, pitch, velocity,
+    });
+  }
+  noteOff(sessionId: string, pressId: number, pitch: number): DispatchResult {
+    if (sessionId !== this.sessionId) return "stale";
+    return this.receive({
+      version: 1, sessionId, sequence: ++this.sequence,
+      timestampMs: this.now(), type: "note-off", pressId, pitch,
+    });
   }
   receive(
     value: unknown,
@@ -219,17 +240,17 @@ export class LiveSession {
     if (this.state !== "playing") return "stale";
     if (!this.fresh() || this.audio.status !== "ready") {
       this.interrupt(
-        "Readiness lost. Wait for tracking, then select Play again.",
+        "Readiness lost. Wait for tracking, then select Enable audio again.",
       );
       return "interrupted";
     }
     const result = this.notes.receive(value, clock);
     if (!this.notes.sessionId)
-      this.interrupt("Session ended. Select Play to start a clean session.");
+      this.interrupt("Session ended. Select Enable audio to start a clean session.");
     return result;
   }
   stop() {
-    this.end("stopped", "Stopped. Select Play to start a new session.");
+    this.end("stopped", "Stopped. Select Enable audio to start a new session.");
   }
   interrupt(message: string) {
     this.end("interrupted", message);

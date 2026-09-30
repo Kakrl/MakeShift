@@ -34,8 +34,10 @@ The result contains:
 ## Compatibility and interruption
 
 Every live marker check validates stored data and checks the current camera,
-sheet revision, layout and marker positions. Checks run at most every 100 ms
-on the existing marker loop. No live frame, missing/invalid markers, a detector
+sheet revision, layout and marker positions. The first frame is checked immediately, then marker detection runs every ten
+seconds to reduce main-thread CV overhead. Frame loss resets acquisition; camera
+changes and frame-size changes trigger a fresh check. Sheet movement or removal
+can remain undetected until the next periodic check (up to ten seconds). No live frame, missing/invalid markers, a detector
 exception, unavailable camera, corrupt storage or incompatible data prevents
 playing. Each corner may move by at most 1% of the frame diagonal to allow
 marker jitter. This is a provisional geometric tolerance, not an accuracy claim.
@@ -48,6 +50,15 @@ resolution, facing mode, sheet revision or layout requires new calibration.
 Moving the camera or sheet beyond tolerance requires restoring the original
 pose or recalibrating. A physically different but visually identical sheet with
 the same marker IDs cannot be distinguished by this camera-only contract.
+
+## Playing and recording
+
+After live calibration validation, select **Enable audio** to unlock browser
+sound without starting a MIDI recording. Live notes continue during count-in,
+recording pauses and after Stop. **Record**, **Pause**, **Resume** and **Stop**
+control only MIDI capture. Notes held at the end of a start/resume count-in are
+captured from that recording boundary without retriggering their sound.
+Calibration invalidation and leaving the page still release live sound.
 
 ## Persistence failures
 
@@ -68,4 +79,4 @@ checklist on 2026-09-28; see the [manual report](../tests/manual/2026-09-27_6.2.
 for the tested scenarios and evidence limits. Browser/device details and the
 exact tested commit were not supplied.
 The existing marker detector still runs on the main thread; worker migration
-belongs to #37. The 100 ms validation cadence is not a physical latency result.
+belongs to #37. The ten-second marker cadence is not a physical note-latency result.

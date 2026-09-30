@@ -36,7 +36,7 @@ export default function CVOverlayCoordinator({
   onReleaseAllNotes: () => void;
   onCalibrationValidity?: (valid: boolean) => void;
 }) {
-  const producer = useRef({ id: "", sequence: 0, press: 0, keys: new Map<number, number>() });
+  const producer = useRef({ id: "", press: 0, keys: new Map<number, number>() });
   const [fingertips, setFingertips] = useState<Fingertip[]>([]);
 
   const handleLandmarks = useCallback(
@@ -57,15 +57,14 @@ export default function CVOverlayCoordinator({
       const id = session.sessionId;
       if (!enabled || !id) return;
       if (producer.current.id !== id)
-        producer.current = { id, sequence: 0, press: 0, keys: new Map() };
+        producer.current = { id, press: 0, keys: new Map() };
       const source = producer.current;
       for (const keyIndex of released) {
         const midi = keyIndexToMidi(keyIndex);
         const pressId = source.keys.get(keyIndex);
         if (midi === null || pressId === undefined) continue;
         source.keys.delete(keyIndex);
-        const result = session.receive({ version: 1, sessionId: id, sequence: ++source.sequence,
-          timestampMs: performance.now(), type: "note-off", pressId, pitch: midi });
+        const result = session.noteOff(id, pressId, midi);
         if (result === "accepted") onNoteOff(midiToPitch(midi));
       }
       for (const keyIndex of pressed) {
@@ -73,8 +72,7 @@ export default function CVOverlayCoordinator({
         if (midi === null || source.keys.has(keyIndex)) continue;
         const pressId = ++source.press;
         source.keys.set(keyIndex, pressId);
-        const result = session.receive({ version: 1, sessionId: id, sequence: ++source.sequence,
-          timestampMs: performance.now(), type: "note-on", pressId, pitch: midi, velocity: 0.8 });
+        const result = session.noteOn(id, pressId, midi, 0.8);
         if (result === "accepted") onNoteOn(midiToPitch(midi), 100);
       }
     },
