@@ -63,6 +63,11 @@ MakeShift/
 │   │   │   ├── SideNav.tsx          # shared responsive nav tabs
 │   │   │   └── useHandLandmarker.ts
 │   │   ├── cv/                      # ArUco detection, homography, key geometry
+│   │   │   ├── contactPipeline.ts    # individual overlap, knuckle, and shadow checks
+│   │   │   ├── liveContactPipeline.ts # controller: eligibility, shadow worker/history, releases
+│   │   │   ├── combinedContact.ts    # prototype per-finger gated press/release state
+│   │   │   ├── shadowHeuristics.ts   # prototype RGB k-means dark-region segmentation
+│   │   │   └── shadowWorker.ts       # bounded background shadow segmentation
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
 │   │   └── shims/
 │   ├── package.json

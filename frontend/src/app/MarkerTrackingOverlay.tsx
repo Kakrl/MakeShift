@@ -1,19 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getWhiteKeyPolygons,
   PIANO_CORNERS,
   pressWhiteKey,
   releaseWhiteKey,
 } from "../cv/keyboardGeometry";
-import {
-  getCollidedKeyIndexes,
-  getKeyCollisions,
-  updateKeyTransitions,
-} from "../cv/collision";
+import { getKeyCollisions, updateKeyTransitions } from "../cv/collision";
 import type { Fingertip } from "../cv/collision";
 import type { HandObservation } from "../cv/collision";
+import type { FingerContactState } from "../cv/combinedContact";
+import {
+  KNUCKLE_PLAYING_MARGIN_Y,
+  KNUCKLE_ELIGIBILITY_HYSTERESIS_Y,
+} from "../cv/contactPipeline";
+import {
+  CONTACT_TECHNIQUES,
+  LiveContactPipeline,
+  SHADOW_CROP_RADIUS,
+} from "../cv/liveContactPipeline";
 import {
   getKnuckleBoundaryY,
   getKnuckleDistance,
@@ -21,20 +27,11 @@ import {
 } from "../cv/depthCalibration";
 import type { PersistedDepthCalibration } from "../cv/depthCalibration";
 import {
-  evaluateShadowContact,
   SHADOW_CUTOFF_OFFSET_Y,
   SHADOW_PRESS_ABSOLUTE_AREA_PIXELS,
   SHADOW_PRESS_AREA_RATIO,
 } from "../cv/shadowHeuristics";
-import type {
-  ShadowContactEvaluation,
-  ShadowContactState,
-  ShadowMeasurement,
-  ShadowObservation,
-  ShadowState,
-  ShadowWorkerRequest,
-  ShadowWorkerResponse,
-} from "../cv/shadowHeuristics";
+import type { ShadowContactState, ShadowState } from "../cv/shadowHeuristics";
 import { MarkerDetector } from "../cv/markerDetector";
 import {
   computeHomography,
@@ -56,11 +53,8 @@ const PAGE_CORNERS: Point[] = [
 const INITIAL_MARKER_CHECK_INTERVAL_MS = 100;
 const LOCKED_MARKER_CHECK_INTERVAL_MS = 10_000;
 const KNUCKLE_LANDMARK_INDICES = [5, 9, 13, 17] as const;
-const KNUCKLE_RANGE_TOLERANCE = 0.002;
-const BOUNDARY_Y_TOLERANCE = 0.012;
-const SHADOW_PREVIEW_RADIUS = 70;
+const SHADOW_PREVIEW_RADIUS = SHADOW_CROP_RADIUS;
 const SHADOW_PREVIEW_SIZE = 280;
-const SHADOW_DEBUG_INTERVAL_MS = 100;
 
 function drawShadowSamplingGuides(
   context: CanvasRenderingContext2D,
@@ -95,14 +89,13 @@ function drawShadowSamplingGuides(
   context.restore();
 }
 
-type FingerContactState = "invalid" | "hover" | "press candidate";
-
 interface FingerDebugState {
   id: string;
   handIndex: number;
   finger: string;
   state: FingerContactState;
   keyOverlap: boolean;
+  knuckleEligible: boolean;
   fingertipVideo: Point;
   fingertipSheet: Point | null;
   fingertipZ: number | undefined;
@@ -125,13 +118,18 @@ export default function MarkerTrackingOverlay({
   depthCalibration = null,
   onKeyTransitions,
   trackingEnabled = false,
+  showVisualDebug = false,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   fingertips: readonly Fingertip[];
   hands?: readonly HandObservation[];
   depthCalibration?: PersistedDepthCalibration | null;
-  onKeyTransitions?: (pressed: readonly number[], released: readonly number[]) => void;
+  onKeyTransitions?: (
+    pressed: readonly number[],
+    released: readonly number[],
+  ) => void;
   trackingEnabled?: boolean;
+  showVisualDebug?: boolean;
 }) {
   const [markerDetection, setMarkerDetection] =
     useState<MarkerDetectionResult | null>(null);
@@ -140,85 +138,129 @@ export default function MarkerTrackingOverlay({
   const shadowPreviewCanvasRef = useRef<HTMLCanvasElement>(null);
   const shadowMaskCanvasRef = useRef<HTMLCanvasElement>(null);
   const shadowMaskSourceRef = useRef<HTMLCanvasElement>(null);
-  const shadowLastFrameAtRef = useRef(-Infinity);
-  const shadowWorkerRef = useRef<Worker | null>(null);
-  const shadowWorkInFlightRef = useRef(false);
-  const shadowActiveIdsRef = useRef<Set<string>>(new Set());
-  const shadowPreviewIdRef = useRef<string | null>(null);
-  const [shadowWorkerError, setShadowWorkerError] = useState<string | null>(null);
+  const pipelineRef = useRef<LiveContactPipeline | null>(null);
+  const [shadowWorkerError, setShadowWorkerError] = useState<string | null>(
+    null,
+  );
   const [shadowMaskCount, setShadowMaskCount] = useState(0);
-  const [shadowPreviewMode, setShadowPreviewMode] = useState<"mask" | "camera">("mask");
+  const [shadowPreviewMode, setShadowPreviewMode] = useState<"mask" | "camera">(
+    "mask",
+  );
   const homographyRef = useRef<Homography | null>(null);
   const projectedPianoCornersRef = useRef<Point[] | null>(null);
   const projectedWhiteKeysRef = useRef<Point[][] | null>(null);
   const previousKeysRef = useRef<Set<number>>(new Set());
-  const fingerStatesRef = useRef<Map<string, FingerContactState>>(new Map());
-  const shadowMeasurementsRef = useRef<Map<string, ShadowMeasurement>>(new Map());
-  const shadowObservationsRef = useRef<Map<string, ShadowObservation>>(new Map());
-  const shadowContactsRef = useRef<Map<string, ShadowContactEvaluation>>(new Map());
-  const shadowKeyOverlapRef = useRef<Map<string, boolean>>(new Map());
+  const trackingEnabledRef = useRef(false);
+  const onKeyTransitionsRef = useRef(onKeyTransitions);
   const geometryLockedRef = useRef(false);
+  const showVisualDebugRef = useRef(showVisualDebug);
+  const [activeKeyIndexes, setActiveKeyIndexes] = useState<number[]>([]);
   const [fingerDebug, setFingerDebug] = useState<FingerDebugState[]>([]);
   const shadowPreviewFinger =
-    fingertips.find(
-      (finger) =>
-        finger.landmarkIndex === 8 &&
-        hands[finger.handIndex]?.handedness === "Right",
-    ) ?? fingertips.find((finger) => finger.landmarkIndex === 8);
+    !showVisualDebug || !CONTACT_TECHNIQUES.shadows
+      ? undefined
+      : (fingertips.find(
+          (finger) =>
+            finger.landmarkIndex === 8 &&
+            hands[finger.handIndex]?.handedness === "Right",
+        ) ?? fingertips.find((finger) => finger.landmarkIndex === 8));
   const shadowPreviewDebug = fingerDebug.find(
     (finger) => finger.id === shadowPreviewFinger?.id,
   );
 
-  useEffect(() => {
-    let cancelled = false;
-    let worker: Worker;
-    try {
-      worker = new Worker(new URL("../cv/shadowWorker.ts", import.meta.url), {
-        type: "module",
-      });
-    } catch (error) {
-      // Worker startup failure is shown in the debug panel.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setShadowWorkerError(error instanceof Error ? error.message : "Unable to start worker");
-      return;
+  const syncContactKeys = useCallback(() => {
+    const currentKeys = new Set<number>();
+    if (trackingEnabledRef.current) {
+      for (const [id, contact] of pipelineRef.current?.contacts ?? []) {
+        if (!contact.active) continue;
+        for (const key of pipelineRef.current?.gates.get(id)?.keyIndexes ?? [])
+          currentKeys.add(key);
+      }
     }
-    shadowWorkerRef.current = worker;
-    worker.onmessage = ({ data }: MessageEvent<ShadowWorkerResponse>) => {
-      if (cancelled) return;
-      shadowWorkInFlightRef.current = false;
-      for (const { id, observation, keyOverlap } of data.observations) {
-        if (!shadowActiveIdsRef.current.has(id)) continue;
-        const contact = evaluateShadowContact(
-          observation.contour?.areaPixels ?? 0,
-          data.frameAtMs,
-          shadowContactsRef.current.get(id) ?? null,
-          observation.measurement.available && keyOverlap &&
-            shadowKeyOverlapRef.current.get(id) === true,
+    const transitions = updateKeyTransitions(
+      previousKeysRef.current,
+      currentKeys,
+    );
+    previousKeysRef.current = currentKeys;
+    if (transitions.pressed.length || transitions.released.length) {
+      onKeyTransitionsRef.current?.(transitions.pressed, transitions.released);
+      // Keep visual updates after synchronous note dispatch.
+      queueMicrotask(() => setActiveKeyIndexes([...currentKeys]));
+    }
+  }, []);
+
+  useEffect(() => {
+    showVisualDebugRef.current = showVisualDebug;
+  }, [showVisualDebug]);
+
+  useEffect(() => {
+    onKeyTransitionsRef.current = onKeyTransitions;
+  }, [onKeyTransitions]);
+
+  useEffect(() => {
+    trackingEnabledRef.current = trackingEnabled;
+    pipelineRef.current?.reset();
+  }, [depthCalibration, trackingEnabled]);
+
+  useEffect(() => {
+    const pipeline = new LiveContactPipeline({
+      onContactsChanged: (refreshDebug) => {
+        syncContactKeys();
+        if (!refreshDebug || !showVisualDebugRef.current) return;
+        setFingerDebug((current) =>
+          current.map((finger) => {
+            const observation = pipeline.observations.get(finger.id);
+            const contact = pipeline.shadowContacts.get(finger.id);
+            return observation
+              ? {
+                  ...finger,
+                  state:
+                    pipeline.contacts.get(finger.id)?.state ?? "unavailable",
+                  shadow: observation.state,
+                  shadowStrength: observation.measurement.shadowStrength,
+                  shadowLumaChange: observation.lumaChange,
+                  shadowDarkArea: observation.measurement.darkArea,
+                  shadowContourArea: observation.contour?.areaPixels ?? null,
+                  shadowContact: contact?.state ?? "unknown",
+                  shadowPeakArea: contact?.peakArea ?? null,
+                  shadowAreaRatio: contact?.areaRatio ?? null,
+                }
+              : finger;
+          }),
         );
-        shadowContactsRef.current.set(id, contact);
-        shadowMeasurementsRef.current.set(id, observation.measurement);
-        shadowObservationsRef.current.set(id, observation);
-        if (id !== shadowPreviewIdRef.current || !observation.mask) continue;
+      },
+      onShadowPreview: (observation, contact) => {
+        if (!showVisualDebugRef.current || !observation.mask) return;
         const maskCanvas = shadowMaskCanvasRef.current;
         const source = shadowMaskSourceRef.current;
         const maskContext = maskCanvas?.getContext("2d");
-        if (!maskCanvas || !source || !maskContext) continue;
+        if (!maskCanvas || !source || !maskContext) return;
         const mask = observation.mask;
         if (source.width !== mask.width) source.width = mask.width;
         if (source.height !== mask.height) source.height = mask.height;
         const sourceContext = source.getContext("2d");
-        if (!sourceContext) continue;
+        if (!sourceContext) return;
         sourceContext.putImageData(mask, 0, 0);
         maskContext.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
         maskContext.imageSmoothingEnabled = false;
-        maskContext.drawImage(source, 0, 0, maskCanvas.width, maskCanvas.height);
+        maskContext.drawImage(
+          source,
+          0,
+          0,
+          maskCanvas.width,
+          maskCanvas.height,
+        );
         const style = getComputedStyle(maskCanvas);
         const scaleX = maskCanvas.width / mask.width;
         const scaleY = maskCanvas.height / mask.height;
         maskContext.save();
-        maskContext.fillStyle = style.getPropertyValue(
-          contact.state === "press candidate" ? "--color-success" : "--color-info",
-        ).trim();
+        maskContext.fillStyle = style
+          .getPropertyValue(
+            contact?.state === "press candidate"
+              ? "--color-success"
+              : "--color-info",
+          )
+          .trim();
         for (const index of observation.contour?.boundary ?? []) {
           maskContext.fillRect(
             (index % mask.width) * scaleX,
@@ -227,7 +269,9 @@ export default function MarkerTrackingOverlay({
             scaleY,
           );
         }
-        maskContext.strokeStyle = style.getPropertyValue("--color-accent-light").trim();
+        maskContext.strokeStyle = style
+          .getPropertyValue("--color-accent-light")
+          .trim();
         maskContext.lineWidth = 2;
         maskContext.setLineDash([6, 4]);
         const cutoffY = (mask.height / 2 + SHADOW_CUTOFF_OFFSET_Y) * scaleY;
@@ -237,54 +281,26 @@ export default function MarkerTrackingOverlay({
         maskContext.stroke();
         maskContext.restore();
         setShadowMaskCount((count) => count + 1);
-      }
-      setFingerDebug((current) =>
-        current.map((finger) => {
-          const observation = shadowObservationsRef.current.get(finger.id);
-          const contact = shadowContactsRef.current.get(finger.id);
-          return observation
-            ? {
-                ...finger,
-                shadow: observation.state,
-                shadowStrength: observation.measurement.shadowStrength,
-                shadowLumaChange: observation.lumaChange,
-                shadowDarkArea: observation.measurement.darkArea,
-                shadowContourArea: observation.contour?.areaPixels ?? null,
-                shadowContact: contact?.state ?? "unknown",
-                shadowPeakArea: contact?.peakArea ?? null,
-                shadowAreaRatio: contact?.areaRatio ?? null,
-              }
-            : finger;
-        }),
-      );
-    };
-    worker.onerror = (event) => {
-      if (cancelled) return;
-      worker.terminate();
-      shadowWorkerRef.current = null;
-      shadowWorkInFlightRef.current = false;
-      shadowMeasurementsRef.current.clear();
-      shadowObservationsRef.current.clear();
-      shadowContactsRef.current.clear();
-      shadowKeyOverlapRef.current.clear();
-      setShadowWorkerError(event.message || "Worker failed without an error message");
-    };
+      },
+      onError: (message) => {
+        setShadowWorkerError(message);
+        if (showVisualDebugRef.current)
+          setFingerDebug((current) =>
+            current.map((finger) => ({
+              ...finger,
+              state: "unavailable",
+              shadowContact: "unknown",
+            })),
+          );
+      },
+    });
+    pipelineRef.current = pipeline;
+    pipeline.start();
     return () => {
-      cancelled = true;
-      worker.terminate();
-      shadowWorkerRef.current = null;
-      shadowWorkInFlightRef.current = false;
+      pipeline.dispose();
+      pipelineRef.current = null;
     };
-  }, []);
-
-  useEffect(() => {
-    if (!trackingEnabled && previousKeysRef.current.size > 0) {
-      onKeyTransitions?.([], [...previousKeysRef.current]);
-      // Resume treats currently held keys as fresh presses for the new segment.
-      previousKeysRef.current = new Set();
-      fingerStatesRef.current.clear();
-    }
-  }, [onKeyTransitions, trackingEnabled]);
+  }, [syncContactKeys]);
 
   useEffect(() => {
     let cancelled = false;
@@ -299,24 +315,24 @@ export default function MarkerTrackingOverlay({
       if (!cancelled) {
         if (video && processingCanvas && video.readyState >= 2) {
           if (video.videoWidth > 0 && video.videoHeight > 0) {
-          if (
-            processingCanvas.width !== video.videoWidth ||
-            processingCanvas.height !== video.videoHeight
-          ) {
-            processingCanvas.width = video.videoWidth;
-            processingCanvas.height = video.videoHeight;
-          }
-
-          const overlayCanvas = overlayCanvasRef.current;
-          if (overlayCanvas) {
             if (
-              overlayCanvas.width !== video.videoWidth ||
-              overlayCanvas.height !== video.videoHeight
+              processingCanvas.width !== video.videoWidth ||
+              processingCanvas.height !== video.videoHeight
             ) {
-              overlayCanvas.width = video.videoWidth;
-              overlayCanvas.height = video.videoHeight;
+              processingCanvas.width = video.videoWidth;
+              processingCanvas.height = video.videoHeight;
             }
-          }
+
+            const overlayCanvas = overlayCanvasRef.current;
+            if (overlayCanvas) {
+              if (
+                overlayCanvas.width !== video.videoWidth ||
+                overlayCanvas.height !== video.videoHeight
+              ) {
+                overlayCanvas.width = video.videoWidth;
+                overlayCanvas.height = video.videoHeight;
+              }
+            }
 
             const markerCheckInterval = geometryLockedRef.current
               ? LOCKED_MARKER_CHECK_INTERVAL_MS
@@ -419,151 +435,70 @@ export default function MarkerTrackingOverlay({
     const inverseHomography = homographyRef.current
       ? invertHomography(homographyRef.current)
       : null;
-    const nextDebug: FingerDebugState[] = [];
+    const pipeline = pipelineRef.current;
+    if (!pipeline) return;
     const video = videoRef.current;
     const processingCanvas = processingCanvasRef.current;
-    let imageData: ImageData | null = null;
-    shadowActiveIdsRef.current = new Set(fingertips.map(({ id }) => id));
-    shadowPreviewIdRef.current = shadowPreviewFinger?.id ?? null;
-    const shadowFrameAt = performance.now();
-    if (
-      video &&
-      processingCanvas &&
-      shadowWorkerRef.current &&
-      !shadowWorkInFlightRef.current &&
-      fingertips.length > 0 &&
-      video.readyState >= 2 &&
-      shadowFrameAt - shadowLastFrameAtRef.current >= SHADOW_DEBUG_INTERVAL_MS &&
-      video.videoWidth > 0 &&
-      video.videoHeight > 0
-    ) {
-      processingCanvas.width = video.videoWidth;
-      processingCanvas.height = video.videoHeight;
-      const processingContext = processingCanvas.getContext("2d");
-      if (processingContext) {
-        processingContext.drawImage(
-          video,
-          0,
-          0,
-          video.videoWidth,
-          video.videoHeight,
-        );
-        imageData = processingContext.getImageData(
-          0,
-          0,
-          video.videoWidth,
-          video.videoHeight,
-        );
-        shadowLastFrameAtRef.current = shadowFrameAt;
+
+    // The complete live pipeline runs here: overlap -> knuckles -> shadows.
+    const capturedShadowFrame = pipeline.processFrame({
+      video,
+      canvas: processingCanvas,
+      fingertips,
+      hands,
+      whiteKeys: projectedWhiteKeysRef.current,
+      calibration: depthCalibration,
+      previewFingerId: shadowPreviewFinger?.id ?? null,
+    });
+
+    const nextDebug: FingerDebugState[] = [];
+    if (showVisualDebug)
+      for (const fingertip of fingertips) {
+        const hand = hands[fingertip.handIndex];
+        const fingerIndex = [4, 8, 12, 16, 20].indexOf(fingertip.landmarkIndex);
+        const gate = pipeline.gates.get(fingertip.id);
+        if (!hand || fingerIndex < 0 || !gate) continue;
+        const shadowObservation = pipeline.observations.get(fingertip.id);
+        const shadowContact = pipeline.shadowContacts.get(fingertip.id);
+        nextDebug.push({
+          id: fingertip.id,
+          handIndex: fingertip.handIndex,
+          finger: DEPTH_FINGERS[fingerIndex],
+          state: pipeline.contacts.get(fingertip.id)?.state ?? "unavailable",
+          keyOverlap: gate.keyIndexes.length > 0,
+          knuckleEligible: gate.knuckleEligible,
+          fingertipVideo: fingertip.point,
+          fingertipSheet: inverseHomography
+            ? projectPoint(inverseHomography, fingertip.point)
+            : null,
+          fingertipZ: hand.landmarks[fingertip.landmarkIndex]?.z,
+          knuckleDistance: CONTACT_TECHNIQUES.knuckles
+            ? getKnuckleDistance(hand.landmarks)
+            : null,
+          knuckles: KNUCKLE_LANDMARK_INDICES.map((index) => ({
+            x: hand.landmarks[index]?.x ?? 0,
+            y: hand.landmarks[index]?.y ?? 0,
+          })),
+          shadow: shadowObservation?.state ?? "unknown",
+          shadowStrength: shadowObservation?.measurement.shadowStrength ?? null,
+          shadowLumaChange: shadowObservation?.lumaChange ?? null,
+          shadowDarkArea: shadowObservation?.measurement.darkArea ?? null,
+          shadowContourArea: shadowObservation?.contour?.areaPixels ?? null,
+          shadowContact: shadowContact?.state ?? "unknown",
+          shadowPeakArea: shadowContact?.peakArea ?? null,
+          shadowAreaRatio: shadowContact?.areaRatio ?? null,
+        });
       }
-    }
 
-    for (const fingertip of fingertips) {
-      const hand = hands[fingertip.handIndex];
-      const fingerIndex = [4, 8, 12, 16, 20].indexOf(
-        fingertip.landmarkIndex,
-      );
-      if (!hand || fingerIndex < 0) continue;
-
-      const landmark = hand.landmarks[fingertip.landmarkIndex];
-      const knuckles = KNUCKLE_LANDMARK_INDICES.map((index) => ({
-        x: hand.landmarks[index]?.x ?? 0,
-        y: hand.landmarks[index]?.y ?? 0,
-      }));
-      const knuckleDistance = getKnuckleDistance(hand.landmarks);
-      const fingertipSheet = inverseHomography
-        ? projectPoint(inverseHomography, fingertip.point)
-        : null;
-      const fingertipScreenY =
-        video && video.videoHeight > 0
-          ? fingertip.point.y / video.videoHeight
-          : null;
-      const keyOverlap = projectedWhiteKeysRef.current
-        ? getKeyCollisions([fingertip], projectedWhiteKeysRef.current, 8).some(
-            ({ fingertips: ids }) => ids.includes(fingertip.id),
-          )
-        : false;
-      const finger = DEPTH_FINGERS[fingerIndex];
-      shadowKeyOverlapRef.current.set(fingertip.id, keyOverlap);
-      if (!keyOverlap) shadowContactsRef.current.delete(fingertip.id);
-      const shadowContact = shadowContactsRef.current.get(fingertip.id);
-      const shadowObservation =
-        shadowObservationsRef.current.get(fingertip.id) ?? null;
-      const shadow = shadowObservation?.state ?? "unknown";
-      const canEvaluate = Boolean(
-        depthCalibration &&
-          keyOverlap &&
-          landmark &&
-          knuckleDistance !== null &&
-          fingertipScreenY !== null,
-      );
-      let pressed = false;
-      if (canEvaluate) {
-        const boundaryY = getKnuckleBoundaryY(
-          depthCalibration!,
-          finger,
-          knuckleDistance!,
-          false,
-          KNUCKLE_RANGE_TOLERANCE,
-        );
-        if (boundaryY !== null) {
-          const previousState = fingerStatesRef.current.get(fingertip.id);
-          const threshold =
-            previousState === "press candidate"
-              ? boundaryY - BOUNDARY_Y_TOLERANCE
-              : boundaryY + BOUNDARY_Y_TOLERANCE;
-          pressed = fingertipScreenY! >= threshold;
-        }
-      }
-      const state: FingerContactState = !canEvaluate
-        ? "invalid"
-        : pressed
-          ? "press candidate"
-          : "hover";
-      fingerStatesRef.current.set(fingertip.id, state);
-      nextDebug.push({
-        id: fingertip.id,
-        handIndex: fingertip.handIndex,
-        finger,
-        state,
-        keyOverlap,
-        fingertipVideo: fingertip.point,
-        fingertipSheet,
-        fingertipZ: landmark?.z,
-        knuckleDistance,
-        knuckles,
-        shadow,
-        shadowStrength: shadowObservation?.measurement.shadowStrength ?? null,
-        shadowLumaChange: shadowObservation?.lumaChange ?? null,
-        shadowDarkArea: shadowObservation?.measurement.darkArea ?? null,
-        shadowContourArea: shadowObservation?.contour?.areaPixels ?? null,
-        shadowContact: shadowContact?.state ?? "unknown",
-        shadowPeakArea: shadowContact?.peakArea ?? null,
-        shadowAreaRatio: shadowContact?.areaRatio ?? null,
-      });
-    }
-
-    const activeIds = new Set(nextDebug.map(({ id }) => id));
-    for (const id of fingerStatesRef.current.keys()) {
-      if (!activeIds.has(id)) fingerStatesRef.current.delete(id);
-    }
-    for (const id of shadowMeasurementsRef.current.keys()) {
-      if (!activeIds.has(id)) shadowMeasurementsRef.current.delete(id);
-    }
-    for (const id of shadowObservationsRef.current.keys()) {
-      if (!activeIds.has(id)) shadowObservationsRef.current.delete(id);
-    }
-    for (const id of shadowContactsRef.current.keys()) {
-      if (!activeIds.has(id)) shadowContactsRef.current.delete(id);
-    }
-    for (const id of shadowKeyOverlapRef.current.keys()) {
-      if (!activeIds.has(id)) shadowKeyOverlapRef.current.delete(id);
-    }
     const preview = shadowPreviewCanvasRef.current;
     const previewContext = preview?.getContext("2d");
-    if (preview && previewContext && (imageData || !shadowPreviewFinger)) {
+    if (
+      preview &&
+      previewContext &&
+      (capturedShadowFrame || !shadowPreviewFinger)
+    ) {
       previewContext.clearRect(0, 0, preview.width, preview.height);
-      if (imageData && processingCanvas && shadowPreviewFinger) {
+      if (capturedShadowFrame && processingCanvas && shadowPreviewFinger) {
         const center = shadowPreviewFinger.point;
         const scale = SHADOW_PREVIEW_SIZE / (SHADOW_PREVIEW_RADIUS * 2);
         previewContext.save();
@@ -579,30 +514,15 @@ export default function MarkerTrackingOverlay({
     }
     const maskCanvas = shadowMaskCanvasRef.current;
     const maskContext = maskCanvas?.getContext("2d");
-    if (maskCanvas && maskContext && (imageData || !shadowPreviewFinger)) {
+    if (
+      maskCanvas &&
+      maskContext &&
+      (capturedShadowFrame || !shadowPreviewFinger)
+    ) {
       maskContext.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
     }
-    if (imageData && shadowWorkerRef.current) {
-      const request: ShadowWorkerRequest = {
-        imageData,
-        radius: SHADOW_PREVIEW_RADIUS,
-        frameAtMs: shadowFrameAt,
-        previewFingerId: shadowPreviewIdRef.current,
-        fingers: fingertips
-          .filter((finger) => hands[finger.handIndex])
-          .map((finger) => ({
-            id: finger.id,
-            point: finger.point,
-            previous: shadowMeasurementsRef.current.get(finger.id) ?? null,
-            keyOverlap: shadowKeyOverlapRef.current.get(finger.id) ?? false,
-          })),
-      };
-      shadowWorkInFlightRef.current = true;
-      shadowWorkerRef.current.postMessage(request, [imageData.data.buffer]);
-    }
     // This state is the intentionally derived data shown in the prototype debug panel.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setFingerDebug(nextDebug);
+    if (showVisualDebug) queueMicrotask(() => setFingerDebug(nextDebug));
 
     // Console logging is intentionally disabled while tuning the visual prototype.
   }, [
@@ -611,6 +531,9 @@ export default function MarkerTrackingOverlay({
     hands,
     markerDetection,
     shadowPreviewFinger,
+    showVisualDebug,
+    syncContactKeys,
+    trackingEnabled,
     videoRef,
   ]);
 
@@ -620,7 +543,8 @@ export default function MarkerTrackingOverlay({
     const video = videoRef.current;
     if (video && video.videoWidth > 0 && video.videoHeight > 0) {
       if (overlay.width !== video.videoWidth) overlay.width = video.videoWidth;
-      if (overlay.height !== video.videoHeight) overlay.height = video.videoHeight;
+      if (overlay.height !== video.videoHeight)
+        overlay.height = video.videoHeight;
     }
 
     const context = overlay.getContext("2d");
@@ -632,150 +556,135 @@ export default function MarkerTrackingOverlay({
     context.font = "bold 24px Arial";
     context.textBaseline = "bottom";
 
-    markerDetection?.observations.forEach((observation) => {
-      context.strokeStyle = "#00ff88";
-      context.fillStyle = "#00ff88";
-      context.beginPath();
-      observation.corners.forEach((corner, index) => {
-        if (index === 0) context.moveTo(corner.x, corner.y);
-        else context.lineTo(corner.x, corner.y);
+    if (showVisualDebug)
+      markerDetection?.observations.forEach((observation) => {
+        context.strokeStyle = "#00ff88";
+        context.fillStyle = "#00ff88";
+        context.beginPath();
+        observation.corners.forEach((corner, index) => {
+          if (index === 0) context.moveTo(corner.x, corner.y);
+          else context.lineTo(corner.x, corner.y);
+        });
+        context.closePath();
+        context.stroke();
+        context.fillText(
+          `ID ${observation.id}`,
+          observation.center.x + 8,
+          observation.center.y,
+        );
       });
-      context.closePath();
-      context.stroke();
-      context.fillText(
-        `ID ${observation.id}`,
-        observation.center.x + 8,
-        observation.center.y,
-      );
-    });
 
     const projectedPianoCorners = projectedPianoCornersRef.current;
     const projectedWhiteKeys = projectedWhiteKeysRef.current;
 
     if (projectedPianoCorners && projectedWhiteKeys) {
-          context.beginPath();
-          projectedPianoCorners.forEach((corner, index) => {
-            if (index === 0) context.moveTo(corner.x, corner.y);
-            else context.lineTo(corner.x, corner.y);
-          });
-          context.closePath();
-          context.fillStyle = "rgba(255, 255, 255, 0.18)";
-          context.strokeStyle = "#ffd60a";
-          context.lineWidth = 6;
-          context.fill();
-          context.stroke();
+      context.beginPath();
+      projectedPianoCorners.forEach((corner, index) => {
+        if (index === 0) context.moveTo(corner.x, corner.y);
+        else context.lineTo(corner.x, corner.y);
+      });
+      context.closePath();
+      context.fillStyle = "rgba(255, 255, 255, 0.18)";
+      context.strokeStyle = "#ffd60a";
+      context.lineWidth = 6;
+      context.fill();
+      context.stroke();
 
-          context.strokeStyle = "rgba(255, 255, 255, 0.9)";
-          context.lineWidth = 3;
-          const collisions = getKeyCollisions(
-            fingertips,
-            projectedWhiteKeys,
-            8,
-          );
-          const contactCollisions = depthCalibration
-            ? collisions.flatMap((collision) => {
-                const hasCandidate = collision.fingertips.some(
-                  (id) => fingerStatesRef.current.get(id) === "press candidate",
-                );
-                return hasCandidate ? [collision] : [];
-              })
-            : [];
-          const collidedKeys = getCollidedKeyIndexes(contactCollisions);
-          if (trackingEnabled) {
-            const transitions = updateKeyTransitions(
-              previousKeysRef.current,
-              collidedKeys,
+      context.strokeStyle = "rgba(255, 255, 255, 0.9)";
+      context.lineWidth = 3;
+      const collidedKeys = new Set(activeKeyIndexes);
+
+      projectedWhiteKeys.forEach((key, index) => {
+        if (collidedKeys.has(index)) pressWhiteKey(context, key);
+        else releaseWhiteKey(context, key);
+      });
+
+      if (
+        showVisualDebug &&
+        CONTACT_TECHNIQUES.knuckles &&
+        depthCalibration &&
+        videoRef.current?.videoHeight
+      ) {
+        fingertips
+          .filter(({ landmarkIndex }) =>
+            [4, 8, 12, 16, 20].includes(landmarkIndex),
+          )
+          .forEach((fingertip) => {
+            const keyOverlap =
+              getKeyCollisions([fingertip], projectedWhiteKeys, 8).length > 0;
+            if (!keyOverlap) return;
+            const hand = hands[fingertip.handIndex];
+            const landmark = hand?.landmarks[fingertip.landmarkIndex];
+            const knuckleDistance = hand
+              ? getKnuckleDistance(hand.landmarks)
+              : null;
+            if (!landmark || knuckleDistance === null) return;
+            const fingerIndex = [4, 8, 12, 16, 20].indexOf(
+              fingertip.landmarkIndex,
             );
+            if (fingerIndex < 0) return;
+            const finger = DEPTH_FINGERS[fingerIndex];
+            const boundaryY = getKnuckleBoundaryY(
+              depthCalibration,
+              finger,
+              knuckleDistance,
+              true,
+            );
+            if (boundaryY === null) return;
 
-            if (transitions.pressed.length || transitions.released.length) {
-              onKeyTransitions?.(transitions.pressed, transitions.released);
-            }
-            previousKeysRef.current = collidedKeys;
-          }
-
-          projectedWhiteKeys.forEach((key, index) => {
-            if (collidedKeys.has(index)) pressWhiteKey(context, key);
-            else releaseWhiteKey(context, key);
+            const eligibilityY =
+              boundaryY -
+              KNUCKLE_PLAYING_MARGIN_Y -
+              (pipelineRef.current?.gates.get(fingertip.id)?.knuckleEligible
+                ? KNUCKLE_ELIGIBILITY_HYSTERESIS_Y
+                : 0);
+            const screenY = eligibilityY * videoRef.current!.videoHeight;
+            const calibrationDistances = Object.values(
+              depthCalibration.knuckleDistances,
+            );
+            const outsideRange =
+              knuckleDistance < Math.min(...calibrationDistances) ||
+              knuckleDistance > Math.max(...calibrationDistances);
+            context.save();
+            const colors = [
+              "#ff9f0a",
+              "#ff375f",
+              "#bf5af2",
+              "#64d2ff",
+              "#30d158",
+            ];
+            const color = colors[fingerIndex];
+            context.strokeStyle = color;
+            context.fillStyle = color;
+            context.lineWidth = 3;
+            context.setLineDash([16, 10]);
+            context.beginPath();
+            context.moveTo(0, screenY);
+            context.lineTo(overlay.width, screenY);
+            context.stroke();
+            context.setLineDash([]);
+            context.font = "bold 18px Arial";
+            context.fillText(
+              `${finger} knuckle eligibility${outsideRange ? " (outside range)" : ""}`,
+              12,
+              screenY - 8,
+            );
+            context.restore();
           });
-
-          if (depthCalibration && videoRef.current?.videoHeight) {
-            fingertips
-              .filter(({ landmarkIndex }) =>
-                [4, 8, 12, 16, 20].includes(landmarkIndex),
-              )
-              .forEach((fingertip) => {
-                const keyOverlap = getKeyCollisions(
-                  [fingertip],
-                  projectedWhiteKeys,
-                  8,
-                ).length > 0;
-                if (!keyOverlap) return;
-                const hand = hands[fingertip.handIndex];
-                const landmark = hand?.landmarks[fingertip.landmarkIndex];
-                const knuckleDistance = hand
-                  ? getKnuckleDistance(hand.landmarks)
-                  : null;
-                if (!landmark || knuckleDistance === null) return;
-                const fingerIndex = [4, 8, 12, 16, 20].indexOf(
-                  fingertip.landmarkIndex,
-                );
-                if (fingerIndex < 0) return;
-                const finger = DEPTH_FINGERS[fingerIndex];
-                const boundaryY = getKnuckleBoundaryY(
-                  depthCalibration,
-                  finger,
-                  knuckleDistance,
-                  true,
-                );
-                if (boundaryY === null) return;
-
-                const screenY =
-                  boundaryY * videoRef.current!.videoHeight;
-                const calibrationDistances = Object.values(
-                  depthCalibration.knuckleDistances,
-                );
-                const outsideRange =
-                  knuckleDistance < Math.min(...calibrationDistances) ||
-                  knuckleDistance > Math.max(...calibrationDistances);
-                context.save();
-                const colors = [
-                  "#ff9f0a",
-                  "#ff375f",
-                  "#bf5af2",
-                  "#64d2ff",
-                  "#30d158",
-                ];
-                const color = colors[fingerIndex];
-                context.strokeStyle = color;
-                context.fillStyle = color;
-                context.lineWidth = 3;
-                context.setLineDash([16, 10]);
-                context.beginPath();
-                context.moveTo(0, screenY);
-                context.lineTo(overlay.width, screenY);
-                context.stroke();
-                context.setLineDash([]);
-                context.font = "bold 18px Arial";
-                context.fillText(
-                  `${finger} knuckle boundary${outsideRange ? " (outside range)" : ""}`,
-                  12,
-                  screenY - 8,
-                );
-                context.restore();
-              });
-          }
+      }
     }
     if (shadowPreviewFinger) {
       drawShadowSamplingGuides(context, shadowPreviewFinger.point);
     }
   }, [
+    activeKeyIndexes,
+    showVisualDebug,
     depthCalibration,
+    fingerDebug,
     fingertips,
     hands,
     markerDetection,
-    onKeyTransitions,
     shadowPreviewFinger,
-    trackingEnabled,
     videoRef,
   ]);
 
@@ -788,117 +697,169 @@ export default function MarkerTrackingOverlay({
         className="absolute inset-0 z-10 h-full w-full object-cover pointer-events-none"
       />
       <canvas ref={processingCanvasRef} className="hidden" />
-      <canvas ref={shadowMaskSourceRef} className="hidden" />
-      <div className="absolute left-4 top-4 rounded bg-black/70 px-3 py-2 text-sm text-white">
-        {markerDetection === null
-          ? "Loading ArUco detector…"
-          : markerDetection.missingIds.length === 0
-            ? "All four ArUco boards detected"
-            : `Missing IDs: ${markerDetection.missingIds.join(", ")}`}
-      </div>
-      <div className="absolute right-4 top-4 z-20 max-h-[70vh] max-w-[430px] overflow-auto rounded bg-black/80 px-3 py-2 font-mono text-xs text-white">
-        <div className="mb-1 font-bold">Finger debug</div>
-        <div className="mb-3 border-b border-white/20 pb-2">
-          <div className="mb-1 font-bold">
-            Index k-means preview
-            {shadowPreviewFinger ? ` (H${shadowPreviewFinger.handIndex})` : ""}
+      {showVisualDebug && (
+        <>
+          <canvas ref={shadowMaskSourceRef} className="hidden" />
+          <div className="absolute left-4 top-4 rounded bg-black/70 px-3 py-2 text-sm text-white">
+            {markerDetection === null
+              ? "Loading ArUco detector…"
+              : markerDetection.missingIds.length === 0
+                ? "All four ArUco boards detected"
+                : `Missing IDs: ${markerDetection.missingIds.join(", ")}`}
           </div>
-          <div className="mb-2" role="status">
-            {shadowWorkerError
-              ? `Mask unavailable: ${shadowWorkerError}`
-              : !shadowPreviewFinger
-                ? "Show your index finger to start the mask."
-                : shadowMaskCount === 0
-                  ? "Waiting for the first mask…"
-                  : `Mask active · ${shadowMaskCount} frames received`}
-          </div>
-          <div className="mb-2 flex gap-2">
-            <button
-              type="button"
-              aria-pressed={shadowPreviewMode === "mask"}
-              onClick={() => setShadowPreviewMode("mask")}
-              className={`rounded px-2 py-1 ${shadowPreviewMode === "mask" ? "bg-white text-ink" : "bg-surface-dark text-white"}`}
-            >
-              Black / white
-            </button>
-            <button
-              type="button"
-              aria-pressed={shadowPreviewMode === "camera"}
-              onClick={() => setShadowPreviewMode("camera")}
-              className={`rounded px-2 py-1 ${shadowPreviewMode === "camera" ? "bg-white text-ink" : "bg-surface-dark text-white"}`}
-            >
-              Camera
-            </button>
-          </div>
-          <canvas
-            ref={shadowMaskCanvasRef}
-            width={SHADOW_PREVIEW_SIZE}
-            height={SHADOW_PREVIEW_SIZE}
-            aria-label="Black and white mask of the darkest color cluster in the index fingertip crop"
-            className={`${shadowPreviewMode === "mask" ? "block" : "hidden"} h-auto max-w-full bg-surface-dark`}
-          />
-          <canvas
-            ref={shadowPreviewCanvasRef}
-            width={SHADOW_PREVIEW_SIZE}
-            height={SHADOW_PREVIEW_SIZE}
-            aria-label="Magnified camera view of the index fingertip crop used for k-means"
-            className={`${shadowPreviewMode === "camera" ? "block" : "hidden"} h-auto max-w-full bg-surface-dark`}
-          />
-          <div className="mt-1">Black: darkest color group. White: other groups.</div>
-          <div>Above purple dashed line: ignored. Outline: blue hover, green candidate.</div>
-          <div className="mt-1 font-bold">
-            Contour area: {shadowPreviewDebug?.shadowContourArea ?? "—"} pixels
-          </div>
-          <div className="font-bold">
-            Shadow: {shadowPreviewDebug && !shadowPreviewDebug.keyOverlap
-              ? "outside key"
-              : shadowPreviewDebug?.shadowContact ?? "unknown"}
-          </div>
-          <div>
-            Peak: {shadowPreviewDebug?.shadowPeakArea ?? "—"} pixels · Ratio: {
-              shadowPreviewDebug?.shadowAreaRatio == null
-                ? "—"
-                : `${(shadowPreviewDebug.shadowAreaRatio * 100).toFixed(1)}%`
-            }
-          </div>
-          <div>
-            Candidate: ratio ≤{SHADOW_PRESS_AREA_RATIO * 100}% or area &lt;{SHADOW_PRESS_ABSOLUTE_AREA_PIXELS} pixels.
-          </div>
-          <div>Ink and remaining skin may still appear black.</div>
-          <div>Camera view: purple box marks the crop; cross marks the fingertip.</div>
-        </div>
-        <div className="mb-2 border-b border-white/20 pb-1">
-          calibration={depthCalibration ? "ready" : "missing"} mapping={
-            markerDetection?.missingIds.length === 0 ? "ready" : "waiting"
-          }
-          <br />
-          knuckle TL={depthCalibration
-            ? depthCalibration.knuckleDistances["top-left"].toFixed(5)
-            : "n/a"} TR={depthCalibration
-            ? depthCalibration.knuckleDistances["top-right"].toFixed(5)
-            : "n/a"} BL={depthCalibration
-            ? depthCalibration.knuckleDistances["bottom-left"].toFixed(5)
-            : "n/a"} BR={depthCalibration
-            ? depthCalibration.knuckleDistances["bottom-right"].toFixed(5)
-            : "n/a"} C={depthCalibration
-            ? depthCalibration.knuckleDistances.center.toFixed(5)
-            : "n/a"} current={fingerDebug[0]?.knuckleDistance?.toFixed(5) ?? "n/a"}
-        </div>
-        {fingerDebug.length === 0 ? (
-          <div>No hand data</div>
-        ) : (
-          fingerDebug.map((finger) => (
-            <div key={finger.id} className="mb-1">
-              H{finger.handIndex} {finger.finger}: {finger.keyOverlap ? finger.shadowContact : "outside key"}
-              {finger.shadowStrength === null
-                ? ""
-                : ` (area ${finger.shadowContourArea ?? "—"} px, dark ${((finger.shadowDarkArea ?? 0) * 100).toFixed(0)}%, Δ${
-                    finger.shadowLumaChange?.toFixed(1) ?? "—"
-                  })`}
+          <div className="absolute right-4 top-4 z-20 max-h-[70vh] max-w-[430px] overflow-auto rounded bg-black/80 px-3 py-2 font-mono text-xs text-white">
+            <div className="mb-1 font-bold">Finger debug</div>
+            <div className="mb-2">
+              Techniques: knuckles {CONTACT_TECHNIQUES.knuckles ? "on" : "off"}{" "}
+              · shadows {CONTACT_TECHNIQUES.shadows ? "on" : "off"}
             </div>
-          ))
-        )}
-      </div>
+            {CONTACT_TECHNIQUES.shadows && (
+              <div className="mb-3 border-b border-white/20 pb-2">
+                <div className="mb-1 font-bold">
+                  Index k-means preview
+                  {shadowPreviewFinger
+                    ? ` (H${shadowPreviewFinger.handIndex})`
+                    : ""}
+                </div>
+                <div className="mb-2" role="status">
+                  {shadowWorkerError
+                    ? `Mask unavailable: ${shadowWorkerError}`
+                    : !shadowPreviewFinger
+                      ? "Show your index finger to start the mask."
+                      : shadowMaskCount === 0
+                        ? "Waiting for the first mask…"
+                        : `Mask active · ${shadowMaskCount} frames received`}
+                </div>
+                <div className="mb-2 flex gap-2">
+                  <button
+                    type="button"
+                    aria-pressed={shadowPreviewMode === "mask"}
+                    onClick={() => setShadowPreviewMode("mask")}
+                    className={`rounded px-2 py-1 ${shadowPreviewMode === "mask" ? "bg-white text-ink" : "bg-surface-dark text-white"}`}
+                  >
+                    Black / white
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={shadowPreviewMode === "camera"}
+                    onClick={() => setShadowPreviewMode("camera")}
+                    className={`rounded px-2 py-1 ${shadowPreviewMode === "camera" ? "bg-white text-ink" : "bg-surface-dark text-white"}`}
+                  >
+                    Camera
+                  </button>
+                </div>
+                <canvas
+                  ref={shadowMaskCanvasRef}
+                  width={SHADOW_PREVIEW_SIZE}
+                  height={SHADOW_PREVIEW_SIZE}
+                  aria-label="Black and white mask of the darkest color cluster in the index fingertip crop"
+                  className={`${shadowPreviewMode === "mask" ? "block" : "hidden"} h-auto max-w-full bg-surface-dark`}
+                />
+                <canvas
+                  ref={shadowPreviewCanvasRef}
+                  width={SHADOW_PREVIEW_SIZE}
+                  height={SHADOW_PREVIEW_SIZE}
+                  aria-label="Magnified camera view of the index fingertip crop used for k-means"
+                  className={`${shadowPreviewMode === "camera" ? "block" : "hidden"} h-auto max-w-full bg-surface-dark`}
+                />
+                <div className="mt-1">
+                  Black: darkest color group. White: other groups.
+                </div>
+                <div>
+                  Above purple dashed line: ignored. Outline: blue hover, green
+                  candidate.
+                </div>
+                <div className="mt-1 font-bold">
+                  Contour area: {shadowPreviewDebug?.shadowContourArea ?? "—"}{" "}
+                  pixels
+                </div>
+                <div className="font-bold">
+                  Shadow:{" "}
+                  {shadowPreviewDebug && !shadowPreviewDebug.keyOverlap
+                    ? "outside key"
+                    : (shadowPreviewDebug?.shadowContact ?? "unknown")}
+                </div>
+                <div className="font-bold">
+                  Contact:{" "}
+                  {shadowPreviewDebug && !shadowPreviewDebug.keyOverlap
+                    ? "outside key"
+                    : (shadowPreviewDebug?.state ?? "unavailable")}
+                </div>
+                <div>
+                  Peak: {shadowPreviewDebug?.shadowPeakArea ?? "—"} pixels ·
+                  Ratio:{" "}
+                  {shadowPreviewDebug?.shadowAreaRatio == null
+                    ? "—"
+                    : `${(shadowPreviewDebug.shadowAreaRatio * 100).toFixed(1)}%`}
+                </div>
+                <div>
+                  Candidate: ratio ≤{SHADOW_PRESS_AREA_RATIO * 100}% or area
+                  &lt;
+                  {SHADOW_PRESS_ABSOLUTE_AREA_PIXELS} pixels.
+                </div>
+                <div>Ink and remaining skin may still appear black.</div>
+                <div>
+                  Camera view: purple box marks the crop; cross marks the
+                  fingertip.
+                </div>
+              </div>
+            )}
+            <div className="mb-2 border-b border-white/20 pb-1">
+              calibration={depthCalibration ? "ready" : "missing"} mapping=
+              {markerDetection?.missingIds.length === 0 ? "ready" : "waiting"}
+              <br />
+              knuckle TL=
+              {depthCalibration
+                ? depthCalibration.knuckleDistances["top-left"].toFixed(5)
+                : "n/a"}{" "}
+              TR=
+              {depthCalibration
+                ? depthCalibration.knuckleDistances["top-right"].toFixed(5)
+                : "n/a"}{" "}
+              BL=
+              {depthCalibration
+                ? depthCalibration.knuckleDistances["bottom-left"].toFixed(5)
+                : "n/a"}{" "}
+              BR=
+              {depthCalibration
+                ? depthCalibration.knuckleDistances["bottom-right"].toFixed(5)
+                : "n/a"}{" "}
+              C=
+              {depthCalibration
+                ? depthCalibration.knuckleDistances.center.toFixed(5)
+                : "n/a"}{" "}
+              current={fingerDebug[0]?.knuckleDistance?.toFixed(5) ?? "n/a"}
+            </div>
+            {fingerDebug.length === 0 ? (
+              <div>No hand data</div>
+            ) : (
+              fingerDebug.map((finger) => (
+                <div key={finger.id} className="mb-1">
+                  H{finger.handIndex} {finger.finger}:{" "}
+                  {finger.keyOverlap ? finger.state : "outside key"}
+                  <div>
+                    overlap={finger.keyOverlap ? "yes" : "no"} · knuckles=
+                    {CONTACT_TECHNIQUES.knuckles
+                      ? finger.knuckleEligible
+                        ? "yes"
+                        : "no"
+                      : "disabled"}{" "}
+                    · shadow=
+                    {CONTACT_TECHNIQUES.shadows
+                      ? finger.shadowContact
+                      : "disabled"}
+                  </div>
+                  {finger.shadowStrength === null
+                    ? ""
+                    : ` (area ${finger.shadowContourArea ?? "—"} px, dark ${((finger.shadowDarkArea ?? 0) * 100).toFixed(0)}%, Δ${
+                        finger.shadowLumaChange?.toFixed(1) ?? "—"
+                      })`}
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
     </>
   );
 }

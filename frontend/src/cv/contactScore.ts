@@ -51,7 +51,10 @@ export interface ContactScoreResult {
   supportingEvidenceCount: number;
 }
 
-/** Combine available heuristic outputs into one conservative press score. */
+/**
+ * Standalone weighted-score experiment; live notes use contactPipeline.ts and
+ * combinedContact.ts. Combine available heuristic outputs into a press score.
+ */
 export function scoreContact(
   frame: ContactFrame,
   options: ContactScoreOptions = {},

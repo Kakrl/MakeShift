@@ -15,9 +15,10 @@ const workerScope = self as unknown as {
 
 workerScope.onmessage = ({ data }) => {
   const observations = data.fingers.map(
-    ({ id, point, previous, keyOverlap }) => ({
+    ({ id, point, previous, keyOverlap, contactRevision }) => ({
       id,
       keyOverlap,
+      contactRevision,
       observation: observeShadow(data.imageData, point, data.radius, previous, {
         createMask: id === data.previewFingerId,
       }),

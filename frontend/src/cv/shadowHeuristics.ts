@@ -113,6 +113,7 @@ export interface ShadowWorkerRequest {
     point: Point;
     previous: ShadowMeasurement | null;
     keyOverlap: boolean;
+    contactRevision: number;
   }[];
 }
 
@@ -122,6 +123,7 @@ export interface ShadowWorkerResponse {
     id: string;
     observation: ShadowObservation;
     keyOverlap: boolean;
+    contactRevision: number;
   }[];
 }
 

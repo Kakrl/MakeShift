@@ -12,6 +12,9 @@ import {
 } from "../cv/depthCalibration";
 import type { PersistedDepthCalibration } from "../cv/depthCalibration";
 
+// Set to true to show CV diagnostics and shadow previews.
+const SHOW_VISUAL_DEBUG = true;
+
 const MarkerTrackingOverlay = dynamic(
   () => import("./MarkerTrackingOverlay"),
   { ssr: false },
@@ -100,10 +103,12 @@ export default function CVOverlayCoordinator({
         depthCalibration={depthCalibration}
         onKeyTransitions={handleKeyTransitions}
         trackingEnabled={enabled}
+        showVisualDebug={SHOW_VISUAL_DEBUG}
       />
       <HandTrackingOverlay
         videoRef={videoRef}
         onLandmarks={handleLandmarks}
+        showVisualDebug={SHOW_VISUAL_DEBUG}
       />
     </>
   );
