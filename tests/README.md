@@ -593,44 +593,21 @@ following merge of main at 4dc41ab (PR #136) into feature/24-session-gating.
   of this merged behavior and Actions execution remain pending. Vitest remains
   outside frontend CI (D3); no FPS, detection accuracy or physical latency claim.
 
-## PR #139 merge reconciliation
+## PR #138 follow-up review verification
 
-Local Windows execution on 2026-09-30, Node 22.20.0, Vitest 4.1.11,
-merging PR #138 head `0fecdb5` into PR #139 head `fe67e6f`.
+Local Windows execution on 2026-09-30, `feature/24-session-gating`, working
+changes based on `0fecdb5` (Node 22, Vitest 4.1.11):
 
-- All 222 tests passed across nine files: 25 readiness cases, 17 page integration
-  cases and 16 piano integration cases. Retained both branches' coverage and
-  updated feedback expectations for independent recording Stop.
-- Added a recording-boundary regression: deferred pre-capture history is drained,
-  released notes are excluded, held same-pitch identities and velocities survive
-  start/resume, and capture does not retrigger audio. Existing immediate Stop,
-  pause/resume, tracking interruption and stale producer cases also pass.
-- TypeScript, ESLint (five existing unused-variable warnings), all 18 contrast
-  pairs and the Next.js 16.2.3 production build passed. `git diff --check` passed.
-  An initial repository-root `npx tsc` invocation did not run the project compiler;
-  the passing TypeScript check used the frontend working directory.
-- Tests use simulated camera/audio inputs and production offline DSP. No new
-  hardware/manual verification, physical latency or detection accuracy claim.
-  Earlier manual passes predate this merge. Vitest remains outside CI (D3);
-  Actions results are separate.
-- Reconciliation keeps #138's named note methods, independent playback and
-  marker cadence, #139's timestamped shared consumers, and #137's cleanup.
-  The previous squash-transplant instruction is obsolete; #138 remains a
-  dependency until merged.
-
-## PR #139 review verification
-
-Local Windows execution on 2026-09-30, feature/28-browser-piano-integration,
-working tree based on b136e6a, Node 22.20.0 and Vitest 4.1.11:
-
-- All 227 tests passed across nine files. Readiness now has 27 cases and piano
-  integration has 19. Added initial missing-marker/idle timeout state preservation,
-  recovery guidance without automatic restart, and three velocity cases (0.004,
-  0.256 and 1) covering live note capture and held-note resume without audio replay.
-- TypeScript, ESLint (four existing unused page declarations), all 18 contrast
-  pairs and production build passed. Removed unused CameraStatusOverlay import.
-- Initial regression run exposed an overly broad recovery-message override;
-  corrected to refresh guidance only when observations restore freshness, so an
-  audio interruption still shows its cause. The final full suite above passed.
-- Hardware is simulated; no new physical/manual verification. Vitest remains
-  outside CI (D3), and Actions execution remains pending.
+- All 205 Vitest tests passed across eight files, including 26 live-session
+  cases and 15 simulated page/coordinator/marker integration cases.
+- The new case preserves a playing session across an 11-second marker gap
+  with fresh hand tracking, then verifies invalid calibration releases notes.
+  Existing cases verify marker expiry, stale hands and token-paired releases.
+- TypeScript and production build passed. Lint passed with five existing
+  unused-variable warnings. All 18 contrast pairs passed.
+- Readiness now comes from the session; marker geometry uses its returned
+  compatibility decision. Both audio adapters share one press-token sink.
+- Low-severity review cleanup: repaired UTF-8 mojibake in the inventory and
+  removed unused pitch-based audio wrappers, which had no production callers.
+- Two-second marker jitter slack is provisional. Hardware timing, physical
+  camera/audio behavior and GitHub Actions execution remain unverified.

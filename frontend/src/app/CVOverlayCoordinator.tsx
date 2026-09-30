@@ -23,14 +23,16 @@ export default function CVOverlayCoordinator({
   videoRef,
   session,
   enabled = false,
-  activePitches,
-  onCalibrationValidity,
+  onNoteOn,
+  onNoteOff,
+  onReleaseAllNotes,
 }: {
   videoRef: RefObject<HTMLVideoElement | null>;
   enabled?: boolean;
   session: LiveSession;
-  activePitches: ReadonlySet<number>;
-  onCalibrationValidity?: (valid: boolean) => void;
+  onNoteOn: (pitch: string, velocity: number) => void;
+  onNoteOff: (pitch: string) => void;
+  onReleaseAllNotes: () => void;
 }) {
   const id = session.sessionId;
   const producer = useMemo(() => id ? createKeyEventProducer(session, id) : null, [session, id]);
@@ -58,7 +60,7 @@ export default function CVOverlayCoordinator({
     [enabled, producer],
   );
   const observeCalibration = useCallback((saved: unknown, camera: CameraSignature | null, corners: Point[] | null) => {
-    session.observeCalibration(saved, camera, corners);
+    return session.observeCalibration(saved, camera, corners);
   }, [session]);
   const trackingFailed = useCallback(() => session.trackingFailed(), [session]);
 
@@ -70,7 +72,6 @@ export default function CVOverlayCoordinator({
         activePitches={activePitches}
         onKeyTransitions={handleKeyTransitions}
         trackingEnabled={enabled}
-        onCalibrationValidity={onCalibrationValidity}
         onCalibrationObservation={observeCalibration}
       />
       <HandTrackingOverlay
