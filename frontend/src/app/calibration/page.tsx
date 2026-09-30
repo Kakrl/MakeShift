@@ -15,10 +15,14 @@ import {
   type LightingReading,
 } from "../lighting";
 
+import { MarkerDetector } from "../../cv/markerDetector";
+import { cameraSignature, markerCorners, compatibleCalibration, validateCalibration, saveCalibration,
+  validSamples, CURRENT_LAYOUT, SHEET_ID, type CalibrationResult, type LandmarkSample } from "../../cv/calibration";
+import type { Point } from "../../cv/types";
 const TOTAL_STEPS = 5;
 
-const OCTAVE_OPTIONS = ["1", "2", "3", "4"];
-const NOTE_OPTIONS = ["A0", "A1", "A2", "A3", "A4", "A5"];
+const OCTAVE_OPTIONS = ["1"];
+const NOTE_OPTIONS = ["C3"];
 
 function ChevronDown() {
   return (
@@ -74,8 +78,8 @@ export default function Calibration() {
   const [step, setStep] = useState(1);
 
   // Step 1
-  const [octaves, setOctaves] = useState("2");
-  const [startingNote, setStartingNote] = useState("A0");
+  const [octaves, setOctaves] = useState("1");
+  const [startingNote, setStartingNote] = useState("C3");
 
   // Steps 4 & 5 — shared countdown
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -93,6 +97,11 @@ export default function Calibration() {
   // #16 — sampled from the live frame during step 2
   const [lighting, setLighting] = useState<LightingReading | null>(null);
 
+  const [corners, setCorners] = useState<Point[] | null>(null);
+  const hoverRef = useRef<LandmarkSample[][] | null>(null);
+  const resultRef = useRef<CalibrationResult | null>(null);
+  const detectorRef = useRef<MarkerDetector | null>(null);
+  const generationRef = useRef(0);
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -171,6 +180,8 @@ export default function Calibration() {
   }
 
   function goToAdjacentStep(delta: -1 | 1) {
+    generationRef.current++;
+    if (delta === -1) { resultRef.current = null; hoverRef.current = null; }
     resetInteractiveStepState();
     setStep((s) => s + delta);
   }
@@ -182,15 +193,46 @@ export default function Calibration() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [showHelpModal]);
 
-  // Press 'i' in step 3 to simulate a paper-not-accepted error (prototype trigger)
   useEffect(() => {
-    if (step !== 3) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "i" || e.key === "I") setPaperError(true);
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [step]);
+    let cancelled = false;
+    MarkerDetector.create().then(detector => {
+      if (cancelled) detector.dispose();
+      else detectorRef.current = detector;
+    }).catch(() => setCaptureError("Sheet detector unavailable. Reload to retry."));
+    return () => { cancelled = true; detectorRef.current?.dispose(); detectorRef.current = null; };
+  }, []);
+
+  useEffect(() => {
+    generationRef.current++;
+    hoverRef.current = null;
+    resultRef.current = null;
+  }, [stream]);
+
+  function readSheet() {
+    const video = videoRef.current;
+    const camera = cameraSignature(stream, video);
+    const detector = detectorRef.current;
+    if (!video || !camera || !detector) throw new Error("Wait for the camera and sheet detector, then retry.");
+    const canvas = document.createElement("canvas");
+    canvas.width = camera.width; canvas.height = camera.height;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Unable to read the camera frame.");
+    context.drawImage(video, 0, 0);
+    const observed = markerCorners(detector.detect(canvas), camera);
+    if (!observed) throw new Error("Show all four sheet markers in a clear, flat rectangle, then retry.");
+    return { camera, corners: observed };
+  }
+
+  function checkPaper() {
+    try {
+      const observed = readSheet();
+      setCorners(observed.corners);
+      setPaperError(false); setCaptureError(null);
+    } catch (error) {
+      setCorners(null); setPaperError(true);
+      setCaptureError(error instanceof Error ? error.message : "Unable to detect the sheet.");
+    }
+  }
 
   function canvasToImage(canvas: HTMLCanvasElement): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
@@ -215,58 +257,47 @@ export default function Calibration() {
     return canvasToImage(canvas);
   }, []);
 
-  function detectFingers(image: HTMLImageElement) {
-    const res = detect(image);
-    const canvas = canvasRef.current;
-    if (!res || !canvas) {
-      setCaptureError("Hand detection is unavailable. Try again.");
-      return;
-    }
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    let fingertips = 0;
-    for (const hand of res.landmarks ?? []) {
-      for (const idx of [4, 8, 12, 16, 20]) {
-        const pt = hand[idx];
-        ctx.beginPath();
-        ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 20, 0, 2 * Math.PI);
-        ctx.fillStyle = "red";
-        ctx.fill();
-        fingertips++;
-      }
-    }
-    if (fingertips > 0) setFingersShown(true);
-    setShowingImage(true);
-  }
-
-  // Single countdown tick — behaviour at 0 differs per step
+  // The timer schedules a real capture; it never establishes success itself.
   useEffect(() => {
     if (countdown === null || countdown < 0) return;
-    if (countdown === 0) {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(c => c === null ? null : c - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+    let cancelled = false;
+    const generation = generationRef.current;
+    const observed = (() => { try { return readSheet(); } catch { return null; } })();
+    capture().then(image => {
+      if (cancelled || generation !== generationRef.current) return;
+      if (!image || !observed || !corners) throw new Error("Camera or sheet unavailable. Return to Align your paper.");
+      const landmarks = detect(image)?.landmarks;
+      if (!validSamples(landmarks)) throw new Error("Show one or two complete hands, then retry.");
+      if (corners.some((p, i) => Math.hypot(p.x - observed.corners[i].x, p.y - observed.corners[i].y) >
+        Math.hypot(observed.camera.width, observed.camera.height) * 0.01)) {
+        throw new Error("The sheet moved. Return to Align your paper.");
+      }
       if (step === 4) {
-        capture()
-          .then((image) => {
-            if (image) {
-              detectFingers(image);
-            } else {
-              // #13 — no usable frame; stay on the live preview so Retry works
-              setCaptureError("The camera was not ready. Try again.");
-              setShowingImage(false);
-            }
-          })
-          .catch(() => {
-            setCaptureError("Could not read a frame from the camera. Try again.");
-            setShowingImage(false);
-          });
+        hoverRef.current = structuredClone(landmarks);
+        setFingersShown(true);
       } else if (step === 5) {
+        const result = validateCalibration({ version: 1, coordinates: "unmirrored-frame-pixels/marker-unit-square",
+          sheet: SHEET_ID, camera: observed.camera, layout: CURRENT_LAYOUT, corners,
+          contact: { model: "landmark-reference-v1", hover: hoverRef.current, rest: landmarks } });
+        if (!result) throw new Error("Capture the hover step again before placing your hands.");
+        resultRef.current = result;
         setStep5Success(true);
       }
-      return;
-    }
-    const timer = setTimeout(() => setCountdown((c) => (c !== null ? c - 1 : null)), 1000);
-    return () => clearTimeout(timer);
+      setShowingImage(true);
+    }).catch(error => {
+      if (!cancelled && generation === generationRef.current) {
+        setCaptureError(error instanceof Error ? error.message : "Capture failed. Retry.");
+        setShowingImage(false);
+      }
+    });
+    return () => { cancelled = true; };
+  // Capture is bound to the countdown/step; late promises are explicitly rejected.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [countdown, step]);
+  }, [countdown, step, stream]);
 
   const handleStartCountdown = () => {
     setHasStarted(true);
@@ -278,13 +309,21 @@ export default function Calibration() {
   };
 
   const handleComplete = () => {
-    if (typeof window !== "undefined") localStorage.setItem("isCalibrated", "true");
-    router.push("/");
+    try {
+      const observed = readSheet();
+      const result = resultRef.current;
+      if (!result || !compatibleCalibration(result, observed.camera, observed.corners)) {
+        throw new Error("Calibration changed. Return to calibration and capture again.");
+      }
+      if (!saveCalibration(result)) throw new Error("Could not save calibration. Enable browser storage and retry.");
+      router.push("/");
+    } catch (error) { setCaptureError(error instanceof Error ? error.message : "Please retry calibration."); }
   };
 
   const lightingOk = lighting?.verdict === "ok";
 
   const canAdvance = () => {
+    if (step === 3) return corners !== null;
     if (step === 2) return lightingOk; // #16
     if (step === 4) return fingersShown;
     if (step === 5) return step5Success;
@@ -299,7 +338,7 @@ export default function Calibration() {
 
   // Counting down right now?
   const isCounting = countdown !== null && countdown > 0;
-  const isInteractiveStep = step === 2 || step === 4 || step === 5;
+  const isInteractiveStep = step === 2 || step === 3 || step === 4 || step === 5;
   const showPreviousStep = !isComplete && step > 1 && !isCounting;
   const showExitCalibration = step === 1;
   // Step 1 is settings only; every later step asks the user to judge the camera feed.
@@ -380,7 +419,7 @@ export default function Calibration() {
           {/* Hint */}
           {!paperError && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-surface-dark px-5 py-2 rounded-full pointer-events-none">
-              <p className="text-white text-[15px] font-sans">Align the red outline with your paper, then click Next Step</p>
+              <p className="text-white text-[15px] font-sans">Show all four markers, then click Check paper</p>
             </div>
           )}
           {/* Help button */}
@@ -550,7 +589,7 @@ export default function Calibration() {
       return (
         <div className="flex flex-wrap items-center gap-4">
           <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--color-success)"/><path d="M8 14L11.5 18L20 10" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          <p className="text-[18px] sm:text-[24px] text-black font-sans">Calibration complete! You&apos;re ready to play.</p>
+          <p className="text-[18px] sm:text-[24px] text-black font-sans">Calibration captured. Keep the camera and sheet in place.</p>
         </div>
       );
     }
@@ -558,7 +597,7 @@ export default function Calibration() {
     if (step === 1) {
       return (
         <div className="flex items-center gap-5 flex-wrap">
-          <p className="text-[18px] sm:text-[24px] text-black font-sans">Step 1: Select octaves &amp; starting note</p>
+          <p className="text-[18px] sm:text-[24px] text-black font-sans">Step 1: Current sheet — one octave, C3–C4</p>
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex flex-col gap-1">
               <label htmlFor="octave-count" className="text-[13px] text-black font-sans"># of Octaves</label>
@@ -609,7 +648,7 @@ export default function Calibration() {
     }
 
     if (step === 3) {
-      return <p className="text-[18px] sm:text-[24px] text-black font-sans">Step 3: Align your paper</p>;
+      return <div><p>Step 3: Show all four paper markers</p><button onClick={checkPaper} className="border rounded px-4 py-2">Check paper</button>{corners && <SuccessBadge label="Sheet geometry validated" />}</div>;
     }
 
     if (step === 4) {
@@ -669,6 +708,11 @@ export default function Calibration() {
         <SideNav active="calibration" />
       </div>
 
+      {isComplete && <button className="underline text-ink" onClick={() => {
+        generationRef.current++; resultRef.current = null; hoverRef.current = null;
+        setCorners(null); resetInteractiveStepState(); setStep(1);
+      }}>Restart calibration</button>}
+      {captureError && <p role="alert" className="px-6 text-danger">{captureError}</p>}
       {/* Step content row */}
       <div className="flex flex-wrap items-center gap-4 shrink-0 pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)] pt-[clamp(8px,2dvh,28px)] pb-[clamp(6px,1.5dvh,16px)]">
         {renderStepContent()}

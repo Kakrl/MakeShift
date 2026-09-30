@@ -10,7 +10,8 @@ const fixtures = vi.hoisted(() => ({
   initializeAudio: vi.fn(async () => {}),
   takes: [] as Recording[],
   download: vi.fn(),
-  camera: { stream: null, cameraReady: true },
+  detect: vi.fn(),
+  camera: { stream: { getVideoTracks: () => [{ readyState: "live", getSettings: () => ({ deviceId: "camera-1" }) }] }, cameraReady: true },
 }));
 vi.mock("../../frontend/src/app/CameraContext", () => ({
   useCamera: () => fixtures.camera,
@@ -43,14 +44,17 @@ vi.mock("../../frontend/src/cv/markerDetector", () => ({
   MarkerDetector: {
     create: async () => ({
       dispose: vi.fn(),
-      detect: () => ({
+      detect: () => {
+        fixtures.detect();
+        return ({
         missingIds: [],
         observations: [[100, 100], [900, 100], [900, 900], [100, 900]]
           .map(([x, y], id) => ({
             id, center: { x, y },
             corners: [{ x, y }, { x: x + 1, y }, { x: x + 1, y: y + 1 }, { x, y: y + 1 }],
           })),
-      }),
+      });
+      },
     }),
   },
 }));
@@ -78,6 +82,7 @@ vi.mock("next/dynamic", async () => {
   };
 });
 
+import { audioNoteOn, audioNoteOff, releaseAllAudioNotes } from "../../frontend/src/app/audio/audioEngine";
 import Home from "../../frontend/src/app/page";
 import Coordinator from "../../frontend/src/app/CVOverlayCoordinator";
 import Marker from "../../frontend/src/app/MarkerTrackingOverlay";
@@ -116,7 +121,13 @@ beforeEach(async () => {
     vi.spyOn(HTMLVideoElement.prototype, name as "readyState", "get").mockReturnValue(value);
   }
   vi.spyOn(console, "log").mockImplementation(() => {});
-  localStorage.setItem("isCalibrated", "true");
+  localStorage.setItem("makeshift.calibration.v1", JSON.stringify({
+    version: 1, coordinates: "unmirrored-frame-pixels/marker-unit-square", sheet: "aruco-0-3-white-keys-v1",
+    camera: { deviceId: "camera-1", width: 1000, height: 1000, facingMode: "" },
+    layout: { octaves: 1, startingMidi: 48, whiteKeys: 8 },
+    corners: [{ x: 100, y: 100 }, { x: 900, y: 100 }, { x: 900, y: 900 }, { x: 100, y: 900 }],
+    contact: { model: "landmark-reference-v1", hover: [Array(21).fill({ x: 0.5, y: 0.4, z: 0 })], rest: [Array(21).fill({ x: 0.5, y: 0.5, z: 0 })] },
+  }));
   localStorage.setItem("hasVisited", "true");
   host = document.createElement("div");
   document.body.append(host);
@@ -265,4 +276,103 @@ it("Stop while audio initialization is pending cannot resume a stopped take", as
   await countIn();
   expect(button("Start recording").disabled).toBe(false);
   expect(button("Stop recording").disabled).toBe(true);
+});
+
+
+it("rejects a legacy boolean and interrupts recording when persisted calibration changes", async () => {
+  await start();
+  await keys(150);
+  localStorage.removeItem("makeshift.calibration.v1");
+  localStorage.setItem("isCalibrated", "true");
+  await advance(10_000);
+  await frame();
+  expect(button("Start recording").disabled).toBe(true);
+  expect(fixtures.takes).toHaveLength(1);
+  await keys(250);
+  expect(fixtures.takes).toHaveLength(1);
+});
+
+
+it("checks markers immediately and then only every ten seconds", async () => {
+  expect(fixtures.detect).toHaveBeenCalledTimes(1);
+  for (let i = 0; i < 99; i++) {
+    await advance(100);
+    await frame();
+  }
+  expect(fixtures.detect).toHaveBeenCalledTimes(1);
+  await advance(100);
+  await frame();
+  expect(fixtures.detect).toHaveBeenCalledTimes(2);
+});
+
+it("plays before recording, during count-in and pause, and after Stop", async () => {
+  const enable = [...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!;
+  await click(enable);
+  expect(fixtures.initializeAudio).toHaveBeenCalled();
+  vi.mocked(audioNoteOn).mockClear();
+  vi.mocked(releaseAllAudioNotes).mockClear();
+  await keys(115);
+  expect(audioNoteOn).toHaveBeenCalledTimes(1);
+  expect(fixtures.takes).toEqual([]);
+  await click(button("Start recording"));
+  await keys(115, 225);
+  expect(audioNoteOn).toHaveBeenCalledTimes(2);
+  await countIn();
+  expect(audioNoteOn).toHaveBeenCalledTimes(2); // No audio retrigger at recording boundary.
+  await advance(100);
+  await click(button("Pause recording"));
+  await keys(115);
+  expect(audioNoteOff).toHaveBeenCalled();
+  await keys(115, 225);
+  expect(audioNoteOn).toHaveBeenCalledTimes(3);
+  await click(button("Stop recording"));
+  expect(releaseAllAudioNotes).not.toHaveBeenCalled();
+  expect(fixtures.takes.at(-1)!.notes).toHaveLength(2);
+  expect(fixtures.takes.at(-1)!.notes.every(n => n.startMs === 0 && n.durationMs === 100)).toBe(true);
+  await keys();
+  await keys(115);
+  expect(audioNoteOn).toHaveBeenCalledTimes(4);
+});
+
+it("releases free-play notes when calibration becomes invalid", async () => {
+  await click([...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!);
+  await keys(115);
+  vi.mocked(releaseAllAudioNotes).mockClear();
+  localStorage.removeItem("makeshift.calibration.v1");
+  await advance(10_000);
+  await frame();
+  expect(releaseAllAudioNotes).toHaveBeenCalled();
+  vi.mocked(audioNoteOn).mockClear();
+  await keys(225);
+  expect(audioNoteOn).not.toHaveBeenCalled();
+});
+
+
+it("invalidates free play on frame loss without waiting for the marker interval", async () => {
+  await click([...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!);
+  await keys(115);
+  vi.mocked(releaseAllAudioNotes).mockClear();
+  vi.spyOn(HTMLVideoElement.prototype, "readyState", "get").mockReturnValue(0);
+  await advance(100);
+  await frame();
+  expect(releaseAllAudioNotes).toHaveBeenCalled();
+  expect(button("Start recording").disabled).toBe(true);
+  vi.spyOn(HTMLVideoElement.prototype, "readyState", "get").mockReturnValue(4);
+  await frame();
+  expect(fixtures.detect).toHaveBeenCalledTimes(2);
+  expect(button("Start recording").disabled).toBe(false);
+});
+
+it("ignores pending free-play audio initialization after calibration loss", async () => {
+  let resolveAudio!: () => void;
+  fixtures.initializeAudio.mockImplementation(() => new Promise<void>(resolve => { resolveAudio = resolve; }));
+  await click([...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!);
+  localStorage.removeItem("makeshift.calibration.v1");
+  await advance(10_000);
+  await frame();
+  await act(async () => resolveAudio());
+  vi.mocked(audioNoteOn).mockClear();
+  await keys(115);
+  expect(audioNoteOn).not.toHaveBeenCalled();
+  expect(button("Start recording").disabled).toBe(true);
 });
