@@ -52,7 +52,7 @@ hit API supports note-off.
 | CV worker | Expensive inference, marker tracking, geometry, contact state and musical events |
 | AudioWorklet | Fixed voice pool, envelope state, mixing; no network or blocking work |
 | MIDI consumer | Recording timeline and file generation; cannot delay audio dispatch |
-| Vercel | Application, worker/worklet modules, models and WASM assets; independently justified APIs |
+| Vercel | Application, worker/worklet modules, models and WASM assets; independently justified APIs (`/api/health` checks the Supabase recordings database, #116; see [deployment](deployment.md)) |
 
 Schedule newly available frames and bound pending work. Prefer recent frames to
 a backlog, count dropped frames, and evaluate missed brief presses. Document

@@ -13,7 +13,7 @@ MakeShift/
 │   └── workflows/
 │       ├── bypass-checks.yml        # no-op test/lint jobs for non-Python PRs
 │       ├── bypass-frontend.yml      # no-op frontend job for non-frontend PRs
-│       ├── frontend-ci.yml          # lint, type check, contrast audit, build
+│       ├── frontend-ci.yml          # lint, types, Vitest, contrast, build, browser smoke
 │       ├── linting.yml              # ruff, mypy, clang-format
 │       ├── rca.yml                  # validate RCA evidence; publish after merge
 │       ├── rca-tests.yml            # regression tests for RCA automation
@@ -38,6 +38,8 @@ MakeShift/
 │   ├── piano_sheet.md               # printable sheet and ArUco marker IDs
 │   ├── Piano Sheet.png
 │   ├── sdp.md
+│   ├── deployment.md                # Vercel hosting, browser support, permissions
+│   ├── supabase.md                  # recordings database, secrets, migrations
 │   ├── Design Document.pdf
 │   └── Final Verification and Validation Plan.pdf
 ├── frontend/
@@ -46,6 +48,7 @@ MakeShift/
 │   │   └── models/                  # MediaPipe hand landmarker model
 │   ├── src/
 │   │   ├── app/
+│   │   │   ├── api/health/          # recordings database health route
 │   │   │   ├── audio/                  # browser owner and Audio check page
 │   │   │   ├── about/
 │   │   │   ├── calibration/
@@ -64,6 +67,7 @@ MakeShift/
 │   │   │   └── useHandLandmarker.ts
 │   │   ├── cv/                      # ArUco detection, homography, key geometry
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
+│   │   ├── server/                  # server-only Supabase access
 │   │   └── shims/
 │   ├── package.json
 │   ├── package-lock.json
@@ -71,6 +75,9 @@ MakeShift/
 │   ├── tsconfig.json
 │   ├── next.config.ts
 │   └── README.md
+├── supabase/
+│   ├── config.toml                  # Supabase CLI project config
+│   └── migrations/                  # SQL migrations (recordings table)
 ├── tests/
 │   ├── README.md                    # commands, known defects, RCA log
 │   ├── verification_test_inventory.md
@@ -83,6 +90,8 @@ MakeShift/
 │   │   ├── browserAudio.test.ts      # production DSP offline rendering
 │   │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   │   ├── browserAudio.browser.mjs  # production browser graph check
+│   │   ├── deployment.browser.mjs    # production assets, camera recovery, offline playing
+│   │   ├── supabaseHealth.test.ts    # /api/health database check
 │   │   ├── noteEvents.test.ts        # shared events, lifecycle, clocks and MessagePort
 │   │   ├── midiUtils.test.ts
 │   │   └── check-contrast.mjs
@@ -91,6 +100,7 @@ MakeShift/
 │   └── manual/                     # manual test template and completed reports
 ├── .clang-format
 ├── .gitignore
+├── .infisical.json                  # Infisical project ID (no secrets)
 ├── AGENTS.md                        # contributor and coding agent instructions
 ├── CLAUDE.md                        # points to AGENTS.md
 ├── LICENSE
