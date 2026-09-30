@@ -42,6 +42,7 @@ tests/
 │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   ├── browserAudio.browser.mjs  # production browser graph check
 │   ├── noteEvents.test.ts            # shared event validation, sessions and clocks
+│   ├── playbackTimeline.test.ts      # recording playback clock and lifecycle
 │   ├── midiUtils.test.ts             # MIDI unit tests
 │   └── check-contrast.mjs            # theme token contrast audit
 ├── python/
@@ -68,6 +69,29 @@ No test implementation requires an exception to this layout.
 | Frontend unit (Vitest) | `cd frontend && npx vitest run` | `npm ci` in `frontend/` |
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
 | RCA automation | `node --test tests/automation/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
+
+## Playback timeline verification (issue #130)
+
+Sources: [timeline tests](frontend/playbackTimeline.test.ts) and the added
+recording-timeline cases in [audio lifecycle tests](frontend/browserAudioLifecycle.test.ts).
+Run from `frontend`: `npx vitest run playbackTimeline.test.ts browserAudioLifecycle.test.ts`.
+The timeline tests use fake timers and an audio fixture; the integration cases
+use the production BrowserAudio owner with mocked AudioContext/AudioWorkletNode.
+They do not require hardware, and make no audible playback or physical latency claim.
+Real-browser timing/listening verification remains pending. Vitest is not invoked
+by frontend CI (D3), so Actions execution evidence remains pending.
+
+Local execution on Windows, 2026-09-29, Node 22.17.0 and Vitest 4.1.11,
+on `feature/130-playback-timeline` based on upstream `614203f`:
+
+- Full Vitest suite: **186 tests passed across six files**, including 32 timeline
+  cases and four new production-audio-owner integration cases (mocked devices).
+- TypeScript passed with incremental checking disabled. Lint passed with eight
+  pre-existing unused-variable warnings outside the changed files.
+- All 18 contrast pairs passed. Production build passed with network access;
+  the sandboxed attempt failed to fetch the existing Geist Google Fonts.
+- No real browser timing/listening run was performed. PB-1.1–PB-1.5 map the
+  actual coverage; CI does not run these Vitest cases and remains pending.
 
 ## Note-list recorder verification (issues #108 and #115)
 

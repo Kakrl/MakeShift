@@ -51,7 +51,7 @@ MakeShift/
 │   │   │   ├── calibration/
 │   │   │   ├── cv/                  # hand landmark overlay and drawing
 │   │   │   ├── documentation/
-│   │   │   ├── midi/                # MIDI recording utils
+│   │   │   ├── midi/                # MIDI recorder, export and playback timeline
 │   │   │   ├── tutorial/
 │   │   │   ├── CameraContext.tsx
 │   │   │   ├── CameraStatusOverlay.tsx
@@ -84,6 +84,7 @@ MakeShift/
 │   │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   │   ├── browserAudio.browser.mjs  # production browser graph check
 │   │   ├── noteEvents.test.ts        # shared events, lifecycle, clocks and MessagePort
+│   │   ├── playbackTimeline.test.ts # recording playback clock and lifecycle
 │   │   ├── midiUtils.test.ts
 │   │   └── check-contrast.mjs
 │   ├── python/

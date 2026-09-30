@@ -101,6 +101,7 @@ Existing proposed dates remain planning estimates, not renewed commitments.
 | 6.1 | Documentation page | 6.1.1, 6.1.2 |
 | 6.2 | Guided calibration sequence | 6.2.1, 6.2.2 |
 | 6.3 | MIDI recording tutorial | 6.3.1, 6.3.2, 6.3.3 |
+| PB-1 | Recording playback transport (#130; RVTM addendum) | PB-1.1 to PB-1.5 |
 
 ## Inventory
 
@@ -171,6 +172,21 @@ Existing proposed dates remain planning estimates, not renewed commitments.
 | 6.3.1 | System | Check that the tutorial explains how to start a MIDI recording | 6.3 | Jadden Picardal | Manual content review | No | Planned | N/A (manual) | 2026-10-21 | 2026-10-22 | 4.1.2; tutorial text matches implemented start flow. | No execution evidence yet |
 | 6.3.2 | System | Check that the tutorial explains how to stop a MIDI recording | 6.3 | Jadden Picardal | Manual content review | No | Planned | N/A (manual) | 2026-10-21 | 2026-10-22 | 4.1.2 and 4.2.2; tutorial text matches stop/export flow. | No execution evidence yet |
 | 6.3.3 | System | Check that the tutorial explains how to pause a MIDI recording | 6.3 | Jadden Picardal | Manual content review | No | Planned | N/A (manual) | 2026-10-21 | 2026-10-22 | 4.1.1 and 3.2.2; tutorial text matches pause/resume behavior. | No execution evidence yet |
+
+## Recording playback transport (#130)
+
+Source: [timeline tests](frontend/playbackTimeline.test.ts) and
+[audio-owner integration](frontend/browserAudioLifecycle.test.ts). Evidence:
+[local execution record](README.md#playback-timeline-verification-issue-130).
+No camera, browser listening, or physical latency result is claimed.
+
+| Test ID | Level | Requirement | Behavior tested | Owner | Tool | Automated? | Implementation Status | CI Integrated? | Execution evidence |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| PB-1.1 | Unit | PB-1 | Unsorted notes/chords at 0.25x, 0.5x, 1x, 2x, 4x; continuous rate changes; separate overlapping same-pitch voices and same-time retriggers ([source](frontend/playbackTimeline.test.ts)) | Harry Deng | Vitest fake timers | Yes | Implemented — scheduled commands only | No (D3) | [Local record](README.md#playback-timeline-verification-issue-130) - passed 2026-09-29; Actions pending |
+| PB-1.2 | Unit | PB-1 | Pause/resume remainder, forward/backward/paused seek and clamps, end/replay, stop, repeated Play, disposal/owned-note cleanup, cancelled initialization, retry, interruption, rejected chord and stale timer ([source](frontend/playbackTimeline.test.ts)) | Harry Deng | Vitest fake timers | Yes | Implemented — simulated audio | No (D3) | [Local record](README.md#playback-timeline-verification-issue-130) - passed 2026-09-29; Actions pending |
+| PB-1.3 | Unit | PB-1 | Input snapshot isolation, pitch/velocity conversion, empty/silent/zero-duration takes, invalid notes/BPM/rate/seek ([source](frontend/playbackTimeline.test.ts)) | Harry Deng | Vitest | Yes | Implemented | No (D3) | [Local record](README.md#playback-timeline-verification-issue-130) - passed 2026-09-29; Actions pending |
+| PB-1.4 | Unit | PB-1 | Late callback skips expired notes and retains the current note's endpoint ([source](frontend/playbackTimeline.test.ts)) | Carl Xu | Vitest fake clock | Yes | Implemented — no real scheduling measurements | No (D3) | [Local record](README.md#playback-timeline-verification-issue-130) - passed 2026-09-29; Actions pending |
+| PB-1.5 | Integration | PB-1 | Production BrowserAudio receives distinct press tokens and matched releases; suspension, processor failure and close pause playback without later dispatch ([source](frontend/browserAudioLifecycle.test.ts)) | Carl Xu | Vitest, mocked AudioContext/Worklet | Yes | Partially implemented — real device/browser checks pending | No (D3) | [Local record](README.md#playback-timeline-verification-issue-130) - passed 2026-09-29; Actions pending |
 
 ## Supporting CI Checks
 
