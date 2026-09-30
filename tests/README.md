@@ -234,6 +234,9 @@ Local macOS execution on 2026-09-30, Node 26.8.1 and Vitest 4.1.11, branch
 
 - `.github/workflows/frontend-ci.yml` adds a `Unit tests` step
   (`npx vitest run`) after type checking, so a failing Vitest case fails the job.
+- The workflow's own file is now in its path filters (and in the Frontend
+  Bypass `paths-ignore`), so edits to `frontend-ci.yml` run the real job
+  instead of the bypass.
 - Frontend-configured `npx vitest run`: **174 tests passed across seven files**.
 - CI runs Node 20; the Actions job log for this PR is the execution evidence
   and remains pending until it is linked in the inventory.
