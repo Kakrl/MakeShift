@@ -129,7 +129,7 @@ Offline samples and actual audible output require separate verification.
 
 #24 gates detected-note playback on valid calibration, usable tracking and ready
 audio. Define startup, playing, interruption, stopped and error states.
-Stop, invalidation and unusable tracking release notes; recovery must not replay
+Stopping the live session, invalidation and unusable tracking release notes; recovery must not replay
 old queued input. New sessions have new identities. #89 verifies denial/loss of
 camera, backgrounding, navigation, audio suspension and restart. Errors provide
 a recovery action.

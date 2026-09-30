@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   LiveSession,
   TRACKING_TIMEOUT_MS,
+  CALIBRATION_TIMEOUT_MS,
 } from "../../frontend/src/events/liveSession";
 import type { BrowserAudio } from "../../frontend/src/app/audio/audioEngine";
 import { CURRENT_LAYOUT, SHEET_ID } from "../../frontend/src/cv/calibration";
@@ -239,4 +240,48 @@ it("fresh calibration cannot keep an unresponsive hand detector alive", async ()
   vi.advanceTimersByTime(100);
   expect(gate.status.state).toBe("interrupted");
   expect(audio.releaseAll).toHaveBeenCalledTimes(1);
+});
+
+
+it("named note methods pair presses and reject obsolete identities after restart", async () => {
+  const old = await play();
+  expect(gate.noteOn(old, 1, 60, 0.8)).toBe("accepted");
+  expect(gate.noteOff(old, 1, 60)).toBe("accepted");
+  expect(audio.noteOn).toHaveBeenCalledWith(60, 0.8);
+  expect(audio.noteOff).toHaveBeenCalledWith({ session: 1, press: 1 });
+  gate.stop();
+  const next = await play();
+  expect(gate.noteOn(old, 2, 64, 0.8)).toBe("stale");
+  expect(gate.noteOff(old, 1, 60)).toBe("stale");
+  expect(gate.noteOn(next, 1, 64, 0.8)).toBe("accepted");
+  expect(gate.noteOff(next, 1, 64)).toBe("accepted");
+});
+
+it("named note methods retain readiness and malformed-input checks", async () => {
+  let id = await play();
+  expect(gate.noteOn(id, 1, 60, 10)).toBe("invalid");
+  expect(audio.noteOn).not.toHaveBeenCalled();
+  id = await play();
+  expect(gate.noteOn(id, 1, 60, 0.8)).toBe("accepted");
+  now += TRACKING_TIMEOUT_MS;
+  expect(gate.noteOff(id, 1, 60)).toBe("interrupted");
+  expect(audio.releaseAll).toHaveBeenCalled();
+});
+
+it("fresh hand tracking allows ten-second marker cadence but cannot hide marker expiry", async () => {
+  const id = await play();
+  gate.noteOn(id, 1, 60, 0.8);
+  for (let elapsed = 100; elapsed < CALIBRATION_TIMEOUT_MS; elapsed += 100) {
+    now += 100;
+    vi.advanceTimersByTime(100);
+    gate.observeTracking();
+    expect(gate.status.state).toBe("playing");
+  }
+  now += 100;
+  vi.advanceTimersByTime(100);
+  expect(gate.status.state).toBe("interrupted");
+  expect(audio.releaseAll).toHaveBeenCalledTimes(1);
+  observe();
+  expect(gate.status.canStart).toBe(true);
+  expect(gate.noteOn(id, 2, 64, 0.8)).toBe("stale");
 });

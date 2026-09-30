@@ -8,10 +8,13 @@ layout. Black keys, transposition and expanded layouts remain #25/#36.
 ## Playing the current preview
 
 Calibrate with the printed sheet, keep all four markers visible, and return to
-the home page. Enable audio with Play and wait for the count-in. Playing also
-records a take. Pause releases notes and excludes the pause/count-in from the
-take; Resume treats held keys as fresh presses. Stop closes the take for MIDI
-export. Restore tracking and select Play after an interruption.
+the home page. Select Enable audio for free play, or Record to enable audio
+and begin a count-in. Live playback and highlights continue during count-in,
+Pause and recording Stop. Pause closes captured notes and excludes paused and
+resume count-in time. Start/resume captures currently held accepted presses
+with their identities and velocities, without retriggering audio. Stop closes
+the take for MIDI export. Restore tracking and select Enable audio after an
+interruption.
 
 Highlighted keys now represent accepted musical events. A fingertip over a key
 while stopped does not highlight it as sounding. The preview detector still
@@ -22,8 +25,9 @@ preview as completed physical piano detection.
 
 ## Shared lifecycle
 
-`createKeyEventProducer` maps supported key indexes into #86 events, preserves
-input velocity, suppresses held duplicates and allocates fresh press identities
+`createKeyEventProducer` calls the named `LiveSession.noteOn`/`noteOff` methods
+with observation timestamps; LiveSession owns envelopes and sequencing. It preserves
+input velocity, maps supported key indexes, suppresses held duplicates and allocates fresh press identities
 on repress. Each producer captures its session ID so an old callback cannot
 adopt a restarted session. Invalid velocity fails closed through the contract.
 
@@ -61,11 +65,14 @@ manual preview success does not complete intentional-contact or measurement work
 
 ## Dependency merge handling
 
-The branch starts at #138/#24 head `5d5f0b8`, which includes #136 head `71d44b2`.
-Merge `b37db8d` adds #137 head `7c2f77c` and resolves the adjacent inventory
-rows by keeping #138's 2.2.15 and #137's 2.2.16. Dependency PRs are unchanged.
-This is also the boundary for transplanting only #28 commits after squash
-merges: `git rebase --onto origin/main b37db8d feature/28-browser-piano-integration`.
-Fetch first and inspect the resulting diff; the dependency merge must retain
-both inventory rows. Compatibility checks apply to these exact dependency
-heads and resolutions. Later PR edits require another check.
+PR #139 incorporates #138 head `0fecdb5`, including main `4dc41ab` and
+PR #136's independent playback and ten-second marker cadence. It retains
+#137's navigation cleanup and inventory row 2.2.16. Merge reconciliation keeps
+#139's accepted-event consumers and captured producer identity while adopting
+#138's named note methods and independent recording lifetime.
+
+#138 remains a dependency until merged. The old `b37db8d` transplant command
+is obsolete after this reconciliation. Fetch the actual base after dependency
+merges and inspect any new differences before updating the branch again.
+The earlier manual report predates this reconciliation; hardware verification
+of the combined behavior remains pending.

@@ -25,11 +25,15 @@ try {
     while (fiber) {
       let hook = fiber.memoizedState;
       while (hook) {
-        // Home owns a recorder ref followed by completedRecording state.
+        // Home owns recorder and consumer refs, then completedRecording state.
         const recorder = hook.memoizedState?.current;
         if (typeof recorder?.startRecording === "function" &&
             typeof recorder?.stopRecording === "function") {
-          const completed = hook.next;
+          const consumers = hook.next;
+          if (!consumers?.memoizedState ||
+              !("current" in consumers.memoizedState) || consumers.queue !== null)
+            throw new Error("Consumer-ref fixture no longer matches Home hooks");
+          const completed = consumers.next;
           if (!completed?.queue?.dispatch || completed.memoizedState !== null)
             throw new Error("Completed-recording fixture no longer matches Home hooks");
           completed.queue.dispatch({
