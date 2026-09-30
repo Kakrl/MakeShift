@@ -696,3 +696,18 @@ merging PR #139 head `b136e6a` into PR #141 head `b5245ea`.
 - Vitest and the browser runner remain outside CI; Actions evidence is pending.
   PR #139 remains a dependency until merged. This reconciliation supersedes
   the old instruction to transplant only commits after `025588e`.
+
+## PR 141 reconciliation with final PR 139 head
+
+On 2026-09-30, merged PR #139 head `277491a` into the MIDI export fix.
+Preserved both verification histories while resolving the README conflict;
+retained the export runtime/type split and #139's corrected coordinator types.
+Current `origin/main` (`46ed0c7`) is already an ancestor. Merge #139 first;
+this branch includes its current contents and is compatible with that order.
+
+Local Windows verification on merge commit `386b3e7`: all 228 Vitest tests
+across nine files passed; TypeScript, 18 contrast pairs and production build
+passed. Lint passed with four existing Home warnings. The production browser
+regression passed in Edge 154.0.4258.37: two downloads with exact MIDI bytes,
+dialog closure and no page errors. It uses a seeded take, not physical capture.
+No tests changed. GitHub Actions execution for this reconciliation is pending.
