@@ -8,7 +8,7 @@ import {
 import type { Point } from "../cv/types";
 import type { BrowserAudio } from "../app/audio/audioEngine";
 import { createAudioSink } from "./audioSession";
-import { NoteSession, type DispatchResult } from "./noteSession";
+import { NoteSession, type DispatchResult, type Delivery } from "./noteSession";
 
 export type LiveState =
   | "stopped"
@@ -88,6 +88,14 @@ export class LiveSession {
     return this.notes.sessionId;
   }
 
+  subscribeNotes(listener: (delivery: Delivery) => void) {
+    return this.notes.subscribe(listener);
+  }
+
+  flushNotes() {
+    this.notes.flushObservers();
+  }
+
   private expireBeforeRefresh() {
     if (["starting", "ready", "playing"].includes(this.state) && !this.fresh())
       this.interrupt(
@@ -150,7 +158,11 @@ export class LiveSession {
           "Tracking timed out. Restore the camera and sheet, wait for tracking, then select Enable audio.",
         );
       }, remaining);
-    if (wasFresh !== this.fresh()) this.emit();
+    if (wasFresh !== this.fresh()) {
+      if (this.fresh() && (this.state === "stopped" || this.state === "interrupted"))
+        this.message = "Tracking ready. Select Enable audio to start a new session.";
+      this.emit();
+    }
   }
   setHidden(hidden: boolean) {
     this.hidden = hidden;
@@ -207,18 +219,18 @@ export class LiveSession {
   /** Local CV producer API; retain the captured identity to reject obsolete input.
    * Use either these methods or receive() for a session, never mixed producers.
    */
-  noteOn(sessionId: string, pressId: number, pitch: number, velocity: number): DispatchResult {
+  noteOn(sessionId: string, pressId: number, pitch: number, velocity: number, timestampMs = this.now()): DispatchResult {
     if (sessionId !== this.sessionId) return "stale";
     return this.receive({
       version: 1, sessionId, sequence: ++this.sequence,
-      timestampMs: this.now(), type: "note-on", pressId, pitch, velocity,
+      timestampMs, type: "note-on", pressId, pitch, velocity,
     });
   }
-  noteOff(sessionId: string, pressId: number, pitch: number): DispatchResult {
+  noteOff(sessionId: string, pressId: number, pitch: number, timestampMs = this.now()): DispatchResult {
     if (sessionId !== this.sessionId) return "stale";
     return this.receive({
       version: 1, sessionId, sequence: ++this.sequence,
-      timestampMs: this.now(), type: "note-off", pressId, pitch,
+      timestampMs, type: "note-off", pressId, pitch,
     });
   }
   receive(
@@ -241,7 +253,12 @@ export class LiveSession {
     this.end("stopped", "Stopped. Select Enable audio to start a new session.");
   }
   interrupt(message: string) {
-    this.end("interrupted", message);
+    if (["starting", "ready", "playing"].includes(this.state)) {
+      this.end("interrupted", message);
+    } else {
+      // Readiness can change while idle without ending another session or take.
+      this.emit();
+    }
   }
   private end(state: LiveState, message: string) {
     this.generation++;

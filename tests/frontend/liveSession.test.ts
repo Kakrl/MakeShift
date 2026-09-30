@@ -83,6 +83,40 @@ function note(id: string, sequence = 1) {
   };
 }
 
+it("keeps initial missing calibration and idle timeouts stopped, then refreshes readiness", () => {
+  const states: string[] = [];
+  gate.subscribe(() => states.push(gate.status.state));
+  gate.observeCalibration(calibration(), calibration().camera, null);
+  expect(gate.status.state).toBe("stopped");
+  observe();
+  expect(gate.status).toMatchObject({ state: "stopped", canStart: true });
+  expect(gate.status.message).toContain("Tracking ready");
+  gate.stop();
+  now += TRACKING_TIMEOUT_MS;
+  vi.advanceTimersByTime(TRACKING_TIMEOUT_MS);
+  expect(gate.status.message).toContain("Stopped.");
+  expect(gate.status.canStart).toBe(false);
+  gate.observeCalibration(null, null, null);
+  expect(states.every(state => state === "stopped")).toBe(true);
+  expect(audio.releaseAll).not.toHaveBeenCalled();
+  observe();
+  expect(gate.status.message).toContain("Tracking ready");
+});
+
+it("refreshes interrupted recovery guidance without resuming or repeating interruption", async () => {
+  const id = await play();
+  gate.noteOn(id, 1, 60, 0.8);
+  gate.trackingFailed();
+  const message = gate.status.message;
+  gate.observeCalibration(null, null, null);
+  expect(gate.status.message).toBe(message);
+  observe();
+  expect(gate.status).toMatchObject({ state: "interrupted", canStart: true });
+  expect(gate.status.message).toContain("Tracking ready");
+  expect(gate.sessionId).toBeNull();
+  expect(audio.releaseAll).toHaveBeenCalledTimes(1);
+});
+
 it.each([null, true, {}, { ...calibration(), version: 2 }])(
   "rejects invalid calibration %j",
   async (value) => {

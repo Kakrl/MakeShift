@@ -11,9 +11,9 @@ const WHITE_KEY_NOTES: readonly NoteName[] = [
   "C",
 ];
 
-/** The current printed keyboard is one octave of white keys, starting at C4. */
+/** Current sheet: eight white keys, MIDI 48–60 (C3–C4 in MIDI notation). */
 export function keyIndexToMidi(keyIndex: number): number | null {
-  if (keyIndex < 0 || keyIndex >= WHITE_KEY_NOTES.length) return null;
+  if (!Number.isInteger(keyIndex) || keyIndex < 0 || keyIndex >= WHITE_KEY_NOTES.length) return null;
   const note = WHITE_KEY_NOTES[keyIndex];
   return (keyIndex === WHITE_KEY_NOTES.length - 1 ? 5 : 4) * 12 +
     { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[note];

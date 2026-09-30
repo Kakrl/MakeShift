@@ -8,8 +8,9 @@ session identity, press identity and note values. These methods construct the
 versioned envelope and sequence internally, then use the same validated
 `receive` boundary as external events. Use one producer API per session;
 do not mix local methods with an independently sequenced external producer. Gate checks and audio dispatch are
-synchronous; no render or MIDI callback authorizes audio. Recording callbacks
-run only after accepted dispatch. Full event-time MIDI migration remains #88.
+synchronous; no render or MIDI callback authorizes audio. Deferred MIDI and feedback consumers
+run only after accepted dispatch, retaining observation times and press identities.
+Broader recording verification remains #88.
 
 ## State transitions
 
@@ -28,7 +29,10 @@ run only after accepted dispatch. Full event-time MIDI migration remains #88.
 | interrupted/error | compatible observations recover | stays interrupted/error; Enable audio or Record required |
 
 Repeated Play while starting/playing and play-before-ready are rejected.
-Stop is idempotent. Pending startup completions cannot revive stopped sessions.
+Stop is idempotent. Readiness loss only interrupts starting, ready or playing
+sessions; idle observations preserve stopped/interrupted/error states. Fresh
+tracking after readiness loss refreshes stopped/interrupted guidance without
+automatic playback. Audio-start errors retain their retry guidance. Pending startup completions cannot revive stopped sessions.
 Old-session events are rejected even after restart. Pause preserves live audio
 and the paused MIDI take; Resume uses a MIDI count-in without reinitializing audio.
 Held notes are captured at start/resume boundaries without retriggering sound. Interruption closes the take instead of resuming it automatically.

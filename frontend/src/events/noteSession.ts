@@ -165,18 +165,25 @@ export class NoteSession {
     this.pending.push(delivery);
     if (this.timer !== null) return;
     this.timer = setTimeout(() => {
-      this.timer = null;
-      const batch = this.pending;
-      this.pending = [];
-      for (const item of batch) {
-        for (const listener of this.listeners) {
-          try {
-            listener(item);
-          } catch {
-            /* One observer cannot block another or audio. */
-          }
+      this.flushObservers();
+    }, 0);
+  }
+
+  /** Drain accepted history before a recording pause/stop/snapshot boundary.
+   * Audio has already received these events; this never dispatches it again. */
+  flushObservers() {
+    if (this.timer !== null) clearTimeout(this.timer);
+    this.timer = null;
+    const batch = this.pending;
+    this.pending = [];
+    for (const item of batch) {
+      for (const listener of this.listeners) {
+        try {
+          listener(item);
+        } catch {
+          /* One observer cannot block another or audio. */
         }
       }
-    }, 0);
+    }
   }
 }

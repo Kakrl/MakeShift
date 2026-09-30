@@ -17,7 +17,7 @@ export type Recording = {
 };
 
 type RecordingState = "stopped" | "recording" | "paused";
-type ActiveNote = { startMs: number; velocity: number };
+type ActiveNote = { pitch: string; startMs: number; velocity: number };
 
 export function millisecondsToTicks(milliseconds: number, bpm: number): number {
   return Math.round((milliseconds * 128 * bpm) / 60000);
@@ -54,10 +54,11 @@ export function createRecorder() {
     recordingState = "recording";
   }
 
-  function noteOn(pitch: string, velocity: number): void {
-    if (recordingState !== "recording" || activeNotes.has(pitch)) return;
-    activeNotes.set(pitch, {
-      startMs: currentRecordingMs(performance.now()),
+  function noteOn(pitch: string, velocity: number, timestampMs = performance.now(), identity = pitch): void {
+    if (recordingState !== "recording" || activeNotes.has(identity)) return;
+    activeNotes.set(identity, {
+      pitch,
+      startMs: currentRecordingMs(timestampMs),
       velocity,
     });
   }
@@ -66,7 +67,7 @@ export function createRecorder() {
     const activeNote = activeNotes.get(pitch);
     if (recording === null || activeNote === undefined) return;
     recording.notes.push({
-      pitch,
+      pitch: activeNote.pitch,
       velocity: activeNote.velocity,
       startMs: activeNote.startMs,
       durationMs: Math.max(0, endMs - activeNote.startMs),
@@ -78,14 +79,14 @@ export function createRecorder() {
     for (const pitch of activeNotes.keys()) finishNote(pitch, endMs);
   }
 
-  function noteOff(pitch: string): void {
+  function noteOff(pitch: string, timestampMs = performance.now(), identity = pitch): void {
     if (recordingState !== "recording") return;
-    finishNote(pitch, currentRecordingMs(performance.now()));
+    finishNote(identity, currentRecordingMs(timestampMs));
   }
 
-  function releaseAllNotes(): void {
+  function releaseAllNotes(timestampMs = performance.now()): void {
     if (recordingState !== "recording") return;
-    finishActiveNotes(currentRecordingMs(performance.now()));
+    finishActiveNotes(currentRecordingMs(timestampMs));
   }
 
   function pauseRecording(): void {
