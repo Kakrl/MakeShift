@@ -34,7 +34,7 @@ const PAGE_CORNERS: Point[] = [
   { x: 0, y: 1 },
 ];
 
-const MARKER_CHECK_INTERVAL_MS = 100;
+const MARKER_CHECK_INTERVAL_MS = 10_000;
 
 export default function MarkerTrackingOverlay({
   videoRef,
@@ -63,7 +63,7 @@ export default function MarkerTrackingOverlay({
   useEffect(() => {
     if (!trackingEnabled && previousKeysRef.current.size > 0) {
       onKeyTransitions?.([], [...previousKeysRef.current]);
-      // Resume treats currently held keys as fresh presses for the new segment.
+      // A new playback session treats held keys as fresh presses.
       previousKeysRef.current = new Set();
     }
   }, [onKeyTransitions, trackingEnabled]);
@@ -72,7 +72,7 @@ export default function MarkerTrackingOverlay({
     let cancelled = false;
     let animationFrame = 0;
     let detector: MarkerDetector | null = null;
-    let lastDetectionTime = 0;
+    let lastDetectionTime = -Infinity;
 
     const detect = (time: number) => {
       const video = videoRef.current;
@@ -85,6 +85,7 @@ export default function MarkerTrackingOverlay({
             processingCanvas.width !== video.videoWidth ||
             processingCanvas.height !== video.videoHeight
           ) {
+            lastDetectionTime = -Infinity;
             processingCanvas.width = video.videoWidth;
             processingCanvas.height = video.videoHeight;
           }
@@ -126,7 +127,10 @@ export default function MarkerTrackingOverlay({
             }
           }
         }
-        if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) setMarkerDetection(null);
+        if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) {
+          setMarkerDetection(null);
+          lastDetectionTime = -Infinity;
+        }
         animationFrame = requestAnimationFrame(detect);
       }
     };
@@ -149,7 +153,7 @@ export default function MarkerTrackingOverlay({
       cancelAnimationFrame(animationFrame);
       detector?.dispose();
     };
-  }, [videoRef]);
+  }, [videoRef, stream, cameraReady]);
 
   useEffect(() => {
     const camera = cameraReady ? cameraSignature(stream, videoRef.current) : null;

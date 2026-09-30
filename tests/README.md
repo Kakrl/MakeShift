@@ -458,3 +458,25 @@ Windows, 2026-09-27, Node 22.20.0, Vitest 4.1.11, working tree based on
   Browser/device details and exact tested commit were not supplied. This is
   user-reported evidence, not independently observed or measured contact/latency
   verification.
+
+
+## PR #136 review verification
+
+Local Windows execution on 2026-09-29, Node 22.20.0, Vitest 4.1.11,
+branch `fix/87-calibration-result`, following review of issue #87 / PR #136.
+
+- Frontend-configured `npx vitest run`: **174 tests passed across seven files**,
+  including eleven recording-control integration cases. Five added cases cover
+  immediate/ten-second marker cadence, free play across MIDI recording states,
+  calibration loss, immediate frame-loss recovery, and stale audio initialization.
+  Existing held-key resume and cancellation cases also pass. Audio dispatch is
+  mocked; no hardware sound, FPS improvement or physical latency is measured.
+- TypeScript, ESLint (five existing unused-variable warnings), all 18 contrast
+  pairs and production build passed. Run commands from `frontend/`.
+- An initial accidental repository-root Vitest invocation used an unconfigured
+  runner and failed dependency/mock resolution; the configured frontend run above
+  is the verification result. Its temporary root cache was removed.
+- The ten-second cadence permits up to ten seconds before detecting sheet loss;
+  frame loss still interrupts on the next animation frame. The earlier user
+  manual report predates these edits; new physical/manual verification is pending.
+- Vitest remains outside frontend CI (D3); Actions execution is pending.
