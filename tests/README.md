@@ -201,6 +201,24 @@ run `npm run test:audio-browser`. It uses an installed Edge by default.
 See [browser audio](../docs/browser_audio.md) for environment overrides.
 The tests remain outside CI (D3); no Actions execution is claimed.
 
+## Navigation cleanup verification (issue #105)
+
+Local Windows verification on 2026-09-28, Node 22.20.0, Playwright 1.62.1,
+headless Edge 154.0.4258.37, based on `614203f`.
+
+- The production browser audio runner now waits up to 5 seconds for the
+  AudioContext to close after client navigation, then retains its final
+  closed-state assertion. URL completion alone does not prove React cleanup
+  has run; missing cleanup still fails with a bounded timeout.
+- `npm run test:audio-browser` passed against the production build at
+  `http://127.0.0.1:3105`: worklet HTTP 200, soft/loud RMS
+  0.009940531 / 0.029822081, chord output, stop silence, suspension recovery
+  without replay, navigation closure and no page errors.
+- All 150 Vitest tests, TypeScript, 18 contrast pairs and production build
+  passed. Lint passed with eight existing unused-variable warnings.
+- This verifies browser graph behavior only. Hardware audibility, physical
+  latency and Actions execution remain unverified; the runner is outside CI.
+
 ## Test relocation verification (issue #83)
 
 Local Windows verification on 2026-09-17, against baseline
@@ -313,7 +331,7 @@ defect report is filed.
 | D13 | Low | Tests | The contrast audit only checks `--color-*` token pairs. Hardcoded canvas colors drawn over live video (`#00ff88`, `#ffd60a`, `#ff3b30`) aren't checked | `frontend/src/app/MarkerTrackingOverlay.tsx:136-192`, `frontend/src/app/cv/handLandmarkDrawing.ts:33-34` | | Open |
 | D14 | Low | Tests | The only Python test is `test_dummy.py`, so the pytest coverage report in CI measures nothing | `tests/python/test_dummy.py` | | Open |
 | D15 | Low | Docs | The root README said Python 3.10+ for the C++ build, but `backend/CMakeLists.txt` requires Python 3.12 | `README.md` | | Fixed in #79 PR |
-| D16 | Low | Tests | Browser audio smoke runner checks context closure immediately after URL navigation, before React's unmount effect may run. The unchanged runner failed; a bounded cleanup-wait diagnostic passed during #86 verification | `tests/frontend/browserAudio.browser.mjs:95` | [#105](https://github.com/Kakrl/MakeShift/issues/105) | Open; separate fix needed |
+| D16 | Low | Tests | Browser audio smoke runner checks context closure immediately after URL navigation, before React's unmount effect may run. The unchanged runner failed; a bounded cleanup-wait diagnostic passed during #86 verification | `tests/frontend/browserAudio.browser.mjs` | [#105](https://github.com/Kakrl/MakeShift/issues/105) | Fix implemented for #105; bounded wait and final assertion verified locally ([evidence](#navigation-cleanup-verification-issue-105)); merge pending |
 | D17 | Medium | UI | (Req 3.1, 3.4) The UI is not responsive. Home, calibration, and about use a fixed 267 px side column with no breakpoints, and `body` is `h-dvh overflow-hidden`, so at tablet or phone widths, short laptop screens, or 200% zoom the camera is squeezed and controls are clipped with no way to scroll to them | `frontend/src/app/layout.tsx:32`, `frontend/src/app/page.tsx:213-400`, `frontend/src/app/calibration/page.tsx:669-681`, `frontend/src/app/about/page.tsx:42-63` | [#109](https://github.com/Kakrl/MakeShift/issues/109) | Fixed in [#111](https://github.com/Kakrl/MakeShift/pull/111) |
 
 ## Root Cause Analysis Log
@@ -460,6 +478,35 @@ Windows, 2026-09-27, Node 22.20.0, Vitest 4.1.11, working tree based on
   verification.
 
 
+## Session readiness verification (issue #24)
+
+Local Windows execution on 2026-09-28, Node 22.20.0, Vitest 4.1.11,
+`feature/24-session-gating`, stacked on #87 commit `71d44b2`:
+
+- 196 tests passed across eight files. New `liveSession.test.ts` has 22 cases:
+  invalid/mismatched calibration, missing tracking, transition sequence, startup
+  cancellation, fresh identities, stale events, release on interruption,
+  watchdog expiry/delayed execution, independent detector freshness, audio
+  rejection, malformed events, retry, changed calibration and teardown.
+- `recordingControls.test.tsx` now has ten simulated page/coordinator/marker
+  cases. Existing pause/resume and calibration tests still pass through the
+  gate; new cases cover audio interruption/restart, initial pending-start Stop,
+  pagehide and repeated Play during initialization.
+- `browserAudioLifecycle.test.ts` now has twelve cases, adding the real
+  BrowserAudio owner with mocked context/worklet: startup reset, suspension,
+  reset command, explicit reactivation and obsolete-session rejection.
+- TypeScript passed. ESLint passed with five pre-existing unused-variable
+  warnings in the home page. All 18 contrast pairs and production build passed.
+- Vitest is not invoked by CI (D3); Actions evidence remains pending. These
+  mocks establish neither device audibility nor physical latency/accuracy.
+- Carl Xu reported all manual session-readiness checks passing on 2026-09-28,
+  including calibration loss/recovery, audio suspension/reactivation, background
+  and navigation, camera loss, startup recovery, Stop/restart and Pause/resume.
+  See the [passing manual report](manual/2026-09-28_2.1.6.md). Results are
+  user-reported; browser/device details, exact tested commit and per-step
+  artifacts were not supplied. No quantitative latency/accuracy claim follows.
+  Required independent review remains pending.
+
 ## PR #136 review verification
 
 Local Windows execution on 2026-09-29, Node 22.20.0, Vitest 4.1.11,
@@ -480,3 +527,50 @@ branch `fix/87-calibration-result`, following review of issue #87 / PR #136.
   frame loss still interrupts on the next animation frame. The earlier user
   manual report predates these edits; new physical/manual verification is pending.
 - Vitest remains outside frontend CI (D3); Actions execution is pending.
+
+
+## PR #138 review verification
+
+Local Windows execution on 2026-09-30, Node 22.20.0, Vitest 4.1.11,
+following merge of main at 4dc41ab (PR #136) into feature/24-session-gating.
+
+- All 204 tests passed across eight files, including 25 readiness cases and
+  15 page/coordinator/marker integration cases. Named note methods cover press
+  pairing, obsolete identities, malformed values and readiness loss. Separate
+  deadlines preserve ten-second marker checks and 500 ms hand-tracking expiry;
+  continuing hand observations cannot conceal an expired marker observation.
+- Combined page coverage preserves free play before recording, through count-in
+  and Pause, and after Stop; held notes enter MIDI at capture boundaries without
+  retriggering sound. Resume keeps the live session without reinitializing audio.
+  Calibration/frame loss, startup cancellation and audio interruption still gate
+  playback. Audio and camera hardware are mocked.
+- TypeScript, ESLint (five existing unused-variable warnings), all 18 contrast
+  pairs, production build and git diff --check passed.
+- An accidental root-level Vitest run used an unconfigured runner and failed;
+  only the frontend-configured run above is verification evidence. Its temporary
+  cache was removed. The new deadline fixture initially advanced its fake clocks
+  in the wrong order; corrected before the passing run.
+- Inventory ID 2.1.7 preserves PR #136's playback regression coverage, which
+  independently used the same 2.1.5 ID as this branch's readiness unit tests.
+- The earlier manual pass predates these changes. Physical/manual verification
+  of this merged behavior and Actions execution remain pending. Vitest remains
+  outside frontend CI (D3); no FPS, detection accuracy or physical latency claim.
+
+## PR #138 follow-up review verification
+
+Local Windows execution on 2026-09-30, `feature/24-session-gating`, working
+changes based on `0fecdb5` (Node 22, Vitest 4.1.11):
+
+- All 205 Vitest tests passed across eight files, including 26 live-session
+  cases and 15 simulated page/coordinator/marker integration cases.
+- The new case preserves a playing session across an 11-second marker gap
+  with fresh hand tracking, then verifies invalid calibration releases notes.
+  Existing cases verify marker expiry, stale hands and token-paired releases.
+- TypeScript and production build passed. Lint passed with five existing
+  unused-variable warnings. All 18 contrast pairs passed.
+- Readiness now comes from the session; marker geometry uses its returned
+  compatibility decision. Both audio adapters share one press-token sink.
+- Low-severity review cleanup: repaired UTF-8 mojibake in the inventory and
+  removed unused pitch-based audio wrappers, which had no production callers.
+- Two-second marker jitter slack is provisional. Hardware timing, physical
+  camera/audio behavior and GitHub Actions execution remain unverified.
