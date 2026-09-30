@@ -24,3 +24,4 @@ frontend/test-results/
 tests/frontend/node_modules/
 .vercel
 .env*
+!.env.example
