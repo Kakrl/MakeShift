@@ -22,3 +22,6 @@ frontend/test-results/
 
 # Vitest cache under the external frontend test root
 tests/frontend/node_modules/
+.vercel
+.env*
+!.env.example
