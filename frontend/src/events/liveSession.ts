@@ -170,7 +170,11 @@ export class LiveSession {
           "Tracking timed out. Restore the camera and sheet, wait for tracking, then select Enable audio.",
         );
       }, remaining);
-    if (wasFresh !== this.fresh()) this.emit();
+    if (wasFresh !== this.fresh()) {
+      if (this.fresh() && (this.state === "stopped" || this.state === "interrupted"))
+        this.message = "Tracking ready. Select Enable audio to start a new session.";
+      this.emit();
+    }
   }
   setHidden(hidden: boolean) {
     this.hidden = hidden;
@@ -261,7 +265,12 @@ export class LiveSession {
     this.end("stopped", "Stopped. Select Enable audio to start a new session.");
   }
   interrupt(message: string) {
-    this.end("interrupted", message);
+    if (["starting", "ready", "playing"].includes(this.state)) {
+      this.end("interrupted", message);
+    } else {
+      // Readiness can change while idle without ending another session or take.
+      this.emit();
+    }
   }
   private end(state: LiveState, message: string) {
     this.generation++;

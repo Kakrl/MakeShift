@@ -29,7 +29,10 @@ Broader recording verification remains #88.
 | interrupted/error | compatible observations recover | stays interrupted/error; Enable audio or Record required |
 
 Repeated Play while starting/playing and play-before-ready are rejected.
-Stop is idempotent. Pending startup completions cannot revive stopped sessions.
+Stop is idempotent. Readiness loss only interrupts starting, ready or playing
+sessions; idle observations preserve stopped/interrupted/error states. Fresh
+tracking after readiness loss refreshes stopped/interrupted guidance without
+automatic playback. Audio-start errors retain their retry guidance. Pending startup completions cannot revive stopped sessions.
 Old-session events are rejected even after restart. Pause preserves live audio
 and the paused MIDI take; Resume uses a MIDI count-in without reinitializing audio.
 Held notes are captured at start/resume boundaries without retriggering sound. Interruption closes the take instead of resuming it automatically.

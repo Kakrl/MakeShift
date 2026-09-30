@@ -617,3 +617,20 @@ merging PR #138 head `0fecdb5` into PR #139 head `fe67e6f`.
   marker cadence, #139's timestamped shared consumers, and #137's cleanup.
   The previous squash-transplant instruction is obsolete; #138 remains a
   dependency until merged.
+
+## PR #139 review verification
+
+Local Windows execution on 2026-09-30, feature/28-browser-piano-integration,
+working tree based on b136e6a, Node 22.20.0 and Vitest 4.1.11:
+
+- All 227 tests passed across nine files. Readiness now has 27 cases and piano
+  integration has 19. Added initial missing-marker/idle timeout state preservation,
+  recovery guidance without automatic restart, and three velocity cases (0.004,
+  0.256 and 1) covering live note capture and held-note resume without audio replay.
+- TypeScript, ESLint (four existing unused page declarations), all 18 contrast
+  pairs and production build passed. Removed unused CameraStatusOverlay import.
+- Initial regression run exposed an overly broad recovery-message override;
+  corrected to refresh guidance only when observations restore freshness, so an
+  audio interruption still shows its cause. The final full suite above passed.
+- Hardware is simulated; no new physical/manual verification. Vitest remains
+  outside CI (D3), and Actions execution remains pending.
