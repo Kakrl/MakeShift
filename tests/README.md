@@ -506,6 +506,10 @@ Local macOS execution on 2026-09-30, Node 26.8.1, Playwright Chromium
   `/audio/*.js`, and the model returned 200 with expected types; the pinned
   jsDelivr WASM returned `application/wasm`; `/api/health` returned
   `200 {"status":"ok"}` using secrets synced from Infisical.
+- After previews were made public, `MAKE_SHIFT_URL=https://make-shift-qmefia3is-jaddenkis-projects.vercel.app
+  EXPECT_DATABASE=ok npm run test:deployment` passed against the deployed
+  preview: all assets, pages, zero-request playing, camera recovery and
+  `database: ok`.
 - Not covered: real cameras, audible output, Firefox/Safari, backgrounding,
   and the home-page camera overlay (#112). These stay manual or pending.
 - GitHub Actions (ubuntu-latest, Node 20, Chromium): [frontend job](https://github.com/Kakrl/MakeShift/actions/runs/36735042554/job/109954414324)

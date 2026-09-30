@@ -11,7 +11,7 @@ CV, audio and MIDI run on the device: playing makes no network requests
 | :--- | :--- |
 | Vercel project | `jaddenkis-projects/make-shift`, root directory `frontend`, Node 24.x |
 | Production | <https://make-shift-seven.vercel.app> (from `main`) |
-| Previews | One per branch or `vercel deploy`; protected by Vercel Authentication |
+| Previews | One per branch or `vercel deploy`; public (Vercel Authentication off since 2026-09-30) |
 | Environment variables | Synced from Infisical `makeshift` (Production to Production, Development to Preview) |
 
 ## Runtime assets
@@ -55,8 +55,8 @@ entries only from a completed manual report in `tests/manual/`.
 cd frontend
 npm run build && npm start                       # or use a Vercel URL
 npm run test:deployment                          # MAKE_SHIFT_URL=<url> for remote
-vercel curl <preview-url>/api/health             # protected previews
+EXPECT_DATABASE=ok MAKE_SHIFT_URL=<preview-url> npm run test:deployment
 ```
 
-Protected previews block Playwright without a bypass secret; check them with
-`vercel curl` or test the unprotected production URL.
+Previews are public so reviewers can open them. They use the Preview
+environment secrets server-side only; no secret reaches the browser.
