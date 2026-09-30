@@ -83,6 +83,40 @@ function note(id: string, sequence = 1) {
   };
 }
 
+it("keeps initial missing calibration and idle timeouts stopped, then refreshes readiness", () => {
+  const states: string[] = [];
+  gate.subscribe(() => states.push(gate.status.state));
+  gate.observeCalibration(calibration(), calibration().camera, null);
+  expect(gate.status.state).toBe("stopped");
+  observe();
+  expect(gate.status).toMatchObject({ state: "stopped", canStart: true });
+  expect(gate.status.message).toContain("Tracking ready");
+  gate.stop();
+  now += TRACKING_TIMEOUT_MS;
+  vi.advanceTimersByTime(TRACKING_TIMEOUT_MS);
+  expect(gate.status.message).toContain("Stopped.");
+  expect(gate.status.canStart).toBe(false);
+  gate.observeCalibration(null, null, null);
+  expect(states.every(state => state === "stopped")).toBe(true);
+  expect(audio.releaseAll).not.toHaveBeenCalled();
+  observe();
+  expect(gate.status.message).toContain("Tracking ready");
+});
+
+it("refreshes interrupted recovery guidance without resuming or repeating interruption", async () => {
+  const id = await play();
+  gate.noteOn(id, 1, 60, 0.8);
+  gate.trackingFailed();
+  const message = gate.status.message;
+  gate.observeCalibration(null, null, null);
+  expect(gate.status.message).toBe(message);
+  observe();
+  expect(gate.status).toMatchObject({ state: "interrupted", canStart: true });
+  expect(gate.status.message).toContain("Tracking ready");
+  expect(gate.sessionId).toBeNull();
+  expect(audio.releaseAll).toHaveBeenCalledTimes(1);
+});
+
 it.each([null, true, {}, { ...calibration(), version: 2 }])(
   "rejects invalid calibration %j",
   async (value) => {
@@ -284,4 +318,22 @@ it("fresh hand tracking allows ten-second marker cadence but cannot hide marker 
   observe();
   expect(gate.status.canStart).toBe(true);
   expect(gate.noteOn(id, 2, 64, 0.8)).toBe("stale");
+});
+
+it("accepts marker detector jitter beyond the old 500 ms slack with fresh hands", async () => {
+  const id = await play();
+  expect(gate.noteOn(id, 1, 60, 0.8)).toBe("accepted");
+  for (let elapsed = 100; elapsed <= 11_000; elapsed += 100) {
+    now += 100;
+    vi.advanceTimersByTime(100);
+    gate.observeTracking();
+  }
+  const saved = calibration();
+  expect(gate.observeCalibration(saved, saved.camera, saved.corners)).toBe(true);
+  expect(gate.status.state).toBe("playing");
+  expect(gate.sessionId).toBe(id);
+  expect(audio.releaseAll).not.toHaveBeenCalled();
+  expect(gate.observeCalibration(null, saved.camera, saved.corners)).toBe(false);
+  expect(gate.status.canStart).toBe(false);
+  expect(audio.releaseAll).toHaveBeenCalledTimes(1);
 });

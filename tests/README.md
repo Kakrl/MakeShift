@@ -624,10 +624,38 @@ following merge of main at 4dc41ab (PR #136) into feature/24-session-gating.
   of this merged behavior and Actions execution remain pending. Vitest remains
   outside frontend CI (D3); no FPS, detection accuracy or physical latency claim.
 
-## PR #139 merge reconciliation
+## PR #138 follow-up review verification
 
-Local Windows execution on 2026-09-30, Node 22.20.0, Vitest 4.1.11,
-merging PR #138 head `0fecdb5` into PR #139 head `fe67e6f`.
+Local Windows execution on 2026-09-30, `feature/24-session-gating`, working
+changes based on `0fecdb5` (Node 22, Vitest 4.1.11):
+
+- All 205 Vitest tests passed across eight files, including 26 live-session
+  cases and 15 simulated page/coordinator/marker integration cases.
+- The new case preserves a playing session across an 11-second marker gap
+  with fresh hand tracking, then verifies invalid calibration releases notes.
+  Existing cases verify marker expiry, stale hands and token-paired releases.
+- TypeScript and production build passed. Lint passed with five existing
+  unused-variable warnings. All 18 contrast pairs passed.
+- Readiness now comes from the session; marker geometry uses its returned
+  compatibility decision. Both audio adapters share one press-token sink.
+- Low-severity review cleanup: repaired UTF-8 mojibake in the inventory and
+  removed unused pitch-based audio wrappers, which had no production callers.
+- Two-second marker jitter slack is provisional. Hardware timing, physical
+  camera/audio behavior and GitHub Actions execution remain unverified.
+
+## PR 139 frontend CI merge repair
+
+On 2026-09-30, restored the coordinator's accepted-event `activePitches`
+prop and the missing `Delivery` type import on the PR branch based on
+`e0a4a95`. Merge conflict resolution had retained obsolete note callback props
+and removed an import still used by the MIDI observer subscription.
+
+Local Windows verification: lint passed with four existing unused-variable
+warnings in page.tsx; TypeScript passed; all 228 Vitest tests in nine files
+passed; all 18 contrast pairs passed; production build passed.
+No test cases changed. GitHub Actions execution for this repair is pending.
+
+## Earlier PR 139 and PR 141 reconciliation evidence
 
 - All 222 tests passed across nine files: 25 readiness cases, 17 page integration
   cases and 16 piano integration cases. Retained both branches' coverage and

@@ -24,13 +24,11 @@ export default function CVOverlayCoordinator({
   session,
   enabled = false,
   activePitches,
-  onCalibrationValidity,
 }: {
   videoRef: RefObject<HTMLVideoElement | null>;
   enabled?: boolean;
   session: LiveSession;
   activePitches: ReadonlySet<number>;
-  onCalibrationValidity?: (valid: boolean) => void;
 }) {
   const id = session.sessionId;
   const producer = useMemo(() => id ? createKeyEventProducer(session, id) : null, [session, id]);
@@ -58,7 +56,7 @@ export default function CVOverlayCoordinator({
     [enabled, producer],
   );
   const observeCalibration = useCallback((saved: unknown, camera: CameraSignature | null, corners: Point[] | null) => {
-    session.observeCalibration(saved, camera, corners);
+    return session.observeCalibration(saved, camera, corners);
   }, [session]);
   const trackingFailed = useCallback(() => session.trackingFailed(), [session]);
 
@@ -70,7 +68,6 @@ export default function CVOverlayCoordinator({
         activePitches={activePitches}
         onKeyTransitions={handleKeyTransitions}
         trackingEnabled={enabled}
-        onCalibrationValidity={onCalibrationValidity}
         onCalibrationObservation={observeCalibration}
       />
       <HandTrackingOverlay

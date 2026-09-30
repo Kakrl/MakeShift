@@ -29,7 +29,10 @@ Broader recording verification remains #88.
 | interrupted/error | compatible observations recover | stays interrupted/error; Enable audio or Record required |
 
 Repeated Play while starting/playing and play-before-ready are rejected.
-Stop is idempotent. Pending startup completions cannot revive stopped sessions.
+Stop is idempotent. Readiness loss only interrupts starting, ready or playing
+sessions; idle observations preserve stopped/interrupted/error states. Fresh
+tracking after readiness loss refreshes stopped/interrupted guidance without
+automatic playback. Audio-start errors retain their retry guidance. Pending startup completions cannot revive stopped sessions.
 Old-session events are rejected even after restart. Pause preserves live audio
 and the paused MIDI take; Resume uses a MIDI count-in without reinitializing audio.
 Held notes are captured at start/resume boundaries without retriggering sound. Interruption closes the take instead of resuming it automatically.
@@ -46,8 +49,10 @@ A successful hand inference on a newly decoded frame refreshes tracking. An
 empty successful result means no hands and releases keys through normal
 transitions; it is not a detector failure. Explicit inference failure interrupts
 immediately and offers reload. Successful hand inference must be younger than 500 ms.
-Compatible marker observations expire after 10.5 seconds, allowing the merged
-#136 ten-second marker cadence plus 500 ms scheduling slack. If either stops arriving, a watchdog
+Compatible marker observations expire after 12 seconds, using the shared
+ten-second marker cadence plus an independent two-second detector/scheduling
+jitter allowance. This allowance is provisional, not a measured detector bound.
+It does not extend the 500 ms hand-tracking deadline. If either stops arriving, a watchdog
 interrupts; receive and observation-refresh paths also check the deadline, so
 a delayed timer cannot keep or resurrect a session. Returning observations
 permit a new user-started session, never automatic resumption.
@@ -84,3 +89,8 @@ PR #136 merged with its ancestry retained. PR #138 incorporates that main
 branch, preserving independent playback and the ten-second marker cadence.
 The 2026-09-28 manual report predates this reconciliation; physical/manual
 verification of the updated behavior remains pending.
+
+The session owns calibration compatibility and UI readiness. The marker overlay
+uses the compatibility result returned by the session for geometry, and the page
+uses `status.canStart`. Audio token mapping is shared with `createAudioSession`;
+`LiveSession.attach()` retains ownership of its invalidation subscription.

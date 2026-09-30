@@ -82,6 +82,26 @@ function finish() {
   return recorder.stopRecording()!;
 }
 
+it.each([{ velocity: 0.004, expected: 1 }, { velocity: 0.256, expected: 26 },
+  { velocity: 1, expected: 100 }])(
+  "quantizes velocity $velocity for new notes and held capture", ({ velocity, expected }) => {
+    const id = gate.sessionId!;
+    gate.noteOn(id, 1, 48, velocity);
+    gate.flushNotes();
+    now += 20;
+    recorder.pauseRecording();
+    now += 20;
+    recorder.resumeRecording();
+    disconnect.captureHeld();
+    now += 20;
+    gate.noteOff(id, 1, 48);
+    gate.flushNotes();
+    expect(recorder.stopRecording()!.notes.map(note => note.velocity)).toEqual([expected, expected]);
+    expect(audio.noteOn).toHaveBeenCalledWith(48, velocity);
+    expect(audio.noteOn).toHaveBeenCalledTimes(1);
+  },
+);
+
 it.each([48, 50, 52, 53, 55, 57, 59, 60].map((pitch, keyIndex) => ({ pitch, keyIndex })))(
   "maps key $keyIndex to MIDI $pitch in audio, recording and feedback", ({ pitch, keyIndex }) => {
     producer([{ keyIndex, velocity: 0.4 }], [], now);

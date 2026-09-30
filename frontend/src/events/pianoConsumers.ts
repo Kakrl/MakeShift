@@ -2,6 +2,8 @@ import type { Recorder } from "../app/midi/midiUtils";
 import { midiToPitch } from "../cv/noteMap";
 import type { LiveSession } from "./liveSession";
 
+const recordingVelocity = (velocity: number) => Math.max(1, Math.round(velocity * 100));
+
 /** MIDI and feedback share accepted history, after synchronous audio delivery. */
 export function connectPianoConsumers(
   session: LiveSession,
@@ -18,7 +20,7 @@ export function connectPianoConsumers(
       const pitch = midiToPitch(event.pitch);
       if (event.type === "note-on") {
         active.set(identity, { pitch: event.pitch, velocity: event.velocity });
-        recorder.noteOn(pitch, event.velocity * 100, event.timestampMs, identity);
+        recorder.noteOn(pitch, recordingVelocity(event.velocity), event.timestampMs, identity);
       } else {
         active.delete(identity);
         recorder.noteOff(pitch, event.timestampMs, identity);
@@ -30,7 +32,7 @@ export function connectPianoConsumers(
     /** Call after draining history and opening/resuming the recording boundary. */
     captureHeld(timestampMs = performance.now()) {
       for (const [identity, note] of active) {
-        recorder.noteOn(midiToPitch(note.pitch), note.velocity * 100, timestampMs, identity);
+        recorder.noteOn(midiToPitch(note.pitch), recordingVelocity(note.velocity), timestampMs, identity);
       }
     },
   });

@@ -1,10 +1,13 @@
 import {
   compatibleCalibration,
+  MARKER_CHECK_INTERVAL_MS,
+  MARKER_CHECK_SLACK_MS,
   validateCalibration,
   type CameraSignature,
 } from "../cv/calibration";
 import type { Point } from "../cv/types";
 import type { BrowserAudio } from "../app/audio/audioEngine";
+import { createAudioSink } from "./audioSession";
 import { NoteSession, type DispatchResult, type Delivery } from "./noteSession";
 
 export type LiveState =
@@ -15,8 +18,8 @@ export type LiveState =
   | "interrupted"
   | "error";
 export const TRACKING_TIMEOUT_MS = 500;
-// Marker checks run every ten seconds; allow one hand-tracking deadline of slack.
-export const CALIBRATION_TIMEOUT_MS = 10_000 + TRACKING_TIMEOUT_MS;
+// Marker jitter has its own budget; hand freshness remains independent.
+export const CALIBRATION_TIMEOUT_MS = MARKER_CHECK_INTERVAL_MS + MARKER_CHECK_SLACK_MS;
 export type LiveStatus = Readonly<{
   state: LiveState;
   message: string;
@@ -35,7 +38,6 @@ export class LiveSession {
   private sequence = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private listeners = new Set<() => void>();
-  private tokens = new Map<number, { session: number; press: number }>();
   private notes: NoteSession;
   private hidden = false;
 
@@ -43,22 +45,7 @@ export class LiveSession {
     private audio: BrowserAudio,
     private now = () => performance.now(),
   ) {
-    this.notes = new NoteSession(({ event }) => {
-      if (event.type === "release-all") {
-        this.tokens.clear();
-        this.audio.releaseAll();
-        return true;
-      }
-      if (event.type === "note-on") {
-        const token = this.audio.noteOn(event.pitch, event.velocity);
-        if (!token) return false;
-        this.tokens.set(event.pressId, token);
-        return true;
-      }
-      const token = this.tokens.get(event.pressId);
-      this.tokens.delete(event.pressId);
-      return !!token && this.audio.noteOff(token);
-    }, now);
+    this.notes = new NoteSession(createAudioSink(audio), now);
   }
 
   /** Attach in an effect; construction has no browser resources or subscriptions. */
@@ -133,7 +120,7 @@ export class LiveSession {
       this.interrupt(
         "Calibration unavailable. Restore the original sheet/camera position or calibrate again.",
       );
-      return;
+      return false;
     }
     const key = JSON.stringify(valid);
     if (this.calibrationKey && key !== this.calibrationKey)
@@ -144,6 +131,7 @@ export class LiveSession {
     const wasFresh = this.fresh();
     this.calibrationAt = this.now();
     this.watch(wasFresh);
+    return true;
   }
   /** Successful inference, including an empty frame, is usable tracking. */
   observeTracking() {
@@ -170,7 +158,11 @@ export class LiveSession {
           "Tracking timed out. Restore the camera and sheet, wait for tracking, then select Enable audio.",
         );
       }, remaining);
-    if (wasFresh !== this.fresh()) this.emit();
+    if (wasFresh !== this.fresh()) {
+      if (this.fresh() && (this.state === "stopped" || this.state === "interrupted"))
+        this.message = "Tracking ready. Select Enable audio to start a new session.";
+      this.emit();
+    }
   }
   setHidden(hidden: boolean) {
     this.hidden = hidden;
@@ -261,7 +253,12 @@ export class LiveSession {
     this.end("stopped", "Stopped. Select Enable audio to start a new session.");
   }
   interrupt(message: string) {
-    this.end("interrupted", message);
+    if (["starting", "ready", "playing"].includes(this.state)) {
+      this.end("interrupted", message);
+    } else {
+      // Readiness can change while idle without ending another session or take.
+      this.emit();
+    }
   }
   private end(state: LiveState, message: string) {
     this.generation++;
