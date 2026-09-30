@@ -68,6 +68,7 @@ export default function Home() {
     recorderRef.current = createRecorder();
   }
   const recorder = recorderRef.current;
+  const consumersRef = useRef<ReturnType<typeof connectPianoConsumers> | null>(null);
   const [completedRecording, setCompletedRecording] =
     useState<Recording | null>(null);
 
@@ -158,20 +159,22 @@ export default function Home() {
       if (countInActionRef.current === null) return;
       if (countInBeat >= beatsPerMeasure) {
         // Measure complete — start recording
-        if (!session.play()) {
-          session.interrupt("Readiness changed during count-in. Wait for tracking, then select Play.");
+        if (session.status.state !== "playing") {
+          session.interrupt("Readiness changed during count-in. Wait for tracking, then select Enable audio.");
           return;
         }
         setCountInBeat(null);
         setIsRecording(true);
         setIsPaused(false);
 
+        session.flushNotes();
         // Resume keeps the existing take and excludes the count-in time.
         if (countInActionRef.current === "resume") {
           recorder.resumeRecording();
         } else {
           recorder.startRecording(tempo);
         }
+        consumersRef.current?.captureHeld();
         countInActionRef.current = null;
       } else {
         setCountInBeat((b) => (b !== null ? b + 1 : null));
@@ -181,8 +184,8 @@ export default function Home() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countInBeat]);
 
-  // Recording needs both a stored calibration and a live camera feed.
-  const canRecord = isCalibrated && cameraReady && liveStatus.canStart;
+  // Playing and recording share readiness, but have independent lifetimes.
+  const canPlay = isCalibrated && cameraReady && liveStatus.canStart;
   const handleCalibrationValidity = useCallback((valid: boolean) => {
     setIsCalibrated(valid);
   }, []);
@@ -191,6 +194,7 @@ export default function Home() {
   useEffect(() => {
     const detach = session.attach();
     const disconnectNotes = connectPianoConsumers(session, recorder, setActivePitches);
+    consumersRef.current = disconnectNotes;
     let previousState = session.status.state;
     const unsubscribe = session.subscribe(() => {
       const status = session.status;
@@ -218,24 +222,30 @@ export default function Home() {
       detach();
       session.flushNotes();
       disconnectNotes();
+      consumersRef.current = null;
       recorder.stopRecording();
       if (audioCtxRef.current) void closeTrackedAudioContext(audioCtxRef.current);
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("pagehide", leave);
     };
   }, [session, recorder]);
+  const enableAudio = async () => {
+    if (!canPlay) return false;
+    if (session.status.state === "playing") return true;
+    if (!await session.prepare()) return false;
+    return session.play() !== null;
+  };
   const handlePlay = async () => {
     if (countInBeat !== null || session.status.state === "starting") return;
     if (isRecording && !isPaused) {
-      session.stop();
       session.flushNotes();
       recorder.pauseRecording();
       setIsPaused(true);
       return;
     }
-    if (!canRecord) return;
+    if (!canPlay) return;
     const request = ++playRequestRef.current;
-    if (!await session.prepare() || request !== playRequestRef.current) return;
+    if (!await enableAudio() || request !== playRequestRef.current) return;
     if (countInBeat !== null) return; // already counting in
     if (isRecording && isPaused) {
       // Keep the existing take paused until the count-in finishes.
@@ -255,7 +265,7 @@ export default function Home() {
   };
 
   const handleStop = () => {
-    session.stop();
+    if (session.status.state === "starting") session.stop();
     session.flushNotes();
     playRequestRef.current += 1;
     countInActionRef.current = null;
@@ -299,10 +309,10 @@ export default function Home() {
             session={session}
             onCalibrationValidity={handleCalibrationValidity}
             videoRef={videoRef}
-            enabled={canRecord && isRecording && !isPaused}
+            enabled={canPlay && liveStatus.state === "playing"}
             activePitches={activePitches}
           />
-          {!canRecord && <p role="status" className="absolute bottom-2 left-2 right-2 z-20 bg-surface px-4 text-ink">Show the calibrated sheet and camera, or <a href="/calibration" className="underline">calibrate again</a>. Saved data is checked before playing.</p>}
+          {!canPlay && <p role="status" className="absolute bottom-2 left-2 right-2 z-20 bg-surface px-4 text-ink">Show the calibrated sheet and camera, or <a href="/calibration" className="underline">calibrate again</a>. Saved data is checked before playing.</p>}
         </div>
 
         {/* Right sidebar (below the camera under lg) */}
@@ -429,18 +439,25 @@ export default function Home() {
             </button>
           )}
 
-          {/* Play / Pause / Resume button */}
+          <button
+            onClick={enableAudio}
+            disabled={!canPlay || liveStatus.state === "starting" || liveStatus.state === "playing"}
+            className="border border-black rounded-[8px] px-4 py-2 text-ink disabled:opacity-30"
+          >
+            Enable audio
+          </button>
+          {/* Record / Pause / Resume button */}
           <button
             onClick={handlePlay}
             aria-label={isRecording && !isPaused ? "Pause recording" : isPaused ? "Resume recording" : "Start recording"}
-            disabled={!canRecord || countInBeat !== null || liveStatus.state === "starting"}
-            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!canRecord || countInBeat !== null || liveStatus.state === "starting" ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
+            disabled={!canPlay || countInBeat !== null || liveStatus.state === "starting"}
+            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!canPlay || countInBeat !== null || liveStatus.state === "starting" ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
           >
             {isRecording && !isPaused
               ? <PauseIcon />
               : <PlayIcon color={isPaused ? "var(--color-info)" : "var(--color-ink)"} />}
             <span className={`text-[13px] font-sans select-none ${isPaused ? "text-info" : "text-ink"}`}>
-              {isRecording && !isPaused ? "Pause" : isPaused ? "Resume" : "Play"}
+              {isRecording && !isPaused ? "Pause" : isPaused ? "Resume" : "Record"}
             </span>
           </button>
 

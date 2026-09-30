@@ -15,7 +15,7 @@ let pitches: ReadonlySet<number>;
 let synth: Synth;
 let audio: { noteOn: ReturnType<typeof vi.fn>; noteOff: ReturnType<typeof vi.fn> };
 let detach: () => void;
-let disconnect: () => void;
+let disconnect: ReturnType<typeof connectPianoConsumers>;
 
 function observe() {
   const camera = { deviceId: "fixture", width: 1000, height: 1000, facingMode: "" };
@@ -180,4 +180,35 @@ it("ignores unsupported key indexes and fails closed on invalid velocity", () =>
   expect(gate.sessionId).toBeNull();
   expect(pitches.size).toBe(0);
   expect(render().every((value) => value === 0)).toBe(true);
+});
+
+it("captures held identities at recording boundaries without replaying pre-boundary history or audio", () => {
+  recorder.stopRecording();
+  const id = gate.sessionId!;
+  gate.noteOn(id, 1, 48, 0.3);
+  gate.noteOn(id, 2, 48, 0.7);
+  gate.noteOn(id, 3, 50, 0.5);
+  now += 20;
+  gate.noteOff(id, 3, 50);
+  gate.flushNotes();
+  recorder.startRecording(120);
+  disconnect.captureHeld();
+  now += 30;
+  gate.noteOff(id, 1, 48);
+  gate.flushNotes();
+  recorder.pauseRecording();
+  now += 50;
+  gate.flushNotes();
+  recorder.resumeRecording();
+  disconnect.captureHeld();
+  now += 40;
+  gate.noteOff(id, 2, 48);
+  gate.flushNotes();
+  expect(recorder.stopRecording()!.notes).toEqual([
+    { pitch: "C3", velocity: 30, startMs: 0, durationMs: 30 },
+    { pitch: "C3", velocity: 70, startMs: 0, durationMs: 30 },
+    { pitch: "C3", velocity: 70, startMs: 30, durationMs: 40 },
+  ]);
+  expect(audio.noteOn).toHaveBeenCalledTimes(3);
+  expect(pitches.size).toBe(0);
 });

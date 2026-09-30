@@ -546,8 +546,8 @@ resolved dependency base b37db8d produced the identical implementation tree
 3142af798b00f2cc5287dd7bcd1d8076c230e90e. A simulated squash of all dependency
 contents onto main 614203f conflicts if merged naively (ancestry is lost).
 Transplanting only #28, using b37db8d as the merge base, passed with the same
-identical tree. Follow the explicit rebase command in docs/piano_integration.md
-after squash merges; do not replay the dependency commits. These checks use the
+identical tree. The historical transplant check below has been superseded by PR #139
+merge reconciliation; do not replay the dependency commits. These checks use the
 current heads, not unknown future edits. No existing PR or main was modified.
 
 ## MIDI export runtime verification (issue #140)
@@ -665,3 +665,119 @@ The required Medium D7 defect is tracked in
 [#149](https://github.com/Kakrl/MakeShift/issues/149), with the bug label and
 standard severity policy. Its fix is verified locally; issue closure follows
 PR merge. No RCA is required under the standard Medium policy.
+## PR #136 review verification
+
+Local Windows execution on 2026-09-29, Node 22.20.0, Vitest 4.1.11,
+branch `fix/87-calibration-result`, following review of issue #87 / PR #136.
+
+- Frontend-configured `npx vitest run`: **174 tests passed across seven files**,
+  including eleven recording-control integration cases. Five added cases cover
+  immediate/ten-second marker cadence, free play across MIDI recording states,
+  calibration loss, immediate frame-loss recovery, and stale audio initialization.
+  Existing held-key resume and cancellation cases also pass. Audio dispatch is
+  mocked; no hardware sound, FPS improvement or physical latency is measured.
+- TypeScript, ESLint (five existing unused-variable warnings), all 18 contrast
+  pairs and production build passed. Run commands from `frontend/`.
+- An initial accidental repository-root Vitest invocation used an unconfigured
+  runner and failed dependency/mock resolution; the configured frontend run above
+  is the verification result. Its temporary root cache was removed.
+- The ten-second cadence permits up to ten seconds before detecting sheet loss;
+  frame loss still interrupts on the next animation frame. The earlier user
+  manual report predates these edits; new physical/manual verification is pending.
+- Vitest remains outside frontend CI (D3); Actions execution is pending.
+
+
+## PR #138 review verification
+
+Local Windows execution on 2026-09-30, Node 22.20.0, Vitest 4.1.11,
+following merge of main at 4dc41ab (PR #136) into feature/24-session-gating.
+
+- All 204 tests passed across eight files, including 25 readiness cases and
+  15 page/coordinator/marker integration cases. Named note methods cover press
+  pairing, obsolete identities, malformed values and readiness loss. Separate
+  deadlines preserve ten-second marker checks and 500 ms hand-tracking expiry;
+  continuing hand observations cannot conceal an expired marker observation.
+- Combined page coverage preserves free play before recording, through count-in
+  and Pause, and after Stop; held notes enter MIDI at capture boundaries without
+  retriggering sound. Resume keeps the live session without reinitializing audio.
+  Calibration/frame loss, startup cancellation and audio interruption still gate
+  playback. Audio and camera hardware are mocked.
+- TypeScript, ESLint (five existing unused-variable warnings), all 18 contrast
+  pairs, production build and git diff --check passed.
+- An accidental root-level Vitest run used an unconfigured runner and failed;
+  only the frontend-configured run above is verification evidence. Its temporary
+  cache was removed. The new deadline fixture initially advanced its fake clocks
+  in the wrong order; corrected before the passing run.
+- Inventory ID 2.1.7 preserves PR #136's playback regression coverage, which
+  independently used the same 2.1.5 ID as this branch's readiness unit tests.
+- The earlier manual pass predates these changes. Physical/manual verification
+  of this merged behavior and Actions execution remain pending. Vitest remains
+  outside frontend CI (D3); no FPS, detection accuracy or physical latency claim.
+
+## PR #139 merge reconciliation
+
+Local Windows execution on 2026-09-30, Node 22.20.0, Vitest 4.1.11,
+merging PR #138 head `0fecdb5` into PR #139 head `fe67e6f`.
+
+- All 222 tests passed across nine files: 25 readiness cases, 17 page integration
+  cases and 16 piano integration cases. Retained both branches' coverage and
+  updated feedback expectations for independent recording Stop.
+- Added a recording-boundary regression: deferred pre-capture history is drained,
+  released notes are excluded, held same-pitch identities and velocities survive
+  start/resume, and capture does not retrigger audio. Existing immediate Stop,
+  pause/resume, tracking interruption and stale producer cases also pass.
+- TypeScript, ESLint (five existing unused-variable warnings), all 18 contrast
+  pairs and the Next.js 16.2.3 production build passed. `git diff --check` passed.
+  An initial repository-root `npx tsc` invocation did not run the project compiler;
+  the passing TypeScript check used the frontend working directory.
+- Tests use simulated camera/audio inputs and production offline DSP. No new
+  hardware/manual verification, physical latency or detection accuracy claim.
+  Earlier manual passes predate this merge. Vitest remains outside CI (D3);
+  Actions results are separate.
+- Reconciliation keeps #138's named note methods, independent playback and
+  marker cadence, #139's timestamped shared consumers, and #137's cleanup.
+  The previous squash-transplant instruction is obsolete; #138 remains a
+  dependency until merged.
+
+## PR #141 merge reconciliation
+
+Local Windows execution on 2026-09-30, Node 22.20.0, Vitest 4.1.11,
+merging PR #139 head `b136e6a` into PR #141 head `b5245ea`.
+
+- Preserved both branches' verification records and the MIDI runtime/type split.
+- All 222 tests passed across nine files. TypeScript, all 18 contrast pairs,
+  production build and whitespace checks passed. ESLint passed with five
+  existing unused-variable warnings in Home.
+- The production export regression initially rejected the changed Home hook
+  layout. Updated its guarded fixture for the consumer ref added by #139;
+  no production change was needed. Lint passed again after the fixture edit.
+- `npm run test:midi-browser` passed in Edge 154.0.4258.37 against the new
+  production build: two downloads, exact MIDI bytes, dialog closure and no
+  page errors. Inventory 4.2.3 retains the seeded-take limitation; no new
+  physical recording, camera, audio or latency verification is claimed.
+- Vitest and the browser runner remain outside CI; Actions evidence is pending.
+  PR #139 remains a dependency until merged. This reconciliation supersedes
+  the old instruction to transplant only commits after `025588e`.
+
+## PR #150 merge reconciliation
+
+Local Windows execution on 2026-09-30, Node 22.20.0, Vitest 4.1.11,
+merging PR #141 head `045255f` into PR #150 head `b0e8177`.
+
+- Preserved both verification histories and the updated session/recording
+  behavior from #141 together with #150's opt-in instrumentation.
+- All 237 tests passed across eleven files. TypeScript, all 18 contrast pairs,
+  production build and whitespace checks passed. ESLint passed with five
+  existing unused-variable warnings in Home.
+- Production Edge 154.0.4258.37: MIDI export passed with two downloads, exact
+  MIDI bytes and dialog closure. Diagnostics passed three audio/CV/navigation
+  cycles with GPU hand models, closed audio contexts and no page errors.
+  Final model, detector, audio-context and worklet counts were zero; the shared
+  camera provider retained one track. Worker count remains unavailable.
+- The profiling fixture uses a synthetic camera without calibration. These
+  checks do not establish physical latency, detection accuracy or a memory-leak
+  verdict. Earlier manual reports predate this integration; no new hardware or
+  Actions result is claimed. Vitest and browser runners remain outside CI (D3).
+- This reconciliation supersedes the older squash-transplant instructions.
+  PR #141 remains a dependency until merged; its updated branch includes main
+  at `4dc41ab`. No test implementations or coverage were added by this resolution.
