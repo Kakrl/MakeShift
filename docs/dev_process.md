@@ -66,6 +66,7 @@ MakeShift/
 │   │   │   └── useHandLandmarker.ts
 │   │   ├── cv/                      # ArUco detection, homography, key geometry
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
+│   │   ├── lib/                     # shared browser utilities (versioned storage)
 │   │   └── shims/
 │   ├── package.json
 │   ├── package-lock.json
@@ -88,6 +89,7 @@ MakeShift/
 │   │   ├── liveSession.test.ts       # readiness transitions and stale-input safety
 │   │   ├── noteEvents.test.ts        # shared events, lifecycle, clocks and MessagePort
 │   │   ├── midiUtils.test.ts
+│   │   ├── storage.test.ts           # versioned localStorage module
 │   │   └── check-contrast.mjs
 │   ├── python/
 │   │   └── test_dummy.py

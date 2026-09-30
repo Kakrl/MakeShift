@@ -260,3 +260,15 @@ intentional contact classification, complete worker integration or latency.
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | 1.1.6 | Integration | 1.1 | Immediate marker acquisition and ten-second cadence; frame-loss interruption and immediate reacquisition ([source](frontend/recordingControls.test.tsx)) | Francis Ozua | Vitest + jsdom | Yes | Implemented — simulated hardware; no FPS measurement | No (D3) | [PR #138 review verification](README.md#pr-138-follow-up-review-verification) - passed 2026-09-30; Actions pending |
 | 2.1.7 | Integration | 2.1 | Live sound independent of MIDI state, no audio retrigger at capture boundary, release on calibration/frame loss and stale audio initialization rejection ([source](frontend/recordingControls.test.tsx)) | Carl Xu | Vitest + jsdom | Yes | Implemented — audio calls mocked; no physical sound/latency claim | No (D3) | [PR #138 review verification](README.md#pr-138-follow-up-review-verification) - passed 2026-09-30; Actions pending |
+
+## Browser storage module (#114)
+
+Supporting infrastructure for later persistence work such as 4.2.1; these rows
+do not complete any RVTM test. Existing calibration storage (`makeshift.calibration.v1`)
+is not migrated. Ran locally on macOS on 2026-09-30; Vitest is not invoked by CI (D3).
+
+| Test ID | Level | Requirement | Description / source | Owner | Tool | Automated? | Implementation Status | CI Integrated? | Execution evidence |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| STOR-01 | Unit | Issue #114 acceptance criteria | Versioned key format and rejected names/versions; validated round trip; missing, corrupt, invalid, other-version and throwing reads return the default; version-specific removal ([source](frontend/storage.test.ts)) | Harry Deng | Vitest | Yes | Implemented | No (D3) | Local run passed 2026-09-30 (13 tests across STOR-01 to STOR-03); Actions pending |
+| STOR-02 | Unit | Issue #114 acceptance criteria | Quota errors (`QuotaExceededError`, Firefox `NS_ERROR_DOM_QUOTA_REACHED`, native and jsdom `DOMException`) and other write/serialization failures return a failure result without throwing ([source](frontend/storage.test.ts)) | Harry Deng | Vitest | Yes | Implemented; simulated errors, no real quota exhaustion | No (D3) | Local run passed 2026-09-30; Actions pending |
+| STOR-03 | Unit | Issue #114 acceptance criteria | Import and calls with no `window` (server rendering), blocked `localStorage` access treated as unavailable, and jsdom `window.localStorage` default path ([source](frontend/storage.test.ts)) | Harry Deng | Vitest + jsdom | Yes | Implemented; Node/jsdom, no real browser or Next.js server render | No (D3) | Local run passed 2026-09-30; Actions pending |
