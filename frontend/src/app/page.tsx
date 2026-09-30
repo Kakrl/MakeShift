@@ -62,6 +62,20 @@ export default function Home() {
     recorderRef.current = createRecorder();
   }
   const recorder = recorderRef.current;
+  const heldNotesRef = useRef(new Map<string, number>());
+  const [audioReady, setAudioReady] = useState(false);
+  const handleNoteOn = useCallback((pitch: string, velocity: number) => {
+    heldNotesRef.current.set(pitch, velocity);
+    recorder.noteOn(pitch, velocity);
+  }, [recorder]);
+  const handleNoteOff = useCallback((pitch: string) => {
+    heldNotesRef.current.delete(pitch);
+    recorder.noteOff(pitch);
+  }, [recorder]);
+  const handleReleaseAllNotes = useCallback(() => {
+    heldNotesRef.current.clear();
+    recorder.releaseAllNotes();
+  }, [recorder]);
   const [completedRecording, setCompletedRecording] =
     useState<Recording | null>(null);
 
@@ -86,10 +100,10 @@ export default function Home() {
 
   // ── Welcome modal (first visit only) ────────────────────────────────────
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showCalibrationIntro, setShowCalibrationIntro] = useState(false);
 
   // ── Auth / calibration ───────────────────────────────────────────────────
   const [isCalibrated, setIsCalibrated] = useState(false);
-  const [showCalibrationIntro, setShowCalibrationIntro] = useState(false);
 
   // ── Recording state machine ──────────────────────────────────────────────
   //   countInBeat      → 1 … beatsPerMeasure (one measure count-in), then recording
@@ -115,16 +129,15 @@ export default function Home() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setIsCalibrated(localStorage.getItem("isCalibrated") === "true");
       // Show welcome modal only on the very first visit
-      if (!localStorage.getItem("hasVisited")) {
-        setShowWelcome(true);
-        localStorage.setItem("hasVisited", "true");
-      }
+      try {
+        if (!localStorage.getItem("hasVisited")) {
+          setShowWelcome(true);
+          localStorage.setItem("hasVisited", "true");
+        }
+      } catch { /* Calibration displays storage recovery separately. */ }
     }, 0);
-    const handleBeforeUnload = () => localStorage.removeItem("isCalibrated");
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => { clearTimeout(timer); window.removeEventListener("beforeunload", handleBeforeUnload); };
+    return () => clearTimeout(timer);
   }, []);
 
   // ── Audio click (used only for count-in) ────────────────────────────────
@@ -164,6 +177,9 @@ export default function Home() {
         } else {
           recorder.startRecording(tempo);
         }
+        for (const [pitch, velocity] of heldNotesRef.current) {
+          recorder.noteOn(pitch, velocity);
+        }
         countInActionRef.current = null;
       } else {
         setCountInBeat((b) => (b !== null ? b + 1 : null));
@@ -173,11 +189,36 @@ export default function Home() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countInBeat]);
 
-  // Recording needs both a stored calibration and a live camera feed.
-  const canRecord = isCalibrated && cameraReady;
+  // Playing and recording both require compatible calibration and a live camera.
+  const canPlay = isCalibrated && cameraReady;
+  const handleCalibrationValidity = useCallback((valid: boolean) => {
+    setIsCalibrated(valid);
+    if (!valid) {
+      playRequestRef.current++;
+      countInActionRef.current = null;
+      setCountInBeat(null);
+      const take = recorder.stopRecording();
+      if (take) setCompletedRecording(take);
+      setIsRecording(false);
+      setIsPaused(false);
+    }
+  }, [recorder]);
 
   // ── Recording controls ───────────────────────────────────────────────────
   const [audioError, setAudioError] = useState("");
+  const enableAudio = async () => {
+    if (!canPlay) return;
+    const request = ++playRequestRef.current;
+    try {
+      await initializeAudio();
+      if (request !== playRequestRef.current) return;
+      setAudioReady(true);
+      setAudioError("");
+    } catch (error) {
+      if (request !== playRequestRef.current) return;
+      setAudioError(error instanceof Error ? error.message : "Audio unavailable.");
+    }
+  };
   const handlePlay = async () => {
     if (countInBeat !== null) return;
     if (isRecording && !isPaused) {
@@ -185,15 +226,16 @@ export default function Home() {
       setIsPaused(true);
       return;
     }
-    if (!canRecord) return;
+    if (!canPlay) return;
     const request = ++playRequestRef.current;
     try {
       await initializeAudio();
       if (request !== playRequestRef.current) return;
+      setAudioReady(true);
       setAudioError("");
     } catch (error) {
       if (request !== playRequestRef.current) return;
-      setAudioError(error instanceof Error ? error.message : "Audio unavailable. Try Play again.");
+      setAudioError(error instanceof Error ? error.message : "Audio unavailable.");
       return;
     }
     if (countInBeat !== null) return; // already counting in
@@ -242,7 +284,7 @@ export default function Home() {
 
   return (
     <div className="flex-1 bg-surface flex flex-col">
-      {audioError && <p role="alert" className="text-danger px-4">{audioError} Try Play again.</p>}
+      {audioError && <p role="alert" className="text-danger px-4">{audioError} Select Enable audio to retry.</p>}
       <div aria-live="polite" className="sr-only">
         {isRecording ? "Recording started" : showRecordingComplete ? "Recording complete" : ""}
       </div>
@@ -404,11 +446,12 @@ export default function Home() {
             className="absolute inset-0 w-full h-full object-cover"
           />
           <CVOverlayCoordinator
+            onCalibrationValidity={handleCalibrationValidity}
             videoRef={videoRef}
-            enabled={isRecording && !isPaused}
-            onNoteOn={recorder.noteOn}
-            onNoteOff={recorder.noteOff}
-            onReleaseAllNotes={recorder.releaseAllNotes}
+            enabled={canPlay && audioReady}
+            onNoteOn={handleNoteOn}
+            onNoteOff={handleNoteOff}
+            onReleaseAllNotes={handleReleaseAllNotes}
           />
           <CameraStatusOverlay />
 
@@ -483,6 +526,7 @@ export default function Home() {
               </div>
             </div>
           )}
+          {!canPlay && <p role="status" className="absolute bottom-2 left-2 right-2 z-20 bg-surface px-4 text-ink">Show the calibrated sheet and camera, or <a href="/calibration" className="underline">calibrate again</a>. Saved data is checked before playing.</p>}
         </div>
 
         {/* Right sidebar (below the camera under lg) */}
@@ -609,18 +653,25 @@ export default function Home() {
             </button>
           )}
 
-          {/* Play / Pause / Resume button */}
+          <button
+            onClick={enableAudio}
+            disabled={!canPlay}
+            className="border border-black rounded-[8px] px-4 py-2 text-ink disabled:opacity-30"
+          >
+            Enable audio
+          </button>
+          {/* Record / Pause / Resume button */}
           <button
             onClick={handlePlay}
             aria-label={isRecording && !isPaused ? "Pause recording" : isPaused ? "Resume recording" : "Start recording"}
-            disabled={!canRecord || countInBeat !== null}
-            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!canRecord || countInBeat !== null ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
+            disabled={!canPlay || countInBeat !== null}
+            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!canPlay || countInBeat !== null ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
           >
             {isRecording && !isPaused
               ? <PauseIcon />
               : <PlayIcon color={isPaused ? "var(--color-info)" : "var(--color-ink)"} />}
             <span className={`text-[13px] font-sans select-none ${isPaused ? "text-info" : "text-ink"}`}>
-              {isRecording && !isPaused ? "Pause" : isPaused ? "Resume" : "Play"}
+              {isRecording && !isPaused ? "Pause" : isPaused ? "Resume" : "Record"}
             </span>
           </button>
 

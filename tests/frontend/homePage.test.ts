@@ -18,7 +18,21 @@ const camera = vi.hoisted(() => ({
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, back: vi.fn() }) }));
-vi.mock("next/dynamic", () => ({ default: () => () => null }));
+// The dynamic CVOverlayCoordinator reports whether the saved calibration is
+// valid; this stub reports `calibration.valid` instead of running CV.
+const calibration = vi.hoisted(() => ({ valid: false }));
+vi.mock("next/dynamic", async () => {
+  const { useEffect } = await import("react");
+  return {
+    default: () =>
+      function CalibrationStub({ onCalibrationValidity }: {
+        onCalibrationValidity?: (valid: boolean) => void;
+      }) {
+        useEffect(() => onCalibrationValidity?.(calibration.valid), [onCalibrationValidity]);
+        return null;
+      },
+  };
+});
 vi.mock("../../frontend/src/app/CameraContext", () => ({ useCamera: () => camera.value }));
 vi.mock("../../frontend/src/app/audio/audioEngine", () => ({
   initializeAudio: vi.fn(async () => {}),
@@ -51,6 +65,7 @@ describe("home page", () => {
     vi.useFakeTimers();
     localStorage.clear();
     push.mockClear();
+    calibration.valid = false;
     camera.value = { ...camera.value, cameraReady: true, status: "ready", error: null };
   });
 
@@ -99,7 +114,7 @@ describe("home page", () => {
 
   it("shows the count-in, completion banner, and delete confirmation", async () => {
     localStorage.setItem("hasVisited", "true");
-    localStorage.setItem("isCalibrated", "true");
+    calibration.valid = true;
     renderHome();
     // The metronome click needs Web Audio, which jsdom lacks.
     fireEvent.click(screen.getByLabelText("Toggle metronome"));
