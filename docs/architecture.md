@@ -32,9 +32,9 @@ flowchart TD
 
 | Area | Existing implementation | Planned delivery |
 | :--- | :--- | :--- |
-| UI/camera | Next.js/React camera and calibration UI | Validated calibration and [live readiness controller](live_session.md) (#87, #24); manual session-recovery checks passed (Carl Xu, user-reported 2026-09-28) |
-| CV | MediaPipe still-image helper, video overlay code, OpenCV.js marker/geometry modules | Worker pipeline and intentional contact detection (#37, #34); module presence does not establish UI integration |
-| Calibration | Versioned validated result, captured hover/rest inputs and live compatibility gates ([contract](calibration.md)) | Manual calibration checklist passed (user-reported 2026-09-28); contact inference (#34), expanded layouts (#36) |
+| UI/camera | Next.js/React camera and calibration UI | Validated session lifecycle (#24, #87) |
+| CV | MediaPipe still-image helper, video overlay code, OpenCV.js marker/geometry modules; bounded k-means shadow worker and main-thread per-finger overlap/relaxed-knuckle/shadow contact prototype (combined camera behavior unverified) | Complete worker pipeline and validated intentional contact detection (#37, #34); prototype transitions are dispatched independently of diagnostic drawing |
+| Calibration | Prototype flow/completion flag; known defect D6 | Versioned validated result (#87) |
 | Native audio | C++ PortAudio, nanobind, SPSC queue; ten 100 ms decaying sine hits at 44.1 kHz | Remains a native reference |
 | Browser audio | JavaScript AudioWorklet, ten held sine voices, press/session identities, velocity, sample-timed ADSR and Audio check page ([details](browser_audio.md)); native engine preserved | Shared event adapter (#86) implemented; ADSR (#27) implemented with user-reported listening pass; readiness gate (#24) implemented; one-octave shared-event consumers (#28) implemented ([scope](piano_integration.md)); intentional-contact and physical verification pending |
 | MIDI | Instance-owned note-list recorder with pause/resume and on-demand midi-writer-js export (#108, #115); recorder/mocked export unit tests pass locally, browser verification pending | Complete lifecycle verification (#88), export verification (#107), persistence and playback |
@@ -85,6 +85,14 @@ finger/press identity, hover/press/hold/release transitions, velocity estimation
 occlusion and same-key multi-finger behavior. Relative hand-landmark depth is not
 automatically a calibrated distance from the paper. #29 tunes confidence and
 hysteresis against both accuracy and delay rather than assuming 25 ms debounce.
+
+The current prototype's [live contact controller](../frontend/src/cv/liveContactPipeline.ts)
+provides one `processFrame` entry point for key overlap, knuckle eligibility,
+and asynchronous shadow checks. It owns bounded shadow-worker scheduling,
+per-finger history, gate revisions, and the release watchdog. The overlay owns
+camera/marker geometry, rendering, and note dispatch through controller
+callbacks. Expensive segmentation remains in the worker; this refactor does
+not move hand inference into a worker or establish verified accuracy/latency.
 
 ## Event and clock contract
 

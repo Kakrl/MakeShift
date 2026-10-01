@@ -7,7 +7,17 @@ import type { CameraSignature } from "../cv/calibration";
 import type { Point } from "../cv/types";
 import { createKeyEventProducer } from "../events/keyEventProducer";
 import { getFingertips } from "../cv/collision";
-import type { Fingertip, NormalizedLandmark } from "../cv/collision";
+import type { Fingertip, HandObservation } from "../cv/collision";
+import {
+  DEPTH_CALIBRATION_STORAGE_KEY,
+  parsePersistedDepthCalibration,
+} from "../cv/depthCalibration";
+import type { PersistedDepthCalibration } from "../cv/depthCalibration";
+
+// Set to true to show CV diagnostics and shadow previews.
+const SHOW_VISUAL_DEBUG = true;
+// Visualize the detected piano from live markers before calibration is saved.
+const DEBUG_SHOW_SHEET_WITHOUT_CALIBRATION = true;
 
 const MarkerTrackingOverlay = dynamic(
   () => import("./MarkerTrackingOverlay"),
@@ -33,15 +43,28 @@ export default function CVOverlayCoordinator({
   const id = session.sessionId;
   const producer = useMemo(() => id ? createKeyEventProducer(session, id) : null, [session, id]);
   const [fingertips, setFingertips] = useState<Fingertip[]>([]);
+  const [hands, setHands] = useState<HandObservation[]>([]);
+  const [depthCalibration] = useState<PersistedDepthCalibration | null>(() =>
+    typeof window === "undefined"
+      ? null
+      : parsePersistedDepthCalibration(
+          window.localStorage.getItem(DEPTH_CALIBRATION_STORAGE_KEY),
+        ),
+  );
 
   const handleLandmarks = useCallback(
-    (hands: readonly (readonly NormalizedLandmark[])[]) => {
+    (observations: readonly HandObservation[]) => {
       session.observeTracking();
       const video = videoRef.current;
       if (!video) return;
 
+      setHands([...observations]);
       setFingertips(
-        getFingertips(hands, video.videoWidth, video.videoHeight),
+        getFingertips(
+          observations.map(({ landmarks }) => landmarks),
+          video.videoWidth,
+          video.videoHeight,
+        ),
       );
     },
     [videoRef, session],
@@ -50,7 +73,6 @@ export default function CVOverlayCoordinator({
   const handleKeyTransitions = useCallback(
     (pressed: readonly number[], released: readonly number[]) => {
       if (!enabled || !producer) return;
-      // Legacy overlap preview has no measured contact velocity (#34).
       producer(pressed.map((keyIndex) => ({ keyIndex, velocity: 0.8 })), released, performance.now());
     },
     [enabled, producer],
@@ -65,6 +87,10 @@ export default function CVOverlayCoordinator({
       <MarkerTrackingOverlay
         videoRef={videoRef}
         fingertips={fingertips}
+        hands={hands}
+        depthCalibration={depthCalibration}
+        showVisualDebug={SHOW_VISUAL_DEBUG}
+        debugShowSheetWithoutCalibration={DEBUG_SHOW_SHEET_WITHOUT_CALIBRATION}
         activePitches={activePitches}
         onKeyTransitions={handleKeyTransitions}
         trackingEnabled={enabled}
@@ -73,6 +99,7 @@ export default function CVOverlayCoordinator({
       <HandTrackingOverlay
         videoRef={videoRef}
         onLandmarks={handleLandmarks}
+        showVisualDebug={SHOW_VISUAL_DEBUG}
         onTrackingFailure={trackingFailed}
       />
     </>
