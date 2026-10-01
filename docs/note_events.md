@@ -226,7 +226,9 @@ interruption. Its `receive` path uses the shared NoteSession contract before
 synchronous BrowserAudio dispatch. The current CV coordinator retains session and press identities around overlap
 transitions and uses named note methods; LiveSession supplies event envelopes
 and sequence numbers; contact
-classification and worker production remain #34/#37. The existing pitch-based
-recorder receives accepted transitions after audio; the full timestamp-aware
-shared event recording policy remains #88. See the state/timeout/recovery table
+classification and worker production remain #34/#37. The recorder and feedback consume accepted events after audio with observation
+timestamps and session/press identities. Recording start/resume snapshots held
+accepted presses without retriggering sound; Pause/Stop only close MIDI capture.
+See [one-octave integration](piano_integration.md); broader recording verification
+remains #88. See the state/timeout/recovery table
 and verification limits in the linked document.

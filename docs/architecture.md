@@ -36,7 +36,7 @@ flowchart TD
 | CV | MediaPipe still-image helper, video overlay code, OpenCV.js marker/geometry modules | Worker pipeline and intentional contact detection (#37, #34); module presence does not establish UI integration |
 | Calibration | Versioned validated result, captured hover/rest inputs and live compatibility gates ([contract](calibration.md)) | Manual calibration checklist passed (user-reported 2026-09-28); contact inference (#34), expanded layouts (#36) |
 | Native audio | C++ PortAudio, nanobind, SPSC queue; ten 100 ms decaying sine hits at 44.1 kHz | Remains a native reference |
-| Browser audio | JavaScript AudioWorklet, ten held sine voices, press/session identities, velocity, sample-timed ADSR and Audio check page ([details](browser_audio.md)); native engine preserved | Shared event adapter (#86) implemented; ADSR (#27) implemented with user-reported listening pass; readiness gate (#24) implemented; full intentional-contact integration (#28) pending |
+| Browser audio | JavaScript AudioWorklet, ten held sine voices, press/session identities, velocity, sample-timed ADSR and Audio check page ([details](browser_audio.md)); native engine preserved | Shared event adapter (#86) implemented; ADSR (#27) implemented with user-reported listening pass; readiness gate (#24) implemented; one-octave shared-event consumers (#28) implemented ([scope](piano_integration.md)); intentional-contact and physical verification pending |
 | MIDI | Instance-owned note-list recorder with pause/resume and on-demand midi-writer-js export (#108, #115); recorder/mocked export unit tests pass locally, browser verification pending | Complete lifecycle verification (#88), export verification (#107), persistence and playback |
 | Verification | Native audio/queue, MIDI, contrast, RCA suites; Python placeholder | Browser audio, labeled CV, physical latency and deployment tests (#39, #30, #89) |
 
@@ -94,7 +94,9 @@ monotonic observation time, ordered sequence, session identity and press identit
 `NoteSession` validates message data, dispatches audio before deferred observers,
 and retires sessions on loss, invalid input or overload. Its BrowserAudio adapter
 propagates audio interruption to all consumers. Coordinates remain CV inputs.
-Live detection/readiness and recording wiring remain #34/#24/#28/#88.
+The one-octave integration shares accepted events with MIDI and feedback after audio;
+readiness is delivered by #24. Contact detection (#34/#29), worker delivery (#37)
+and physical verification (#30/#39) remain pending. See [integration scope](piano_integration.md).
 
 Specify ordering, malformed/duplicate events, repeated pitches and same-key
 multi-finger policy. Match releases to presses; a late release for a stolen

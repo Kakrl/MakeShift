@@ -34,6 +34,7 @@ MakeShift/
 │   ├── browser_audio.md             # browser DSP, transport and verification
 │   ├── audio.md                     # polyphony and voice stealing
 │   ├── audio_events.md              # native audio event queue contract
+│   ├── piano_integration.md         # one-octave shared-event consumers and limits
 │   ├── live_session.md              # readiness states, tracking timeout and recovery
 │   ├── note_events.md               # shared browser event/session/clock contract
 │   ├── dev_process.md
@@ -66,7 +67,7 @@ MakeShift/
 │   │   │   └── useHandLandmarker.ts
 │   │   ├── cv/                      # ArUco detection, homography, key geometry
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
-│   │   └── shims/
+│   │   └── shims/                # empty fs shim and type-only MIDI declaration bridge
 │   ├── package.json
 │   ├── package-lock.json
 │   ├── vitest.config.mts            # discovers tests/frontend/
@@ -85,8 +86,10 @@ MakeShift/
 │   │   ├── browserAudio.test.ts      # production DSP offline rendering
 │   │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   │   ├── browserAudio.browser.mjs  # production browser graph check
+│   │   ├── pianoIntegration.test.ts # deterministic note-to-audio/MIDI/feedback
 │   │   ├── liveSession.test.ts       # readiness transitions and stale-input safety
 │   │   ├── noteEvents.test.ts        # shared events, lifecycle, clocks and MessagePort
+│   │   ├── midiExport.browser.mjs  # production Export UI and downloaded MIDI bytes
 │   │   ├── midiUtils.test.ts
 │   │   └── check-contrast.mjs
 │   ├── python/

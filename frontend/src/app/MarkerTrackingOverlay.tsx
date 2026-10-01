@@ -23,6 +23,7 @@ import {
 } from "../cv/homography";
 import type { MarkerDetectionResult } from "../cv/types";
 import type { Point } from "../cv/types";
+import { keyIndexToMidi } from "../cv/noteMap";
 import {
   recordMarkerDetection,
 } from "../cv/performanceMetrics";
@@ -40,9 +41,11 @@ export default function MarkerTrackingOverlay({
   onKeyTransitions,
   trackingEnabled = false,
   onCalibrationObservation,
+  activePitches,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   fingertips: readonly Fingertip[];
+  activePitches: ReadonlySet<number>;
   onKeyTransitions?: (pressed: readonly number[], released: readonly number[]) => void;
   trackingEnabled?: boolean;
   onCalibrationObservation: (saved: unknown, camera: ReturnType<typeof cameraSignature>, corners: Point[] | null) => boolean;
@@ -276,11 +279,12 @@ export default function MarkerTrackingOverlay({
           }
 
           projectedWhiteKeys.forEach((key, index) => {
-            if (collidedKeys.has(index)) pressWhiteKey(context, key);
+            const pitch = keyIndexToMidi(index);
+            if (trackingEnabled && pitch !== null && activePitches.has(pitch)) pressWhiteKey(context, key);
             else releaseWhiteKey(context, key);
           });
     }
-  }, [fingertips, markerDetection, onKeyTransitions, trackingEnabled]);
+  }, [fingertips, markerDetection, onKeyTransitions, trackingEnabled, activePitches]);
 
   return (
     <>
