@@ -279,8 +279,8 @@ not in CI yet.
 - 5 cases in `calibrationWorkflow.test.tsx` (6.2.3) found a real defect, D21
   ([#162](https://github.com/Kakrl/MakeShift/issues/162)). They are marked
   `it.fails` and linked to the issue. The fix PR switches them back to `it()`.
-- Local result: **231 passed and 5 expected failures across 11 files**. Actions
-  evidence for this run is pending.
+- Local result: **231 passed and 5 expected failures across 11 files**. CI on
+  PR #158 (Node 20) matched ([job log](https://github.com/Kakrl/MakeShift/actions/runs/36897106200/job/110486733691)).
 
 ## Documentation Expectations by Severity
 
