@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useCamera } from "./CameraContext";
+import { cameraSignature, loadCalibration, markerCorners, MARKER_CHECK_INTERVAL_MS } from "../cv/calibration";
 import {
   getWhiteKeyPolygons,
   PIANO_CORNERS,
@@ -41,7 +43,10 @@ import {
 } from "../cv/homography";
 import type { MarkerDetectionResult } from "../cv/types";
 import type { Point } from "../cv/types";
-import { recordMarkerDetection } from "../cv/performanceMetrics";
+import { keyIndexToMidi } from "../cv/noteMap";
+import {
+  recordMarkerDetection,
+} from "../cv/performanceMetrics";
 
 const PAGE_CORNERS: Point[] = [
   { x: 0, y: 0 },
@@ -118,19 +123,17 @@ export default function MarkerTrackingOverlay({
   depthCalibration = null,
   onKeyTransitions,
   trackingEnabled = false,
-  showVisualDebug = false,
+  onCalibrationObservation,
+  activePitches,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   fingertips: readonly Fingertip[];
-  hands?: readonly HandObservation[];
-  depthCalibration?: PersistedDepthCalibration | null;
-  onKeyTransitions?: (
-    pressed: readonly number[],
-    released: readonly number[],
-  ) => void;
+  activePitches: ReadonlySet<number>;
+  onKeyTransitions?: (pressed: readonly number[], released: readonly number[]) => void;
   trackingEnabled?: boolean;
-  showVisualDebug?: boolean;
+  onCalibrationObservation: (saved: unknown, camera: ReturnType<typeof cameraSignature>, corners: Point[] | null) => boolean;
 }) {
+  const { stream, cameraReady } = useCamera();
   const [markerDetection, setMarkerDetection] =
     useState<MarkerDetectionResult | null>(null);
   const processingCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -197,6 +200,12 @@ export default function MarkerTrackingOverlay({
     previousHighlightedKeysRef.current = detectedKeys;
     if (highlights.pressed.length || highlights.released.length) {
       queueMicrotask(() => setHighlightedKeyIndexes([...detectedKeys]));
+
+  useEffect(() => {
+    if (!trackingEnabled && previousKeysRef.current.size > 0) {
+      onKeyTransitions?.([], [...previousKeysRef.current]);
+      // A new playback session treats held keys as fresh presses.
+      previousKeysRef.current = new Set();
     }
   }, []);
 
@@ -348,7 +357,7 @@ export default function MarkerTrackingOverlay({
     let cancelled = false;
     let animationFrame = 0;
     let detector: MarkerDetector | null = null;
-    let lastDetectionTime = 0;
+    let lastDetectionTime = -Infinity;
 
     const detect = (time: number) => {
       const video = videoRef.current;
@@ -376,10 +385,7 @@ export default function MarkerTrackingOverlay({
               }
             }
 
-            const markerCheckInterval = geometryLockedRef.current
-              ? LOCKED_MARKER_CHECK_INTERVAL_MS
-              : INITIAL_MARKER_CHECK_INTERVAL_MS;
-            if (time - lastDetectionTime >= markerCheckInterval) {
+            if (time - lastDetectionTime >= MARKER_CHECK_INTERVAL_MS) {
               const context = processingCanvas.getContext("2d");
               if (context && detector) {
                 context.drawImage(
@@ -390,16 +396,24 @@ export default function MarkerTrackingOverlay({
                   processingCanvas.height,
                 );
                 const detectionStartedAt = performance.now();
-                const detection = detector.detect(processingCanvas);
-                recordMarkerDetection(
-                  performance.now() - detectionStartedAt,
-                  detection.missingIds.length === 0,
-                );
-                setMarkerDetection(detection);
+                try {
+                  const detection = detector.detect(processingCanvas);
+                  recordMarkerDetection(
+                    performance.now() - detectionStartedAt,
+                    detection.missingIds.length === 0,
+                  );
+                  setMarkerDetection(detection);
+                } catch {
+                  setMarkerDetection(null);
+                }
                 lastDetectionTime = time;
               }
             }
           }
+        }
+        if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) {
+          setMarkerDetection(null);
+          lastDetectionTime = -Infinity;
         }
         animationFrame = requestAnimationFrame(detect);
       }
@@ -423,12 +437,21 @@ export default function MarkerTrackingOverlay({
       cancelAnimationFrame(animationFrame);
       detector?.dispose();
     };
-  }, [videoRef]);
+  }, [videoRef, stream, cameraReady]);
 
   useEffect(() => {
-    if (!markerDetection || markerDetection.missingIds.length > 0) {
+    const camera = cameraReady ? cameraSignature(stream, videoRef.current) : null;
+    const corners = camera && markerDetection ? markerCorners(markerDetection, camera) : null;
+    const saved = loadCalibration();
+    const valid = onCalibrationObservation(saved, camera, corners);
+    if (!valid) {
+      if (previousKeysRef.current.size) onKeyTransitions?.([], [...previousKeysRef.current]);
+      previousKeysRef.current = new Set();
+      projectedPianoCornersRef.current = null;
+      projectedWhiteKeysRef.current = null;
       return;
     }
+    if (!markerDetection) return;
 
     const markerCenters = new Map(
       markerDetection.observations.map((observation) => [
@@ -470,8 +493,7 @@ export default function MarkerTrackingOverlay({
     homographyRef.current = homography;
     projectedPianoCornersRef.current = projectedPianoCorners;
     projectedWhiteKeysRef.current = projectedWhiteKeys;
-    geometryLockedRef.current = true;
-  }, [markerDetection]);
+  }, [markerDetection, stream, cameraReady, videoRef, onCalibrationObservation, onKeyTransitions]);
 
   useEffect(() => {
     const inverseHomography = homographyRef.current
@@ -693,6 +715,16 @@ export default function MarkerTrackingOverlay({
               screenY - 8,
             );
             context.restore();
+            if (transitions.pressed.length || transitions.released.length) {
+              onKeyTransitions?.(transitions.pressed, transitions.released);
+            }
+            previousKeysRef.current = collidedKeys;
+          }
+
+          projectedWhiteKeys.forEach((key, index) => {
+            const pitch = keyIndexToMidi(index);
+            if (trackingEnabled && pitch !== null && activePitches.has(pitch)) pressWhiteKey(context, key);
+            else releaseWhiteKey(context, key);
           });
       }
     }
@@ -709,6 +741,9 @@ export default function MarkerTrackingOverlay({
     markerDetection,
     shadowPreviewFinger,
     videoRef,
+    onKeyTransitions,
+    trackingEnabled,
+    activePitches
   ]);
 
   return (

@@ -1,9 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useState, type RefObject } from "react";
-import { audioNoteOff, audioNoteOn, releaseAllAudioNotes } from "./audio/audioEngine";
-import { keyIndexToMidi, midiToPitch } from "../cv/noteMap";
+import { useCallback, useMemo, useState, type RefObject } from "react";
+import type { LiveSession } from "../events/liveSession";
+import type { CameraSignature } from "../cv/calibration";
+import type { Point } from "../cv/types";
+import { createKeyEventProducer } from "../events/keyEventProducer";
 import { getFingertips } from "../cv/collision";
 import type { Fingertip, HandObservation } from "../cv/collision";
 import {
@@ -27,17 +29,17 @@ const HandTrackingOverlay = dynamic(
 
 export default function CVOverlayCoordinator({
   videoRef,
+  session,
   enabled = false,
-  onNoteOn,
-  onNoteOff,
-  onReleaseAllNotes,
+  activePitches,
 }: {
   videoRef: RefObject<HTMLVideoElement | null>;
   enabled?: boolean;
-  onNoteOn: (pitch: string, velocity: number) => void;
-  onNoteOff: (pitch: string) => void;
-  onReleaseAllNotes: () => void;
+  session: LiveSession;
+  activePitches: ReadonlySet<number>;
 }) {
+  const id = session.sessionId;
+  const producer = useMemo(() => id ? createKeyEventProducer(session, id) : null, [session, id]);
   const [fingertips, setFingertips] = useState<Fingertip[]>([]);
   const [hands, setHands] = useState<HandObservation[]>([]);
   const [depthCalibration] = useState<PersistedDepthCalibration | null>(() =>
@@ -49,7 +51,8 @@ export default function CVOverlayCoordinator({
   );
 
   const handleLandmarks = useCallback(
-    (observations: readonly HandObservation[]) => {
+    (hands: readonly (readonly NormalizedLandmark[])[]) => {
+      session.observeTracking();
       const video = videoRef.current;
       if (!video) return;
 
@@ -62,37 +65,21 @@ export default function CVOverlayCoordinator({
         ),
       );
     },
-    [videoRef],
+    [videoRef, session],
   );
 
   const handleKeyTransitions = useCallback(
     (pressed: readonly number[], released: readonly number[]) => {
-      for (const keyIndex of released) {
-        const midi = keyIndexToMidi(keyIndex);
-        if (midi === null) continue;
-        audioNoteOff(midi);
-        onNoteOff(midiToPitch(midi));
-      }
-      if (!enabled) return;
-      for (const keyIndex of pressed) {
-        const midi = keyIndexToMidi(keyIndex);
-        if (midi === null) continue;
-        const pitch = midiToPitch(midi);
-        audioNoteOn(midi);
-        onNoteOn(pitch, 100);
-      }
+      if (!enabled || !producer) return;
+      // Legacy overlap preview has no measured contact velocity (#34).
+      producer(pressed.map((keyIndex) => ({ keyIndex, velocity: 0.8 })), released, performance.now());
     },
-    [enabled, onNoteOn, onNoteOff],
+    [enabled, producer],
   );
-
-  useEffect(() => {
-    if (!enabled) {
-      releaseAllAudioNotes();
-      onReleaseAllNotes();
-    }
-  }, [enabled, onReleaseAllNotes]);
-
-  useEffect(() => () => releaseAllAudioNotes(), []);
+  const observeCalibration = useCallback((saved: unknown, camera: CameraSignature | null, corners: Point[] | null) => {
+    return session.observeCalibration(saved, camera, corners);
+  }, [session]);
+  const trackingFailed = useCallback(() => session.trackingFailed(), [session]);
 
   return (
     <>
@@ -101,14 +88,17 @@ export default function CVOverlayCoordinator({
         fingertips={fingertips}
         hands={hands}
         depthCalibration={depthCalibration}
+        showVisualDebug={SHOW_VISUAL_DEBUG}
+        activePitches={activePitches}
         onKeyTransitions={handleKeyTransitions}
         trackingEnabled={enabled}
-        showVisualDebug={SHOW_VISUAL_DEBUG}
+        onCalibrationObservation={observeCalibration}
       />
       <HandTrackingOverlay
         videoRef={videoRef}
         onLandmarks={handleLandmarks}
         showVisualDebug={SHOW_VISUAL_DEBUG}
+        onTrackingFailure={trackingFailed}
       />
     </>
   );

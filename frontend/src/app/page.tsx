@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCamera } from "./CameraContext";
-import CameraStatusOverlay from "./CameraStatusOverlay";
 import SideNav from "./SideNav";
 import {
   createRecorder,
@@ -12,7 +11,9 @@ import {
   type Recorder,
   type Recording,
 } from "./midi/midiUtils";
-import { initializeAudio } from "./audio/audioEngine";
+import { browserAudio } from "./audio/audioEngine";
+import { LiveSession } from "../events/liveSession";
+import { connectPianoConsumers } from "../events/pianoConsumers";
 
 const CVOverlayCoordinator = dynamic(
   () => import("./CVOverlayCoordinator"),
@@ -57,11 +58,15 @@ function StopIcon() {
 
 export default function Home() {
   const router = useRouter();
+  const [session] = useState(() => new LiveSession(browserAudio));
+  const [liveStatus, setLiveStatus] = useState(session.status);
+  const [activePitches, setActivePitches] = useState<ReadonlySet<number>>(new Set());
   const recorderRef = useRef<Recorder | null>(null);
   if (recorderRef.current === null) {
     recorderRef.current = createRecorder();
   }
   const recorder = recorderRef.current;
+  const consumersRef = useRef<ReturnType<typeof connectPianoConsumers> | null>(null);
   const [completedRecording, setCompletedRecording] =
     useState<Recording | null>(null);
 
@@ -87,10 +92,6 @@ export default function Home() {
   // ── Welcome modal (first visit only) ────────────────────────────────────
   const [showWelcome, setShowWelcome] = useState(false);
 
-  // ── Auth / calibration ───────────────────────────────────────────────────
-  const [isCalibrated, setIsCalibrated] = useState(false);
-  const [showCalibrationIntro, setShowCalibrationIntro] = useState(false);
-
   // ── Recording state machine ──────────────────────────────────────────────
   //   countInBeat      → 1 … beatsPerMeasure (one measure count-in), then recording
   //   isRecording      → actively recording (or paused)
@@ -107,7 +108,7 @@ export default function Home() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const { stream, cameraReady } = useCamera();
+  const { stream } = useCamera();
 
   useEffect(() => {
     if (stream && videoRef.current) videoRef.current.srcObject = stream;
@@ -115,16 +116,15 @@ export default function Home() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setIsCalibrated(localStorage.getItem("isCalibrated") === "true");
       // Show welcome modal only on the very first visit
-      if (!localStorage.getItem("hasVisited")) {
-        setShowWelcome(true);
-        localStorage.setItem("hasVisited", "true");
-      }
+      try {
+        if (!localStorage.getItem("hasVisited")) {
+          setShowWelcome(true);
+          localStorage.setItem("hasVisited", "true");
+        }
+      } catch { /* Calibration displays storage recovery separately. */ }
     }, 0);
-    const handleBeforeUnload = () => localStorage.removeItem("isCalibrated");
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => { clearTimeout(timer); window.removeEventListener("beforeunload", handleBeforeUnload); };
+    return () => clearTimeout(timer);
   }, []);
 
   // ── Audio click (used only for count-in) ────────────────────────────────
@@ -154,16 +154,22 @@ export default function Home() {
       if (countInActionRef.current === null) return;
       if (countInBeat >= beatsPerMeasure) {
         // Measure complete — start recording
+        if (session.status.state !== "playing") {
+          session.interrupt("Readiness changed during count-in. Wait for tracking, then select Enable audio.");
+          return;
+        }
         setCountInBeat(null);
         setIsRecording(true);
         setIsPaused(false);
 
+        session.flushNotes();
         // Resume keeps the existing take and excludes the count-in time.
         if (countInActionRef.current === "resume") {
           recorder.resumeRecording();
         } else {
           recorder.startRecording(tempo);
         }
+        consumersRef.current?.captureHeld();
         countInActionRef.current = null;
       } else {
         setCountInBeat((b) => (b !== null ? b + 1 : null));
@@ -173,29 +179,65 @@ export default function Home() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countInBeat]);
 
-  // Recording needs both a stored calibration and a live camera feed.
-  const canRecord = isCalibrated && cameraReady;
+  // Playing and recording share readiness, but have independent lifetimes.
+  const canPlay = liveStatus.canStart;
 
   // ── Recording controls ───────────────────────────────────────────────────
-  const [audioError, setAudioError] = useState("");
+  useEffect(() => {
+    const detach = session.attach();
+    const disconnectNotes = connectPianoConsumers(session, recorder, setActivePitches);
+    consumersRef.current = disconnectNotes;
+    let previousState = session.status.state;
+    const unsubscribe = session.subscribe(() => {
+      const status = session.status;
+      setLiveStatus(status);
+      const changed = previousState !== status.state;
+      previousState = status.state;
+      if (changed && (status.state === "interrupted" || status.state === "error")) {
+        playRequestRef.current++;
+        countInActionRef.current = null;
+        setCountInBeat(null);
+        session.flushNotes();
+        const take = recorder.stopRecording();
+        if (take) setCompletedRecording(take);
+        setIsRecording(false);
+        setIsPaused(false);
+      }
+    });
+    const visibility = () => session.setHidden(document.hidden);
+    const leave = () => session.setHidden(true);
+    document.addEventListener("visibilitychange", visibility);
+    window.addEventListener("pagehide", leave);
+    visibility();
+    return () => {
+      unsubscribe();
+      detach();
+      session.flushNotes();
+      disconnectNotes();
+      consumersRef.current = null;
+      recorder.stopRecording();
+      void audioCtxRef.current?.close();
+      document.removeEventListener("visibilitychange", visibility);
+      window.removeEventListener("pagehide", leave);
+    };
+  }, [session, recorder]);
+  const enableAudio = async () => {
+    if (!canPlay) return false;
+    if (session.status.state === "playing") return true;
+    if (!await session.prepare()) return false;
+    return session.play() !== null;
+  };
   const handlePlay = async () => {
-    if (countInBeat !== null) return;
+    if (countInBeat !== null || session.status.state === "starting") return;
     if (isRecording && !isPaused) {
+      session.flushNotes();
       recorder.pauseRecording();
       setIsPaused(true);
       return;
     }
-    if (!canRecord) return;
+    if (!canPlay) return;
     const request = ++playRequestRef.current;
-    try {
-      await initializeAudio();
-      if (request !== playRequestRef.current) return;
-      setAudioError("");
-    } catch (error) {
-      if (request !== playRequestRef.current) return;
-      setAudioError(error instanceof Error ? error.message : "Audio unavailable. Try Play again.");
-      return;
-    }
+    if (!await enableAudio() || request !== playRequestRef.current) return;
     if (countInBeat !== null) return; // already counting in
     if (isRecording && isPaused) {
       // Keep the existing take paused until the count-in finishes.
@@ -215,6 +257,8 @@ export default function Home() {
   };
 
   const handleStop = () => {
+    if (session.status.state === "starting") session.stop();
+    session.flushNotes();
     playRequestRef.current += 1;
     countInActionRef.current = null;
     setCountInBeat(null);
@@ -242,7 +286,7 @@ export default function Home() {
 
   return (
     <div className="flex-1 bg-surface flex flex-col">
-      {audioError && <p role="alert" className="text-danger px-4">{audioError} Try Play again.</p>}
+      <p role={liveStatus.state === "error" ? "alert" : "status"} className="text-ink px-4">{liveStatus.message}</p>
       <div className="flex flex-col lg:flex-row lg:flex-1 pt-4 lg:pt-[clamp(16px,calc(100dvh_-_700px),115px)] pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)] lg:pb-[clamp(16px,calc(100dvh_-_660px),226px)]">
         {/* Camera feed */}
         <div className="w-full aspect-video lg:w-auto lg:aspect-auto lg:flex-1 lg:min-h-[240px] bg-surface-dark relative overflow-hidden">
@@ -254,16 +298,16 @@ export default function Home() {
             className="absolute inset-0 w-full h-full object-cover"
           />
           <CVOverlayCoordinator
+            session={session}
             videoRef={videoRef}
-            enabled={isRecording && !isPaused}
-            onNoteOn={recorder.noteOn}
-            onNoteOff={recorder.noteOff}
-            onReleaseAllNotes={recorder.releaseAllNotes}
+            enabled={canPlay && liveStatus.state === "playing"}
+            activePitches={activePitches}
           />
+          {!canPlay && <p role="status" className="absolute bottom-2 left-2 right-2 z-20 bg-surface px-4 text-ink">Show the calibrated sheet and camera, or <a href="/calibration" className="underline">calibrate again</a>. Saved data is checked before playing.</p>}
         </div>
 
         {/* Right sidebar (below the camera under lg) */}
-        <SideNav onCalibrationClick={() => setShowCalibrationIntro(true)}>
+        <SideNav onCalibrationClick={() => router.push("/calibration")}>
           {/* Controls */}
           <div className="flex flex-row flex-wrap items-end lg:flex-col lg:items-stretch gap-[23px] mt-6 lg:mt-[42px] lg:pl-[43px]">
             {/* Tempo */}
@@ -386,18 +430,25 @@ export default function Home() {
             </button>
           )}
 
-          {/* Play / Pause / Resume button */}
+          <button
+            onClick={enableAudio}
+            disabled={!canPlay || liveStatus.state === "starting" || liveStatus.state === "playing"}
+            className="border border-black rounded-[8px] px-4 py-2 text-ink disabled:opacity-30"
+          >
+            Enable audio
+          </button>
+          {/* Record / Pause / Resume button */}
           <button
             onClick={handlePlay}
             aria-label={isRecording && !isPaused ? "Pause recording" : isPaused ? "Resume recording" : "Start recording"}
-            disabled={!canRecord || countInBeat !== null}
-            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!canRecord || countInBeat !== null ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
+            disabled={!canPlay || countInBeat !== null || liveStatus.state === "starting"}
+            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!canPlay || countInBeat !== null || liveStatus.state === "starting" ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
           >
             {isRecording && !isPaused
               ? <PauseIcon />
               : <PlayIcon color={isPaused ? "var(--color-info)" : "var(--color-ink)"} />}
             <span className={`text-[13px] font-sans select-none ${isPaused ? "text-info" : "text-ink"}`}>
-              {isRecording && !isPaused ? "Pause" : isPaused ? "Resume" : "Play"}
+              {isRecording && !isPaused ? "Pause" : isPaused ? "Resume" : "Record"}
             </span>
           </button>
 
@@ -405,8 +456,8 @@ export default function Home() {
           <button
             onClick={handleStop}
             aria-label="Stop recording"
-            disabled={!isRecording && countInBeat === null}
-            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!isRecording && countInBeat === null ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
+            disabled={!isRecording && countInBeat === null && liveStatus.state !== "starting"}
+            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!isRecording && countInBeat === null && liveStatus.state !== "starting" ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
           >
             <StopIcon />
             <span className="text-[13px] text-ink font-sans select-none">Stop</span>
