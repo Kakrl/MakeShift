@@ -33,10 +33,10 @@ flowchart TD
 | Area | Existing implementation | Planned delivery |
 | :--- | :--- | :--- |
 | UI/camera | Next.js/React camera and calibration UI | Validated session lifecycle (#24, #87) |
-| CV | MediaPipe still-image helper, video overlay code, OpenCV.js marker/geometry modules | Worker pipeline and intentional contact detection (#37, #34); module presence does not establish UI integration |
-| Calibration | Versioned validated result, captured hover/rest inputs and live compatibility gates ([contract](calibration.md)) | Manual calibration checklist passed (user-reported 2026-09-28); contact inference (#34), expanded layouts (#36) |
+| CV | MediaPipe still-image helper, video overlay code, OpenCV.js marker/geometry modules; bounded k-means shadow worker and main-thread per-finger overlap/relaxed-knuckle/shadow contact prototype (combined camera behavior unverified) | Complete worker pipeline and validated intentional contact detection (#37, #34); prototype transitions are dispatched independently of diagnostic drawing |
+| Calibration | Prototype flow/completion flag; known defect D6 | Versioned validated result (#87) |
 | Native audio | C++ PortAudio, nanobind, SPSC queue; ten 100 ms decaying sine hits at 44.1 kHz | Remains a native reference |
-| Browser audio | JavaScript AudioWorklet, ten held sine voices, press/session identities, velocity, sample-timed ADSR and Audio check page ([details](browser_audio.md)); native engine preserved | Shared event adapter (#86) implemented; ADSR (#27) implemented with user-reported listening pass; live readiness/wiring (#24, #28) |
+| Browser audio | JavaScript AudioWorklet, ten held sine voices, press/session identities, velocity, sample-timed ADSR and Audio check page ([details](browser_audio.md)); native engine preserved | Shared event adapter (#86) implemented; ADSR (#27) implemented with user-reported listening pass; readiness gate (#24) implemented; one-octave shared-event consumers (#28) implemented ([scope](piano_integration.md)); intentional-contact and physical verification pending |
 | MIDI | Instance-owned note-list recorder with pause/resume and on-demand midi-writer-js export (#108, #115); recorder/mocked export unit tests pass locally, browser verification pending | Complete lifecycle verification (#88), export verification (#107), persistence and playback |
 | Verification | Native audio/queue, MIDI, contrast, RCA suites; Python placeholder | Browser audio, labeled CV, physical latency and deployment tests (#39, #30, #89) |
 
@@ -86,6 +86,14 @@ occlusion and same-key multi-finger behavior. Relative hand-landmark depth is no
 automatically a calibrated distance from the paper. #29 tunes confidence and
 hysteresis against both accuracy and delay rather than assuming 25 ms debounce.
 
+The current prototype's [live contact controller](../frontend/src/cv/liveContactPipeline.ts)
+provides one `processFrame` entry point for key overlap, knuckle eligibility,
+and asynchronous shadow checks. It owns bounded shadow-worker scheduling,
+per-finger history, gate revisions, and the release watchdog. The overlay owns
+camera/marker geometry, rendering, and note dispatch through controller
+callbacks. Expensive segmentation remains in the worker; this refactor does
+not move hand inference into a worker or establish verified accuracy/latency.
+
 ## Event and clock contract
 
 The implemented [shared event contract](note_events.md) (#86) defines versioned
@@ -94,7 +102,9 @@ monotonic observation time, ordered sequence, session identity and press identit
 `NoteSession` validates message data, dispatches audio before deferred observers,
 and retires sessions on loss, invalid input or overload. Its BrowserAudio adapter
 propagates audio interruption to all consumers. Coordinates remain CV inputs.
-Live detection/readiness and recording wiring remain #34/#24/#28/#88.
+The one-octave integration shares accepted events with MIDI and feedback after audio;
+readiness is delivered by #24. Contact detection (#34/#29), worker delivery (#37)
+and physical verification (#30/#39) remain pending. See [integration scope](piano_integration.md).
 
 Specify ordering, malformed/duplicate events, repeated pitches and same-key
 multi-finger policy. Match releases to presses; a late release for a stolen
@@ -127,7 +137,7 @@ Offline samples and actual audible output require separate verification.
 
 #24 gates detected-note playback on valid calibration, usable tracking and ready
 audio. Define startup, playing, interruption, stopped and error states.
-Stop, invalidation and unusable tracking release notes; recovery must not replay
+Stopping the live session, invalidation and unusable tracking release notes; recovery must not replay
 old queued input. New sessions have new identities. #89 verifies denial/loss of
 camera, backgrounding, navigation, audio suspension and restart. Errors provide
 a recovery action.

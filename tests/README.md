@@ -70,6 +70,7 @@ No test implementation requires an exception to this layout.
 | Python | `python -m pytest --cov=backend --cov-report=term-missing` | `pip install -r requirements.txt` |
 | Frontend unit (Vitest) | `cd frontend && npx vitest run` | `npm ci` in `frontend/` |
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
+| MIDI production download | `cd frontend && npm run test:midi-browser` | Running production server; Playwright and Edge; optional MAKE_SHIFT_URL / MIDI_BROWSER_CHANNEL |
 | RCA automation | `node --test tests/automation/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
 
 ## Note-list recorder verification (issues #108 and #115)
@@ -204,6 +205,24 @@ run `npm run test:audio-browser`. It uses an installed Edge by default.
 See [browser audio](../docs/browser_audio.md) for environment overrides.
 The tests remain outside CI (D3); no Actions execution is claimed.
 
+## Navigation cleanup verification (issue #105)
+
+Local Windows verification on 2026-09-28, Node 22.20.0, Playwright 1.62.1,
+headless Edge 154.0.4258.37, based on `614203f`.
+
+- The production browser audio runner now waits up to 5 seconds for the
+  AudioContext to close after client navigation, then retains its final
+  closed-state assertion. URL completion alone does not prove React cleanup
+  has run; missing cleanup still fails with a bounded timeout.
+- `npm run test:audio-browser` passed against the production build at
+  `http://127.0.0.1:3105`: worklet HTTP 200, soft/loud RMS
+  0.009940531 / 0.029822081, chord output, stop silence, suspension recovery
+  without replay, navigation closure and no page errors.
+- All 150 Vitest tests, TypeScript, 18 contrast pairs and production build
+  passed. Lint passed with eight existing unused-variable warnings.
+- This verifies browser graph behavior only. Hardware audibility, physical
+  latency and Actions execution remain unverified; the runner is outside CI.
+
 ## Test relocation verification (issue #83)
 
 Local Windows verification on 2026-09-17, against baseline
@@ -302,7 +321,7 @@ defect report is filed.
 | ID | Severity | Area | Defect | Location | Issue | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | D1 | High | CV / UI | (Req 1.1, 3.2) The ArUco marker and virtual keyboard overlay from PR #63 never renders. `MarkerTrackingOverlay` is imported in `page.tsx` but no JSX uses it. The `<MarkerTrackingOverlay videoRef={videoRef} />` element was dropped while resolving conflicts in merge `1669079` ("Merge branch 'main' into feature/visual-keyboard"). ESLint flags it as an unused variable, but warnings don't fail CI | `frontend/src/app/page.tsx:10` | | Open |
-| D2 | High | MIDI / UI | (Req 4.1, 4.2) Recording and export are UI-only. The home page recording state machine never calls `startRecording`, `noteOn`, `noteOff`, `stopRecording`, or `downloadMidi`, and the Export button only closes the dialog, so no MIDI file is produced | `frontend/src/app/page.tsx:150-190`, `:551-556` | | Open |
+| D2 | High | MIDI / UI | (Req 4.1, 4.2) Original audit found UI-only recording/export. Recording now calls the recorder through shared-event consumers (#139); production download is verified locally by 4.2.3 (#141, D18). Delete clears the completed take but lacks browser verification; Listen has no handler. Complete file-control coverage in 4.2.2 remains pending. | `frontend/src/app/page.tsx`, `frontend/src/events/pianoIntegration.ts` | [#28](https://github.com/Kakrl/MakeShift/issues/28), [#140](https://github.com/Kakrl/MakeShift/issues/140) | Recording/export fixes verified locally in [#139](https://github.com/Kakrl/MakeShift/pull/139) / [#141](https://github.com/Kakrl/MakeShift/pull/141); review/merge pending; Listen and full file-control verification open |
 | D3 | Medium | CI | The Vitest suite (4.1.3-4.1.7, 4.2.3) is not run in CI. `frontend-ci.yml` runs lint, type check, contrast, and build, but not `vitest run`, so MIDI regressions merge undetected | `.github/workflows/frontend-ci.yml` | | Open |
 | D4 | Medium | CI | The C++ test path filter `'CMakeLists.txt'` only matches a root-level file. A PR that only changes `backend/CMakeLists.txt` skips the C++ build and tests. It should be `'**/CMakeLists.txt'` | `.github/workflows/testing.yml:29` | | Open |
 | D5 | Medium | Tests | `AudioEngineTest.StreamStartsAndStops` and `MultipleStartStopCycles` `return` early when there is no audio device, so on CI they report PASS without testing anything. Use `GTEST_SKIP()` so the skip shows in results | `tests/audio/test_audio.cpp:24-27`, `:35-38` | | Open |
@@ -316,9 +335,11 @@ defect report is filed.
 | D13 | Low | Tests | The contrast audit only checks `--color-*` token pairs. Hardcoded canvas colors drawn over live video (`#00ff88`, `#ffd60a`, `#ff3b30`) aren't checked | `frontend/src/app/MarkerTrackingOverlay.tsx:136-192`, `frontend/src/app/cv/handLandmarkDrawing.ts:33-34` | | Open |
 | D14 | Low | Tests | The only Python test is `test_dummy.py`, so the pytest coverage report in CI measures nothing | `tests/python/test_dummy.py` | | Open |
 | D15 | Low | Docs | The root README said Python 3.10+ for the C++ build, but `backend/CMakeLists.txt` requires Python 3.12 | `README.md` | | Fixed in #79 PR |
-| D16 | Low | Tests | Browser audio smoke runner checks context closure immediately after URL navigation, before React's unmount effect may run. The unchanged runner failed; a bounded cleanup-wait diagnostic passed during #86 verification | `tests/frontend/browserAudio.browser.mjs:95` | [#105](https://github.com/Kakrl/MakeShift/issues/105) | Open; separate fix needed |
+| D16 | Low | Tests | Browser audio smoke runner checks context closure immediately after URL navigation, before React's unmount effect may run. The unchanged runner failed; a bounded cleanup-wait diagnostic passed during #86 verification | `tests/frontend/browserAudio.browser.mjs` | [#105](https://github.com/Kakrl/MakeShift/issues/105) | Fix implemented for #105; bounded wait and final assertion verified locally ([evidence](#navigation-cleanup-verification-issue-105)); merge pending |
 | D17 | Medium | UI | (Req 3.1, 3.4) The UI is not responsive. Home, calibration, and about use a fixed 267 px side column with no breakpoints, and `body` is `h-dvh overflow-hidden`, so at tablet or phone widths, short laptop screens, or 200% zoom the camera is squeezed and controls are clipped with no way to scroll to them | `frontend/src/app/layout.tsx:32`, `frontend/src/app/page.tsx:213-400`, `frontend/src/app/calibration/page.tsx:669-681`, `frontend/src/app/about/page.tsx:42-63` | [#109](https://github.com/Kakrl/MakeShift/issues/109) | Fixed in [#111](https://github.com/Kakrl/MakeShift/pull/111) |
-| D18 | High | UI | (Req 3.1, 3.2, 4.2, 6.2) Merge `30706c4` (PR #98) resolved `page.tsx` by keeping the branch's older JSX, dropping the welcome and Calibration intro modals, count-in overlay, Recording Complete banner, Delete confirmation, calibration prompt, `CameraStatusOverlay`, and the aria-live region. The home Calibration tab and Delete button did nothing. ESLint flagged the orphaned state only as warnings | `frontend/src/app/page.tsx` | [#112](https://github.com/Kakrl/MakeShift/issues/112) | Fixed in [#113](https://github.com/Kakrl/MakeShift/pull/113) |
+| D18 | High | MIDI / UI | Runtime path alias points midi-writer-js at a declarations-only file, so final Export throws on undefined Track and produces no download (Req 4.2) | `frontend/tsconfig.json` | [#140](https://github.com/Kakrl/MakeShift/issues/140) | Fix verified locally in [#141](https://github.com/Kakrl/MakeShift/pull/141); review/merge pending |
+| D19 | Medium | CI | The `Vercel preview` workflow fails on every fork PR: `actions/checkout` refuses fork code in `pull_request_target` unless the step sets `allow-unsafe-pr-checkout: true`, so labeling `preview-link` never deploys | `.github/workflows/preview.yml:33-39` | [#160](https://github.com/Kakrl/MakeShift/issues/160) | Open |
+| D20 | High | UI | (Req 3.1, 3.2, 4.2, 6.2) Merge `30706c4` (PR #98) resolved `page.tsx` by keeping the branch's older JSX, dropping the welcome and Calibration intro modals, count-in overlay, Recording Complete banner, Delete confirmation, calibration prompt, `CameraStatusOverlay`, and the aria-live region. The home Calibration tab and Delete button did nothing. ESLint flagged the orphaned state only as warnings | `frontend/src/app/page.tsx` | [#112](https://github.com/Kakrl/MakeShift/issues/112) | Fixed in [#113](https://github.com/Kakrl/MakeShift/pull/113) |
 
 ## Root Cause Analysis Log
 
@@ -330,7 +351,7 @@ comment after merge. Link the issue before the comment exists.
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | MIDI note-off events missing required duration information | [#91](https://github.com/Kakrl/MakeShift/issues/91) | Medium | Custom MidiWriterJS TypeScript declarations hid the library's required note event fields, allowing invalid note-off event construction. | [#92](https://github.com/Kakrl/MakeShift/pull/92) | `tests/frontend/midiUtils.test.ts` — `creates a note event using the note start time and duration` (not currently run in CI) | 2026-09-20 | harrydeng104 |
 | Home page modals and overlays dropped in merge 30706c4 | [#112](https://github.com/Kakrl/MakeShift/issues/112) | High | A conflict in `page.tsx` was resolved by keeping the older branch JSX, and ESLint reported the orphaned state only as warnings, so CI passed. | [#113](https://github.com/Kakrl/MakeShift/pull/113) | `tests/frontend/homePage.test.ts` (3.1.3, 3.2.3, 3.2.4, 6.2.4; not run in CI until D3) plus `no-unused-vars` as an ESLint error (runs in `frontend-ci.yml`) | 2026-09-23 | jaddenki |
-| | | | | | | | |
+| Production MIDI export fails | [#140](https://github.com/Kakrl/MakeShift/issues/140) | High | TypeScript path alias to a .d.ts file erased the runtime MIDI module in Turbopack; mocked tests bypassed it. | [#141](https://github.com/Kakrl/MakeShift/pull/141) | 4.2.3; `tests/frontend/midiExport.browser.mjs`, production download bytes and dialog closure; local only | 2026-09-29 | Carl Xu (Codex-assisted) |
 
 ### RCA PR Template
 
@@ -465,6 +486,101 @@ Windows, 2026-09-27, Node 22.20.0, Vitest 4.1.11, working tree based on
   verification.
 
 
+## Session readiness verification (issue #24)
+
+Local Windows execution on 2026-09-28, Node 22.20.0, Vitest 4.1.11,
+`feature/24-session-gating`, stacked on #87 commit `71d44b2`:
+
+- 196 tests passed across eight files. New `liveSession.test.ts` has 22 cases:
+  invalid/mismatched calibration, missing tracking, transition sequence, startup
+  cancellation, fresh identities, stale events, release on interruption,
+  watchdog expiry/delayed execution, independent detector freshness, audio
+  rejection, malformed events, retry, changed calibration and teardown.
+- `recordingControls.test.tsx` now has ten simulated page/coordinator/marker
+  cases. Existing pause/resume and calibration tests still pass through the
+  gate; new cases cover audio interruption/restart, initial pending-start Stop,
+  pagehide and repeated Play during initialization.
+- `browserAudioLifecycle.test.ts` now has twelve cases, adding the real
+  BrowserAudio owner with mocked context/worklet: startup reset, suspension,
+  reset command, explicit reactivation and obsolete-session rejection.
+- TypeScript passed. ESLint passed with five pre-existing unused-variable
+  warnings in the home page. All 18 contrast pairs and production build passed.
+- Vitest is not invoked by CI (D3); Actions evidence remains pending. These
+  mocks establish neither device audibility nor physical latency/accuracy.
+- Carl Xu reported all manual session-readiness checks passing on 2026-09-28,
+  including calibration loss/recovery, audio suspension/reactivation, background
+  and navigation, camera loss, startup recovery, Stop/restart and Pause/resume.
+  See the [passing manual report](manual/2026-09-28_2.1.6.md). Results are
+  user-reported; browser/device details, exact tested commit and per-step
+  artifacts were not supplied. No quantitative latency/accuracy claim follows.
+  Required independent review remains pending.
+
+## One-octave integration verification (issue #28)
+
+Windows, 2026-09-29, branch feature/28-browser-piano-integration, based on
+#24 at 5d5f0b8 plus #137 at 7c2f77c (combined base b37db8d).
+
+- All 213 Vitest tests passed across nine files. The 15 new deterministic
+  pianoIntegration cases exercise eight pitches through production DSP, accepted
+  note feedback and recording, velocity conversion, observer timing, chords,
+  repeated presses, immediate Stop, same-pitch identities, tracking interruption,
+  stale producers, audio rejection, invalid keys and invalid velocity.
+- recordingControls now has 12 cases: the original ten still pass; added canvas
+  highlight gating and immediate-Stop recording assertions use the real page,
+  coordinator and geometry with simulated camera/hand/audio inputs.
+- TypeScript passed. Lint passed with five existing home-page unused-variable
+  warnings. All 18 contrast pairs and the Next.js 16.2.3 production build passed. Vitest remains outside CI (D3); no Actions
+  execution is claimed.
+- MIDI uses event observation times, independent press identities and normalized
+  velocity × 100 for the writer. Existing recorder default-time/pause/export
+  tests passed unchanged. Accepted history drains before lifecycle snapshots.
+- Carl Xu reported the [manual checklist](manual/2026-09-29_2.1.2.md) passed
+  on 2026-09-29, including successful export retest after the separate #141 fix
+  for #140. That export fix is not included in PR #139 alone. Browser/device
+  details, exact tested commit and per-step artifacts were not supplied.
+- This user-reported pass does not establish intentional contact, measured
+  finger-speed velocity, deployed cross-browser behavior, under-50-ms latency
+  or under-3% errors. Independent review remains pending. This update changes
+  documentation only; prior automated results are retained without a rerun.
+
+Merge compatibility at implementation commit fc8f4f6: normal merge against the
+resolved dependency base b37db8d produced the identical implementation tree
+3142af798b00f2cc5287dd7bcd1d8076c230e90e. A simulated squash of all dependency
+contents onto main 614203f conflicts if merged naively (ancestry is lost).
+Transplanting only #28, using b37db8d as the merge base, passed with the same
+identical tree. The historical transplant check below has been superseded by PR #139
+merge reconciliation; do not replay the dependency commits. These checks use the
+current heads, not unknown future edits. No existing PR or main was modified.
+
+## MIDI export runtime verification (issue #140)
+
+Local Windows execution on 2026-09-29; fix implementation 45304f6, based on
+#139 head 025588e. Edge 154.0.4258.37, Playwright 1.62.1, Next.js 16.2.3.
+
+- Baseline production page: seed a C3 completed take, open export and click the
+  final Export button. Browser raised "Cannot read properties of undefined
+  (reading 'Track')" in client chunk 15z31avwcs4s~.js; no download occurred.
+  The user independently reported the same visible failure; browser unspecified.
+- Root cause is the midi-writer-js paths entry targeting build/types/main.d.ts.
+  Turbopack compiled the runtime import to undefined. Removing it and adding
+  a type-only bridge to the shipped declarations preserves actual runtime code.
+- Fixed production build: npm run test:midi-browser passed. Two downloads named
+  recording.mid had exact valid MIDI bytes: one track, 128 ticks/quarter,
+  120 BPM, C3/MIDI 48, velocity 102 and note-off after 128 ticks (500 ms).
+  Both final Export clicks closed the dialog; no browser page errors.
+- All 213 Vitest tests, TypeScript, production build and all 18 contrast pairs
+  passed. Lint passed with five existing unused-variable home-page warnings.
+- Browser regression uses guarded private React state injection for a completed
+  take and actual production UI/library/downloads. It intentionally excludes CV,
+  physical recording, audible playback, other browsers and timing requirements.
+  UI hook changes require updating the fixture; failures are never skipped.
+- Source: [browser regression](frontend/midiExport.browser.mjs). CI does not run
+  this browser test or Vitest (D3); Actions execution remains pending. No new
+  requirement or scope change. Listen remains unfinished; on the reconciled
+  branch Delete clears the completed take but lacks browser verification.
+
+User baseline failure and automated fix are recorded separately in the
+[manual report](manual/2026-09-29_4.2.3.md); Carl Xu reported the export fix retest passed on 2026-09-29.
 ## PR #136 review verification
 
 Local Windows execution on 2026-09-29, Node 22.20.0, Vitest 4.1.11,
@@ -485,3 +601,119 @@ branch `fix/87-calibration-result`, following review of issue #87 / PR #136.
   frame loss still interrupts on the next animation frame. The earlier user
   manual report predates these edits; new physical/manual verification is pending.
 - Vitest remains outside frontend CI (D3); Actions execution is pending.
+
+
+## PR #138 review verification
+
+Local Windows execution on 2026-09-30, Node 22.20.0, Vitest 4.1.11,
+following merge of main at 4dc41ab (PR #136) into feature/24-session-gating.
+
+- All 204 tests passed across eight files, including 25 readiness cases and
+  15 page/coordinator/marker integration cases. Named note methods cover press
+  pairing, obsolete identities, malformed values and readiness loss. Separate
+  deadlines preserve ten-second marker checks and 500 ms hand-tracking expiry;
+  continuing hand observations cannot conceal an expired marker observation.
+- Combined page coverage preserves free play before recording, through count-in
+  and Pause, and after Stop; held notes enter MIDI at capture boundaries without
+  retriggering sound. Resume keeps the live session without reinitializing audio.
+  Calibration/frame loss, startup cancellation and audio interruption still gate
+  playback. Audio and camera hardware are mocked.
+- TypeScript, ESLint (five existing unused-variable warnings), all 18 contrast
+  pairs, production build and git diff --check passed.
+- An accidental root-level Vitest run used an unconfigured runner and failed;
+  only the frontend-configured run above is verification evidence. Its temporary
+  cache was removed. The new deadline fixture initially advanced its fake clocks
+  in the wrong order; corrected before the passing run.
+- Inventory ID 2.1.7 preserves PR #136's playback regression coverage, which
+  independently used the same 2.1.5 ID as this branch's readiness unit tests.
+- The earlier manual pass predates these changes. Physical/manual verification
+  of this merged behavior and Actions execution remain pending. Vitest remains
+  outside frontend CI (D3); no FPS, detection accuracy or physical latency claim.
+
+## PR #138 follow-up review verification
+
+Local Windows execution on 2026-09-30, `feature/24-session-gating`, working
+changes based on `0fecdb5` (Node 22, Vitest 4.1.11):
+
+- All 205 Vitest tests passed across eight files, including 26 live-session
+  cases and 15 simulated page/coordinator/marker integration cases.
+- The new case preserves a playing session across an 11-second marker gap
+  with fresh hand tracking, then verifies invalid calibration releases notes.
+  Existing cases verify marker expiry, stale hands and token-paired releases.
+- TypeScript and production build passed. Lint passed with five existing
+  unused-variable warnings. All 18 contrast pairs passed.
+- Readiness now comes from the session; marker geometry uses its returned
+  compatibility decision. Both audio adapters share one press-token sink.
+- Low-severity review cleanup: repaired UTF-8 mojibake in the inventory and
+  removed unused pitch-based audio wrappers, which had no production callers.
+- Two-second marker jitter slack is provisional. Hardware timing, physical
+  camera/audio behavior and GitHub Actions execution remain unverified.
+
+## PR 139 frontend CI merge repair
+
+On 2026-09-30, restored the coordinator's accepted-event `activePitches`
+prop and the missing `Delivery` type import on the PR branch based on
+`e0a4a95`. Merge conflict resolution had retained obsolete note callback props
+and removed an import still used by the MIDI observer subscription.
+
+Local Windows verification: lint passed with four existing unused-variable
+warnings in page.tsx; TypeScript passed; all 228 Vitest tests in nine files
+passed; all 18 contrast pairs passed; production build passed.
+No test cases changed. GitHub Actions execution for this repair is pending.
+
+## Earlier PR 139 and PR 141 reconciliation evidence
+
+- All 222 tests passed across nine files: 25 readiness cases, 17 page integration
+  cases and 16 piano integration cases. Retained both branches' coverage and
+  updated feedback expectations for independent recording Stop.
+- Added a recording-boundary regression: deferred pre-capture history is drained,
+  released notes are excluded, held same-pitch identities and velocities survive
+  start/resume, and capture does not retrigger audio. Existing immediate Stop,
+  pause/resume, tracking interruption and stale producer cases also pass.
+- TypeScript, ESLint (five existing unused-variable warnings), all 18 contrast
+  pairs and the Next.js 16.2.3 production build passed. `git diff --check` passed.
+  An initial repository-root `npx tsc` invocation did not run the project compiler;
+  the passing TypeScript check used the frontend working directory.
+- Tests use simulated camera/audio inputs and production offline DSP. No new
+  hardware/manual verification, physical latency or detection accuracy claim.
+  Earlier manual passes predate this merge. Vitest remains outside CI (D3);
+  Actions results are separate.
+- Reconciliation keeps #138's named note methods, independent playback and
+  marker cadence, #139's timestamped shared consumers, and #137's cleanup.
+  The previous squash-transplant instruction is obsolete; #138 remains a
+  dependency until merged.
+
+## PR #141 merge reconciliation
+
+Local Windows execution on 2026-09-30, Node 22.20.0, Vitest 4.1.11,
+merging PR #139 head `b136e6a` into PR #141 head `b5245ea`.
+
+- Preserved both branches' verification records and the MIDI runtime/type split.
+- All 222 tests passed across nine files. TypeScript, all 18 contrast pairs,
+  production build and whitespace checks passed. ESLint passed with five
+  existing unused-variable warnings in Home.
+- The production export regression initially rejected the changed Home hook
+  layout. Updated its guarded fixture for the consumer ref added by #139;
+  no production change was needed. Lint passed again after the fixture edit.
+- `npm run test:midi-browser` passed in Edge 154.0.4258.37 against the new
+  production build: two downloads, exact MIDI bytes, dialog closure and no
+  page errors. Inventory 4.2.3 retains the seeded-take limitation; no new
+  physical recording, camera, audio or latency verification is claimed.
+- Vitest and the browser runner remain outside CI; Actions evidence is pending.
+  PR #139 remains a dependency until merged. This reconciliation supersedes
+  the old instruction to transplant only commits after `025588e`.
+
+## PR 141 reconciliation with final PR 139 head
+
+On 2026-09-30, merged PR #139 head `277491a` into the MIDI export fix.
+Preserved both verification histories while resolving the README conflict;
+retained the export runtime/type split and #139's corrected coordinator types.
+Current `origin/main` (`46ed0c7`) is already an ancestor. Merge #139 first;
+this branch includes its current contents and is compatible with that order.
+
+Local Windows verification on merge commit `386b3e7`: all 228 Vitest tests
+across nine files passed; TypeScript, 18 contrast pairs and production build
+passed. Lint passed with four existing Home warnings. The production browser
+regression passed in Edge 154.0.4258.37: two downloads with exact MIDI bytes,
+dialog closure and no page errors. It uses a seeded take, not physical capture.
+No tests changed. GitHub Actions execution for this reconciliation is pending.

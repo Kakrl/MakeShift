@@ -47,7 +47,7 @@ it separates existing behavior from planned work and links implementation issues
 | `frontend/public/audio/` | Static AudioWorklet and shared fixed-voice DSP |
 | `frontend/src/app/audio/` | Browser audio owner and user-triggered sound check |
 | `frontend/src/events/` | Shared browser note schema, clocks, session dispatch and audio adapter |
-| `frontend/src/cv/` | ArUco marker detection, homography, keyboard geometry |
+| `frontend/src/cv/` | ArUco marker detection, homography, keyboard geometry, prototype shadow worker and combined per-finger contact state |
 | `backend/` | C++ audio engine (PortAudio) and its nanobind Python module |
 | `tests/` | Test inventory, testing guide, and suite subdirectories |
 | `tests/audio/` | C++ GoogleTest audio and queue suites |

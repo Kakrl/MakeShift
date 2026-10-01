@@ -6,6 +6,34 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Regression coverage for #112: merge 30706c4 dropped the home page modals and
 // overlays while leaving the state that opens them, so the controls did nothing.
 
+import type { LiveSession } from "../../frontend/src/events/liveSession";
+import {
+  CALIBRATION_KEY,
+  CURRENT_LAYOUT,
+  SHEET_ID,
+} from "../../frontend/src/cv/calibration";
+
+function validCalibration() {
+  return {
+    version: 1,
+    coordinates: "unmirrored-frame-pixels/marker-unit-square",
+    sheet: SHEET_ID,
+    camera: { deviceId: "camera", width: 1000, height: 1000, facingMode: "" },
+    layout: { ...CURRENT_LAYOUT },
+    corners: [
+      { x: 100, y: 100 },
+      { x: 900, y: 100 },
+      { x: 900, y: 900 },
+      { x: 100, y: 900 },
+    ],
+    contact: {
+      model: "landmark-reference-v1",
+      hover: [Array(21).fill({ x: 0.5, y: 0.4, z: 0 })],
+      rest: [Array(21).fill({ x: 0.5, y: 0.5, z: 0 })],
+    },
+  };
+}
+
 const push = vi.fn();
 const camera = vi.hoisted(() => ({
   value: {
@@ -18,24 +46,44 @@ const camera = vi.hoisted(() => ({
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, back: vi.fn() }) }));
-// The dynamic CVOverlayCoordinator reports whether the saved calibration is
-// valid; this stub reports `calibration.valid` instead of running CV.
+// The dynamic CVOverlayCoordinator feeds calibration and tracking to the live
+// session; this stub keeps a valid session fresh when `calibration.valid` is
+// set instead of running CV.
 const calibration = vi.hoisted(() => ({ valid: false }));
 vi.mock("next/dynamic", async () => {
   const { useEffect } = await import("react");
   return {
     default: () =>
-      function CalibrationStub({ onCalibrationValidity }: {
-        onCalibrationValidity?: (valid: boolean) => void;
-      }) {
-        useEffect(() => onCalibrationValidity?.(calibration.valid), [onCalibrationValidity]);
+      function CoordinatorStub({ session }: { session: LiveSession }) {
+        useEffect(() => {
+          if (!calibration.valid) return;
+          const saved = validCalibration();
+          const observe = () => {
+            session.observeCalibration(saved, saved.camera, saved.corners);
+            session.observeTracking();
+          };
+          // Child effects run before the page subscribes to the session.
+          const first = setTimeout(observe, 0);
+          const timer = setInterval(observe, 100);
+          return () => {
+            clearTimeout(first);
+            clearInterval(timer);
+          };
+        }, [session]);
         return null;
       },
   };
 });
 vi.mock("../../frontend/src/app/CameraContext", () => ({ useCamera: () => camera.value }));
 vi.mock("../../frontend/src/app/audio/audioEngine", () => ({
-  initializeAudio: vi.fn(async () => {}),
+  browserAudio: {
+    initialize: vi.fn(async () => {}),
+    status: "ready",
+    subscribeInvalidation: () => () => {},
+    noteOn: vi.fn(() => ({ session: 1, press: 1 })),
+    noteOff: vi.fn(() => true),
+    releaseAll: vi.fn(),
+  },
 }));
 vi.mock("../../frontend/src/app/midi/midiUtils", async (original) => ({
   ...(await original<typeof import("../../frontend/src/app/midi/midiUtils")>()),
@@ -115,6 +163,7 @@ describe("home page", () => {
   it("shows the count-in, completion banner, and delete confirmation", async () => {
     localStorage.setItem("hasVisited", "true");
     calibration.valid = true;
+    localStorage.setItem(CALIBRATION_KEY, JSON.stringify(validCalibration()));
     renderHome();
     // The metronome click needs Web Audio, which jsdom lacks.
     fireEvent.click(screen.getByLabelText("Toggle metronome"));

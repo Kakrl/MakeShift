@@ -15,6 +15,7 @@ MakeShift/
 │       ├── bypass-frontend.yml      # no-op frontend job for non-frontend PRs
 │       ├── frontend-ci.yml          # lint, type check, contrast audit, build
 │       ├── linting.yml              # ruff, mypy, clang-format
+│       ├── preview.yml              # Vercel preview link for PRs labeled preview-link
 │       ├── rca.yml                  # validate RCA evidence; publish after merge
 │       ├── rca-tests.yml            # regression tests for RCA automation
 │       └── testing.yml              # pytest, CMake build, CTest
@@ -33,6 +34,8 @@ MakeShift/
 │   ├── browser_audio.md             # browser DSP, transport and verification
 │   ├── audio.md                     # polyphony and voice stealing
 │   ├── audio_events.md              # native audio event queue contract
+│   ├── piano_integration.md         # one-octave shared-event consumers and limits
+│   ├── live_session.md              # readiness states, tracking timeout and recovery
 │   ├── note_events.md               # shared browser event/session/clock contract
 │   ├── dev_process.md
 │   ├── piano_sheet.md               # printable sheet and ArUco marker IDs
@@ -63,8 +66,13 @@ MakeShift/
 │   │   │   ├── SideNav.tsx          # shared responsive nav tabs
 │   │   │   └── useHandLandmarker.ts
 │   │   ├── cv/                      # ArUco detection, homography, key geometry
+│   │   │   ├── contactPipeline.ts    # individual overlap, knuckle, and shadow checks
+│   │   │   ├── liveContactPipeline.ts # controller: eligibility, shadow worker/history, releases
+│   │   │   ├── combinedContact.ts    # prototype per-finger gated press/release state
+│   │   │   ├── shadowHeuristics.ts   # prototype RGB k-means dark-region segmentation
+│   │   │   └── shadowWorker.ts       # bounded background shadow segmentation
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
-│   │   └── shims/
+│   │   └── shims/                # empty fs shim and type-only MIDI declaration bridge
 │   ├── package.json
 │   ├── package-lock.json
 │   ├── vitest.config.mts            # discovers tests/frontend/
@@ -84,7 +92,10 @@ MakeShift/
 │   │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   │   ├── browserAudio.browser.mjs  # production browser graph check
 │   │   ├── homePage.test.ts
+│   │   ├── pianoIntegration.test.ts # deterministic note-to-audio/MIDI/feedback
+│   │   ├── liveSession.test.ts       # readiness transitions and stale-input safety
 │   │   ├── noteEvents.test.ts        # shared events, lifecycle, clocks and MessagePort
+│   │   ├── midiExport.browser.mjs  # production Export UI and downloaded MIDI bytes
 │   │   ├── midiUtils.test.ts
 │   │   └── check-contrast.mjs
 │   ├── python/
@@ -138,6 +149,27 @@ We use a fork-and-pull-request workflow:
   - tests passing
   - code quality/lint/cleanliness checks passing
 - PRs with failing CI checks are not eligible for merge.
+
+### Preview Deployments
+
+Add the `preview-link` label to a PR to deploy it to Vercel. The
+`Vercel preview` workflow comments the link on the PR (updating the same
+comment on later runs), then removes the label. Previews are public.
+
+- **Review first.** The workflow runs with the base branch's copy of the
+  workflow and a Vercel token, and the preview builds with the Preview
+  environment, whose server-side secrets include the Supabase secret key.
+  Label a fork PR only after reading its diff, especially changes to
+  `vercel.json`, `next.config.ts`, `package.json` or server routes.
+- **Redeploy** by re-adding the label after reviewing new commits; pushes
+  alone do not redeploy.
+- The runner never installs or runs PR code. It uploads the PR source and
+  Vercel builds it remotely.
+- **Setup:** the repository owner adds a `VERCEL_TOKEN` Actions secret
+  (Settings > Secrets and variables > Actions) holding a Vercel access token
+  for the `make-shift` project owner. Without it, the workflow fails and
+  comments a link to the run. The org and project IDs are not secret and
+  live in `preview.yml`.
 
 ### Running Python Checks Locally
 

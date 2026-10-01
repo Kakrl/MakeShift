@@ -1,11 +1,23 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useState, type RefObject } from "react";
-import { audioNoteOff, audioNoteOn, releaseAllAudioNotes } from "./audio/audioEngine";
-import { keyIndexToMidi, midiToPitch } from "../cv/noteMap";
+import { useCallback, useMemo, useState, type RefObject } from "react";
+import type { LiveSession } from "../events/liveSession";
+import type { CameraSignature } from "../cv/calibration";
+import type { Point } from "../cv/types";
+import { createKeyEventProducer } from "../events/keyEventProducer";
 import { getFingertips } from "../cv/collision";
-import type { Fingertip, NormalizedLandmark } from "../cv/collision";
+import type { Fingertip, HandObservation } from "../cv/collision";
+import {
+  DEPTH_CALIBRATION_STORAGE_KEY,
+  parsePersistedDepthCalibration,
+} from "../cv/depthCalibration";
+import type { PersistedDepthCalibration } from "../cv/depthCalibration";
+
+// Set to true to show CV diagnostics and shadow previews.
+const SHOW_VISUAL_DEBUG = true;
+// Visualize the detected piano from live markers before calibration is saved.
+const DEBUG_SHOW_SHEET_WITHOUT_CALIBRATION = true;
 
 const MarkerTrackingOverlay = dynamic(
   () => import("./MarkerTrackingOverlay"),
@@ -19,74 +31,76 @@ const HandTrackingOverlay = dynamic(
 
 export default function CVOverlayCoordinator({
   videoRef,
+  session,
   enabled = false,
-  onNoteOn,
-  onNoteOff,
-  onReleaseAllNotes,
-  onCalibrationValidity,
+  activePitches,
 }: {
   videoRef: RefObject<HTMLVideoElement | null>;
   enabled?: boolean;
-  onNoteOn: (pitch: string, velocity: number) => void;
-  onNoteOff: (pitch: string) => void;
-  onReleaseAllNotes: () => void;
-  onCalibrationValidity?: (valid: boolean) => void;
+  session: LiveSession;
+  activePitches: ReadonlySet<number>;
 }) {
+  const id = session.sessionId;
+  const producer = useMemo(() => id ? createKeyEventProducer(session, id) : null, [session, id]);
   const [fingertips, setFingertips] = useState<Fingertip[]>([]);
+  const [hands, setHands] = useState<HandObservation[]>([]);
+  const [depthCalibration] = useState<PersistedDepthCalibration | null>(() =>
+    typeof window === "undefined"
+      ? null
+      : parsePersistedDepthCalibration(
+          window.localStorage.getItem(DEPTH_CALIBRATION_STORAGE_KEY),
+        ),
+  );
 
   const handleLandmarks = useCallback(
-    (hands: readonly (readonly NormalizedLandmark[])[]) => {
+    (observations: readonly HandObservation[]) => {
+      session.observeTracking();
       const video = videoRef.current;
       if (!video) return;
 
+      setHands([...observations]);
       setFingertips(
-        getFingertips(hands, video.videoWidth, video.videoHeight),
+        getFingertips(
+          observations.map(({ landmarks }) => landmarks),
+          video.videoWidth,
+          video.videoHeight,
+        ),
       );
     },
-    [videoRef],
+    [videoRef, session],
   );
 
   const handleKeyTransitions = useCallback(
     (pressed: readonly number[], released: readonly number[]) => {
-      for (const keyIndex of released) {
-        const midi = keyIndexToMidi(keyIndex);
-        if (midi === null) continue;
-        audioNoteOff(midi);
-        onNoteOff(midiToPitch(midi));
-      }
-      if (!enabled) return;
-      for (const keyIndex of pressed) {
-        const midi = keyIndexToMidi(keyIndex);
-        if (midi === null) continue;
-        const pitch = midiToPitch(midi);
-        audioNoteOn(midi);
-        onNoteOn(pitch, 100);
-      }
+      if (!enabled || !producer) return;
+      producer(pressed.map((keyIndex) => ({ keyIndex, velocity: 0.8 })), released, performance.now());
     },
-    [enabled, onNoteOn, onNoteOff],
+    [enabled, producer],
   );
-
-  useEffect(() => {
-    if (!enabled) {
-      releaseAllAudioNotes();
-      onReleaseAllNotes();
-    }
-  }, [enabled, onReleaseAllNotes]);
-
-  useEffect(() => () => releaseAllAudioNotes(), []);
+  const observeCalibration = useCallback((saved: unknown, camera: CameraSignature | null, corners: Point[] | null) => {
+    return session.observeCalibration(saved, camera, corners);
+  }, [session]);
+  const trackingFailed = useCallback(() => session.trackingFailed(), [session]);
 
   return (
     <>
       <MarkerTrackingOverlay
         videoRef={videoRef}
         fingertips={fingertips}
+        hands={hands}
+        depthCalibration={depthCalibration}
+        showVisualDebug={SHOW_VISUAL_DEBUG}
+        debugShowSheetWithoutCalibration={DEBUG_SHOW_SHEET_WITHOUT_CALIBRATION}
+        activePitches={activePitches}
         onKeyTransitions={handleKeyTransitions}
         trackingEnabled={enabled}
-        onCalibrationValidity={onCalibrationValidity}
+        onCalibrationObservation={observeCalibration}
       />
       <HandTrackingOverlay
         videoRef={videoRef}
         onLandmarks={handleLandmarks}
+        showVisualDebug={SHOW_VISUAL_DEBUG}
+        onTrackingFailure={trackingFailed}
       />
     </>
   );
