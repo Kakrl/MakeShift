@@ -41,6 +41,7 @@ tests/
 │   ├── browserAudio.test.ts      # production DSP offline rendering
 │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   ├── browserAudio.browser.mjs  # production browser graph check
+│   ├── homePage.test.ts              # home page modals and overlays (jsdom)
 │   ├── noteEvents.test.ts            # shared event validation, sessions and clocks
 │   ├── midiUtils.test.ts             # MIDI unit tests
 │   └── check-contrast.mjs            # theme token contrast audit
@@ -53,7 +54,9 @@ tests/
 Add future tests, helpers, and fixtures to the matching suite directory.
 Frontend tests import application modules from `../../frontend/src/`.
 `frontend/vitest.config.mts` selects `tests/frontend/` and resolves frontend
-package dependencies. The frontend TypeScript and ESLint commands also include
+package dependencies. Bare imports used by tests, including any module passed
+to `vi.mock`, need an alias there because `tests/` has no `node_modules`. Add a
+`// @vitest-environment jsdom` comment to tests that render components. The frontend TypeScript and ESLint commands also include
 that directory. Keep frontend dependencies and tool configuration in `frontend/`,
 C++ build definitions in `backend/CMakeLists.txt`, and CI workflows in `.github/`.
 Python's default recursive discovery finds `tests/python/` without extra config.
@@ -336,6 +339,7 @@ defect report is filed.
 | D17 | Medium | UI | (Req 3.1, 3.4) The UI is not responsive. Home, calibration, and about use a fixed 267 px side column with no breakpoints, and `body` is `h-dvh overflow-hidden`, so at tablet or phone widths, short laptop screens, or 200% zoom the camera is squeezed and controls are clipped with no way to scroll to them | `frontend/src/app/layout.tsx:32`, `frontend/src/app/page.tsx:213-400`, `frontend/src/app/calibration/page.tsx:669-681`, `frontend/src/app/about/page.tsx:42-63` | [#109](https://github.com/Kakrl/MakeShift/issues/109) | Fixed in [#111](https://github.com/Kakrl/MakeShift/pull/111) |
 | D18 | High | MIDI / UI | Runtime path alias points midi-writer-js at a declarations-only file, so final Export throws on undefined Track and produces no download (Req 4.2) | `frontend/tsconfig.json` | [#140](https://github.com/Kakrl/MakeShift/issues/140) | Fix verified locally in [#141](https://github.com/Kakrl/MakeShift/pull/141); review/merge pending |
 | D19 | Medium | CI | The `Vercel preview` workflow fails on every fork PR: `actions/checkout` refuses fork code in `pull_request_target` unless the step sets `allow-unsafe-pr-checkout: true`, so labeling `preview-link` never deploys | `.github/workflows/preview.yml:33-39` | [#160](https://github.com/Kakrl/MakeShift/issues/160) | Open |
+| D20 | High | UI | (Req 3.1, 3.2, 4.2, 6.2) Merge `30706c4` (PR #98) resolved `page.tsx` by keeping the branch's older JSX, dropping the welcome and Calibration intro modals, count-in overlay, Recording Complete banner, Delete confirmation, calibration prompt, `CameraStatusOverlay`, and the aria-live region. The home Calibration tab and Delete button did nothing. ESLint flagged the orphaned state only as warnings | `frontend/src/app/page.tsx` | [#112](https://github.com/Kakrl/MakeShift/issues/112) | Fixed in [#113](https://github.com/Kakrl/MakeShift/pull/113) |
 
 ## Root Cause Analysis Log
 
@@ -346,6 +350,7 @@ comment after merge. Link the issue before the comment exists.
 | Defect | Issue | Severity | Root Cause (one line) | Fix PR | Regression Test | RCA Date | Author |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | MIDI note-off events missing required duration information | [#91](https://github.com/Kakrl/MakeShift/issues/91) | Medium | Custom MidiWriterJS TypeScript declarations hid the library's required note event fields, allowing invalid note-off event construction. | [#92](https://github.com/Kakrl/MakeShift/pull/92) | `tests/frontend/midiUtils.test.ts` — `creates a note event using the note start time and duration` (not currently run in CI) | 2026-09-20 | harrydeng104 |
+| Home page modals and overlays dropped in merge 30706c4 | [#112](https://github.com/Kakrl/MakeShift/issues/112) | High | A conflict in `page.tsx` was resolved by keeping the older branch JSX, and ESLint reported the orphaned state only as warnings, so CI passed. | [#113](https://github.com/Kakrl/MakeShift/pull/113) | `tests/frontend/homePage.test.ts` (3.1.3, 3.2.3, 3.2.4, 6.2.4; not run in CI until D3) plus `no-unused-vars` as an ESLint error (runs in `frontend-ci.yml`) | 2026-09-23 | jaddenki |
 | Production MIDI export fails | [#140](https://github.com/Kakrl/MakeShift/issues/140) | High | TypeScript path alias to a .d.ts file erased the runtime MIDI module in Turbopack; mocked tests bypassed it. | [#141](https://github.com/Kakrl/MakeShift/pull/141) | 4.2.3; `tests/frontend/midiExport.browser.mjs`, production download bytes and dialog closure; local only | 2026-09-29 | Carl Xu (Codex-assisted) |
 
 ### RCA PR Template
