@@ -3,11 +3,11 @@ import { act, createElement, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Recording } from "../../frontend/src/app/midi/midiUtils";
-import type { NormalizedLandmark } from "../../frontend/src/cv/collision";
+import type { HandObservation, NormalizedLandmark } from "../../frontend/src/cv/collision";
 
 const fixtures = vi.hoisted(() => ({
   invalidate: null as null | (() => void),
-  landmarks: null as null | ((hands: NormalizedLandmark[][]) => void),
+  landmarks: null as null | ((hands: HandObservation[]) => void),
   initializeAudio: vi.fn(async () => {}),
   takes: [] as Recording[],
   download: vi.fn(),
@@ -101,7 +101,7 @@ vi.mock("next/dynamic", async () => {
         };
       }
       return function HandFixture({ onLandmarks }: {
-        onLandmarks: (hands: NormalizedLandmark[][]) => void;
+        onLandmarks: (hands: HandObservation[]) => void;
       }) {
         fixtures.landmarks = onLandmarks;
         return null;

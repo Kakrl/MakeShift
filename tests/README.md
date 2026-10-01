@@ -263,6 +263,25 @@ Local macOS execution on 2026-09-30, Node 26.8.1 and Vitest 4.1.11, branch
 - CI on PR #158 (Node 20): the `Unit tests` step ran and **174 tests passed
   across seven files** ([job log](https://github.com/Kakrl/MakeShift/actions/runs/36744857972/job/109988354672)).
 
+### After merging `main` at `47400c7` (2026-10-01)
+
+PR #148 merged after the run above and changed key contact and calibration.
+On `main`, 23 of 236 Vitest cases failed. Nothing caught it because Vitest was
+not in CI yet.
+
+- 18 needed test updates for #148, now in this PR. Both suites stub
+  `getComputedStyle` and the canvas methods the new overlays call.
+  `recordingControls.test.tsx` passes `HandObservation` objects and runs the
+  real `LiveContactPipeline` in its overlap-only mode, since jsdom has no
+  `Worker` and the fixture has no depth calibration. Contact now highlights
+  keys before a session starts (intended in #148), so the highlight test
+  expects that and still checks that an interrupted session records nothing.
+- 5 cases in `calibrationWorkflow.test.tsx` (6.2.3) found a real defect, D21
+  ([#162](https://github.com/Kakrl/MakeShift/issues/162)). They are marked
+  `it.fails` and linked to the issue. The fix PR switches them back to `it()`.
+- Local result: **231 passed and 5 expected failures across 11 files**. Actions
+  evidence for this run is pending.
+
 ## Documentation Expectations by Severity
 
 Not every defect needs the same amount of documentation. Use this table to
@@ -355,6 +374,7 @@ defect report is filed.
 | D18 | High | MIDI / UI | Runtime path alias points midi-writer-js at a declarations-only file, so final Export throws on undefined Track and produces no download (Req 4.2) | `frontend/tsconfig.json` | [#140](https://github.com/Kakrl/MakeShift/issues/140) | Fix verified locally in [#141](https://github.com/Kakrl/MakeShift/pull/141); review/merge pending |
 | D19 | Medium | CI | The `Vercel preview` workflow fails on every fork PR: `actions/checkout` refuses fork code in `pull_request_target` unless the step sets `allow-unsafe-pr-checkout: true`, so labeling `preview-link` never deploys | `.github/workflows/preview.yml:33-39` | [#160](https://github.com/Kakrl/MakeShift/issues/160) | Open |
 | D20 | High | UI | (Req 3.1, 3.2, 4.2, 6.2) Merge `30706c4` (PR #98) resolved `page.tsx` by keeping the branch's older JSX, dropping the welcome and Calibration intro modals, count-in overlay, Recording Complete banner, Delete confirmation, calibration prompt, `CameraStatusOverlay`, and the aria-live region. The home Calibration tab and Delete button did nothing. ESLint flagged the orphaned state only as warnings | `frontend/src/app/page.tsx` | [#112](https://github.com/Kakrl/MakeShift/issues/112) | Fixed in [#113](https://github.com/Kakrl/MakeShift/pull/113) |
+| D21 | High | Calibration | (Req 6.2, 1.1, 2.1) After PR #148, step 5 renders the depth capture, so the step 5 capture that set the validated result can't be reached. `handleComplete` calls `router.push("/")` and writes the legacy `isCalibrated` flag before validating, so `makeshift.calibration.v1` is never saved and failed saves still navigate. 6.2.3 marks 5 cases `it.fails` until fixed | `frontend/src/app/calibration/page.tsx` | [#162](https://github.com/Kakrl/MakeShift/issues/162) | Open |
 
 ## Root Cause Analysis Log
 
