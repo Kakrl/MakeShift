@@ -1,7 +1,8 @@
 /* Production layout regression for #156. Run after npm run build && npm start.
  * Measures the home camera feed with getBoundingClientRect at desktop and
  * mobile viewports, in the default state, after a recording finishes (Export
- * and Delete controls visible) and with the audio error alert shown.
+ * and Delete controls visible) and with the audio error alert shown. On lg
+ * the feed must match the calibration camera and about content boxes.
  * The completed take is seeded through Home's React hooks and the error
  * through Home's LiveSession; lookups are guarded so a UI or session change
  * fails this test explicitly.
@@ -82,9 +83,26 @@ const within = (inner, outer) =>
   inner.left >= outer.left - TOLERANCE && inner.top >= outer.top - TOLERANCE &&
   inner.right <= outer.right + TOLERANCE && inner.bottom <= outer.bottom + TOLERANCE;
 
+// Size of the 16:9 box on another page that shares Home's layout.
+async function referenceBox(viewport, path, selector) {
+  const page = await browser.newPage({ viewport });
+  await page.goto(new URL(path, process.env.MAKE_SHIFT_URL || "http://127.0.0.1:3000").href);
+  const box = await page.locator(selector).first().boundingBox();
+  await page.close();
+  assert(box, `${path}: reference box not found`);
+  return box;
+}
+
+const sameSize = (a, b) =>
+  Math.abs(a.width - b.width) <= TOLERANCE && Math.abs(a.height - b.height) <= TOLERANCE;
+
 const results = [];
 try {
   for (const viewport of VIEWPORTS) {
+    const references = viewport.width >= LG ? {
+      calibration: await referenceBox(viewport, "/calibration", "video >> xpath=.."),
+      about: await referenceBox(viewport, "/about", "h1 >> xpath=../.."),
+    } : {};
     for (const state of STATES) {
       const page = await browser.newPage({ viewport });
       const errors = [];
@@ -114,12 +132,10 @@ try {
       assert(Math.abs(ratio - 16 / 9) < 0.01, `${label}: feed ratio ${ratio}`);
       assert(within(feed, wrapper), `${label}: feed overflows its wrapper`);
       assert(feed.right <= viewport.width + TOLERANCE, `${label}: feed wider than viewport`);
-      if (viewport.width >= LG) {
-        // Largest 16:9 box: fills the wrapper's width or its height.
-        const fills = Math.abs(feed.width - wrapper.width) <= TOLERANCE ||
-          Math.abs(feed.height - wrapper.height) <= TOLERANCE;
-        assert(fills, `${label}: feed is not the largest 16:9 box in its wrapper`);
-        assert(feed.bottom <= viewport.height + TOLERANCE, `${label}: feed below viewport`);
+      for (const [name, reference] of Object.entries(references)) {
+        assert(sameSize(feed, reference), `${label}: feed ${Math.round(feed.width)}x` +
+          `${Math.round(feed.height)} differs from ${name} ${Math.round(reference.width)}x` +
+          `${Math.round(reference.height)}`);
       }
       if (status) assert(within(status, feed), `${label}: status message clipped`);
       assert(banner, `${label}: session status line missing`);
@@ -132,7 +148,7 @@ try {
     }
   }
   console.log(results.join("\n"));
-  console.log(`PASS: camera feed 16:9 and contained in ${results.length} layouts (${await browser.version()})`);
+  console.log(`PASS: camera feed 16:9, contained and sized like calibration/about in ${results.length} layouts (${await browser.version()})`);
 } finally {
   await browser.close();
 }

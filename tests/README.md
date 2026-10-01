@@ -580,21 +580,22 @@ User baseline failure and automated fix are recorded separately in the
 [manual report](manual/2026-09-29_4.2.3.md); Carl Xu reported the export fix retest passed on 2026-09-29.
 ## Camera feed layout verification (issue #156)
 
-Local execution on macOS, 2026-09-30, Node 26.8.1, Playwright bundled
+Local execution on macOS, 2026-10-01, Node 26.8.1, Playwright bundled
 Chromium 151.0.7922.34, production build served by `next start`.
 
 - `npm run test:layout-browser` passed in 20 layouts: 1024x768, 1440x900,
   1920x1080, 2560x1080 and 390x844, each in the default state, after a
   recording finishes (Export and Delete visible), with the audio error alert,
   and with both. The feed stayed 16:9 within 1%, inside its wrapper and the
-  viewport width; on `lg` it filled the wrapper's width or height and ended
-  above the viewport bottom. The session status line stayed above the feed
-  and the in-feed calibration message stayed inside the feed.
-- Feed sizes: 681x383 at 1024x768 in every state; 833x469 (1440x900) and
-  963x542 (1920x1080, 2560x1080) by default, 1057x595 when Export/Delete show
-  (the taller sidebar gives the wrapper more height); 358x201 on mobile.
-- Regression check: restoring the stretching classes (`lg:aspect-auto`) made the
-  test fail at 1024x768 with ratio 1.45.
+  viewport width; on `lg` it matched the calibration camera and about content
+  box sizes within 1 px. The session status line stayed above the feed and the
+  in-feed calibration message stayed inside the feed.
+- Feed sizes, the same in every state: 681x383 (1024x768), 1066x600
+  (1440x900), 1545x869 (1920x1080), 2185x1229 (2560x1080) and 358x201
+  (390x844). At 2560x1080 the feed, like the calibration camera, extends below
+  the viewport.
+- Regression check: the earlier fit-to-height layout gave 963x542 at
+  1920x1080, smaller than calibration's 1545x869, which this test rejects.
 - The completed take is seeded through Home's React hooks and the error through
   Home's LiveSession, with guarded lookups like the MIDI export test. The test
   does not use a physical camera or printed sheet. CI does not run it.

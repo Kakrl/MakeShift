@@ -287,11 +287,10 @@ export default function Home() {
   return (
     <div className="flex-1 bg-surface flex flex-col">
       <p role={liveStatus.state === "error" ? "alert" : "status"} className="text-ink px-4">{liveStatus.message}</p>
-      <div className="flex flex-col lg:flex-row lg:flex-1 pt-4 lg:pt-[clamp(16px,calc(100dvh_-_700px),115px)] pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)] lg:pb-[clamp(16px,calc(100dvh_-_660px),226px)]">
-        {/* Camera feed: always 16:9. On lg the wrapper takes the free space and
-            the feed uses the largest 16:9 box that fits inside it. */}
-        <div className="w-full lg:w-auto lg:flex-1 lg:min-h-[240px] lg:[container-type:size] lg:flex lg:items-start lg:justify-center">
-        <div className="w-full aspect-video lg:w-[min(100cqw,calc(100cqh*16/9))] bg-surface-dark relative overflow-hidden">
+      <div className="flex flex-col lg:flex-row pt-4 lg:pt-0 pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)]">
+        {/* Camera feed: 16:9 and sized like the calibration and about pages.
+            self-start keeps the taller sidebar from stretching it. */}
+        <div className="w-full lg:w-auto lg:flex-1 lg:self-start aspect-video bg-surface-dark relative overflow-hidden">
           <video
             ref={videoRef}
             autoPlay
@@ -306,7 +305,6 @@ export default function Home() {
             activePitches={activePitches}
           />
           {!canPlay && <p role="status" className="absolute bottom-2 left-2 right-2 z-20 bg-surface px-4 text-ink">Show the calibrated sheet and camera, or <a href="/calibration" className="underline">calibrate again</a>. Saved data is checked before playing.</p>}
-        </div>
         </div>
 
         {/* Right sidebar (below the camera under lg) */}
