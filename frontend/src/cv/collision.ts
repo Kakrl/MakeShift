@@ -5,6 +5,12 @@ export const FINGERTIP_LANDMARK_INDICES = [4, 8, 12, 16, 20] as const;
 export interface NormalizedLandmark {
   x: number;
   y: number;
+  z?: number;
+}
+
+export interface HandObservation {
+  landmarks: readonly NormalizedLandmark[];
+  handedness: "Right" | "Left" | "Unknown";
 }
 
 export interface Fingertip {
