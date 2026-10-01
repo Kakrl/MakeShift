@@ -69,6 +69,11 @@ MakeShift/
 │   │   │   ├── SideNav.tsx          # shared responsive nav tabs
 │   │   │   └── useHandLandmarker.ts
 │   │   ├── cv/                      # ArUco detection, homography, key geometry
+│   │   │   ├── contactPipeline.ts    # individual overlap, knuckle, and shadow checks
+│   │   │   ├── liveContactPipeline.ts # controller: eligibility, shadow worker/history, releases
+│   │   │   ├── combinedContact.ts    # prototype per-finger gated press/release state
+│   │   │   ├── shadowHeuristics.ts   # prototype RGB k-means dark-region segmentation
+│   │   │   └── shadowWorker.ts       # bounded background shadow segmentation
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
 │   │   ├── server/                  # server-only Supabase access
 │   │   └── shims/                   # empty fs shim and type-only MIDI declaration bridge
@@ -94,6 +99,7 @@ MakeShift/
 │   │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   │   ├── browserAudio.browser.mjs  # production browser graph check
 │   │   ├── deployment.browser.mjs    # production assets, camera recovery, offline playing
+│   │   ├── homePage.test.ts
 │   │   ├── supabaseHealth.test.ts    # /api/health database check
 │   │   ├── pianoIntegration.test.ts # deterministic note-to-audio/MIDI/feedback
 │   │   ├── liveSession.test.ts       # readiness transitions and stale-input safety

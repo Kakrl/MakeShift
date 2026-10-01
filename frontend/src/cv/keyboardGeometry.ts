@@ -44,6 +44,7 @@ function drawWhiteKey(
   context: CanvasRenderingContext2D,
   key: Point[],
   fillStyle: string,
+  fillOpacity: number,
 ): void {
   context.beginPath();
   key.forEach((corner, index) => {
@@ -51,21 +52,26 @@ function drawWhiteKey(
     else context.lineTo(corner.x, corner.y);
   });
   context.closePath();
+  context.save();
+  context.globalAlpha = fillOpacity;
   context.fillStyle = fillStyle;
   context.fill();
+  context.restore();
   context.stroke();
 }
 
 export function pressWhiteKey(
   context: CanvasRenderingContext2D,
   key: Point[],
+  fillStyle: string,
 ): void {
-  drawWhiteKey(context, key, "rgba(255, 80, 80, 0.75)");
+  drawWhiteKey(context, key, fillStyle, 0.78);
 }
 
 export function releaseWhiteKey(
   context: CanvasRenderingContext2D,
   key: Point[],
+  fillStyle: string,
 ): void {
-  drawWhiteKey(context, key, "rgba(255, 255, 255, 0.35)");
+  drawWhiteKey(context, key, fillStyle, 0.3);
 }

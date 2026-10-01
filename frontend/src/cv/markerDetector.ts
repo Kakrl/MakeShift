@@ -100,9 +100,7 @@ export class MarkerDetector {
   ) {}
 
   static async create(): Promise<MarkerDetector> {
-    console.log("MarkerDetector creating")
     const cv = await loadOpenCv();
-    console.log("we have cv")
     const dictionary = cv.getPredefinedDictionary(cv.DICT_4X4_50);
     const parameters = new cv.aruco_DetectorParameters();
     const refineParameters = new cv.aruco_RefineParameters(10, 3, true);
@@ -115,8 +113,6 @@ export class MarkerDetector {
     dictionary.delete();
     parameters.delete();
     refineParameters.delete();
-
-    console.log("returning new marker detector")
 
     return new MarkerDetector(cv, detector);
   }

@@ -15,6 +15,48 @@ npm run dev   # starts the local dev server at http://localhost:3000
 
 ---
 
+## CV visual debugging
+
+Visual debugging defaults to off. Set `SHOW_VISUAL_DEBUG` to `true` in
+`src/app/CVOverlayCoordinator.tsx` to enable the finger panel, shadow previews,
+sampling guides, knuckle boundaries, marker diagnostics, and hand landmarks/FPS.
+Set it back to `false` to hide diagnostics and skip preview masks, contour
+outlines, debug drawing, and per-frame debug state updates. Contact detection,
+note dispatch, and pressed-key highlighting continue with debugging off.
+
+The live sequence starts at `pipeline.processFrame(...)` in
+`src/app/MarkerTrackingOverlay.tsx`. Follow `src/cv/liveContactPipeline.ts` to
+read key overlap, knuckle eligibility, and the asynchronous shadow check in
+order. That controller owns the worker, histories, stale-result checks, and
+release timer; the overlay handles note dispatch and drawing. Individual checks
+live in `src/cv/contactPipeline.ts`. The weighted `contactScore.ts` experiment
+does not control live notes.
+
+To isolate a technique, edit `CONTACT_TECHNIQUES` near the top of
+`src/cv/liveContactPipeline.ts`, then reload the page:
+
+```ts
+export const CONTACT_TECHNIQUES: Readonly<ContactTechniques> = {
+  knuckles: true,
+  shadows: true,
+};
+```
+
+| Knuckles | Shadows | Contact decision |
+| --- | --- | --- |
+| `true` | `true` | Key overlap, calibrated knuckle eligibility, fresh shadow confirmation (default) |
+| `false` | `true` | Key overlap and fresh shadow confirmation; no knuckle calibration needed |
+| `true` | `false` | Key overlap and calibrated knuckle eligibility; no shadow worker or pixel capture |
+| `false` | `false` | Key-overlap-only debugging; no knuckle calibration or shadow processing |
+
+Knuckle-only mode releases when eligibility is lost. Overlap-only mode releases
+when key overlap is lost. Both release when landmark frames are over 150 ms old.
+`SHOW_VISUAL_DEBUG` controls display independently; enable it
+to see technique status. These switches are development settings, not UI controls.
+
+Virtual keyboard highlights follow detected contact even before recording or
+while paused. Audio/MIDI note dispatch still requires recording to be active.
+
 ## Scripts
 
 These are commands you'll run regularly. They're defined in `package.json` under `"scripts"`.
