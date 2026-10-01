@@ -1,13 +1,12 @@
 how to communicate ebetween javascript and python: is hte latency too slow?
 
 
-top-left:     0.053
-top-right:    0.049
-bottom-left:  0.041
-bottom-right: 0.037
-
-center:       0.047
-right:        0.043
-left:         0.43
-above:        0.
-below:        0.____
+i must finetune the shadows -> did a little
+refactor the state maching of invalid, hover, presssed, release
+consider converting knucles y-boundary to homographic coords
+use velocity to aid in finger state machine
+avoid copying all the pixels for shadow computation
+support more octaves
+get a smaller piano sheet
+could i do kmeans clustering using the gpu somehow since its just counting and adding?
+fix calibration phase and add the left hand

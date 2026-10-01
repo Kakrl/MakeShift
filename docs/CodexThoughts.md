@@ -444,6 +444,11 @@ techniques are enabled and labels disabled evidence explicitly. These are
 source-level development settings, not runtime UI toggles or measured accuracy
 claims for either isolated technique.
 
+Virtual keyboard highlighting follows detected contact independently of the
+recording state. Starting/stopping or pausing recording gates musical events,
+not camera feedback. The debug panel also updates contact state when shadow
+evidence is disabled or unavailable.
+
 ### Combined contact state and note transitions
 
 `frontend/src/cv/combinedContact.ts` owns the small per-finger state evaluator.

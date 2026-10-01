@@ -13,33 +13,32 @@ it does not establish measured accuracy or latency.
 
 ## Shadow scheduling — next
 
-Currently, knuckles gate note activation but do not gate segmentation. The
-worker processes every submitted fingertip, including fingers outside keys
-or the knuckle playing zone.
+Shadow analysis now runs only for fingers over a key and inside the knuckle
+playing zone. A selected debug preview can request one additional diagnostic
+crop without allowing that finger to activate a note.
 
-- [ ] Calculate key overlap and knuckle eligibility before capturing pixels.
-- [ ] Submit only fingers with key overlap and valid knuckle eligibility.
+- [x] Calculate key overlap and knuckle eligibility before capturing pixels.
+- [x] Submit only fingers with key overlap and valid knuckle eligibility.
   If visual debugging needs an ineligible index-finger preview, keep that
   request explicitly diagnostic so it cannot activate a note.
-- [ ] Skip shadow capture entirely when no fingers need analysis or a preview.
-- [ ] Compute shared knuckle distance once per hand and reuse it per finger.
-- [ ] Decide explicitly whether shadow peak history resets or is retained
-  when a finger enters/leaves eligibility. Filtering must not accidentally
-  reuse an unrelated baseline or silently undermine contraction detection.
-- [ ] Continue sampling eligible held fingers so shadow recovery can release
+- [x] Skip shadow capture entirely when no fingers need analysis or a preview.
+- [x] Compute shared knuckle distance once per hand and reuse it per finger.
+- [x] Reset shadow measurement and peak history when eligibility is lost, so
+  an old baseline is not reused when the finger re-enters the playing zone.
+- [x] Continue sampling eligible held fingers so shadow recovery can release
   notes. Preserve immediate release on lost eligibility, freshness timeouts,
   gate revisions, and rejection of stale worker results.
 
 ## Pixel transfer — after scheduling
 
-- [ ] Extract and transfer only the required 140×140 fingertip crops instead
+- [x] Extract and transfer only the required 140×140 fingertip crops instead
   of reading and transferring the full camera frame for shadow analysis.
-- [ ] Preserve crop coordinates, out-of-frame behavior, and a matching camera
+- [x] Preserve crop coordinates, out-of-frame behavior, and a matching camera
   preview from the same snapshot when debugging is enabled.
-- [ ] Keep crop size, clustering, cutoff, contour selection, and contact
+- [x] Keep crop size, clustering, cutoff, contour selection, and contact
   thresholds unchanged initially, including the 30% relative-area rule and
   below-300-pixel absolute-area fallback.
-- [ ] Preserve the one-in-flight-job limit; skip pending work rather than
+- [x] Preserve the one-in-flight-job limit; skip pending work rather than
   building a frame queue.
 
 ## Deferred experiments

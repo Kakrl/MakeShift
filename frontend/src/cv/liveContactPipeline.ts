@@ -27,7 +27,7 @@ import type {
 import type { Point } from "./types";
 
 export const SHADOW_CROP_RADIUS = 70;
-const SHADOW_INTERVAL_MS = 20;
+const SHADOW_INTERVAL_MS = 10;
 
 export interface ContactTechniques {
   knuckles: boolean;
@@ -38,12 +38,11 @@ export interface ContactTechniques {
 // Both false isolates key overlap for debugging, without knuckles or shadows.
 export const CONTACT_TECHNIQUES: Readonly<ContactTechniques> = {
   knuckles: false,
-  shadows: false,
+  shadows: true,
 };
 
 export interface ContactPipelineFrame {
   video: HTMLVideoElement | null;
-  canvas: HTMLCanvasElement | null;
   fingertips: readonly Fingertip[];
   hands: readonly HandObservation[];
   whiteKeys: Point[][] | null;
@@ -53,6 +52,7 @@ export interface ContactPipelineFrame {
 
 interface PipelineCallbacks {
   onContactsChanged: (refreshDebug?: boolean) => void;
+  onShadowCameraPreview: (crop: HTMLCanvasElement | null, center: Point) => void;
   onShadowPreview: (
     observation: ShadowObservation,
     contact: ShadowContactEvaluation,
@@ -71,6 +71,7 @@ export class LiveContactPipeline {
   private timer: ReturnType<typeof setInterval> | null = null;
   private disposed = false;
   private inFlight = false;
+  private cropCanvas: HTMLCanvasElement | null = null;
   private lastFrameAtMs = -Infinity;
   private revision = 0;
   private previewFingerId: string | null = null;
@@ -136,6 +137,8 @@ export class LiveContactPipeline {
   reset() {
     this.contacts.clear();
     this.gates.clear();
+    this.measurements.clear();
+    this.observations.clear();
     this.shadowContacts.clear();
     // Keep revisions monotonic so pending results cannot enter a new session.
     this.callbacks.onContactsChanged();
@@ -155,6 +158,7 @@ export class LiveContactPipeline {
     const now = performance.now();
     this.previewFingerId = frame.previewFingerId;
     const activeIds = new Set<string>();
+    const knuckleDistances = new Map<number, number | null>();
 
     for (const fingertip of frame.fingertips) {
       const hand = frame.hands[fingertip.handIndex];
@@ -166,9 +170,15 @@ export class LiveContactPipeline {
       const previousGate = this.gates.get(fingertip.id);
       const sourceIdentity = `${hand.handedness}:${frame.video?.videoWidth}:${frame.video?.videoHeight}`;
       const sameSource = previousGate?.sourceIdentity === sourceIdentity;
-      const distance = this.techniques.knuckles
-        ? getKnuckleDistance(hand.landmarks)
-        : null;
+      let distance: number | null = null;
+      if (this.techniques.knuckles) {
+        if (!knuckleDistances.has(fingertip.handIndex))
+          knuckleDistances.set(
+            fingertip.handIndex,
+            getKnuckleDistance(hand.landmarks),
+          );
+        distance = knuckleDistances.get(fingertip.handIndex) ?? null;
+      }
       const screenY =
         frame.video && frame.video.videoHeight > 0
           ? fingertip.point.y / frame.video.videoHeight
@@ -205,11 +215,13 @@ export class LiveContactPipeline {
         !previousGate ||
         previousGate.keyIndexes.length !== keyIndexes.length ||
         previousGate.keyIndexes.some((key, index) => key !== keyIndexes[index]);
+
       const gateChanged =
         !sameSource ||
         keysChanged ||
         previousGate?.available !== available ||
         previousGate?.knuckleEligible !== knuckleEligible;
+
       const gate: FingerContactGate = {
         available,
         keyIndexes,
@@ -218,8 +230,18 @@ export class LiveContactPipeline {
         revision: gateChanged ? ++this.revision : previousGate!.revision,
         frameAtMs: now,
       };
-      if (!keyOverlap || keysChanged || !sameSource)
+
+      if (
+        !keyOverlap ||
+        !knuckleEligible ||
+        keysChanged ||
+        !sameSource
+      ) {
         this.shadowContacts.delete(fingertip.id);
+        this.measurements.delete(fingertip.id);
+        this.observations.delete(fingertip.id);
+      }
+
       this.gates.set(fingertip.id, gate);
       this.contacts.set(
         fingertip.id,
@@ -231,6 +253,7 @@ export class LiveContactPipeline {
           { shadowsEnabled: this.techniques.shadows },
         ),
       );
+
     }
 
     for (const map of [
@@ -252,50 +275,94 @@ export class LiveContactPipeline {
     frame: ContactPipelineFrame,
     frameAtMs: number,
   ): boolean {
-    const { video, canvas } = frame;
+    const { video } = frame;
+    const fingers = frame.fingertips.filter((finger) => {
+      const gate = this.gates.get(finger.id);
+      return Boolean(
+        gate &&
+          gate.keyIndexes.length > 0 &&
+          gate.knuckleEligible &&
+          frame.hands[finger.handIndex],
+      );
+    });
+    const previewFinger = frame.fingertips.find(
+      (finger) => finger.id === this.previewFingerId,
+    );
+    // The selected debug finger may be sampled off-key for preview only;
+    // its gate still prevents this diagnostic result from activating contact.
+    if (
+      previewFinger &&
+      frame.hands[previewFinger.handIndex] &&
+      !fingers.some((finger) => finger.id === previewFinger.id)
+    )
+      fingers.push(previewFinger);
     if (
       !video ||
-      !canvas ||
       !this.worker ||
       this.inFlight ||
-      frame.fingertips.length === 0 ||
+      fingers.length === 0 ||
       video.readyState < 2 ||
       frameAtMs - this.lastFrameAtMs < SHADOW_INTERVAL_MS ||
       video.videoWidth <= 0 ||
       video.videoHeight <= 0
     )
       return false;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const context = canvas.getContext("2d");
+    const canvas = this.cropCanvas ?? document.createElement("canvas");
+    this.cropCanvas = canvas;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
     if (!context) return false;
-    context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-    const imageData = context.getImageData(
-      0,
-      0,
-      video.videoWidth,
-      video.videoHeight,
-    );
+    const crops = fingers.map((finger) => {
+      const virtualLeft = Math.round(finger.point.x) - SHADOW_CROP_RADIUS;
+      const virtualTop = Math.round(finger.point.y) - SHADOW_CROP_RADIUS;
+      const left = Math.max(0, virtualLeft);
+      const top = Math.max(0, virtualTop);
+      const right = Math.min(
+        video.videoWidth,
+        virtualLeft + SHADOW_CROP_RADIUS * 2,
+      );
+      const bottom = Math.min(
+        video.videoHeight,
+        virtualTop + SHADOW_CROP_RADIUS * 2,
+      );
+      const width = Math.max(0, right - left);
+      const height = Math.max(0, bottom - top);
+      // Setting either dimension resets the canvas bitmap, even when unchanged.
+      if (canvas.width !== width) canvas.width = width;
+      if (canvas.height !== height) canvas.height = height;
+      if (width > 0 && height > 0)
+        context.drawImage(video, left, top, width, height, 0, 0, width, height);
+      const imageData =
+        width > 0 && height > 0
+          ? context.getImageData(0, 0, width, height)
+          : new ImageData(1, 1);
+      const center = {
+        x: finger.point.x - left,
+        y: finger.point.y - top,
+      };
+      if (finger.id === this.previewFingerId)
+        this.callbacks.onShadowCameraPreview(
+          width > 0 && height > 0 ? canvas : null,
+          center,
+        );
+      return {
+        id: finger.id,
+        imageData,
+        center,
+        previous: this.measurements.get(finger.id) ?? null,
+        keyOverlap: (this.gates.get(finger.id)?.keyIndexes.length ?? 0) > 0,
+        contactRevision: this.gates.get(finger.id)?.revision ?? -1,
+      };
+    });
     this.lastFrameAtMs = frameAtMs;
     this.inFlight = true;
     this.worker.postMessage(
       {
-        imageData,
         radius: SHADOW_CROP_RADIUS,
         frameAtMs,
         previewFingerId: this.previewFingerId,
-        // Preserve current sampling; eligibility filtering is a separate optimization.
-        fingers: frame.fingertips
-          .filter((finger) => frame.hands[finger.handIndex])
-          .map((finger) => ({
-            id: finger.id,
-            point: finger.point,
-            previous: this.measurements.get(finger.id) ?? null,
-            keyOverlap: (this.gates.get(finger.id)?.keyIndexes.length ?? 0) > 0,
-            contactRevision: this.gates.get(finger.id)?.revision ?? -1,
-          })),
+        fingers: crops,
       },
-      [imageData.data.buffer],
+      crops.map(({ imageData }) => imageData.data.buffer),
     );
     return true;
   }

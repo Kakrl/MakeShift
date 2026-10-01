@@ -150,11 +150,14 @@ export default function MarkerTrackingOverlay({
   const projectedPianoCornersRef = useRef<Point[] | null>(null);
   const projectedWhiteKeysRef = useRef<Point[][] | null>(null);
   const previousKeysRef = useRef<Set<number>>(new Set());
+  const previousHighlightedKeysRef = useRef<Set<number>>(new Set());
   const trackingEnabledRef = useRef(false);
   const onKeyTransitionsRef = useRef(onKeyTransitions);
   const geometryLockedRef = useRef(false);
   const showVisualDebugRef = useRef(showVisualDebug);
-  const [activeKeyIndexes, setActiveKeyIndexes] = useState<number[]>([]);
+  const [highlightedKeyIndexes, setHighlightedKeyIndexes] = useState<number[]>(
+    [],
+  );
   const [fingerDebug, setFingerDebug] = useState<FingerDebugState[]>([]);
   const shadowPreviewFinger =
     !showVisualDebug || !CONTACT_TECHNIQUES.shadows
@@ -169,14 +172,15 @@ export default function MarkerTrackingOverlay({
   );
 
   const syncContactKeys = useCallback(() => {
-    const currentKeys = new Set<number>();
-    if (trackingEnabledRef.current) {
-      for (const [id, contact] of pipelineRef.current?.contacts ?? []) {
-        if (!contact.active) continue;
-        for (const key of pipelineRef.current?.gates.get(id)?.keyIndexes ?? [])
-          currentKeys.add(key);
-      }
+    const detectedKeys = new Set<number>();
+    for (const [id, contact] of pipelineRef.current?.contacts ?? []) {
+      if (!contact.active) continue;
+      for (const key of pipelineRef.current?.gates.get(id)?.keyIndexes ?? [])
+        detectedKeys.add(key);
     }
+    const currentKeys = trackingEnabledRef.current
+      ? detectedKeys
+      : new Set<number>();
     const transitions = updateKeyTransitions(
       previousKeysRef.current,
       currentKeys,
@@ -184,8 +188,15 @@ export default function MarkerTrackingOverlay({
     previousKeysRef.current = currentKeys;
     if (transitions.pressed.length || transitions.released.length) {
       onKeyTransitionsRef.current?.(transitions.pressed, transitions.released);
-      // Keep visual updates after synchronous note dispatch.
-      queueMicrotask(() => setActiveKeyIndexes([...currentKeys]));
+    }
+    // Camera feedback is useful even before recording starts or while paused.
+    const highlights = updateKeyTransitions(
+      previousHighlightedKeysRef.current,
+      detectedKeys,
+    );
+    previousHighlightedKeysRef.current = detectedKeys;
+    if (highlights.pressed.length || highlights.released.length) {
+      queueMicrotask(() => setHighlightedKeyIndexes([...detectedKeys]));
     }
   }, []);
 
@@ -211,23 +222,54 @@ export default function MarkerTrackingOverlay({
           current.map((finger) => {
             const observation = pipeline.observations.get(finger.id);
             const contact = pipeline.shadowContacts.get(finger.id);
-            return observation
-              ? {
-                  ...finger,
-                  state:
-                    pipeline.contacts.get(finger.id)?.state ?? "unavailable",
-                  shadow: observation.state,
-                  shadowStrength: observation.measurement.shadowStrength,
-                  shadowLumaChange: observation.lumaChange,
-                  shadowDarkArea: observation.measurement.darkArea,
-                  shadowContourArea: observation.contour?.areaPixels ?? null,
-                  shadowContact: contact?.state ?? "unknown",
-                  shadowPeakArea: contact?.peakArea ?? null,
-                  shadowAreaRatio: contact?.areaRatio ?? null,
-                }
-              : finger;
+            return {
+              ...finger,
+              state: pipeline.contacts.get(finger.id)?.state ?? "unavailable",
+              ...(observation
+                ? {
+                    shadow: observation.state,
+                    shadowStrength: observation.measurement.shadowStrength,
+                    shadowLumaChange: observation.lumaChange,
+                    shadowDarkArea: observation.measurement.darkArea,
+                    shadowContourArea: observation.contour?.areaPixels ?? null,
+                    shadowContact: contact?.state ?? "unknown",
+                    shadowPeakArea: contact?.peakArea ?? null,
+                    shadowAreaRatio: contact?.areaRatio ?? null,
+                  }
+                : {}),
+            };
           }),
         );
+      },
+      onShadowCameraPreview: (crop, center) => {
+        if (!showVisualDebugRef.current) return;
+        const previewCanvas = shadowPreviewCanvasRef.current;
+        const previewContext = previewCanvas?.getContext("2d");
+        if (!previewCanvas || !previewContext) return;
+        previewContext.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+        if (!crop || crop.width === 0 || crop.height === 0) return;
+        const cropLeft = Math.round(center.x) - SHADOW_CROP_RADIUS;
+        const cropTop = Math.round(center.y) - SHADOW_CROP_RADIUS;
+        const scale = previewCanvas.width / (SHADOW_CROP_RADIUS * 2);
+        previewContext.imageSmoothingEnabled = false;
+        previewContext.drawImage(
+          crop,
+          -cropLeft * scale,
+          -cropTop * scale,
+          crop.width * scale,
+          crop.height * scale,
+        );
+        previewContext.save();
+        previewContext.scale(scale, scale);
+        drawShadowSamplingGuides(
+          previewContext,
+          {
+            x: center.x - cropLeft,
+            y: center.y - cropTop,
+          },
+          scale,
+        );
+        previewContext.restore();
       },
       onShadowPreview: (observation, contact) => {
         if (!showVisualDebugRef.current || !observation.mask) return;
@@ -443,7 +485,6 @@ export default function MarkerTrackingOverlay({
     // The complete live pipeline runs here: overlap -> knuckles -> shadows.
     const capturedShadowFrame = pipeline.processFrame({
       video,
-      canvas: processingCanvas,
       fingertips,
       hands,
       whiteKeys: projectedWhiteKeysRef.current,
@@ -492,26 +533,8 @@ export default function MarkerTrackingOverlay({
 
     const preview = shadowPreviewCanvasRef.current;
     const previewContext = preview?.getContext("2d");
-    if (
-      preview &&
-      previewContext &&
-      (capturedShadowFrame || !shadowPreviewFinger)
-    ) {
+    if (preview && previewContext && !shadowPreviewFinger)
       previewContext.clearRect(0, 0, preview.width, preview.height);
-      if (capturedShadowFrame && processingCanvas && shadowPreviewFinger) {
-        const center = shadowPreviewFinger.point;
-        const scale = SHADOW_PREVIEW_SIZE / (SHADOW_PREVIEW_RADIUS * 2);
-        previewContext.save();
-        previewContext.imageSmoothingEnabled = false;
-        previewContext.translate(preview.width / 2, preview.height / 2);
-        previewContext.scale(scale, scale);
-        previewContext.translate(-Math.round(center.x), -Math.round(center.y));
-        // Use the same camera snapshot as the measurements; guides stay separate.
-        previewContext.drawImage(processingCanvas, 0, 0);
-        drawShadowSamplingGuides(previewContext, center, scale);
-        previewContext.restore();
-      }
-    }
     const maskCanvas = shadowMaskCanvasRef.current;
     const maskContext = maskCanvas?.getContext("2d");
     if (
@@ -592,7 +615,7 @@ export default function MarkerTrackingOverlay({
 
       context.strokeStyle = "rgba(255, 255, 255, 0.9)";
       context.lineWidth = 3;
-      const collidedKeys = new Set(activeKeyIndexes);
+      const collidedKeys = new Set(highlightedKeyIndexes);
 
       projectedWhiteKeys.forEach((key, index) => {
         if (collidedKeys.has(index)) pressWhiteKey(context, key);
@@ -677,7 +700,7 @@ export default function MarkerTrackingOverlay({
       drawShadowSamplingGuides(context, shadowPreviewFinger.point);
     }
   }, [
-    activeKeyIndexes,
+    highlightedKeyIndexes,
     showVisualDebug,
     depthCalibration,
     fingerDebug,

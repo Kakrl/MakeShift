@@ -54,6 +54,9 @@ when key overlap is lost. Both release when landmark frames are over 150 ms old.
 `SHOW_VISUAL_DEBUG` controls display independently; enable it
 to see technique status. These switches are development settings, not UI controls.
 
+Virtual keyboard highlights follow detected contact even before recording or
+while paused. Audio/MIDI note dispatch still requires recording to be active.
+
 ## Scripts
 
 These are commands you'll run regularly. They're defined in `package.json` under `"scripts"`.

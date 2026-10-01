@@ -104,13 +104,13 @@ export function evaluateShadowContact(
 }
 
 export interface ShadowWorkerRequest {
-  imageData: ImageData;
   radius: number;
   previewFingerId: string | null;
   frameAtMs: number;
   fingers: {
     id: string;
-    point: Point;
+    imageData: ImageData;
+    center: Point;
     previous: ShadowMeasurement | null;
     keyOverlap: boolean;
     contactRevision: number;
