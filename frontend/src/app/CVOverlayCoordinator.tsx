@@ -51,7 +51,7 @@ export default function CVOverlayCoordinator({
   );
 
   const handleLandmarks = useCallback(
-    (hands: readonly (readonly NormalizedLandmark[])[]) => {
+    (observations: readonly HandObservation[]) => {
       session.observeTracking();
       const video = videoRef.current;
       if (!video) return;
@@ -71,7 +71,6 @@ export default function CVOverlayCoordinator({
   const handleKeyTransitions = useCallback(
     (pressed: readonly number[], released: readonly number[]) => {
       if (!enabled || !producer) return;
-      // Legacy overlap preview has no measured contact velocity (#34).
       producer(pressed.map((keyIndex) => ({ keyIndex, velocity: 0.8 })), released, performance.now());
     },
     [enabled, producer],

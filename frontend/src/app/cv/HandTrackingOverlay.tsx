@@ -17,12 +17,13 @@ const VISION_WASM_PATH =
 
 export default function HandTrackingOverlay({
   videoRef,
+  onTrackingFailure,
   onLandmarks,
   showVisualDebug = false,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   onTrackingFailure?: () => void;
-  onLandmarks?: (hands: readonly (readonly NormalizedLandmark[])[]) => void;
+  onLandmarks?: (hands: readonly HandObservation[]) => void;
   showVisualDebug?: boolean;
 }) {
   const [status, setStatus] = useState("Loading MediaPipe…");
@@ -115,7 +116,6 @@ export default function HandTrackingOverlay({
           },
         );
         onLandmarks?.(hands);
-        if (result) onLandmarks?.(result.landmarks);
 
         if (showVisualDebugRef.current && result && result.landmarks.length !== lastHandCount) {
           lastHandCount = result.landmarks.length;

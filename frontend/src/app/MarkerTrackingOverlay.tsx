@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useCamera } from "./CameraContext";
 import { cameraSignature, loadCalibration, markerCorners, MARKER_CHECK_INTERVAL_MS } from "../cv/calibration";
 import {
@@ -55,8 +55,6 @@ const PAGE_CORNERS: Point[] = [
   { x: 0, y: 1 },
 ];
 
-const INITIAL_MARKER_CHECK_INTERVAL_MS = 100;
-const LOCKED_MARKER_CHECK_INTERVAL_MS = 10_000;
 const KNUCKLE_LANDMARK_INDICES = [5, 9, 13, 17] as const;
 const SHADOW_PREVIEW_RADIUS = SHADOW_CROP_RADIUS;
 const SHADOW_PREVIEW_SIZE = 280;
@@ -125,12 +123,16 @@ export default function MarkerTrackingOverlay({
   trackingEnabled = false,
   onCalibrationObservation,
   activePitches,
+  showVisualDebug = false,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   fingertips: readonly Fingertip[];
+  hands?: readonly HandObservation[];
+  depthCalibration?: PersistedDepthCalibration | null;
   activePitches: ReadonlySet<number>;
   onKeyTransitions?: (pressed: readonly number[], released: readonly number[]) => void;
   trackingEnabled?: boolean;
+  showVisualDebug?: boolean;
   onCalibrationObservation: (saved: unknown, camera: ReturnType<typeof cameraSignature>, corners: Point[] | null) => boolean;
 }) {
   const { stream, cameraReady } = useCamera();
@@ -156,7 +158,6 @@ export default function MarkerTrackingOverlay({
   const previousHighlightedKeysRef = useRef<Set<number>>(new Set());
   const trackingEnabledRef = useRef(false);
   const onKeyTransitionsRef = useRef(onKeyTransitions);
-  const geometryLockedRef = useRef(false);
   const showVisualDebugRef = useRef(showVisualDebug);
   const [highlightedKeyIndexes, setHighlightedKeyIndexes] = useState<number[]>(
     [],
@@ -200,6 +201,8 @@ export default function MarkerTrackingOverlay({
     previousHighlightedKeysRef.current = detectedKeys;
     if (highlights.pressed.length || highlights.released.length) {
       queueMicrotask(() => setHighlightedKeyIndexes([...detectedKeys]));
+    }
+  }, []);
 
   useEffect(() => {
     if (!trackingEnabled && previousKeysRef.current.size > 0) {
@@ -207,7 +210,7 @@ export default function MarkerTrackingOverlay({
       // A new playback session treats held keys as fresh presses.
       previousKeysRef.current = new Set();
     }
-  }, []);
+  }, [onKeyTransitions, trackingEnabled]);
 
   useEffect(() => {
     showVisualDebugRef.current = showVisualDebug;
@@ -502,8 +505,6 @@ export default function MarkerTrackingOverlay({
     const pipeline = pipelineRef.current;
     if (!pipeline) return;
     const video = videoRef.current;
-    const processingCanvas = processingCanvasRef.current;
-
     // The complete live pipeline runs here: overlap -> knuckles -> shadows.
     const capturedShadowFrame = pipeline.processFrame({
       video,
@@ -640,7 +641,10 @@ export default function MarkerTrackingOverlay({
       const collidedKeys = new Set(highlightedKeyIndexes);
 
       projectedWhiteKeys.forEach((key, index) => {
-        if (collidedKeys.has(index)) pressWhiteKey(context, key);
+        const pitch = keyIndexToMidi(index);
+        const isPlaying =
+          trackingEnabled && pitch !== null && activePitches.has(pitch);
+        if (collidedKeys.has(index) || isPlaying) pressWhiteKey(context, key);
         else releaseWhiteKey(context, key);
       });
 
@@ -715,16 +719,6 @@ export default function MarkerTrackingOverlay({
               screenY - 8,
             );
             context.restore();
-            if (transitions.pressed.length || transitions.released.length) {
-              onKeyTransitions?.(transitions.pressed, transitions.released);
-            }
-            previousKeysRef.current = collidedKeys;
-          }
-
-          projectedWhiteKeys.forEach((key, index) => {
-            const pitch = keyIndexToMidi(index);
-            if (trackingEnabled && pitch !== null && activePitches.has(pitch)) pressWhiteKey(context, key);
-            else releaseWhiteKey(context, key);
           });
       }
     }
@@ -741,7 +735,6 @@ export default function MarkerTrackingOverlay({
     markerDetection,
     shadowPreviewFinger,
     videoRef,
-    onKeyTransitions,
     trackingEnabled,
     activePitches
   ]);

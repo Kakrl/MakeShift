@@ -29,10 +29,8 @@ import {
   type LightingReading,
 } from "../lighting";
 
-import { MarkerDetector } from "../../cv/markerDetector";
 import { cameraSignature, markerCorners, compatibleCalibration, validateCalibration, saveCalibration,
   validSamples, CURRENT_LAYOUT, SHEET_ID, type CalibrationResult, type LandmarkSample } from "../../cv/calibration";
-import type { Point } from "../../cv/types";
 const TOTAL_STEPS = 5;
 
 const PAGE_CORNERS: [Point, Point, Point, Point] = [
