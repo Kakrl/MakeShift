@@ -90,6 +90,8 @@ export default function Calibration() {
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [paperError, setPaperError] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
+  const [sheetDetectorStatus, setSheetDetectorStatus] =
+    useState<"loading" | "ready" | "error">("loading");
 
   // #13 — the video element reports 0x0 until it has decoded a frame
   const [frameReady, setFrameReady] = useState(false);
@@ -196,9 +198,14 @@ export default function Calibration() {
   useEffect(() => {
     let cancelled = false;
     MarkerDetector.create().then(detector => {
-      if (cancelled) detector.dispose();
-      else detectorRef.current = detector;
-    }).catch(() => setCaptureError("Sheet detector unavailable. Reload to retry."));
+      if (cancelled) { detector.dispose(); return; }
+      detectorRef.current = detector;
+      setSheetDetectorStatus("ready");
+    }).catch(() => {
+      if (cancelled) return;
+      setSheetDetectorStatus("error");
+      setCaptureError("Sheet detector unavailable. Reload to retry.");
+    });
     return () => { cancelled = true; detectorRef.current?.dispose(); detectorRef.current = null; };
   }, []);
 
@@ -691,8 +698,9 @@ export default function Calibration() {
     return null;
   };
 
+  // The data attributes let the deployment smoke test wait for detectors.
   return (
-    <div className="flex-1 bg-surface flex flex-col">
+    <div className="flex-1 bg-surface flex flex-col" data-hand-detection={landmarkerStatus} data-sheet-detector={sheetDetectorStatus}>
       {/* Main area */}
       <div className="flex flex-col lg:flex-row pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)]">
         {/* Camera */}

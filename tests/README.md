@@ -500,6 +500,14 @@ Local macOS execution on 2026-09-30, Node 26.8.1, Playwright Chromium
   `EXPECT_DATABASE=ok`, `/api/health` returned `200 {"status":"ok"}`.
 - Regression check: with the camera track-end handler removed, the test failed
   waiting for "Camera disconnected"; it passed again once restored.
+- Review follow-up (PR #153): the test now requires the model as
+  `application/octet-stream`, waits for MediaPipe (`/`) and both calibration
+  detectors to report ready with no displayed alerts, checks fresh preview
+  frames from the new stream after each camera retry, and accepts only
+  `200 ok` or `503 unconfigured` from `/api/health`. It passed against
+  `next start`; it failed with a broken model path (`data-hand-detection`
+  reported `error`) and with the calibration preview kept on the old stream
+  (timed out waiting for the new stream after the disconnect retry).
 - `npm run test:audio-browser` passed with `AUDIO_BROWSER_CHANNEL=chromium`.
 - Vercel preview `make-shift-9t8g9p17h-jaddenkis-projects.vercel.app`
   (protected by Vercel Authentication, checked with `vercel curl`): pages,

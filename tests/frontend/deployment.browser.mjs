@@ -21,12 +21,31 @@ const base = (process.env.MAKE_SHIFT_URL || "http://127.0.0.1:3000").replace(
   /\/+$/,
   "",
 );
-const PAGES = ["/", "/calibration", "/audio", "/tutorial", "/about"];
+// Each page must finish its asynchronous model/WASM setup before the test
+// moves on, since the app catches those failures and displays them instead.
+const INIT_TIMEOUT = 60_000;
+const PAGES = {
+  "/": async (page) => {
+    const status = page.getByText(/MediaPipe (ready|unavailable)/);
+    await status.waitFor({ timeout: INIT_TIMEOUT });
+    assert.match(await status.innerText(), /MediaPipe ready/);
+  },
+  "/calibration": async (page) => {
+    for (const attribute of ["data-hand-detection", "data-sheet-detector"]) {
+      const settled = page.locator(`[${attribute}]:not([${attribute}="loading"])`);
+      await settled.waitFor({ timeout: INIT_TIMEOUT });
+      assert.equal(await settled.getAttribute(attribute), "ready", attribute);
+    }
+  },
+  "/audio": null,
+  "/tutorial": null,
+  "/about": null,
+};
 const WASM_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${tasksVisionVersion}/wasm`;
 const ASSETS = [
   [base + "/audio/piano-worklet.js", /javascript/],
   [base + "/audio/synth.js", /javascript/],
-  [base + "/models/hand_landmarker.task", /./],
+  [base + "/models/hand_landmarker.task", /^application\/octet-stream/],
   [WASM_BASE + "/vision_wasm_internal.js", /javascript/],
   [WASM_BASE + "/vision_wasm_internal.wasm", /application\/wasm/],
 ];
@@ -48,13 +67,38 @@ async function checkPages(context) {
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  for (const path of PAGES) {
+  for (const [path, waitForInit] of Object.entries(PAGES)) {
     const response = await page.goto(base + path);
     assert.equal(response?.status(), 200, `${path} must return 200`);
+    await waitForInit?.(page);
+    await page.waitForLoadState("networkidle");
+    // Next's route announcer is an always-present, empty alert region.
+    const alerts = (await page.getByRole("alert").allInnerTexts()).filter(
+      (text) => text.trim(),
+    );
+    assert.deepEqual(alerts, [], `${path} must not display errors`);
+    assert.deepEqual(errors, [], `${path} must load without uncaught errors`);
   }
-  assert.deepEqual(errors, [], "pages must load without uncaught errors");
   await page.close();
-  results.pages = PAGES.join(", ");
+  results.pages = Object.keys(PAGES).join(", ");
+}
+
+// Recovery means the overlay is gone and the preview shows the new stream's
+// frames; a live track alone could still sit behind a frozen preview.
+async function expectLivePreview(page, status, message) {
+  await page.waitForFunction(() => window.testCameraStream?.active);
+  await status.filter({ hasText: message }).waitFor({ state: "detached" });
+  await page.waitForFunction(
+    () => document.querySelector("video")?.srcObject === window.testCameraStream,
+  );
+  await page.evaluate(async () => {
+    const video = document.querySelector("video");
+    const nextFrame = () =>
+      new Promise((resolve) => video.requestVideoFrameCallback(resolve));
+    const first = await nextFrame();
+    let second = await nextFrame();
+    while (second === first) second = await nextFrame();
+  });
 }
 
 async function checkCameraRecovery(browser) {
@@ -81,10 +125,7 @@ async function checkCameraRecovery(browser) {
   const status = page.getByRole("status");
   await status.filter({ hasText: "Camera access blocked" }).waitFor();
   await page.getByRole("button", { name: "Try again" }).click();
-  await page.waitForFunction(() => window.testCameraStream?.active);
-  await status.filter({ hasText: "Camera access blocked" }).waitFor({
-    state: "detached",
-  });
+  await expectLivePreview(page, status, "Camera access blocked");
   // Camera loss: an ended track must surface an error, not a frozen preview.
   await page.evaluate(() => {
     for (const track of window.testCameraStream.getVideoTracks()) {
@@ -94,7 +135,7 @@ async function checkCameraRecovery(browser) {
   });
   await status.filter({ hasText: "Camera disconnected" }).waitFor();
   await page.getByRole("button", { name: "Try again" }).click();
-  await page.waitForFunction(() => window.testCameraStream?.active);
+  await expectLivePreview(page, status, "Camera disconnected");
   await context.close();
   results.camera = "denial, retry, loss and recovery handled";
 }
@@ -142,11 +183,17 @@ async function checkLocalPlaying(context) {
 async function checkHealth(request) {
   const response = await request.get(base + "/api/health");
   const body = await response.json();
-  assert.ok(body.database?.status, "/api/health must report database status");
-  if (process.env.EXPECT_DATABASE === "ok") {
-    assert.equal(response.status(), 200, JSON.stringify(body));
-    assert.equal(body.database.status, "ok");
-  }
+  // Without Supabase secrets the route reports unconfigured; anything else
+  // (including 503 error) means the health route or database is broken.
+  const allowed =
+    process.env.EXPECT_DATABASE === "ok"
+      ? [[200, "ok"]]
+      : [[200, "ok"], [503, "unconfigured"]];
+  const actual = [response.status(), body.database?.status];
+  assert(
+    allowed.some(([code, state]) => code === actual[0] && state === actual[1]),
+    `/api/health returned ${JSON.stringify(actual)}, expected one of ${JSON.stringify(allowed)}`,
+  );
   results.database = body.database.status;
 }
 
