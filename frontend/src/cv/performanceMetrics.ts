@@ -11,7 +11,7 @@ export const METRICS = {
   inference: "ms around synchronous MediaPipe detectForVideo",
   markerDetection: "ms around MarkerDetector.detect; excludes canvas drawImage",
   detection:
-    "ms around legacy polygon collision and transitions; not contact inference",
+    "ms around synchronous live contact processing and shadow submission; excludes asynchronous worker execution",
   eventDelivery:
     "ms from accepted event observation to NoteSession receipt; excludes audio rendering",
 } as const;
@@ -35,7 +35,7 @@ export type Resources = {
   markerDetectors: number | null;
 };
 const resources: Resources = {
-  workers: null, // Worker delivery is not implemented (#37).
+  workers: null, // Shadow worker ownership is not instrumented.
   mediaTracks: 0,
   audioContexts: 0,
   audioNodes: 0,
@@ -236,8 +236,8 @@ export class PipelineMetrics {
         "sensor exposure age",
         "physical press-to-sound",
         "audio render latency",
-        "worker transfer until #37",
-        "intentional contact until #34",
+        "shadow-worker transfer timing is not instrumented",
+        "asynchronous shadow execution and physical contact accuracy",
       ],
     };
   }

@@ -42,9 +42,9 @@ physical sound output time. See [note events](note_events.md) for audio mapping.
 | droppedFrames | Sum of gaps in `presentedFrames` between diagnostic callbacks on the same video element. Starts unavailable until two callbacks establish a gap (including zero). Does not count sensor, decoder or worker scheduler drops. |
 | inference | Around synchronous `detectForVideo`, including cold calls. Drawing and React work are excluded. |
 | markerDetection | Around `MarkerDetector.detect`, including OpenCV readback, excluding preceding canvas `drawImage`. |
-| detection | Legacy polygon collision and transition computation when valid calibrated tracking is enabled; excludes callbacks and drawing. This is not intentional contact detection (#34). |
+| detection | Synchronous live contact pipeline processing (overlap, knuckle eligibility and shadow-frame submission); excludes asynchronous shadow-worker execution and later contact callbacks, and excludes debug drawing. Does not measure physical press-to-sound latency. |
 | eventDelivery | Accepted event observation timestamp to NoteSession receipt. Recording happens after synchronous audio dispatch, before deferred MIDI/UI observers. No AudioWorklet or device latency claim. |
-| transfer | Contract for future worker send-to-receive elapsed time, including queueing and origin conversion. No worker exists in this branch (#37), so production reports leave it null. |
+| transfer | Contract for future worker send-to-receive elapsed time, including queueing and origin conversion. The shadow worker does not emit transfer timing, so production reports leave it null. |
 
 Reports include boundaries and units. Missing values are **null**, distinct from
 measured zero; sample count zero means no valid observation. Invalid/negative
@@ -69,7 +69,7 @@ Navigation off the owning page closes audio and CV owners; CameraProvider
 retains its one shared stream until provider teardown/retry. Tests must compare
 against these expected baselines, not require zero on every Play/Stop.
 
-Workers are null/unavailable until the application worker owner in #37 is
+Workers are null/unavailable because the live shadow-worker owner is not yet
 instrumented. Library-internal workers, GPU allocations, native OpenCV heaps,
 and browser-internal objects are not enumerated. `performance.memory` supplies
 optional JS heap bytes where supported; otherwise null. This nonstandard value

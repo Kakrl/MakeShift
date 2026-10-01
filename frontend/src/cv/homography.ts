@@ -104,3 +104,23 @@ export function projectPoint(
       denominator,
   };
 }
+
+/** Return the inverse transform for mapping camera pixels back to sheet space. */
+export function invertHomography(homography: Homography): Homography | null {
+  const [a, b, c, d, e, f, g, h, i] = homography;
+  const determinant =
+    a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+  if (Math.abs(determinant) < 1e-10) return null;
+
+  return [
+    (e * i - f * h) / determinant,
+    (c * h - b * i) / determinant,
+    (b * f - c * e) / determinant,
+    (f * g - d * i) / determinant,
+    (a * i - c * g) / determinant,
+    (c * d - a * f) / determinant,
+    (d * h - e * g) / determinant,
+    (b * g - a * h) / determinant,
+    (a * e - b * d) / determinant,
+  ];
+}

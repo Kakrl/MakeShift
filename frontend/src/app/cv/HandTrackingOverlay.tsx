@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
-import type { NormalizedLandmark } from "../../cv/collision";
+import type {
+  HandObservation,
+  NormalizedLandmark,
+} from "../../cv/collision";
 import {
   pipelineMetrics,
   acquireResource,
@@ -16,17 +19,28 @@ const VISION_WASM_PATH =
 
 export default function HandTrackingOverlay({
   videoRef,
-  onLandmarks,
   onTrackingFailure,
+  onLandmarks,
+  showVisualDebug = false,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   onTrackingFailure?: () => void;
-  onLandmarks?: (hands: readonly (readonly NormalizedLandmark[])[]) => void;
+  onLandmarks?: (hands: readonly HandObservation[]) => void;
+  showVisualDebug?: boolean;
 }) {
   const [status, setStatus] = useState("Loading MediaPipe…");
   const [handCount, setHandCount] = useState(0);
   const [fps, setFps] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const showVisualDebugRef = useRef(showVisualDebug);
+
+  useEffect(() => {
+    showVisualDebugRef.current = showVisualDebug;
+    if (!showVisualDebug) {
+      const canvas = canvasRef.current;
+      canvas?.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }, [showVisualDebug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,7 +58,7 @@ export default function HandTrackingOverlay({
 
       if (fpsStartTimestamp === 0) fpsStartTimestamp = timestamp;
       fpsFrameCount += 1;
-      if (timestamp - fpsStartTimestamp >= 1000) {
+      if (showVisualDebugRef.current && timestamp - fpsStartTimestamp >= 1000) {
         setFps(
           Math.round(
             (fpsFrameCount * 1000) / (timestamp - fpsStartTimestamp),
@@ -65,7 +79,7 @@ export default function HandTrackingOverlay({
           canvas.height = video.videoHeight;
         }
 
-        const context = canvas.getContext("2d");
+        const context = showVisualDebugRef.current ? canvas.getContext("2d") : null;
         const inferenceStartedAt = pipelineMetrics.enabled ? performance.now() : null;
         let result;
         try {
@@ -91,9 +105,22 @@ export default function HandTrackingOverlay({
           );
         }
 
-        if (result) onLandmarks?.(result.landmarks);
+        const hands: HandObservation[] = (result?.landmarks ?? []).map(
+          (landmarks, index) => {
+            const categoryName =
+              result?.handednesses[index]?.[0]?.categoryName;
+            return {
+              landmarks: landmarks as readonly NormalizedLandmark[],
+              handedness:
+                categoryName === "Right" || categoryName === "Left"
+                  ? categoryName
+                  : "Unknown",
+            };
+          },
+        );
+        onLandmarks?.(hands);
 
-        if (result && result.landmarks.length !== lastHandCount) {
+        if (showVisualDebugRef.current && result && result.landmarks.length !== lastHandCount) {
           lastHandCount = result.landmarks.length;
           setHandCount(lastHandCount);
         }
@@ -171,11 +198,13 @@ export default function HandTrackingOverlay({
         ref={canvasRef}
         className="pointer-events-none absolute inset-0 z-10 h-full w-full object-cover"
       />
-      <div className="absolute left-4 top-4 z-20 rounded bg-black/70 px-3 py-2 text-sm text-white">
-        {status} · Hands: {handCount}
-        <br />
-        FPS: {fps}
-      </div>
+      {showVisualDebug && (
+        <div className="absolute left-4 top-4 z-20 rounded bg-black/70 px-3 py-2 text-sm text-white">
+          {status} · Hands: {handCount}
+          <br />
+          FPS: {fps}
+        </div>
+      )}
     </>
   );
 }

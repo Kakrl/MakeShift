@@ -37,6 +37,9 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           path: pr
           persist-credentials: false
+          # checkout refuses fork code under pull_request_target without this.
+          # Safe here only because the source is uploaded, never executed.
+          allow-unsafe-pr-checkout: true
 
       - name: Set up Node
         uses: actions/setup-node@v4

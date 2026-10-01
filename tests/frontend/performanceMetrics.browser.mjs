@@ -28,6 +28,8 @@ try {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.addInitScript(() => {
+    // Profile a returning visit; onboarding is verified separately.
+    localStorage.setItem("hasVisited", "true");
     window.profileContexts = [];
     const Native = window.AudioContext;
     window.AudioContext = class extends Native {
