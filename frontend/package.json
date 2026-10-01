@@ -10,7 +10,8 @@
     "test": "vitest",
     "test:contrast": "node ../tests/frontend/check-contrast.mjs",
     "test:audio-browser": "node ../tests/frontend/browserAudio.browser.mjs",
-    "test:deployment": "node ../tests/frontend/deployment.browser.mjs"
+    "test:deployment": "node ../tests/frontend/deployment.browser.mjs",
+    "test:midi-browser": "node ../tests/frontend/midiExport.browser.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "0.10.34",

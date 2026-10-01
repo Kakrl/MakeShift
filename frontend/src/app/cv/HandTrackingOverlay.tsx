@@ -14,8 +14,10 @@ import { WASM_PATH as VISION_WASM_PATH } from "../useHandLandmarker";
 export default function HandTrackingOverlay({
   videoRef,
   onLandmarks,
+  onTrackingFailure,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
+  onTrackingFailure?: () => void;
   onLandmarks?: (hands: readonly (readonly NormalizedLandmark[])[]) => void;
 }) {
   const [status, setStatus] = useState("Loading MediaPipe…");
@@ -28,6 +30,7 @@ export default function HandTrackingOverlay({
     let animationFrame = 0;
     let handLandmarker: HandLandmarker | null = null;
     let lastHandCount = -1;
+    let lastVideoTime = -1;
     let fpsStartTimestamp = 0;
     let fpsFrameCount = 0;
 
@@ -47,7 +50,8 @@ export default function HandTrackingOverlay({
         fpsFrameCount = 0;
       }
 
-      if (!cancelled && video && canvas && video.readyState >= 2) {
+      if (!cancelled && video && canvas && video.readyState >= 2 && video.currentTime !== lastVideoTime) {
+        lastVideoTime = video.currentTime;
         recordCameraFrame(performance.now());
         if (
           canvas.width !== video.videoWidth ||
@@ -59,7 +63,14 @@ export default function HandTrackingOverlay({
 
         const context = canvas.getContext("2d");
         const inferenceStartedAt = performance.now();
-        const result = handLandmarker?.detectForVideo(video, timestamp);
+        let result;
+        try {
+          result = handLandmarker?.detectForVideo(video, timestamp);
+        } catch {
+          onTrackingFailure?.();
+          setStatus("Tracking failed. Reload to retry.");
+          return;
+        }
         if (result) {
           recordHandInference(performance.now() - inferenceStartedAt);
         }
@@ -76,7 +87,7 @@ export default function HandTrackingOverlay({
           );
         }
 
-        onLandmarks?.(result?.landmarks ?? []);
+        if (result) onLandmarks?.(result.landmarks);
 
         if (result && result.landmarks.length !== lastHandCount) {
           lastHandCount = result.landmarks.length;
@@ -133,7 +144,8 @@ export default function HandTrackingOverlay({
         animationFrame = requestAnimationFrame(processFrame);
       } catch (error) {
         console.error("Unable to initialize MediaPipe hand tracking", error);
-        setStatus("MediaPipe unavailable");
+        setStatus("MediaPipe unavailable. Reload to retry.");
+        onTrackingFailure?.();
       }
     };
 
@@ -144,7 +156,7 @@ export default function HandTrackingOverlay({
       cancelAnimationFrame(animationFrame);
       handLandmarker?.close();
     };
-  }, [onLandmarks, videoRef]);
+  }, [onLandmarks, onTrackingFailure, videoRef]);
 
   return (
     <>
