@@ -74,6 +74,7 @@ beforeEach(async () => {
     "HTMLCanvasElement",
     "HTMLVideoElement",
     "HTMLMediaElement",
+    "getComputedStyle",
   ])
     vi.stubGlobal(key, Reflect.get(dom.window, key));
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -94,9 +95,17 @@ beforeEach(async () => {
       }
     },
   );
-  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
-    drawImage: vi.fn(),
-  } as unknown as CanvasRenderingContext2D);
+  const contextMethods = ["clearRect", "drawImage", "beginPath", "moveTo",
+    "lineTo", "closePath", "fill", "stroke", "fillText", "fillRect",
+    "strokeRect", "putImageData", "save", "restore", "scale", "setLineDash"];
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+    function (this: HTMLCanvasElement) {
+      return Object.assign(
+        Object.fromEntries(contextMethods.map((name) => [name, vi.fn()])),
+        { canvas: this },
+      ) as unknown as CanvasRenderingContext2D;
+    },
+  );
   vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockReturnValue(
     "data:image/png;base64,fixture",
   );
