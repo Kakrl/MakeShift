@@ -37,7 +37,7 @@ export interface ContactTechniques {
 // Change these independently to debug either technique. Key overlap is required.
 // Both false isolates key overlap for debugging, without knuckles or shadows.
 export const CONTACT_TECHNIQUES: Readonly<ContactTechniques> = {
-  knuckles: false,
+  knuckles: true,
   shadows: true,
 };
 

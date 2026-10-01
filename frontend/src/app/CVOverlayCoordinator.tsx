@@ -16,6 +16,8 @@ import type { PersistedDepthCalibration } from "../cv/depthCalibration";
 
 // Set to true to show CV diagnostics and shadow previews.
 const SHOW_VISUAL_DEBUG = true;
+// Visualize the detected piano from live markers before calibration is saved.
+const DEBUG_SHOW_SHEET_WITHOUT_CALIBRATION = true;
 
 const MarkerTrackingOverlay = dynamic(
   () => import("./MarkerTrackingOverlay"),
@@ -88,6 +90,7 @@ export default function CVOverlayCoordinator({
         hands={hands}
         depthCalibration={depthCalibration}
         showVisualDebug={SHOW_VISUAL_DEBUG}
+        debugShowSheetWithoutCalibration={DEBUG_SHOW_SHEET_WITHOUT_CALIBRATION}
         activePitches={activePitches}
         onKeyTransitions={handleKeyTransitions}
         trackingEnabled={enabled}

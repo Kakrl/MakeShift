@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCamera } from "./CameraContext";
-import { cameraSignature, loadCalibration, markerCorners, MARKER_CHECK_INTERVAL_MS } from "../cv/calibration";
+import { cameraSignature, loadCalibration, markerCorners, MARKER_ACQUIRE_INTERVAL_MS, MARKER_CHECK_INTERVAL_MS } from "../cv/calibration";
 import {
   getWhiteKeyPolygons,
   PIANO_CORNERS,
@@ -124,6 +124,7 @@ export default function MarkerTrackingOverlay({
   onCalibrationObservation,
   activePitches,
   showVisualDebug = false,
+  debugShowSheetWithoutCalibration = false,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   fingertips: readonly Fingertip[];
@@ -133,6 +134,7 @@ export default function MarkerTrackingOverlay({
   onKeyTransitions?: (pressed: readonly number[], released: readonly number[]) => void;
   trackingEnabled?: boolean;
   showVisualDebug?: boolean;
+  debugShowSheetWithoutCalibration?: boolean;
   onCalibrationObservation: (saved: unknown, camera: ReturnType<typeof cameraSignature>, corners: Point[] | null) => boolean;
 }) {
   const { stream, cameraReady } = useCamera();
@@ -154,6 +156,9 @@ export default function MarkerTrackingOverlay({
   const homographyRef = useRef<Homography | null>(null);
   const projectedPianoCornersRef = useRef<Point[] | null>(null);
   const projectedWhiteKeysRef = useRef<Point[][] | null>(null);
+  const displayPianoCornersRef = useRef<Point[] | null>(null);
+  const displayWhiteKeysRef = useRef<Point[][] | null>(null);
+  const markerDetectionRef = useRef<MarkerDetectionResult | null>(null);
   const previousKeysRef = useRef<Set<number>>(new Set());
   const previousHighlightedKeysRef = useRef<Set<number>>(new Set());
   const trackingEnabledRef = useRef(false);
@@ -388,7 +393,11 @@ export default function MarkerTrackingOverlay({
               }
             }
 
-            if (time - lastDetectionTime >= MARKER_CHECK_INTERVAL_MS) {
+            const markerInterval =
+              markerDetectionRef.current?.missingIds.length === 0
+                ? MARKER_CHECK_INTERVAL_MS
+                : MARKER_ACQUIRE_INTERVAL_MS;
+            if (time - lastDetectionTime >= markerInterval) {
               const context = processingCanvas.getContext("2d");
               if (context && detector) {
                 context.drawImage(
@@ -405,8 +414,10 @@ export default function MarkerTrackingOverlay({
                     performance.now() - detectionStartedAt,
                     detection.missingIds.length === 0,
                   );
+                  markerDetectionRef.current = detection;
                   setMarkerDetection(detection);
                 } catch {
+                  markerDetectionRef.current = null;
                   setMarkerDetection(null);
                 }
                 lastDetectionTime = time;
@@ -415,6 +426,7 @@ export default function MarkerTrackingOverlay({
           }
         }
         if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) {
+          markerDetectionRef.current = null;
           setMarkerDetection(null);
           lastDetectionTime = -Infinity;
         }
@@ -446,57 +458,76 @@ export default function MarkerTrackingOverlay({
     const camera = cameraReady ? cameraSignature(stream, videoRef.current) : null;
     const corners = camera && markerDetection ? markerCorners(markerDetection, camera) : null;
     const saved = loadCalibration();
+
+    let homography: Homography | null = null;
+    let projectedPianoCorners: Point[] | null = null;
+    let projectedWhiteKeys: Point[][] | null = null;
+    if (markerDetection?.missingIds.length === 0) {
+      const markerCenters = new Map(
+        markerDetection.observations.map((observation) => [
+          observation.id,
+          observation.center,
+        ]),
+      );
+      const markerPoints = [0, 1, 2, 3].map((id) => markerCenters.get(id));
+      if (markerPoints.every((point): point is Point => point !== undefined)) {
+        homography = computeHomography(PAGE_CORNERS, markerPoints);
+      }
+      if (homography) {
+        const piano = PIANO_CORNERS.map((corner) =>
+          projectPoint(homography!, corner),
+        );
+        const keys = getWhiteKeyPolygons().map((key) =>
+          key.map((corner) => projectPoint(homography!, corner)),
+        );
+        if (
+          piano.every((corner): corner is Point => corner !== null) &&
+          keys.every((key) => key.every((corner) => corner !== null))
+        ) {
+          projectedPianoCorners = piano;
+          projectedWhiteKeys = keys as Point[][];
+        } else {
+          homography = null;
+        }
+      }
+    }
+
     const valid = onCalibrationObservation(saved, camera, corners);
+    if (
+      (valid || debugShowSheetWithoutCalibration) &&
+      projectedPianoCorners &&
+      projectedWhiteKeys
+    ) {
+      displayPianoCornersRef.current = projectedPianoCorners;
+      displayWhiteKeysRef.current = projectedWhiteKeys;
+    }
     if (!valid) {
       if (previousKeysRef.current.size) onKeyTransitions?.([], [...previousKeysRef.current]);
       previousKeysRef.current = new Set();
-      projectedPianoCornersRef.current = null;
-      projectedWhiteKeysRef.current = null;
+      if (
+        debugShowSheetWithoutCalibration &&
+        homography &&
+        projectedPianoCorners &&
+        projectedWhiteKeys
+      ) {
+        // The debug switch enables marker-derived overlap visualization only;
+        // session readiness still gates note dispatch in syncContactKeys.
+        homographyRef.current = homography;
+        projectedPianoCornersRef.current = projectedPianoCorners;
+        projectedWhiteKeysRef.current = projectedWhiteKeys;
+      } else {
+        homographyRef.current = null;
+        projectedPianoCornersRef.current = null;
+        projectedWhiteKeysRef.current = null;
+      }
       return;
     }
-    if (!markerDetection) return;
-
-    const markerCenters = new Map(
-      markerDetection.observations.map((observation) => [
-        observation.id,
-        observation.center,
-      ]),
-    );
-    const topLeft = markerCenters.get(0);
-    const topRight = markerCenters.get(1);
-    const bottomRight = markerCenters.get(2);
-    const bottomLeft = markerCenters.get(3);
-
-    if (!topLeft || !topRight || !bottomRight || !bottomLeft) return;
-
-    const homography = computeHomography(PAGE_CORNERS, [
-      topLeft,
-      topRight,
-      bottomRight,
-      bottomLeft,
-    ]);
-    if (!homography) return;
-
-    const projectedPianoCorners = PIANO_CORNERS.map((corner) =>
-      projectPoint(homography, corner),
-    ).filter((corner): corner is Point => corner !== null);
-    const projectedWhiteKeys = getWhiteKeyPolygons().map((key) =>
-      key
-        .map((corner) => projectPoint(homography, corner))
-        .filter((corner): corner is Point => corner !== null),
-    );
-
-    if (
-      projectedPianoCorners.length !== PIANO_CORNERS.length ||
-      !projectedWhiteKeys.every((key) => key.length === 4)
-    ) {
-      return;
-    }
+    if (!homography || !projectedPianoCorners || !projectedWhiteKeys) return;
 
     homographyRef.current = homography;
     projectedPianoCornersRef.current = projectedPianoCorners;
     projectedWhiteKeysRef.current = projectedWhiteKeys;
-  }, [markerDetection, stream, cameraReady, videoRef, onCalibrationObservation, onKeyTransitions]);
+  }, [markerDetection, stream, cameraReady, videoRef, onCalibrationObservation, onKeyTransitions, debugShowSheetWithoutCalibration]);
 
   useEffect(() => {
     const inverseHomography = homographyRef.current
@@ -598,6 +629,12 @@ export default function MarkerTrackingOverlay({
 
     context.clearRect(0, 0, overlay.width, overlay.height);
 
+    const colors = getComputedStyle(document.documentElement);
+    const accent = colors.getPropertyValue("--color-accent").trim();
+    const ink = colors.getPropertyValue("--color-ink").trim();
+    const danger = colors.getPropertyValue("--color-danger").trim();
+    const white = colors.getPropertyValue("--color-white").trim();
+
     context.lineWidth = 4;
     context.font = "bold 24px Arial";
     context.textBaseline = "bottom";
@@ -620,8 +657,8 @@ export default function MarkerTrackingOverlay({
         );
       });
 
-    const projectedPianoCorners = projectedPianoCornersRef.current;
-    const projectedWhiteKeys = projectedWhiteKeysRef.current;
+    const projectedPianoCorners = displayPianoCornersRef.current;
+    const projectedWhiteKeys = displayWhiteKeysRef.current;
 
     if (projectedPianoCorners && projectedWhiteKeys) {
       context.beginPath();
@@ -630,22 +667,24 @@ export default function MarkerTrackingOverlay({
         else context.lineTo(corner.x, corner.y);
       });
       context.closePath();
-      context.fillStyle = "rgba(255, 255, 255, 0.18)";
-      context.strokeStyle = "#ffd60a";
-      context.lineWidth = 6;
+      context.fillStyle = white;
+      context.globalAlpha = 0.12;
       context.fill();
+      context.globalAlpha = 1;
+      context.strokeStyle = accent;
+      context.lineWidth = 4;
       context.stroke();
 
-      context.strokeStyle = "rgba(255, 255, 255, 0.9)";
       context.lineWidth = 3;
       const collidedKeys = new Set(highlightedKeyIndexes);
 
       projectedWhiteKeys.forEach((key, index) => {
         const pitch = keyIndexToMidi(index);
-        const isPlaying =
-          trackingEnabled && pitch !== null && activePitches.has(pitch);
-        if (collidedKeys.has(index) || isPlaying) pressWhiteKey(context, key);
-        else releaseWhiteKey(context, key);
+        const isPlaying = pitch !== null && activePitches.has(pitch);
+        const isPressed = collidedKeys.has(index) || isPlaying;
+        context.strokeStyle = isPressed ? danger : ink;
+        if (isPressed) pressWhiteKey(context, key, danger);
+        else releaseWhiteKey(context, key, white);
       });
 
       if (
@@ -735,6 +774,8 @@ export default function MarkerTrackingOverlay({
     markerDetection,
     shadowPreviewFinger,
     videoRef,
+    cameraReady,
+    stream,
     trackingEnabled,
     activePitches
   ]);

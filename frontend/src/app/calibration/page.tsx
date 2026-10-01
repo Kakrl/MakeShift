@@ -20,7 +20,7 @@ import { MarkerDetector } from "../../cv/markerDetector";
 import { getWhiteKeyPolygons, PIANO_CORNERS } from "../../cv/keyboardGeometry";
 import { computeHomography, projectPoint } from "../../cv/homography";
 import type { Homography } from "../../cv/homography";
-import type { Point } from "../../cv/types";
+import type { MarkerDetectionResult, Point } from "../../cv/types";
 import {
   LIGHTING_MESSAGES,
   MAX_BRIGHTNESS,
@@ -29,7 +29,7 @@ import {
   type LightingReading,
 } from "../lighting";
 
-import { cameraSignature, markerCorners, compatibleCalibration, validateCalibration, saveCalibration,
+import { cameraSignature, markerCorners, compatibleCalibration, validateCalibration, saveCalibration, MARKER_ACQUIRE_INTERVAL_MS, MARKER_CHECK_INTERVAL_MS,
   validSamples, CURRENT_LAYOUT, SHEET_ID, type CalibrationResult, type LandmarkSample } from "../../cv/calibration";
 const TOTAL_STEPS = 5;
 
@@ -111,6 +111,8 @@ export default function Calibration() {
   const [depthCaptureMessage, setDepthCaptureMessage] = useState<string | null>(null);
   const [depthCaptureBusy, setDepthCaptureBusy] = useState(false);
   const [sheetDetected, setSheetDetected] = useState(false);
+  const [markerDetection, setMarkerDetection] =
+    useState<MarkerDetectionResult | null>(null);
   const [sheetGeometry, setSheetGeometry] = useState<{
     pianoCorners: Point[];
     whiteKeys: Point[][];
@@ -136,7 +138,6 @@ export default function Calibration() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sheetDetectionCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const sheetOverlayCanvasRef = useRef<HTMLCanvasElement>(null);
-  const sheetGeometryLockedRef = useRef(false);
   const { stream, cameraReady } = useCamera();
   const brightnessCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const depthCollectorRef = useRef(new DepthCalibrationCollector());
@@ -410,6 +411,10 @@ export default function Calibration() {
   useEffect(() => {
     if (step !== 3 || !cameraReady || !frameReady) return;
 
+    setSheetDetected(false);
+    setMarkerDetection(null);
+    setSheetGeometry(null);
+    setCorners(null);
     let cancelled = false;
     let detector: MarkerDetector | null = null;
     let timeout: number | undefined;
@@ -419,6 +424,7 @@ export default function Calibration() {
 
     const checkSheet = () => {
       if (cancelled || !detector) return;
+      let nextCheckInterval = MARKER_ACQUIRE_INTERVAL_MS;
       const video = videoRef.current;
       if (video && video.videoWidth > 0 && video.videoHeight > 0) {
         canvas.width = video.videoWidth;
@@ -427,9 +433,9 @@ export default function Calibration() {
         if (context) {
           context.drawImage(video, 0, 0, canvas.width, canvas.height);
           const detection = detector.detect(canvas);
-          if (detection.missingIds.length !== 0) {
-            if (!sheetGeometryLockedRef.current) setSheetDetected(false);
-          } else {
+          setMarkerDetection(detection);
+          if (detection.missingIds.length === 0) {
+            nextCheckInterval = MARKER_CHECK_INTERVAL_MS;
             const markerCenters = new Map(
               detection.observations.map((observation) => [
                 observation.id,
@@ -457,21 +463,25 @@ export default function Calibration() {
                   key.every((corner): corner is Point => corner !== null),
                 )
               ) {
-                setSheetDetected(true);
-                if (!sheetGeometryLockedRef.current) {
+                const camera = cameraSignature(stream, video);
+                const observedCorners = camera
+                  ? markerCorners(detection, camera)
+                  : null;
+                if (observedCorners) {
+                  setCorners(observedCorners);
+                  setSheetDetected(true);
                   setSheetGeometry({
                     pianoCorners,
                     whiteKeys,
                     homography,
                   });
-                  sheetGeometryLockedRef.current = true;
                 }
               }
             }
           }
         }
       }
-      timeout = window.setTimeout(checkSheet, 250);
+      timeout = window.setTimeout(checkSheet, nextCheckInterval);
     };
 
     MarkerDetector.create()
@@ -492,12 +502,16 @@ export default function Calibration() {
       if (timeout !== undefined) window.clearTimeout(timeout);
       detector?.dispose();
     };
-  }, [cameraReady, frameReady, step]);
+  }, [cameraReady, frameReady, step, stream]);
 
   useEffect(() => {
     const canvas = sheetOverlayCanvasRef.current;
     const video = videoRef.current;
-    if (!canvas || !video || !sheetGeometry) {
+    if (!canvas || !video) {
+      return;
+    }
+
+    if (!sheetGeometry && !markerDetection) {
       canvas?.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
       return;
     }
@@ -517,32 +531,51 @@ export default function Calibration() {
         .trim() || "#ffffff";
 
     context.clearRect(0, 0, canvas.width, canvas.height);
-    context.lineWidth = 3;
-    context.strokeStyle = accent;
-    context.fillStyle = "rgba(255, 255, 255, 0.18)";
-    context.beginPath();
-    sheetGeometry.pianoCorners.forEach((corner, index) => {
-      if (index === 0) context.moveTo(corner.x, corner.y);
-      else context.lineTo(corner.x, corner.y);
-    });
-    context.closePath();
-    context.fill();
-    context.stroke();
-
-    context.lineWidth = 1.5;
-    context.strokeStyle = accent;
-    context.fillStyle = `${white}99`;
-    sheetGeometry.whiteKeys.forEach((key) => {
+    if (sheetGeometry) {
+      context.lineWidth = 3;
+      context.strokeStyle = accent;
       context.beginPath();
-      key.forEach((corner, index) => {
+      sheetGeometry.pianoCorners.forEach((corner, index) => {
         if (index === 0) context.moveTo(corner.x, corner.y);
         else context.lineTo(corner.x, corner.y);
       });
       context.closePath();
-      context.fill();
       context.stroke();
-    });
-  }, [frameReady, sheetGeometry, step]);
+
+      context.lineWidth = 1.5;
+      context.strokeStyle = accent;
+      context.fillStyle = white;
+      sheetGeometry.whiteKeys.forEach((key) => {
+        context.beginPath();
+        key.forEach((corner, index) => {
+          if (index === 0) context.moveTo(corner.x, corner.y);
+          else context.lineTo(corner.x, corner.y);
+        });
+        context.closePath();
+        context.globalAlpha = 0.32;
+        context.fill();
+        context.globalAlpha = 1;
+        context.stroke();
+      });
+    }
+
+    if (step === 3 && markerDetection) {
+      context.lineWidth = 3;
+      context.strokeStyle = accent;
+      context.fillStyle = accent;
+      context.font = "bold 24px sans-serif";
+      for (const marker of markerDetection.observations) {
+        context.beginPath();
+        marker.corners.forEach((corner, index) => {
+          if (index === 0) context.moveTo(corner.x, corner.y);
+          else context.lineTo(corner.x, corner.y);
+        });
+        context.closePath();
+        context.stroke();
+        context.fillText(`ID ${marker.id}`, marker.center.x + 8, marker.center.y);
+      }
+    }
+  }, [frameReady, markerDetection, sheetGeometry, step]);
 
   // Single countdown tick — behaviour at 0 differs per step
   // The timer schedules a real capture; it never establishes success itself.
@@ -622,7 +655,6 @@ export default function Calibration() {
   const lightingOk = lighting?.verdict === "ok";
 
   const canAdvance = () => {
-    if (step === 3) return corners !== null;
     if (step === 2) return lightingOk; // #16
     if (step === 3) return sheetDetected;
     if (step === 4) return fingersShown;
@@ -647,16 +679,7 @@ export default function Calibration() {
 
   // ── Camera overlays per step ──────────────────────────────────────────────
   const renderCameraOverlay = () => {
-    // Completion screen — same paper outline as steps 3-5
-    if (isComplete) {
-      return (
-        <div className="absolute pointer-events-none" style={{ bottom: "18%", left: "10%", right: "10%" }}>
-          <div className="relative w-full" style={{ height: 60, transform: "skewX(-8deg)" }}>
-            <div className="absolute inset-0 border-2 border-danger bg-white/90" />
-          </div>
-        </div>
-      );
-    }
+    if (isComplete) return null;
 
     if (step === 1) return null;
 
@@ -707,15 +730,6 @@ export default function Calibration() {
             </div>
           )}
 
-          {/* Paper outline */}
-          <div className="absolute pointer-events-none" style={{ bottom: "18%", left: "10%", right: "10%" }}>
-            <div className="relative w-full" style={{ height: 60, transform: "skewX(-8deg)" }}>
-              <div className="absolute inset-0 border-2 border-danger bg-white/90" />
-              {([{ top: -6, left: -6 }, { top: -6, right: -6 }, { bottom: -6, left: -6 }, { bottom: -6, right: -6 }] as React.CSSProperties[]).map((pos, i) => (
-                <div key={i} className="absolute w-3 h-3 rounded-full bg-danger" style={pos} />
-              ))}
-            </div>
-          </div>
           {/* Marker-detection status */}
           {!paperError && sheetDetected && (
             <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-success-strong px-4 py-2 rounded-full pointer-events-none">
@@ -725,8 +739,12 @@ export default function Calibration() {
           )}
 
           {!paperError && !sheetDetected && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-surface-dark px-5 py-2 rounded-full pointer-events-none">
-              <p className="text-white text-[15px] font-sans">Show all four markers, then click Check paper</p>
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-surface-dark px-5 py-2 rounded-full pointer-events-none text-center">
+              <p className="text-white text-[15px] font-sans">
+                Detected: {markerDetection?.observations.map(({ id }) => id).join(", ") || "none"}
+                {" · "}
+                Missing: {markerDetection?.missingIds.join(", ") || "0, 1, 2, 3"}
+              </p>
             </div>
           )}
           {/* Help button */}
@@ -742,16 +760,6 @@ export default function Calibration() {
       const handNotDetected = showingImage && !fingersShown;
       return (
         <>
-          {/* Paper + hover dots */}
-          <div className="absolute pointer-events-none" style={{ bottom: "18%", left: "10%", right: "10%" }}>
-            <div className="relative w-full" style={{ height: 60, transform: "skewX(-8deg)" }}>
-              <div className="absolute inset-0 border-2 border-danger bg-white/90" />
-              {[20, 28, 36, 44, 50, 58, 66, 72, 80, 88].map((pct, i) => (
-                <div key={i} className="absolute w-2 h-2 rounded-full bg-danger" style={{ bottom: "100%", left: `${pct}%`, marginBottom: 4 + (i % 3) * 6 }} />
-              ))}
-            </div>
-          </div>
-
           {/* Instruction pill — only before countdown starts */}
           {!hasStarted && (
             <div className="absolute top-[35%] left-1/2 -translate-x-1/2 flex items-center gap-2 bg-surface-dark px-5 py-2 rounded-full pointer-events-none">
@@ -815,16 +823,6 @@ export default function Calibration() {
     if (step === 5) {
       return (
         <>
-          {/* Paper + fingertip dots on surface */}
-          <div className="absolute pointer-events-none" style={{ bottom: "18%", left: "10%", right: "10%" }}>
-            <div className="relative w-full" style={{ height: 60, transform: "skewX(-8deg)" }}>
-              <div className="absolute inset-0 border-2 border-danger bg-white/90" />
-              {[15, 22, 32, 42, 54, 62, 70, 78, 86, 92].map((pct, i) => (
-                <div key={i} className="absolute w-2 h-2 rounded-full bg-danger" style={{ top: "30%", left: `${pct}%` }} />
-              ))}
-            </div>
-          </div>
-
           {/* Instruction pill — before the first capture */}
           {!hasStarted && !step5Success && (
             <div className="absolute top-[35%] left-1/2 -translate-x-1/2 flex items-center gap-2 bg-surface-dark px-5 py-2 rounded-full pointer-events-none">
