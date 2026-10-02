@@ -41,6 +41,7 @@ tests/
 │   ├── browserAudio.test.ts      # production DSP offline rendering
 │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   ├── browserAudio.browser.mjs  # production browser graph check
+│   ├── cameraLayout.browser.mjs  # home camera feed 16:9 across viewports
 │   ├── homePage.test.ts              # home page modals and overlays (jsdom)
 │   ├── noteEvents.test.ts            # shared event validation, sessions and clocks
 │   ├── midiUtils.test.ts             # MIDI unit tests
@@ -71,6 +72,7 @@ No test implementation requires an exception to this layout.
 | Frontend unit (Vitest) | `cd frontend && npx vitest run` | `npm ci` in `frontend/` |
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
 | MIDI production download | `cd frontend && npm run test:midi-browser` | Running production server; Playwright and Edge; optional MAKE_SHIFT_URL / MIDI_BROWSER_CHANNEL |
+| Camera feed layout | `cd frontend && npm run test:layout-browser` | Running production server; Playwright bundled Chromium; optional MAKE_SHIFT_URL / LAYOUT_BROWSER_CHANNEL |
 | RCA automation | `node --test tests/automation/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
 
 ## Note-list recorder verification (issues #108 and #115)
@@ -616,6 +618,29 @@ Local Windows execution on 2026-09-29; fix implementation 45304f6, based on
 
 User baseline failure and automated fix are recorded separately in the
 [manual report](manual/2026-09-29_4.2.3.md); Carl Xu reported the export fix retest passed on 2026-09-29.
+## Camera feed layout verification (issue #156)
+
+Local execution on macOS, 2026-10-01, Node 26.8.1, Playwright bundled
+Chromium 151.0.7922.34, production build served by `next start`.
+
+- `npm run test:layout-browser` passed in 20 layouts: 1024x768, 1440x900,
+  1920x1080, 2560x1080 and 390x844, each in the default state, after a
+  recording finishes (Export and Delete visible), with the audio error alert,
+  and with both. The feed stayed 16:9 within 1%, inside its wrapper and the
+  viewport width; on `lg` it matched the calibration camera and about content
+  box sizes within 1 px. The session status line stayed above the feed and the
+  in-feed calibration message stayed inside the feed.
+- Feed sizes, the same in every state: 681x383 (1024x768), 1066x600
+  (1440x900), 1545x869 (1920x1080), 2185x1229 (2560x1080) and 358x201
+  (390x844). At 2560x1080 the feed, like the calibration camera, extends below
+  the viewport.
+- Regression check: the earlier fit-to-height layout gave 963x542 at
+  1920x1080, smaller than calibration's 1545x869, which this test rejects.
+- The completed take is seeded through Home's React hooks and the error through
+  Home's LiveSession, with guarded lookups like the MIDI export test. The test
+  does not use a physical camera or printed sheet. CI does not run it.
+- Source: [browser regression](frontend/cameraLayout.browser.mjs).
+
 ## PR #136 review verification
 
 Local Windows execution on 2026-09-29, Node 22.20.0, Vitest 4.1.11,
