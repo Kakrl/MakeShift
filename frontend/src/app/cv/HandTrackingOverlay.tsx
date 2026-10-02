@@ -2,33 +2,52 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
-import type { NormalizedLandmark } from "../../cv/collision";
+import type {
+  HandObservation,
+  NormalizedLandmark,
+} from "../../cv/collision";
 import {
+  pipelineMetrics,
+  acquireResource,
   recordCameraFrame,
   recordHandInference,
-} from "../../cv/performanceMetrics";
+} from "../../diagnostics/performanceMetrics";
 import { drawHandLandmarks } from "./handLandmarkDrawing";
+import { WASM_PATH as VISION_WASM_PATH } from "../useHandLandmarker";
 
-const VISION_WASM_PATH =
-  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm";
 
 export default function HandTrackingOverlay({
   videoRef,
+  onTrackingFailure,
   onLandmarks,
+  showVisualDebug = false,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
-  onLandmarks?: (hands: readonly (readonly NormalizedLandmark[])[]) => void;
+  onTrackingFailure?: () => void;
+  onLandmarks?: (hands: readonly HandObservation[]) => void;
+  showVisualDebug?: boolean;
 }) {
   const [status, setStatus] = useState("Loading MediaPipe…");
   const [handCount, setHandCount] = useState(0);
   const [fps, setFps] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const showVisualDebugRef = useRef(showVisualDebug);
+
+  useEffect(() => {
+    showVisualDebugRef.current = showVisualDebug;
+    if (!showVisualDebug) {
+      const canvas = canvasRef.current;
+      canvas?.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }, [showVisualDebug]);
 
   useEffect(() => {
     let cancelled = false;
     let animationFrame = 0;
     let handLandmarker: HandLandmarker | null = null;
+    let releaseModel: (() => void) | undefined;
     let lastHandCount = -1;
+    let lastVideoTime = -1;
     let fpsStartTimestamp = 0;
     let fpsFrameCount = 0;
 
@@ -38,7 +57,7 @@ export default function HandTrackingOverlay({
 
       if (fpsStartTimestamp === 0) fpsStartTimestamp = timestamp;
       fpsFrameCount += 1;
-      if (timestamp - fpsStartTimestamp >= 1000) {
+      if (showVisualDebugRef.current && timestamp - fpsStartTimestamp >= 1000) {
         setFps(
           Math.round(
             (fpsFrameCount * 1000) / (timestamp - fpsStartTimestamp),
@@ -48,8 +67,9 @@ export default function HandTrackingOverlay({
         fpsFrameCount = 0;
       }
 
-      if (!cancelled && video && canvas && video.readyState >= 2) {
-        recordCameraFrame(performance.now());
+      if (!cancelled && video && canvas && video.readyState >= 2 && video.currentTime !== lastVideoTime) {
+        lastVideoTime = video.currentTime;
+        if (pipelineMetrics.enabled) recordCameraFrame(performance.now());
         if (
           canvas.width !== video.videoWidth ||
           canvas.height !== video.videoHeight
@@ -58,10 +78,17 @@ export default function HandTrackingOverlay({
           canvas.height = video.videoHeight;
         }
 
-        const context = canvas.getContext("2d");
-        const inferenceStartedAt = performance.now();
-        const result = handLandmarker?.detectForVideo(video, timestamp);
-        if (result) {
+        const context = showVisualDebugRef.current ? canvas.getContext("2d") : null;
+        const inferenceStartedAt = pipelineMetrics.enabled ? performance.now() : null;
+        let result;
+        try {
+          result = handLandmarker?.detectForVideo(video, timestamp);
+        } catch {
+          onTrackingFailure?.();
+          setStatus("Tracking failed. Reload to retry.");
+          return;
+        }
+        if (result && inferenceStartedAt !== null) {
           recordHandInference(performance.now() - inferenceStartedAt);
         }
         if (context) {
@@ -77,9 +104,22 @@ export default function HandTrackingOverlay({
           );
         }
 
-        onLandmarks?.(result?.landmarks ?? []);
+        const hands: HandObservation[] = (result?.landmarks ?? []).map(
+          (landmarks, index) => {
+            const categoryName =
+              result?.handednesses[index]?.[0]?.categoryName;
+            return {
+              landmarks: landmarks as readonly NormalizedLandmark[],
+              handedness:
+                categoryName === "Right" || categoryName === "Left"
+                  ? categoryName
+                  : "Unknown",
+            };
+          },
+        );
+        onLandmarks?.(hands);
 
-        if (result && result.landmarks.length !== lastHandCount) {
+        if (showVisualDebugRef.current && result && result.landmarks.length !== lastHandCount) {
           lastHandCount = result.landmarks.length;
           setHandCount(lastHandCount);
         }
@@ -130,11 +170,13 @@ export default function HandTrackingOverlay({
         }
 
         handLandmarker = createdHandLandmarker;
+        releaseModel = acquireResource("handModels");
         setStatus(`MediaPipe ready (${delegate})`);
         animationFrame = requestAnimationFrame(processFrame);
       } catch (error) {
         console.error("Unable to initialize MediaPipe hand tracking", error);
-        setStatus("MediaPipe unavailable");
+        setStatus("MediaPipe unavailable. Reload to retry.");
+        onTrackingFailure?.();
       }
     };
 
@@ -144,8 +186,10 @@ export default function HandTrackingOverlay({
       cancelled = true;
       cancelAnimationFrame(animationFrame);
       handLandmarker?.close();
+      releaseModel?.();
+      pipelineMetrics.endFrameStream();
     };
-  }, [onLandmarks, videoRef]);
+  }, [onLandmarks, onTrackingFailure, videoRef]);
 
   return (
     <>
@@ -153,11 +197,13 @@ export default function HandTrackingOverlay({
         ref={canvasRef}
         className="pointer-events-none absolute inset-0 z-10 h-full w-full object-cover"
       />
-      <div className="absolute left-4 top-4 z-20 rounded bg-black/70 px-3 py-2 text-sm text-white">
-        {status} · Hands: {handCount}
-        <br />
-        FPS: {fps}
-      </div>
+      {showVisualDebug && (
+        <div className="absolute left-4 top-4 z-20 rounded bg-black/70 px-3 py-2 text-sm text-white">
+          {status} · Hands: {handCount}
+          <br />
+          FPS: {fps}
+        </div>
+      )}
     </>
   );
 }

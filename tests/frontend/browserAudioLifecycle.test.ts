@@ -1,3 +1,4 @@
+import { LiveSession } from "../../frontend/src/events/liveSession";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAudioSession } from "../../frontend/src/events/audioSession";
 import { BrowserAudio } from "../../frontend/src/app/audio/audioEngine";
@@ -333,4 +334,44 @@ describe("shared event audio adapter", () => {
       await audio.close();
     },
   );
+});
+
+
+it("live gate survives startup reset, retires on real audio suspension and requires a fresh session", async () => {
+  const audio = new BrowserAudio();
+  const gate = new LiveSession(audio, () => 100);
+  const detach = gate.attach();
+  const saved = {
+    version: 1, coordinates: "unmirrored-frame-pixels/marker-unit-square", sheet: "aruco-0-3-white-keys-v1",
+    camera: { deviceId: "camera", width: 1000, height: 1000, facingMode: "" },
+    layout: { octaves: 1, startingMidi: 48, whiteKeys: 8 },
+    corners: [{ x: 100, y: 100 }, { x: 900, y: 100 }, { x: 900, y: 900 }, { x: 100, y: 900 }],
+    contact: { model: "landmark-reference-v1", hover: [Array(21).fill({ x: 0.5, y: 0.4, z: 0 })],
+      rest: [Array(21).fill({ x: 0.5, y: 0.5, z: 0 })] },
+  };
+  try {
+    gate.observeCalibration(saved, saved.camera, saved.corners);
+    gate.observeTracking();
+    expect(await gate.prepare()).toBe(true);
+    const id = gate.play()!;
+    const event = { version: 1, type: "note-on", sessionId: id, sequence: 1,
+      timestampMs: 100, pressId: 1, pitch: 60, velocity: 0.8 };
+    expect(gate.receive(event)).toBe("accepted");
+    const node = Worklet.instances[0];
+    node.ack();
+    Context.instances[0].state = "suspended";
+    Context.instances[0].onstatechange?.();
+    expect(gate.status.state).toBe("interrupted");
+    expect(node.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ type: "reset" }));
+    expect(gate.receive(event)).toBe("stale");
+    expect(await gate.prepare()).toBe(true);
+    node.ack();
+    const next = gate.play()!;
+    expect(next).not.toBe(id);
+    expect(gate.receive(event)).toBe("stale");
+    expect(gate.receive({ ...event, sessionId: next })).toBe("accepted");
+  } finally {
+    detach();
+    await audio.close();
+  }
 });

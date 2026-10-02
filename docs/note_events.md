@@ -263,3 +263,19 @@ DSP and production browser smoke tests remain separate. See the
 mapping and [execution record](../tests/README.md#shared-event-verification-issue-86).
 No camera accuracy, physical latency, complete MIDI lifecycle or deployed
 cross-browser result is claimed.
+
+
+## Live readiness integration (#24)
+
+The home page now uses [LiveSession](live_session.md) to validate #87 calibration,
+track detector freshness, initialize audio from Enable audio or Record and retire notes on
+interruption. Its `receive` path uses the shared NoteSession contract before
+synchronous BrowserAudio dispatch. The current CV coordinator retains session and press identities around overlap
+transitions and uses named note methods; LiveSession supplies event envelopes
+and sequence numbers; contact
+classification and worker production remain #34/#37. The recorder and feedback consume accepted events after audio with observation
+timestamps and session/press identities. Recording start/resume snapshots held
+accepted presses without retriggering sound; Pause/Stop only close MIDI capture.
+See [one-octave integration](piano_integration.md); broader recording verification
+remains #88. See the state/timeout/recovery table
+and verification limits in the linked document.
