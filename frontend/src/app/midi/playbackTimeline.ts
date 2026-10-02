@@ -100,11 +100,13 @@ export function createPlaybackTimeline(
         )
       : position;
   }
+
   function cancelTimer() {
     clearTimeout(timer);
     timer = undefined;
     generation++;
   }
+
   function releaseNotes() {
     const tokens = [...active.values()];
     active.clear();
@@ -116,6 +118,7 @@ export function createPlaybackTimeline(
       }
     }
   }
+
   function pause() {
     if (state === "disposed") return;
     position = positionMs();
@@ -123,10 +126,12 @@ export function createPlaybackTimeline(
     cancelTimer();
     releaseNotes();
   }
+
   function fail(message: string) {
     error = message;
     pause();
   }
+
   const unsubscribe = audio.subscribeInvalidation(() => {
     // Initialization resets the transport too; no playback exists until it resolves.
     if (state === "playing")
@@ -147,6 +152,7 @@ export function createPlaybackTimeline(
     }
     active.set(index, token);
   }
+
   function tick() {
     if (state !== "playing") return;
     try {
@@ -185,6 +191,7 @@ export function createPlaybackTimeline(
       fail(cause instanceof Error ? cause.message : "Playback audio failed");
     }
   }
+
   function begin() {
     anchor = performance.now();
     state = "playing";
@@ -216,6 +223,7 @@ export function createPlaybackTimeline(
         error,
       };
     },
+
     async play(): Promise<boolean> {
       if (state === "disposed") return false;
       if (state === "playing") return true;
@@ -240,13 +248,16 @@ export function createPlaybackTimeline(
         return false;
       }
     },
+
     pause,
+
     stop() {
       if (state === "disposed") return;
       pause();
       position = 0;
       state = "stopped";
     },
+
     seek(milliseconds: number) {
       if (!Number.isFinite(milliseconds))
         throw new RangeError("Seek position must be finite");
@@ -256,6 +267,7 @@ export function createPlaybackTimeline(
       position = Math.max(0, Math.min(durationMs, milliseconds));
       if (resume) begin();
     },
+
     setPlaybackRate(value: number) {
       if (!Number.isFinite(value) || value < 0.25 || value > 4)
         throw new RangeError("Playback rate must be between 0.25 and 4");
@@ -268,6 +280,7 @@ export function createPlaybackTimeline(
         tick();
       }
     },
+
     dispose() {
       if (state === "disposed") return;
       pause();
