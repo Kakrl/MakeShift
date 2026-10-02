@@ -122,6 +122,19 @@ describe("writeStored", () => {
     expect(items.size).toBe(0);
   });
 
+  it("rejects values that do not serialize to JSON", () => {
+    const { access, items } = memoryStorage();
+    for (const value of [undefined, () => 1, Symbol("x")])
+      expect(writeStored("settings", 1, value, access)).toEqual({
+        ok: false,
+        reason: "error",
+      });
+    expect(items.size).toBe(0);
+    expect(readStored("settings", 1, DEFAULT, isSettings, access)).toBe(
+      DEFAULT,
+    );
+  });
+
   it("recognizes DOMException quota errors from native and jsdom realms", () => {
     const { window } = new JSDOM("", { url: "http://localhost" });
     for (const error of [

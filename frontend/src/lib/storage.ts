@@ -59,7 +59,9 @@ export function writeStored(
   try {
     const area = storage();
     if (!area) return { ok: false, reason: "unavailable" };
-    area.setItem(key, JSON.stringify(value));
+    const serialized: string | undefined = JSON.stringify(value);
+    if (serialized === undefined) return { ok: false, reason: "error" };
+    area.setItem(key, serialized);
     return { ok: true };
   } catch (error) {
     return { ok: false, reason: quotaExceeded(error) ? "quota" : "error" };
