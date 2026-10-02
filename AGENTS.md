@@ -49,6 +49,7 @@ it separates existing behavior from planned work and links implementation issues
 | `frontend/src/diagnostics/` | Shared bounded metrics and explicit camera-video registry |
 | `frontend/src/events/` | Shared browser note schema, clocks, session dispatch and audio adapter |
 | `frontend/src/cv/` | ArUco marker detection, homography, keyboard geometry, prototype shadow worker and combined per-finger contact state |
+| `frontend/src/lib/` | Shared browser utilities, including versioned `localStorage` access |
 | `frontend/src/app/api/` | Server routes; `/api/health` checks the recordings database |
 | `frontend/src/server/` | Server-only Supabase access (never import from client code) |
 | `supabase/` | Supabase CLI config and SQL migrations for shared recordings |
