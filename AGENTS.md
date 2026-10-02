@@ -46,6 +46,7 @@ it separates existing behavior from planned work and links implementation issues
 | `frontend/` | Next.js web client: camera, calibration, CV overlays, MIDI utils |
 | `frontend/public/audio/` | Static AudioWorklet and shared fixed-voice DSP |
 | `frontend/src/app/audio/` | Browser audio owner and user-triggered sound check |
+| `frontend/src/diagnostics/` | Shared bounded metrics and explicit camera-video registry |
 | `frontend/src/events/` | Shared browser note schema, clocks, session dispatch and audio adapter |
 | `frontend/src/cv/` | ArUco marker detection, homography, keyboard geometry, prototype shadow worker and combined per-finger contact state |
 | `frontend/src/app/api/` | Server routes; `/api/health` checks the recordings database |

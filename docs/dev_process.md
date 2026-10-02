@@ -31,6 +31,7 @@ MakeShift/
 ├── docs/
 │   ├── architecture.md              # browser target, tooling, delivery boundaries
 │   ├── rvtm_browser_addendum.md      # browser requirement/test reconciliation
+│   ├── performance.md              # bounded pipeline metrics, clocks and profiling
 │   ├── browser_audio.md             # browser DSP, transport and verification
 │   ├── audio.md                     # polyphony and voice stealing
 │   ├── audio_events.md              # native audio event queue contract
@@ -59,6 +60,7 @@ MakeShift/
 │   │   │   ├── documentation/
 │   │   │   ├── midi/                # MIDI recording utils
 │   │   │   ├── tutorial/
+│   │   │   ├── PipelineDiagnostics.tsx # opt-in metrics and report export
 │   │   │   ├── CameraContext.tsx
 │   │   │   ├── CameraStatusOverlay.tsx
 │   │   │   ├── MarkerTrackingOverlay.tsx
@@ -95,6 +97,9 @@ MakeShift/
 │   ├── automation/
 │   │   └── rca.test.cjs             # RCA parser, validation, publication tests
 │   ├── frontend/
+│   │   ├── performanceMetrics.test.ts # bounded aggregation, clocks and resource counts
+│   │   ├── performanceResources.test.tsx # camera provider lifecycle accounting
+│   │   ├── performanceMetrics.browser.mjs # profiles and paired overhead
 │   │   ├── browserAudio.test.ts      # production DSP offline rendering
 │   │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   │   ├── browserAudio.browser.mjs  # production browser graph check

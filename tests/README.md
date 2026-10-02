@@ -38,6 +38,9 @@ tests/
 ├── automation/
 │   └── rca.test.cjs                  # repository-process regression tests
 ├── frontend/
+│   ├── performanceMetrics.test.ts # aggregation, clocks, bounds and overhead
+│   ├── performanceResources.test.tsx # CameraProvider lifecycle
+│   ├── performanceMetrics.browser.mjs # profiles and paired overhead
 │   ├── browserAudio.test.ts      # production DSP offline rendering
 │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   ├── browserAudio.browser.mjs  # production browser graph check
@@ -76,6 +79,7 @@ No test implementation requires an exception to this layout.
 | Deployment smoke | `cd frontend && npm run test:deployment` | Production server or Vercel URL in `MAKE_SHIFT_URL`; `npx playwright install chromium`; network for jsDelivr WASM; `EXPECT_DATABASE=ok` requires Supabase secrets (`infisical run`) |
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
 | MIDI production download | `cd frontend && npm run test:midi-browser` | Running production server; Playwright and Edge; optional MAKE_SHIFT_URL / MIDI_BROWSER_CHANNEL |
+| Pipeline profiling | `cd frontend && npm run test:performance-browser` | Production server on port 3100, Playwright + Edge; synthetic camera; local only |
 | Camera feed layout | `cd frontend && npm run test:layout-browser` | Running production server; Playwright bundled Chromium; optional MAKE_SHIFT_URL / LAYOUT_BROWSER_CHANNEL |
 | RCA automation | `node --test tests/automation/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
 
@@ -366,7 +370,7 @@ defect report is filed.
 | D4 | Medium | CI | The C++ test path filter `'CMakeLists.txt'` only matches a root-level file. A PR that only changes `backend/CMakeLists.txt` skips the C++ build and tests. It should be `'**/CMakeLists.txt'` | `.github/workflows/testing.yml:29` | | Open |
 | D5 | Medium | Tests | `AudioEngineTest.StreamStartsAndStops` and `MultipleStartStopCycles` `return` early when there is no audio device, so on CI they report PASS without testing anything. Use `GTEST_SKIP()` so the skip shows in results | `tests/audio/test_audio.cpp:24-27`, `:35-38` | | Open |
 | D6 | Medium | Calibration | Versioned geometry/camera/layout and hover/rest inputs replace the boolean; live compatibility gates reuse. Manual calibration checklist passed (Carl Xu, user-reported 2026-09-28). | `frontend/src/cv/calibration.ts`, `frontend/src/app/calibration/page.tsx` | [#87](https://github.com/Kakrl/MakeShift/issues/87) | Manual verification passed (user-reported); review/merge pending |
-| D7 | Medium | CV / performance | Debug `console.log` calls run in the marker detection `requestAnimationFrame` loop (about 60 per second) and on every detection update. That adds main-thread work that counts against requirement 2.3 (latency) once D1 is fixed | `frontend/src/app/MarkerTrackingOverlay.tsx:49,95,102,111,121`; `frontend/src/cv/markerDetector.ts:103,105,119` | | Open |
+| D7 | Medium | CV / performance | Remaining automatic CV telemetry and detector debug logging at #140 base; older per-frame logs were already removed upstream. #38 replaces telemetry with opt-in bounded reports and removes debug logging. | `frontend/src/diagnostics/performanceMetrics.ts`, `frontend/src/cv/markerDetector.ts`; [diagnostics](../docs/performance.md) | [#149](https://github.com/Kakrl/MakeShift/issues/149) | Fixed on feature/38-pipeline-metrics; verified locally, merge pending |
 | D8 | Medium | Audio | Calling `AudioEngine::startStream()` twice overwrites `stream` without closing it, which leaks the first PortAudio stream. `Pa_GetDeviceInfo` is dereferenced without a null check | `backend/src/audio/AudioEngine.cpp:89-119` | | Open |
 | D9 | Medium | Audio / Python | Importing `backend.src.audio` builds an `AudioEngine` and calls `Pa_Initialize()` as a side effect. Any import (including from pytest) touches audio hardware and fails if the extension is not built. The example in `docs/audio_events.md` creates a second engine | `backend/src/audio/__init__.py:3-5` | | Open |
 | D10 | Low | CV | `HandTrackingOverlay` loads MediaPipe WASM from `@latest`, the version mismatch that #12 fixed in `useHandLandmarker`. The component isn't used right now | `frontend/src/app/cv/HandTrackingOverlay.tsx:7-8` | | Fixed on `feature/116-89-supabase-vercel` (#89): WASM path reuses the pinned version |
@@ -622,6 +626,93 @@ Local Windows execution on 2026-09-29; fix implementation 45304f6, based on
 
 User baseline failure and automated fix are recorded separately in the
 [manual report](manual/2026-09-29_4.2.3.md); Carl Xu reported the export fix retest passed on 2026-09-29.
+## Pipeline diagnostics verification (issue #38)
+
+Executed locally on 2026-09-29 against implementation commit
+`a482a18d56fc3713b4725313054866f37b89abc2`, Windows / Node 22.20.0,
+Next.js 16.2.3, Vitest 4.1.11 and Playwright 1.62.1.
+
+- All **228 tests in 11 files passed**, including 13 metrics cases and two
+  real CameraProvider/mocked-media lifecycle cases. Metrics cases cover
+  disabled logging/collection, full-run aggregates versus bounded rolling
+  quantiles, invalid and unavailable values, positive/negative clock offsets,
+  fresh media-time polls versus actual presentation advances, dropped callback
+  gaps, stream resets, stop/restart, copied/bounded snapshots and metadata,
+  incompatible workload rejection, repeated resource release, async audio
+  closure and isolated paired overhead measurement.
+- TypeScript, production build, all 18 contrast pairs and whitespace checks
+  passed. Lint passed with the same five pre-existing home-page warnings.
+  Source scan found no debug log/info calls in CV/overlay paths.
+- `npm run test:performance-browser` passed in headless Edge **154.0.4258.37**.
+  Three audio enable/chord/stop + home CV + client navigation cycles completed,
+  every created browser AudioContext closed, and there were no page errors.
+  MediaPipe initialized with the GPU delegate in all three cycles. At the final
+  snapshot, audio contexts/worklet nodes/hand models/marker detectors were zero,
+  while the shared CameraProvider correctly retained one track. Worker count was
+  unavailable (not implemented). Unit tests separately checked provider teardown
+  stops tracks and does not double-decrement after an ended event.
+
+Representative synthetic profile: Intel Core i9-14900K, 64 GiB RAM, 32 reported
+logical cores, synthetic 1920x1080 camera reporting 20 FPS, headless audio.
+The app requested its normal camera defaults; no keyboard sheet, hands or
+calibration were supplied. Initial camera settings were unavailable because
+acquisition was still pending; export recorded the actual settings above.
+This is a **startup/navigation workload**, not steady intentional playing.
+The 29,120.8 ms run observed 785 processing polls, 266 presentation callbacks,
+20.028 delivered FPS, 38.809 processing polls/s and 57 missed callback
+presentations. Processing can revisit decoded frames and is not camera FPS.
+
+| Software metric | Samples | Whole-run mean ms | Recent p50 ms | Recent p95 ms | Whole-run max ms |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| Hand inference | 785 | 12.724 | 8.000 | 12.500 | 2607.200 |
+| Marker detection | 161 | 41.763 | 43.500 | 51.000 | 112.200 |
+| Presentation-to-callback age | 219 | 18.233 | 14.900 | 46.400 | 59.400 |
+| Video callback interval | 263 | 60.752 | 61.500 | 109.900 | 200.100 |
+
+p50/p95 use the latest 256 valid samples at most; negative/nonfinite intervals
+are rejected, so not every video callback supplies a valid frame-age sample.
+The cold inference maximum must not be represented as warm inference latency.
+Contact/collision, event delivery and worker transfer were unavailable in this
+uncalibrated fixture; no zero-time claim is made. No physical output was timed.
+JS heap snapshots ranged from 5,071,783 bytes at startup to 101,685,956 bytes at
+stop. Loading models and uncontrolled GC make this unsuitable as a leak verdict.
+Long sessions, native/GPU memory, other hardware and other browsers are unverified.
+
+Instrumentation overhead: six alternating 20,000-call hook pairs after warm-up
+reported an average increment of **0.00000917 ms/call**. This is close to timer
+resolution and excludes callback registration, caller clocks, snapshots and
+export. Matched warm-scene rAF trials (same synthetic input, four seconds each):
+
+| Diagnostics | rAF intervals | Mean interval ms | p95 interval ms |
+| :--- | ---: | ---: | ---: |
+| Off, first pair | 238 | 16.831 | 66.700 |
+| On, first pair | 187 | 21.628 | 77.200 |
+| On, reversed pair | 224 | 18.057 | 72.200 |
+| Off, reversed pair | 204 | 19.826 | 72.500 |
+
+Pair differences were +4.798 and -1.769 ms in mean interval. These short,
+variable trials do **not** establish negligible overhead or a physical latency
+pass. Keep diagnostics off for normal playing. The software implementation,
+profiling protocol, metric boundaries and reproduction commands are in
+[performance documentation](../docs/performance.md). Raw local reports are in
+ignored `frontend/test-results/performance/profile.json` and `overhead.json`.
+Inventory 2.3.2 remains partial; physical stage/render and worker tests remain
+pending. Neither Vitest nor this profiling runner runs in CI (D3); Actions and
+reviewer evidence are not claimed.
+
+Merge verification uses dependency base
+`b5245ea31fc2c6c3e56608fe9cac4682ab771666` and main
+`614203fe00af2db95001a1ce77105ba4dd9b7d52`. All current heads for #136-#141 are
+ancestors of that base. Temporary Git merge objects with the resolved dependency
+tree verified both a normal merge and a squash transplant of only #38 without
+conflicts, with output identical to the feature tree. After real squash merges,
+use the documented rebase boundary and rerun checks; later edits and unrelated
+contributor PR #113 are not covered. No existing branch or PR was modified.
+
+The required Medium D7 defect is tracked in
+[#149](https://github.com/Kakrl/MakeShift/issues/149), with the bug label and
+standard severity policy. Its fix is verified locally; issue closure follows
+PR merge. No RCA is required under the standard Medium policy.
 ## Camera feed layout verification (issue #156)
 
 Local execution on macOS, 2026-10-01, Node 26.8.1, Playwright bundled
@@ -816,6 +907,29 @@ merging PR #139 head `b136e6a` into PR #141 head `b5245ea`.
   PR #139 remains a dependency until merged. This reconciliation supersedes
   the old instruction to transplant only commits after `025588e`.
 
+## PR #150 merge reconciliation
+
+Local Windows execution on 2026-09-30, Node 22.20.0, Vitest 4.1.11,
+merging PR #141 head `045255f` into PR #150 head `b0e8177`.
+
+- Preserved both verification histories and the updated session/recording
+  behavior from #141 together with #150's opt-in instrumentation.
+- All 237 tests passed across eleven files. TypeScript, all 18 contrast pairs,
+  production build and whitespace checks passed. ESLint passed with five
+  existing unused-variable warnings in Home.
+- Production Edge 154.0.4258.37: MIDI export passed with two downloads, exact
+  MIDI bytes and dialog closure. Diagnostics passed three audio/CV/navigation
+  cycles with GPU hand models, closed audio contexts and no page errors.
+  Final model, detector, audio-context and worklet counts were zero; the shared
+  camera provider retained one track. Worker count remains unavailable.
+- The profiling fixture uses a synthetic camera without calibration. These
+  checks do not establish physical latency, detection accuracy or a memory-leak
+  verdict. Earlier manual reports predate this integration; no new hardware or
+  Actions result is claimed. Vitest and browser runners remain outside CI (D3).
+- This reconciliation supersedes the older squash-transplant instructions.
+  PR #141 remains a dependency until merged; its updated branch includes main
+  at `4dc41ab`. No test implementations or coverage were added by this resolution.
+
 ## PR 141 reconciliation with final PR 139 head
 
 On 2026-09-30, merged PR #139 head `277491a` into the MIDI export fix.
@@ -830,3 +944,68 @@ passed. Lint passed with four existing Home warnings. The production browser
 regression passed in Edge 154.0.4258.37: two downloads with exact MIDI bytes,
 dialog closure and no page errors. It uses a seeded take, not physical capture.
 No tests changed. GitHub Actions execution for this reconciliation is pending.
+
+## PR 150 reconciliation with updated PR 141
+
+On 2026-09-30, merged PR #141 head `1642bdf` (including PR #139 head
+`277491a`) into PR #150 at merge commit `a4de88b`. Preserved both verification
+records in the README conflict. Current main `46ed0c7` is already an ancestor.
+Merge #139, then #141, then #150; the branch includes these dependency heads.
+This supersedes the original dependency transplant instructions.
+
+Local Windows verification: all 243 Vitest cases in eleven files passed;
+TypeScript, 18 contrast pairs, production build and whitespace checks passed.
+Lint passed with four existing Home warnings. Edge 154.0.4258.37 production
+regressions passed: two exact-byte MIDI downloads with dialog closure, profile
+JSON export, three audio/CV navigation cycles with closed AudioContexts, and
+paired diagnostics off/on trials. No page errors occurred. Final ownership
+counts were one shared camera track, zero audio contexts/nodes/hand models/marker
+detectors; worker count remained unavailable. Reports are generated under
+frontend/test-results/performance/. The synthetic camera and seeded MIDI take
+do not verify physical recording, contact accuracy or press-to-sound latency.
+No test cases changed. GitHub Actions execution for this reconciliation is pending.
+
+## PR #150 merge verification (2026-10-01)
+
+Merged main at 47400c7 into the diagnostics branch. Preserved main's live
+contact pipeline, handedness observations and optional visual debugging.
+Detection timing now covers synchronous contact processing and shadow submission;
+asynchronous shadow execution, transfer timing and worker counts remain unavailable.
+
+Windows / Node 22.20.0: lint, TypeScript and all 18 contrast pairs passed.
+Vitest: 228 passed and 23 failed in 13 files. An isolated checkout of main
+47400c7 reproduced the same 23 failures: six calibration workflow cases lack
+canvas clearRect in their mock, and 17 recording-control cases lack the
+getComputedStyle global. These inherited test-harness failures are outside
+this merge-resolution change; no complete suite pass is claimed.
+Production build passed. Headless Edge 154 with a synthetic camera passed the
+production diagnostics check: three navigation/audio/CV cleanup cycles, JSON
+report export and paired off/on overhead trials, with no page errors.
+The fixture now profiles a returning visit to accommodate main's onboarding.
+Physical camera/audio checks were not run.
+
+## PR #150 review and main reconciliation (2026-10-02)
+
+Merged main `380bc80` into the PR head `6628e25`, preserving deployment/CI,
+camera layout, disconnected-camera handling and the existing CV debug defaults.
+Kept the profiling script, bounded metrics and idempotent resource accounting.
+Shared instrumentation moved from CV to `frontend/src/diagnostics/`; developer
+switches now live in `frontend/src/debugFlags.ts`. The panel is hidden unless
+`NEXT_PUBLIC_PIPELINE_DIAGNOSTICS=1` is set at build time. Home/calibration
+explicitly register their video; initial panel status is idle.
+
+Windows / Node 22.20.0: lint, TypeScript, 18 contrast pairs and production builds
+with diagnostics enabled and disabled passed. Vitest: 252 passed across 14 files,
+plus main's five expected calibration failures (#162), not five fixed defects.
+Two added tests cover explicit video selection/stale cleanup and idle/callback
+cancellation; provider mocks now include getVideoTracks and browser userAgent.
+The initial panel fixture lacked userAgent; corrected before the passing run.
+Default-build browser checks found no panel on Home, Audio or Calibration.
+Enabled-build profiling passed in Edge 154.0.4258.48: three audio/CV/navigation
+cycles, real JSON export, paired off/on trials and no page errors. All owned
+audio contexts/nodes/hand models/marker detectors ended at zero; one shared
+camera track remained, workers unavailable. Synthetic camera, no calibrated
+keyboard/contact; no physical accuracy, latency or memory-leak claim.
+Vitest is now invoked by frontend CI; Actions evidence for this update is pending.
+The browser profiling runner remains local-only. Older stacked rebase instructions
+are obsolete; current main is integrated directly.

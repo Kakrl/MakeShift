@@ -158,7 +158,7 @@ a MIDI file. Audio cannot await file generation.
 | Native reference | C++23, CMake, PortAudio, nanobind, Python 3.12 |
 | Quality | Vitest, ESLint, TypeScript, contrast audit, build; GoogleTest/CTest, Ruff, mypy, clang-format for relevant areas |
 | Browser/system | Selenium/fake-camera fixtures planned; real camera/audio checks still required |
-| Performance | Browser Performance tools, bounded instrumentation (#38), physical harness (#30) planned |
+| Performance | [Opt-in bounded stage/resource diagnostics](performance.md) (#38); physical harness (#30) planned |
 | Delivery | GitHub Actions exists; Vercel runtime verification tracked by #89 |
 
 Versions belong in manifests/lockfiles. Keep JS/WASM/model assets compatible and
@@ -227,3 +227,7 @@ and a WebAssembly migration are outside this documentation change.
 - [MediaPipe web hand tracking](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker/web_js): synchronous inference, VIDEO mode and worker guidance.
 - [AudioWorklet](https://developer.mozilla.org/en-US/docs/Web/API/AudioWorklet): browser audio processing thread.
 - [Vercel Python runtime](https://vercel.com/docs/functions/runtimes/python): server runtime remains distinct from the browser.
+
+Shared opt-in instrumentation lives in `frontend/src/diagnostics/`, consumed by
+CV, audio and events without importing instrumentation from the CV subsystem.
+Developer visibility switches live in `frontend/src/debugFlags.ts`.

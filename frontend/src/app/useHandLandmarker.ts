@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { acquireResource } from "../diagnostics/performanceMetrics";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 
 /**
@@ -40,6 +41,7 @@ export function useHandLandmarker() {
   useEffect(() => {
     let cancelled = false;
     let created: HandLandmarker | null = null;
+    let releaseModel: (() => void) | undefined;
 
     createLandmarker()
       .then((landmarker) => {
@@ -48,6 +50,7 @@ export function useHandLandmarker() {
           landmarker.close();
           return;
         }
+        releaseModel = acquireResource("handModels");
         landmarkerRef.current = landmarker;
         setStatus("ready");
       })
@@ -60,6 +63,7 @@ export function useHandLandmarker() {
     return () => {
       cancelled = true;
       created?.close();
+      releaseModel?.();
       landmarkerRef.current = null;
     };
   }, [attempt]);

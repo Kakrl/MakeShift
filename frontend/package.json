@@ -10,8 +10,9 @@
     "test": "vitest",
     "test:contrast": "node ../tests/frontend/check-contrast.mjs",
     "test:audio-browser": "node ../tests/frontend/browserAudio.browser.mjs",
-    "test:deployment": "node ../tests/frontend/deployment.browser.mjs",
     "test:midi-browser": "node ../tests/frontend/midiExport.browser.mjs",
+    "test:performance-browser": "node ../tests/frontend/performanceMetrics.browser.mjs",
+    "test:deployment": "node ../tests/frontend/deployment.browser.mjs",
     "test:layout-browser": "node ../tests/frontend/cameraLayout.browser.mjs"
   },
   "dependencies": {

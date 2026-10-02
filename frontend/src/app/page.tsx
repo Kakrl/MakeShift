@@ -1,5 +1,7 @@
 "use client";
 
+import { registerCameraVideo } from "../diagnostics/cameraVideo";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -12,6 +14,7 @@ import {
   type Recorder,
   type Recording,
 } from "./midi/midiUtils";
+import { trackAudioContext, closeTrackedAudioContext } from "../diagnostics/performanceMetrics";
 import { browserAudio } from "./audio/audioEngine";
 import { LiveSession } from "../events/liveSession";
 import { loadCalibration } from "../cv/calibration";
@@ -111,6 +114,7 @@ export default function Home() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => registerCameraVideo(videoRef.current), []);
   const { stream, cameraReady } = useCamera();
   // Drives the calibration prompt; live readiness stays with the session.
   const [isCalibrated, setIsCalibrated] = useState(false);
@@ -135,7 +139,7 @@ export default function Home() {
 
   // ── Audio click (used only for count-in) ────────────────────────────────
   const playClick = useCallback((accent: boolean) => {
-    if (!audioCtxRef.current) audioCtxRef.current = new AudioContext();
+    if (!audioCtxRef.current) audioCtxRef.current = trackAudioContext(new AudioContext());
     const ctx = audioCtxRef.current;
     if (ctx.state === "suspended") ctx.resume();
     const osc = ctx.createOscillator();
@@ -222,7 +226,7 @@ export default function Home() {
       disconnectNotes();
       consumersRef.current = null;
       recorder.stopRecording();
-      void audioCtxRef.current?.close();
+      if (audioCtxRef.current) void closeTrackedAudioContext(audioCtxRef.current);
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("pagehide", leave);
     };

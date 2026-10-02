@@ -1,5 +1,7 @@
 "use client";
 
+import { registerCameraVideo } from "../../diagnostics/cameraVideo";
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import SideNav from "../SideNav";
@@ -137,6 +139,7 @@ export default function Calibration() {
   const generationRef = useRef(0);
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => registerCameraVideo(videoRef.current), []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sheetDetectionCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const sheetOverlayCanvasRef = useRef<HTMLCanvasElement>(null);

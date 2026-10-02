@@ -1,5 +1,7 @@
 "use client";
 
+import { acquireResource } from "../diagnostics/performanceMetrics";
+
 import {
   createContext,
   useCallback,
@@ -147,6 +149,7 @@ export function CameraProvider({ children }: { children: React.ReactNode }) {
     // so a slow rejection cannot overwrite a newer successful stream.
     let cancelled = false;
     let acquired: MediaStream | null = null;
+    const releases: (() => void)[] = [];
 
     requestCameraStream()
       .then((s) => {
@@ -155,6 +158,11 @@ export function CameraProvider({ children }: { children: React.ReactNode }) {
           s.getTracks().forEach((t) => t.stop());
           return;
         }
+        s.getTracks().forEach(t => {
+          const release = acquireResource("mediaTracks");
+          t.addEventListener("ended", release, { once: true });
+          releases.push(() => { t.removeEventListener("ended", release); release(); });
+        });
         s.getVideoTracks().forEach((track) =>
           track.addEventListener("ended", () => {
             if (cancelled) return;
@@ -175,6 +183,7 @@ export function CameraProvider({ children }: { children: React.ReactNode }) {
 
     const stopTracks = () => {
       acquired?.getTracks().forEach((t) => t.stop());
+      releases.forEach(release => release());
     };
     window.addEventListener("beforeunload", stopTracks);
 
