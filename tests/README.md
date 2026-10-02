@@ -42,7 +42,9 @@ tests/
 │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   ├── browserAudio.browser.mjs  # production browser graph check
 │   ├── cameraLayout.browser.mjs  # home camera feed 16:9 across viewports
+│   ├── deployment.browser.mjs    # production assets, camera recovery, offline playing
 │   ├── homePage.test.ts              # home page modals and overlays (jsdom)
+│   ├── supabaseHealth.test.ts    # /api/health database check
 │   ├── noteEvents.test.ts            # shared event validation, sessions and clocks
 │   ├── midiUtils.test.ts             # MIDI unit tests
 │   └── check-contrast.mjs            # theme token contrast audit
@@ -70,6 +72,8 @@ No test implementation requires an exception to this layout.
 | C++ (GoogleTest) | `cmake -B build -S backend && cmake --build build --config Release && ctest --test-dir build -C Release --output-on-failure` | CMake 3.15+, C++23 compiler, Python 3.12, `pip install -r requirements.txt` |
 | Python | `python -m pytest --cov=backend --cov-report=term-missing` | `pip install -r requirements.txt` |
 | Frontend unit (Vitest) | `cd frontend && npx vitest run` | `npm ci` in `frontend/` |
+| Browser audio smoke | `cd frontend && npm run test:audio-browser` | Production server on `MAKE_SHIFT_URL` (default `http://127.0.0.1:3000`); `AUDIO_BROWSER_CHANNEL=chromium` for Playwright Chromium (default `msedge`) |
+| Deployment smoke | `cd frontend && npm run test:deployment` | Production server or Vercel URL in `MAKE_SHIFT_URL`; `npx playwright install chromium`; network for jsDelivr WASM; `EXPECT_DATABASE=ok` requires Supabase secrets (`infisical run`) |
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
 | MIDI production download | `cd frontend && npm run test:midi-browser` | Running production server; Playwright and Edge; optional MAKE_SHIFT_URL / MIDI_BROWSER_CHANNEL |
 | Camera feed layout | `cd frontend && npm run test:layout-browser` | Running production server; Playwright bundled Chromium; optional MAKE_SHIFT_URL / LAYOUT_BROWSER_CHANNEL |
@@ -365,7 +369,7 @@ defect report is filed.
 | D7 | Medium | CV / performance | Debug `console.log` calls run in the marker detection `requestAnimationFrame` loop (about 60 per second) and on every detection update. That adds main-thread work that counts against requirement 2.3 (latency) once D1 is fixed | `frontend/src/app/MarkerTrackingOverlay.tsx:49,95,102,111,121`; `frontend/src/cv/markerDetector.ts:103,105,119` | | Open |
 | D8 | Medium | Audio | Calling `AudioEngine::startStream()` twice overwrites `stream` without closing it, which leaks the first PortAudio stream. `Pa_GetDeviceInfo` is dereferenced without a null check | `backend/src/audio/AudioEngine.cpp:89-119` | | Open |
 | D9 | Medium | Audio / Python | Importing `backend.src.audio` builds an `AudioEngine` and calls `Pa_Initialize()` as a side effect. Any import (including from pytest) touches audio hardware and fails if the extension is not built. The example in `docs/audio_events.md` creates a second engine | `backend/src/audio/__init__.py:3-5` | | Open |
-| D10 | Low | CV | `HandTrackingOverlay` loads MediaPipe WASM from `@latest`, the version mismatch that #12 fixed in `useHandLandmarker`. The component isn't used right now | `frontend/src/app/cv/HandTrackingOverlay.tsx:7-8` | | Open |
+| D10 | Low | CV | `HandTrackingOverlay` loads MediaPipe WASM from `@latest`, the version mismatch that #12 fixed in `useHandLandmarker`. The component isn't used right now | `frontend/src/app/cv/HandTrackingOverlay.tsx:7-8` | | Fixed on `feature/116-89-supabase-vercel` (#89): WASM path reuses the pinned version |
 | D11 | Low | MIDI | `stopRecording` leaves `track` set, so `noteOn` and `noteOff` calls after stopping are still recorded | `frontend/src/app/midi/midiUtils.ts:66-82` | | Open |
 | D12 | Low | Backend | `backend/src/MIDI/noteMap.ts` is a TypeScript file inside the Python backend package and nothing imports it | `backend/src/MIDI/noteMap.ts` | | Open |
 | D13 | Low | Tests | The contrast audit only checks `--color-*` token pairs. Hardcoded canvas colors drawn over live video (`#00ff88`, `#ffd60a`, `#ff3b30`) aren't checked | `frontend/src/app/MarkerTrackingOverlay.tsx:136-192`, `frontend/src/app/cv/handLandmarkDrawing.ts:33-34` | | Open |
@@ -662,6 +666,55 @@ branch `fix/87-calibration-result`, following review of issue #87 / PR #136.
   manual report predates these edits; new physical/manual verification is pending.
 - Vitest remains outside frontend CI (D3); Actions execution is pending.
 
+## Deployment verification (issues #89 and #116)
+
+Local macOS execution on 2026-09-30, Node 26.8.1, Playwright Chromium
+151.0.7922.34, branch `feature/116-89-supabase-vercel`.
+
+- `npx vitest run`: **178 tests passed across eight files**, including four
+  `/api/health` database-check cases. TypeScript, ESLint (five existing
+  warnings), 18 contrast pairs and production build passed.
+- `npm run test:deployment` against `next start` passed: five runtime assets
+  with expected types, five pages without uncaught errors, three
+  enable/play/stop rounds with zero network requests, and camera denial,
+  retry, track loss and recovery. With `infisical run --env=dev` and
+  `EXPECT_DATABASE=ok`, `/api/health` returned `200 {"status":"ok"}`.
+- Regression check: with the camera track-end handler removed, the test failed
+  waiting for "Camera disconnected"; it passed again once restored.
+- Review follow-up (PR #153): the test now requires the model as
+  `application/octet-stream`, waits for MediaPipe (`/`) and both calibration
+  detectors to report ready with no displayed alerts, checks fresh preview
+  frames from the new stream after each camera retry, and accepts only
+  `200 ok` or `503 unconfigured` from `/api/health`. It passed against
+  `next start`; it failed with a broken model path (`data-hand-detection`
+  reported `error`) and with the calibration preview kept on the old stream
+  (timed out waiting for the new stream after the disconnect retry).
+- `npm run test:audio-browser` passed with `AUDIO_BROWSER_CHANNEL=chromium`.
+- After merging `main` (`0758dea`): 232 Vitest tests across ten files, lint,
+  types, contrast, build and `npm run test:deployment` passed. The browser
+  audio test, unchanged from `main`, passed 2 of 5 Chromium runs; failures hit
+  the soft/loud RMS ratio check (`loud / soft` within 0.1 of 3).
+- After merging `main` (`b81c86c`, which adds #148 and the Vitest step from
+  #158): 235 Vitest tests passed and 5 expected failures (D21, #162) across 12
+  files. Lint, types, contrast, build and `npm run test:deployment` passed on
+  all five pages. The Vitest step and its D3 docs now come from #158; this PR
+  no longer adds them.
+- Vercel preview `make-shift-9t8g9p17h-jaddenkis-projects.vercel.app`
+  (protected by Vercel Authentication, checked with `vercel curl`): pages,
+  `/audio/*.js`, and the model returned 200 with expected types; the pinned
+  jsDelivr WASM returned `application/wasm`; `/api/health` returned
+  `200 {"status":"ok"}` using secrets synced from Infisical.
+- After previews were made public, `MAKE_SHIFT_URL=https://make-shift-qmefia3is-jaddenkis-projects.vercel.app
+  EXPECT_DATABASE=ok npm run test:deployment` passed against the deployed
+  preview: all assets, pages, zero-request playing, camera recovery and
+  `database: ok`.
+- Not covered: real cameras, audible output, Firefox/Safari, backgrounding,
+  and the home-page camera overlay (#112). These stay manual or pending.
+- GitHub Actions (ubuntu-latest, Node 20, Chromium): [frontend job](https://github.com/Kakrl/MakeShift/actions/runs/36735042554/job/109954414324)
+  passed Vitest, the deployment smoke test (without database secrets:
+  `unconfigured`) and the browser audio smoke test on PR #153. The first run
+  exposed a race in the audio test's navigation-cleanup check, fixed by
+  waiting for the context to close.
 
 ## PR #138 review verification
 

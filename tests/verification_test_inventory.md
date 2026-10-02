@@ -91,12 +91,12 @@ Existing proposed dates remain planning estimates, not renewed commitments.
 | 2.3 | Low-latency live feedback | 2.3.1 to 2.3.6 |
 | 2.4 | Volume scales with key press speed | 2.4.1, 2.4.2 |
 | 3.1 | Clearly labeled, consistently positioned controls | 3.1.1, 3.1.2, 3.1.3 |
-| 3.2 | Visual feedback for key presses, calibration, and recording | 3.2.1 to 3.2.4 |
+| 3.2 | Visual feedback for key presses, calibration, and recording | 3.2.1 to 3.2.5 |
 | 3.3 | Minimal UI that keeps the piano visible | 3.3.1, 3.3.2 |
 | 3.4 | Visually accessible | 3.4.1, 3.4.2, 3.4.3 |
 | 4.1 | Start and stop recording from the UI | 4.1.1 to 4.1.8 |
 | 4.2 | Export a MIDI file after recording | 4.2.1, 4.2.2, 4.2.3, 3.2.4 |
-| 5.1 | Runs entirely in the browser | 5.1.1 |
+| 5.1 | Runs entirely in the browser | 5.1.1 to 5.1.3 |
 | 5.2 | HTTPS only | 5.2.1, 5.2.2, 5.2.3 |
 | 5.3 | Loads quickly | 5.3.1 |
 | 6.1 | Documentation page | 6.1.1, 6.1.2 |
@@ -267,3 +267,18 @@ intentional contact classification, complete worker integration or latency.
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | 1.1.6 | Integration | 1.1 | Immediate marker acquisition and ten-second cadence; frame-loss interruption and immediate reacquisition ([source](frontend/recordingControls.test.tsx)) | Francis Ozua | Vitest + jsdom | Yes | Implemented - simulated hardware; no FPS measurement | Yes (`frontend-ci.yml`) | [PR #138 review verification](README.md#pr-138-follow-up-review-verification) - passed 2026-09-30; Actions pending |
 | 2.1.7 | Integration | 2.1 | Live sound independent of MIDI state, no audio retrigger at capture boundary, release on calibration/frame loss and stale audio initialization rejection ([source](frontend/recordingControls.test.tsx)) | Carl Xu | Vitest + jsdom | Yes | Implemented - audio calls mocked; no physical sound/latency claim | Yes (`frontend-ci.yml`) | [PR #138 review verification](README.md#pr-138-follow-up-review-verification) - passed 2026-09-30; Actions pending |
+
+## Deployment and hosted configuration (#89, #116)
+
+The deployment smoke test runs against a production build (`npm start`) or a
+Vercel URL. It uses Chromium fake media devices and a scripted
+`NotAllowedError`, so it does not replace real-camera or audible-output checks
+(5.1.1, 2.2.18). Local runs passed on macOS 2026-09-30 (Chromium 151, Node 26);
+see [deployment verification](README.md#deployment-verification-issues-89-and-116).
+First CI execution: [frontend job](https://github.com/Kakrl/MakeShift/actions/runs/36735042554/job/109954414324) on PR #153, 2026-09-30.
+
+| Test ID | Level | Requirement | Description / source | Owner | Tool | Automated? | Implementation Status | CI Integrated? | Execution evidence |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 5.1.2 | System | 5.1 | **Added.** Production worklet, DSP, model and pinned MediaPipe WASM load with expected content types (model as `application/octet-stream`); five pages finish MediaPipe/OpenCV initialization without uncaught or displayed errors; three enable/play/stop rounds make zero network requests ([source](frontend/deployment.browser.mjs)) | Harry Deng | Playwright + Chromium | Yes | Implemented, fake devices only | Yes (`frontend-ci.yml`) | [Local record](README.md#deployment-verification-issues-89-and-116) passed; deployed preview assets checked with `vercel curl`; [Actions job log](https://github.com/Kakrl/MakeShift/actions/runs/36735042554/job/109954414324) passed 2026-09-30 |
+| 3.2.5 | Integration | 3.2 | **Added.** Camera denial shows a blocked message; retry acquires the camera; an ended track shows "Camera disconnected"; each retry removes the message and the preview renders fresh frames from the new stream ([source](frontend/deployment.browser.mjs)). Runs on `/calibration`; the home page overlay is covered by 3.2.3 (#112, fixed in #113) | Jadden Picardal | Playwright + Chromium fake camera | Yes | Implemented, scripted denial and simulated track end | Yes (`frontend-ci.yml`) | [Local record](README.md#deployment-verification-issues-89-and-116) passed, and failed with the track-end handler removed; [Actions job log](https://github.com/Kakrl/MakeShift/actions/runs/36735042554/job/109954414324) passed 2026-09-30 |
+| 5.1.3 | Unit | 5.1 | **Added.** `/api/health` database check: unconfigured without network, row-free HEAD with the secret key, status-only errors and detail-free network failures ([source](frontend/supabaseHealth.test.ts)). Live playing does not call it | Harry Deng | Vitest | Yes | Implemented | Yes (`frontend-ci.yml`) | [Local record](README.md#deployment-verification-issues-89-and-116) passed; deployed preview returned `200 ok`; [Actions job log](https://github.com/Kakrl/MakeShift/actions/runs/36735042554/job/109954414324) passed 2026-09-30 |
