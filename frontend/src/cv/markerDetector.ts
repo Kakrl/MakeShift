@@ -1,4 +1,4 @@
-import { acquireResource } from "./performanceMetrics";
+import { acquireResource } from "../diagnostics/performanceMetrics";
 import cvModule from "@techstark/opencv-js";
 import type { MarkerDetectionResult, MarkerObservation, Point } from "./types";
 

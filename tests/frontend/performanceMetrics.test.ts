@@ -10,7 +10,7 @@ import {
   snapshotResources,
   trackAudioContext,
   type RunMetadata,
-} from "../../frontend/src/cv/performanceMetrics";
+} from "../../frontend/src/diagnostics/performanceMetrics";
 
 const metadata: RunMetadata = {
   workload: "30fps fixture",

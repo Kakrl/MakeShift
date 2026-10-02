@@ -52,7 +52,7 @@ hit API supports note-off.
 | CV worker | Expensive inference, marker tracking, geometry, contact state and musical events |
 | AudioWorklet | Fixed voice pool, envelope state, mixing; no network or blocking work |
 | MIDI consumer | Recording timeline and file generation; cannot delay audio dispatch |
-| Vercel | Application, worker/worklet modules, models and WASM assets; independently justified APIs |
+| Vercel | Application, worker/worklet modules, models and WASM assets; independently justified APIs (`/api/health` checks the Supabase recordings database, #116; see [deployment](deployment.md)) |
 
 Schedule newly available frames and bound pending work. Prefer recent frames to
 a backlog, count dropped frames, and evaluate missed brief presses. Document
@@ -227,3 +227,7 @@ and a WebAssembly migration are outside this documentation change.
 - [MediaPipe web hand tracking](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker/web_js): synchronous inference, VIDEO mode and worker guidance.
 - [AudioWorklet](https://developer.mozilla.org/en-US/docs/Web/API/AudioWorklet): browser audio processing thread.
 - [Vercel Python runtime](https://vercel.com/docs/functions/runtimes/python): server runtime remains distinct from the browser.
+
+Shared opt-in instrumentation lives in `frontend/src/diagnostics/`, consumed by
+CV, audio and events without importing instrumentation from the CV subsystem.
+Developer visibility switches live in `frontend/src/debugFlags.ts`.

@@ -6,7 +6,8 @@ they do not measure physical press-to-sound latency or prove the 50 ms target.
 
 ## Recording a profile
 
-Expand **Pipeline diagnostics (optional)** at the bottom of the app. Enter a
+The panel is hidden by default. Set `NEXT_PUBLIC_PIPELINE_DIAGNOSTICS=1` before
+building or starting development, then expand **Pipeline diagnostics (optional)** at the bottom of the app. Enter a
 repeatable workload, hardware/camera/audio-device description, configuration
 (including model, delegate, lighting, layout and resolution), and the exact build
 commit. Production builders can set `NEXT_PUBLIC_BUILD_COMMIT` at build time.
@@ -121,17 +122,17 @@ Existing audio/session suites continue to cover interruption and failure paths.
 The synthetic run measured 20.028 delivered FPS against a reported 20 FPS
 camera and distinguished 38.809 media-time processing polls/s. Stage and overhead
 results, including cold-start and variability limits, are recorded in [the testing guide](../tests/README.md#pipeline-diagnostics-verification-issue-38).
-Vitest and this browser runner remain outside CI (D3); no Actions pass is claimed.
+Vitest now runs in frontend CI after main merged #152; the profiling browser runner
+remains local-only. Actions execution for this review update is pending.
 
-Built on #140 branch `fix/140-midi-export-import` at
-`b5245ea31fc2c6c3e56608fe9cac4682ab771666`, incorporating PRs #136–#141.
-Merge those dependencies first. After squash merges, transplant only #38:
+The branch now merges current main directly; earlier stacked rebase instructions
+are obsolete. Preserve upstream changes when integrating later main updates.
 
-```sh
-git fetch origin
-git rebase --onto origin/main b5245ea31fc2c6c3e56608fe9cac4682ab771666 feature/38-pipeline-metrics
-```
-
-Recheck the actual merged tree and rerun frontend checks after rebasing. This
-avoids replaying dependency commits; no guarantee covers later upstream edits
-or unrelated PR #113, which is already conflicted and belongs to another author.
+Shared metrics and the explicit camera-video registry live in
+`frontend/src/diagnostics/`, outside CV/audio/event ownership. Home and calibration
+register their actual camera element; unrelated videos are never sampled. A hidden
+calibration video may produce no presentation samples. Developer switches live in
+`frontend/src/debugFlags.ts`; existing CV visualization defaults are preserved.
+The registry tests cover stale-view cleanup and unrelated videos, and the panel
+test covers idle state and callback cancellation. The worker clock adapter and
+report comparison helper are reserved/offline APIs; transfer remains unavailable.

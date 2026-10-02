@@ -47,7 +47,7 @@ import { keyIndexToMidi } from "../cv/noteMap";
 import {
   recordMarkerDetection,
   pipelineMetrics,
-} from "../cv/performanceMetrics";
+} from "../diagnostics/performanceMetrics";
 
 const PAGE_CORNERS: Point[] = [
   { x: 0, y: 0 },

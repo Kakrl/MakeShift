@@ -1,4 +1,4 @@
-import { acquireResource, trackAudioContext, closeTrackedAudioContext } from "../../cv/performanceMetrics";
+import { acquireResource, trackAudioContext, closeTrackedAudioContext } from "../../diagnostics/performanceMetrics";
 export type AudioStatus = "idle" | "loading" | "ready" | "suspended" | "error";
 type AudioCommand =
   | { type: "reset" | "release-all"; session: number }

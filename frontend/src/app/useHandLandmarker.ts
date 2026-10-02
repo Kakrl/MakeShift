@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { acquireResource } from "../cv/performanceMetrics";
+import { acquireResource } from "../diagnostics/performanceMetrics";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 
 /**
@@ -10,7 +10,7 @@ import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
  * which fails at load time with no useful message.
  */
 const TASKS_VISION_VERSION = "0.10.34";
-const WASM_PATH = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${TASKS_VISION_VERSION}/wasm`;
+export const WASM_PATH = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${TASKS_VISION_VERSION}/wasm`;
 
 export type LandmarkerStatus = "loading" | "ready" | "error";
 

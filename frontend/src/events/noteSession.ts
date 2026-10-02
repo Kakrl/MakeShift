@@ -1,4 +1,4 @@
-import { pipelineMetrics } from "../cv/performanceMetrics";
+import { pipelineMetrics } from "../diagnostics/performanceMetrics";
 import { NoteEvent, parseNoteEvent, toMainTime } from "./noteEvents";
 
 export type Delivery = Readonly<{ event: NoteEvent; receivedAtMs: number }>;

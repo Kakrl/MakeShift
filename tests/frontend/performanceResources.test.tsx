@@ -2,11 +2,13 @@ import { JSDOM } from "jsdom";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import PipelineDiagnostics from "../../frontend/src/app/PipelineDiagnostics";
+import { getCameraVideo, registerCameraVideo } from "../../frontend/src/diagnostics/cameraVideo";
 import { CameraProvider } from "../../frontend/src/app/CameraContext";
 import {
   pipelineMetrics,
   snapshotResources,
-} from "../../frontend/src/cv/performanceMetrics";
+} from "../../frontend/src/diagnostics/performanceMetrics";
 let root: Root;
 let dom: JSDOM;
 let tracks: {
@@ -20,7 +22,7 @@ beforeEach(() => {
   vi.stubGlobal("document", dom.window.document);
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   tracks = [];
-  vi.stubGlobal("navigator", {
+  vi.stubGlobal("navigator", { userAgent: "jsdom",
     mediaDevices: {
       getUserMedia: vi.fn(async () => {
         const track = {
@@ -29,7 +31,7 @@ beforeEach(() => {
           removeEventListener: vi.fn(),
         };
         tracks.push(track);
-        return { getTracks: () => [track] };
+        return { getTracks: () => [track], getVideoTracks: () => [track] };
       }),
     },
   });
@@ -77,4 +79,34 @@ it("does not double decrement after a track ends and the provider unmounts", asy
   expect(count()).toBe(baseline);
   await act(async () => root.unmount());
   expect(count()).toBe(baseline);
+});
+
+it("keeps the registered camera when an older view cleans up and ignores unrelated video", () => {
+  const unrelated = document.createElement("video");
+  document.body.prepend(unrelated);
+  const oldCamera = document.createElement("video");
+  const nextCamera = document.createElement("video");
+  const releaseOld = registerCameraVideo(oldCamera);
+  expect(getCameraVideo()).toBe(oldCamera);
+  const releaseNext = registerCameraVideo(nextCamera);
+  releaseOld();
+  expect(getCameraVideo()).toBe(nextCamera);
+  releaseNext();
+  expect(getCameraVideo()).toBeNull();
+});
+it("shows idle before a diagnostics run and samples only the registered camera", async () => {
+  const unrelated = document.createElement("video");
+  document.body.prepend(unrelated);
+  const camera = document.createElement("video");
+  camera.requestVideoFrameCallback = vi.fn(() => 1);
+  camera.cancelVideoFrameCallback = vi.fn();
+  const release = registerCameraVideo(camera);
+  root = createRoot(document.getElementById("root")!);
+  await act(async () => root.render(<PipelineDiagnostics />));
+  expect(document.querySelector('[role="status"]')?.textContent).toBe("Diagnostics idle.");
+  await act(async () => document.querySelector("form")!.dispatchEvent(new dom.window.Event("submit", { bubbles: true, cancelable: true })));
+  expect(camera.requestVideoFrameCallback).toHaveBeenCalledOnce();
+  await act(async () => root.unmount());
+  expect(camera.cancelVideoFrameCallback).toHaveBeenCalledWith(1);
+  release();
 });

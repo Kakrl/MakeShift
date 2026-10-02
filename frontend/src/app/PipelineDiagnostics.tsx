@@ -5,7 +5,8 @@ import {
   benchmarkInstrumentation,
   pipelineMetrics,
   snapshotResources,
-} from "../cv/performanceMetrics";
+} from "../diagnostics/performanceMetrics";
+import { getCameraVideo } from "../diagnostics/cameraVideo";
 import { useCamera } from "./CameraContext";
 
 /** Explicit diagnostics live outside React's per-frame render path. */
@@ -31,7 +32,7 @@ export default function PipelineDiagnostics() {
     };
     const sample = () => {
       snapshotResources("periodic");
-      const current = document.querySelector("video");
+      const current = getCameraVideo();
       if (current !== video) {
         if (video && callback !== null)
           video.cancelVideoFrameCallback(callback);
@@ -166,7 +167,7 @@ export default function PipelineDiagnostics() {
       <p role="status">
         {running
           ? "Diagnostics recording; up to 32 resource snapshots retained."
-          : "Diagnostics stopped."}
+          : hasReport ? "Diagnostics stopped." : "Diagnostics idle."}
       </p>
     </details>
   );

@@ -6,6 +6,7 @@ export const METRICS = {
   presentationInterval:
     "ms between diagnostic video presentation callbacks; gaps can span multiple frames",
   frameAge: "ms from browser presentationTime to callback; not exposure age",
+  // Reserved for future worker send/receive instrumentation; currently unavailable.
   transfer:
     "ms from sender post start to receiver entry after origin conversion; includes queueing",
   inference: "ms around synchronous MediaPipe detectForVideo",
@@ -54,6 +55,7 @@ export function acquireResource(kind: keyof Resources): () => void {
   };
 }
 
+/** Future worker clock adapter; no production transfer producer exists yet. */
 export function crossContextDuration(
   sentMs: number,
   sourceOriginMs: number,
@@ -313,6 +315,7 @@ export async function closeTrackedAudioContext(context: AudioContext) {
   audioReleases.delete(context);
 }
 export type PipelineReport = ReturnType<PipelineMetrics["report"]>;
+/** Offline report comparison helper; not called by the current diagnostics UI. */
 export function compareReports(a: PipelineReport, b: PipelineReport) {
   const keys = [
     "workload",
