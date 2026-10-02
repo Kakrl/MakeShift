@@ -441,9 +441,10 @@ export default function Home() {
           </div>
         </div>
       )}
-      <div className="flex flex-col lg:flex-row lg:flex-1 pt-4 lg:pt-[clamp(16px,calc(100dvh_-_700px),115px)] pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)] lg:pb-[clamp(16px,calc(100dvh_-_660px),226px)]">
-        {/* Camera feed */}
-        <div className="w-full aspect-video lg:w-auto lg:aspect-auto lg:flex-1 lg:min-h-[240px] bg-surface-dark relative overflow-hidden">
+      <div className="flex flex-col lg:flex-row pt-4 lg:pt-0 pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)]">
+        {/* Camera feed: 16:9 and sized like the calibration and about pages.
+            self-start keeps the taller sidebar from stretching it. */}
+        <div className="w-full lg:w-auto lg:flex-1 lg:self-start aspect-video bg-surface-dark relative overflow-hidden">
           <video
             ref={videoRef}
             autoPlay

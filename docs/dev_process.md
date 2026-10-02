@@ -105,6 +105,7 @@ MakeShift/
 │   │   ├── liveSession.test.ts       # readiness transitions and stale-input safety
 │   │   ├── noteEvents.test.ts        # shared events, lifecycle, clocks and MessagePort
 │   │   ├── midiExport.browser.mjs  # production Export UI and downloaded MIDI bytes
+│   │   ├── cameraLayout.browser.mjs # home camera feed 16:9 across viewports
 │   │   ├── midiUtils.test.ts
 │   │   └── check-contrast.mjs
 │   ├── python/
