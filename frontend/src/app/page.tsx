@@ -106,18 +106,6 @@ export default function Home() {
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const saved = readStored(
-        SETTINGS_NAME, SETTINGS_VERSION, DEFAULT_SETTINGS, isPlaybackSettings,
-      );
-      setTempo(saved.tempo);
-      setMetronome(saved.metronome);
-      setSettingsLoaded(true);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
     // Initial defaults must not overwrite preferences before restoration.
     if (!settingsLoaded) return;
     writeStored(SETTINGS_NAME, SETTINGS_VERSION, { tempo, metronome });
@@ -164,6 +152,12 @@ export default function Home() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
+      const saved = readStored(
+        SETTINGS_NAME, SETTINGS_VERSION, DEFAULT_SETTINGS, isPlaybackSettings,
+      );
+      setTempo(saved.tempo);
+      setMetronome(saved.metronome);
+      setSettingsLoaded(true);
       setIsCalibrated(loadCalibration() !== null);
       // Show welcome modal only on the very first visit
       try {

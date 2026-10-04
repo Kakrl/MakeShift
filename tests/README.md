@@ -1035,3 +1035,12 @@ branch `feature/123-persist-tempo-metronome`:
   in this environment.
 - Actions execution evidence for these changes is pending; existing frontend
   CI invokes the Vitest tests.
+
+### PR #166 review follow-up
+
+2026-10-03, Windows: settings restoration now shares the existing calibration/
+welcome mount timeout, retaining the restore-before-save guard. Final newlines
+added to this guide and the inventory. Lint, TypeScript, all 18 contrast pairs
+and production build passed. Vitest: 280 passed and five existing expected
+failures across 15 files. No new test cases; browser checks were not repeated
+for this consolidation.
