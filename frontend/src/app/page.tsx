@@ -19,6 +19,8 @@ import { browserAudio } from "./audio/audioEngine";
 import { LiveSession } from "../events/liveSession";
 import { loadCalibration } from "../cv/calibration";
 import { connectPianoConsumers } from "../events/pianoConsumers";
+import { createRecordingsLibrary, type LibraryEntry } from "./midi/recordingsLibrary";
+import type { WriteResult } from "../lib/storage";
 
 const CVOverlayCoordinator = dynamic(
   () => import("./CVOverlayCoordinator"),
@@ -72,8 +74,50 @@ export default function Home() {
   }
   const recorder = recorderRef.current;
   const consumersRef = useRef<ReturnType<typeof connectPianoConsumers> | null>(null);
-  const [completedRecording, setCompletedRecording] =
-    useState<Recording | null>(null);
+  const libraryRef = useRef<ReturnType<typeof createRecordingsLibrary> | null>(null);
+  const [recordings, setRecordings] = useState<LibraryEntry[]>([]);
+  const [libraryLoaded, setLibraryLoaded] = useState(false);
+  const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [recordingName, setRecordingName] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      libraryRef.current ??= createRecordingsLibrary();
+      setRecordings(libraryRef.current.list());
+      setLibraryLoaded(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const refreshLibrary = useCallback((result: WriteResult) => {
+    if (!libraryRef.current) return;
+    setRecordings(libraryRef.current.list());
+    setLibraryError(result.ok ? null : result.reason === "quota"
+      ? "Storage is full. Unsaved recordings will be lost when you leave. Download them or free space and retry."
+      : "The change could not be saved. Download any unsaved recordings before leaving.");
+  }, []);
+
+  const completeTake = useCallback((take: Recording) => {
+    if (libraryRef.current) refreshLibrary(libraryRef.current.completeTake(take));
+  }, [refreshLibrary]);
+
+  function renameRecording(id: string) {
+    if (!libraryRef.current) return;
+    const result = libraryRef.current.renameRecording(id, recordingName);
+    refreshLibrary(result);
+    if (result.ok) setRenamingId(null);
+  }
+
+  function deleteRecording(id: string) {
+    if (libraryRef.current && window.confirm("Delete this recording?")) {
+      refreshLibrary(libraryRef.current.deleteRecording(id));
+    }
+  }
+
+  function retrySaving() {
+    if (libraryRef.current) refreshLibrary(libraryRef.current.retrySaving());
+  }
 
   // ── Tempo & time signature (controlled) ─────────────────────────────────
   const [tempo, setTempo] = useState(120);
@@ -105,13 +149,10 @@ export default function Home() {
   //   hasFinishedRecording → stop pressed; MIDI controls visible
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const hasFinishedRecording = completedRecording !== null;
+  const hasFinishedRecording = recordings.length > 0;
   const [showRecordingComplete, setShowRecordingComplete] = useState(false);
 
   // ── Export / delete ──────────────────────────────────────────────────────
-  const [showExportDialog, setShowExportDialog] = useState(false);
-  const [exportPath, setExportPath] = useState("~/Downloads");
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   useEffect(() => registerCameraVideo(videoRef.current), []);
@@ -209,7 +250,7 @@ export default function Home() {
         setCountInBeat(null);
         session.flushNotes();
         const take = recorder.stopRecording();
-        if (take) setCompletedRecording(take);
+        if (take) completeTake(take);
         setIsRecording(false);
         setIsPaused(false);
       }
@@ -230,7 +271,7 @@ export default function Home() {
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("pagehide", leave);
     };
-  }, [session, recorder]);
+  }, [session, recorder, completeTake]);
   const enableAudio = async () => {
     if (!canPlay) return false;
     if (session.status.state === "playing") return true;
@@ -245,7 +286,7 @@ export default function Home() {
       setIsPaused(true);
       return;
     }
-    if (!canPlay) return;
+    if (!canPlay || !libraryLoaded) return;
     const request = ++playRequestRef.current;
     if (!await enableAudio() || request !== playRequestRef.current) return;
     if (countInBeat !== null) return; // already counting in
@@ -258,10 +299,7 @@ export default function Home() {
     // Start fresh — clear previous session and begin count-in
     setIsRecording(false);
     setIsPaused(false);
-    setCompletedRecording(null);
     setShowRecordingComplete(false);
-    setShowExportDialog(false);
-    setShowDeleteConfirm(false);
     countInActionRef.current = "start";
     setCountInBeat(1);
   };
@@ -275,18 +313,12 @@ export default function Home() {
     // An initial count-in has no take; a resume count-in does.
     if (!isRecording) return;
     const recording = recorder.stopRecording();
-    setCompletedRecording(recording);
+    if (recording) completeTake(recording);
     setIsRecording(false);
     setIsPaused(false);
     setShowRecordingComplete(recording !== null);
   };
 
-  const confirmDelete = () => {
-    setCompletedRecording(null);
-    setShowRecordingComplete(false);
-    setShowExportDialog(false);
-    setShowDeleteConfirm(false);
-  };
 
   // ── Tempo input helper ───────────────────────────────────────────────────
   const handleTempoChange = (raw: string) => {
@@ -501,7 +533,7 @@ export default function Home() {
                   <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="var(--color-success)"/><path d="M9 16L13.5 21L23 11" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   <p className="text-[22px] sm:text-[28px] font-bold text-black font-sans">Recording Complete!</p>
                 </div>
-                <p className="text-[14px] text-ink-subtle font-sans">Use the sidebar to export or delete</p>
+                <p className="text-[14px] text-ink-subtle font-sans">Manage takes in the recordings list</p>
                 <button
                   onClick={() => setShowRecordingComplete(false)}
                   className="mt-1 border border-black/20 px-6 py-2 rounded-[8px] text-[15px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]"
@@ -512,29 +544,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* Delete confirmation dialog */}
-          {showDeleteConfirm && (
-            <div className="absolute inset-0 flex items-center justify-center z-50 bg-black/30">
-              <div className="bg-white rounded-[14px] px-6 sm:px-10 py-6 sm:py-8 shadow-2xl flex flex-col items-center gap-5 w-[360px] max-w-[90%]">
-                <p className="text-[20px] font-sans font-medium text-black text-center">Delete this MIDI recording?</p>
-                <p className="text-[14px] text-ink-subtle font-sans text-center -mt-2">This cannot be undone.</p>
-                <div className="flex gap-4 w-full">
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="flex-1 border border-black bg-surface py-3 rounded-[8px] text-[16px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={confirmDelete}
-                    className="flex-1 border border-danger bg-danger py-3 rounded-[8px] text-[16px] text-white font-sans hover:bg-danger-hover active:scale-[0.97] transition-[background-color,transform]"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
           {!canPlay && <p role="status" className="absolute bottom-2 left-2 right-2 z-20 bg-surface px-4 text-ink">Show the calibrated sheet and camera, or <a href="/calibration" className="underline">calibrate again</a>. Saved data is checked before playing.</p>}
         </div>
 
@@ -590,68 +599,27 @@ export default function Home() {
               </button>
             </div>
 
-            {/* MIDI controls — only visible after Stop is pressed */}
-            {hasFinishedRecording && (
-              <div className="w-full flex flex-col gap-[10px] pt-[6px] border-t border-divider">
-                <button
-                  onClick={() => setShowExportDialog(!showExportDialog)}
-                  className="border border-black bg-surface px-4 py-[10px] rounded-[8px] text-[14px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] text-left"
-                >
-                  Export .MIDI Recording
-                </button>
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="border border-danger bg-surface px-4 py-[10px] rounded-[8px] text-[14px] text-danger font-sans hover:bg-red-50 active:scale-[0.97] transition-[background-color,transform] text-left"
-                >
-                  Delete .MIDI Recording
-                </button>
-              </div>
-            )}
+            <section aria-labelledby="recordings-heading" className="w-full text-ink">
+              <h2 id="recordings-heading" className="font-medium">Recordings</h2>
+              {libraryError && <div role="alert" className="text-danger"><p>{libraryError}</p><button type="button" className="underline" onClick={retrySaving}>Retry saving</button></div>}
+              {!libraryLoaded ? <p role="status">Loading recordings?</p> : recordings.length === 0 ? <p>No recordings yet.</p> :
+                <ul>{recordings.map(({ recording, saved }) => <li key={recording.id} className="my-3" aria-label={recording.name}>
+                  <p className="break-words">{recording.name}{!saved && " ? Not saved"}</p>
+                  {renamingId === recording.id ? <form onSubmit={(event) => { event.preventDefault(); renameRecording(recording.id); }}>
+                    <label htmlFor={`name-${recording.id}`}>Name</label>
+                    <input id={`name-${recording.id}`} value={recordingName} onChange={(event) => setRecordingName(event.target.value)} className="w-full border border-control-border bg-white text-ink" />
+                    <button type="submit" className="underline mr-3" disabled={!recordingName.trim()}>Save name</button>
+                    <button type="button" className="underline" onClick={() => setRenamingId(null)}>Cancel</button>
+                  </form> : <div className="flex flex-wrap gap-3">
+                    <button type="button" className="underline" onClick={() => { setRenamingId(recording.id); setRecordingName(recording.name); }}>Rename</button>
+                    <button type="button" className="underline" onClick={() => downloadMidi(recording)}>Download MIDI</button>
+                    <button type="button" className="underline text-danger" onClick={() => deleteRecording(recording.id)}>Delete</button>
+                  </div>}
+                </li>)}</ul>}
+            </section>
           </div>
         </SideNav>
       </div>
-
-      {/* ── Export Modal ────────────────────────────────────────────────────── */}
-      {showExportDialog && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={() => setShowExportDialog(false)}
-        >
-          <div
-            className="bg-white rounded-[16px] shadow-2xl w-[480px] max-w-[90vw] p-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-[22px] font-bold text-black font-sans mb-2">Export MIDI Recording</h2>
-            <p className="text-[15px] text-ink-subtle font-sans mb-6">Choose where to save the MIDI file.</p>
-            <label htmlFor="export-path" className="text-[14px] font-medium text-black font-sans block mb-2">Save location</label>
-            <input
-              id="export-path"
-              type="text"
-              value={exportPath}
-              onChange={(e) => setExportPath(e.target.value)}
-              className="w-full border border-control-border rounded-[8px] px-4 py-3 text-[16px] text-black bg-white mb-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
-            />
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowExportDialog(false)}
-                className="border border-black bg-white px-6 py-3 rounded-[10px] text-[16px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (completedRecording === null) return;
-                  downloadMidi(completedRecording);
-                  setShowExportDialog(false);
-                }}
-                className="border border-black bg-black px-6 py-3 rounded-[10px] text-[16px] text-white font-sans hover:bg-black/80 active:scale-[0.97] transition-[background-color,transform]"
-              >
-                Export
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Bottom: Listen (left) + Play/Stop (centre) */}
       <div className="flex items-center shrink-0 pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)] pb-[clamp(12px,3dvh,36px)] pt-[clamp(8px,2dvh,24px)]">
@@ -673,7 +641,7 @@ export default function Home() {
           <button
             onClick={handlePlay}
             aria-label={isRecording && !isPaused ? "Pause recording" : isPaused ? "Resume recording" : "Start recording"}
-            disabled={!canPlay || countInBeat !== null || liveStatus.state === "starting"}
+            disabled={!libraryLoaded || !canPlay || countInBeat !== null || liveStatus.state === "starting"}
             className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!canPlay || countInBeat !== null || liveStatus.state === "starting" ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
           >
             {isRecording && !isPaused

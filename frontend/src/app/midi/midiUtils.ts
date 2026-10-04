@@ -153,6 +153,7 @@ export function downloadMidi(recording: Recording): void {
   const writer = new MidiWriter.Writer(track);
   const link = document.createElement("a");
   link.href = writer.dataUri();
-  link.download = "recording.mid";
+  const filename = recording.name.replace(/[^a-zA-Z0-9 _-]/g, "_").trim().slice(0, 80);
+  link.download = `${filename || "recording"}.mid`;
   link.click();
 }

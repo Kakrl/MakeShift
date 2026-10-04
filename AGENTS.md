@@ -43,7 +43,7 @@ it separates existing behavior from planned work and links implementation issues
 
 | Path | Contents |
 | :--- | :--- |
-| `frontend/` | Next.js web client: camera, calibration, CV overlays, MIDI utils |
+| `frontend/` | Next.js web client: camera, calibration, CV overlays, MIDI utils and local library operations |
 | `frontend/public/audio/` | Static AudioWorklet and shared fixed-voice DSP |
 | `frontend/src/app/audio/` | Browser audio owner and user-triggered sound check |
 | `frontend/src/diagnostics/` | Shared bounded metrics and explicit camera-video registry |

@@ -58,7 +58,7 @@ MakeShift/
 │   │   │   ├── calibration/
 │   │   │   ├── cv/                  # hand landmark overlay and drawing
 │   │   │   ├── documentation/
-│   │   │   ├── midi/                # MIDI recording utils
+│   │   │   ├── midi/                # MIDI recording utils and local library operations
 │   │   │   ├── tutorial/
 │   │   │   ├── PipelineDiagnostics.tsx # opt-in metrics and report export
 │   │   │   ├── CameraContext.tsx

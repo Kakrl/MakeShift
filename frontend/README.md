@@ -106,3 +106,11 @@ Frontend test implementations live in `../tests/frontend/`: MIDI unit tests in
 commands above from `frontend/`; dependencies remain in this package. ESLint
 and TypeScript include the moved tests. Add future frontend specs, helpers, and
 fixtures to the same test directory and update the verification inventory.
+
+## Local recordings
+
+Finished takes are saved locally and listed on the home page. Rename, delete
+(with confirmation), and download MIDI per take. Storage failures keep the take
+in memory with a Not saved label and a retry action; download unsaved takes
+before leaving. The browser chooses the download location. See
+[the library contract](../docs/recordings_library.md).
