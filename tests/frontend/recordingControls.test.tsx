@@ -225,6 +225,13 @@ async function keys(...xs: number[]) {
     currentHands.map((landmarks) => ({ landmarks, handedness: "Right" as const })),
   ));
   await frame();
+  // The per-finger FSM enters ready before ready evaluates contact evidence.
+  // Supply the next stable observation so integration cases exercise a held
+  // key through the complete transition without modeling sensor latency here.
+  await act(async () => fixtures.landmarks?.(
+    currentHands.map((landmarks) => ({ landmarks, handedness: "Right" as const })),
+  ));
+  await frame();
 }
 
 async function start() {

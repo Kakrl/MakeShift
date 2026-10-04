@@ -6,12 +6,12 @@ it does not establish measured accuracy or latency.
 
 ## Direction
 
-- [ ] Deprioritize joint curvature for the current front-facing camera angle:
+- [x] Deprioritize joint curvature for the current front-facing camera angle:
   curved and flat fingers appeared too similar in the user's observations.
   Keep knuckles as a permissive eligibility gate and shadows as contact
   confirmation.
 
-## Shadow scheduling — next
+## Shadow scheduling
 
 Shadow analysis now runs only for fingers over a key and inside the knuckle
 playing zone. A selected debug preview can request one additional diagnostic

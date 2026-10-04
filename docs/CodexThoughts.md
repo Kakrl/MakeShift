@@ -311,7 +311,8 @@ labels it `hover`, `press candidate`, or `unknown`; fingers outside a key are
 shown as `outside key`. Segmentation remains independent of the knuckle
 calculation, but its candidate now drives live contact only after key-overlap
 and knuckle eligibility both pass. The debug panel shows these gates separately
-and the final per-finger contact state.
+and displays the FSM state for every tracked fingertip, including fingers
+outside a key.
 
 The finger debug panel includes a live 2x index-fingertip crop from the same
 camera snapshot used for shadow measurements. The right-hand index is preferred;
@@ -405,13 +406,16 @@ processFrame
   -> checkShadows (capture and asynchronous worker request)
 receiveShadows
   -> checkShadowContact
-  -> evaluateFingerContact (press/hold/release state)
+  -> Finger.checkState (state-specific contact transition)
 ```
 
 The controller owns worker startup/disposal, the one-in-flight limit, sampling
-interval, per-finger histories and gate revisions, stale-result rejection, and
-the release watchdog. `contactPipeline.ts` holds the individual overlap,
-knuckle, and shadow checks. The overlay supplies frames, calibrated geometry,
+interval, per-finger gate revisions, stale-result rejection, and the release
+watchdog. `Finger` owns each tracked fingertip's contact state and implements
+the per-state transitions through `checkState` and its state handlers. The
+controller still owns shadow measurement history and asynchronous work.
+`contactPipeline.ts` holds the individual overlap, knuckle, and shadow checks.
+The overlay supplies frames, calibrated geometry,
 and finger observations; it handles note dispatch and visual feedback through
 controller callbacks. Contact/note callbacks run before preview rendering;
 React visual updates do not gate audio dispatch.
@@ -451,9 +455,9 @@ evidence is disabled or unavailable.
 
 ### Combined contact state and note transitions
 
-`frontend/src/cv/combinedContact.ts` owns the small per-finger state evaluator.
-The live controller supplies key indexes, knuckle eligibility, and fresh shadow
-results:
+`frontend/src/cv/finger.ts` owns per-finger transition logic. The live controller
+supplies key indexes, knuckle eligibility, and fresh shadow results. State and
+gate types and timing constants are defined in `combinedContact.ts`:
 
 ```text
 hover -> ready -> pressed -> releasing -> ready
@@ -467,17 +471,20 @@ hover -> ready -> pressed -> releasing -> ready
   without repeated note-ons.
 - `releasing`: a shadow hover/unknown result starts a 60 ms grace period. A
   fresh candidate during that period restores pressed without retriggering.
-  Otherwise the note ends; hover evidence returns to ready and unknown evidence
-  becomes unavailable.
+  Otherwise the note ends and the finger returns to ready. Unknown shadow
+  evidence leaves an eligible finger ready while it waits for a usable sample.
 - `unavailable`: required calibration, geometry, camera, worker, or shadow
-  evidence is missing or stale. This cannot start a note.
+  gates are unavailable. Recovery checks the gates, moves to ready, then lets
+  the ready handler evaluate shadow evidence. This state cannot start a note.
 
 `CONTACT_RELEASE_GRACE_MS = 60` and `CONTACT_SHADOW_MAX_AGE_MS = 150` are tunable
 in `combinedContact.ts`. There is no extra press confirmation delay: the first
-fresh candidate can start contact. A 20 ms watchdog finishes release grace and
-releases contact once its shadow sample is older than 150 ms, even if no more
-worker results arrive. These are prototype time settings, not measured latency
-claims; a blocked/backgrounded main thread can delay the watchdog.
+usable candidate can start contact. Unknown and stale shadow results leave an
+eligible, unpressed finger in `ready`; for an active press, they start or
+continue the release grace period. A 20 ms watchdog finishes release grace,
+even if no more worker results arrive. These are prototype time settings, not
+measured latency claims; a blocked/backgrounded main thread can delay the
+watchdog.
 
 Leaving the key, losing knuckle eligibility, losing a tracked finger, changing
 calibration, pausing/stopping tracking, and worker failure release affected
