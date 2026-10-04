@@ -109,6 +109,15 @@ Local execution on macOS, 2026-10-04, Node 24.2.0 and Vitest 4.1.11:
   no manifest or lockfile changes were made. Actions execution evidence is
   pending.
 
+## Marker acquisition and geometry retention verification
+
+Local execution on 2026-10-04, Node 24.2.0 and Vitest 4.1.11:
+
+- `cd frontend && npx vitest run`: **313 passed, 5 expected failures across 18 files**. New policy and overlay cases verify 250 ms acquisition, latched 10-second checks after a missed marker scan, retaining/replacing last good geometry, and resetting for a new camera session. Live-session coverage verifies calibration remains valid across unlimited missed marker scans while hand tracking stays fresh. Overlay integration coverage retains geometry across three consecutive missed scans and checks the detector remains on its 10-second cadence.
+- `cd frontend && npm run lint` and `cd frontend && npx tsc --noEmit` passed. `cd frontend && npm run test:contrast` passed all 18 pairs.
+- `cd frontend && npm run build` passed after retrying with network access; the sandboxed attempt could not fetch the existing Geist and Geist Mono Google Fonts.
+- The marker policy is unit-tested; a browser run with real marker misses and a physical sheet/camera remains unverified. Actions evidence is pending.
+
 ## Playback timeline verification (issue #130)
 
 Sources: [timeline tests](frontend/playbackTimeline.test.ts) and the added
