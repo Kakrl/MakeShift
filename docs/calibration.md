@@ -33,15 +33,21 @@ The result contains:
 
 ## Compatibility and interruption
 
-Every live marker check validates stored data and checks the current camera,
-sheet revision, layout and marker positions. The first frame is checked immediately, then marker detection runs every ten
-seconds to reduce main-thread CV overhead. Frame loss resets acquisition; camera
-changes and frame-size changes trigger a fresh check. Sheet movement or removal
-can remain undetected until the next periodic check (up to ten seconds). No live frame, missing/invalid markers, a detector
-exception, unavailable camera, corrupt storage or incompatible data prevents
-playing. Each corner may move by at most 1% of the frame diagonal to allow
-marker jitter. This is a provisional geometric tolerance, not an accuracy claim.
-Geometry rendering and collision use the same accepted live projection.
+At the start of a camera session, marker detection searches every 250 ms until it
+produces a complete, usable geometry. After that first geometry, checks run every
+ten seconds, including after a missed check. A miss retains the last good
+projection and retries at the next ten-second interval. A later complete,
+usable result replaces the cached projection. Camera/source changes or frame
+loss reset the cache and begin fast acquisition again. Sheet movement or
+removal can remain undetected until a periodic check (up to ten seconds).
+
+Missing or failed marker observations do not invalidate the last compatible
+calibration, regardless of how many periodic scans miss. The saved projection
+remains usable until a complete observation shows incompatible marker positions,
+or the camera/frame session is lost. Each corner may move by at most 1% of the
+frame diagonal to allow marker jitter. This is a provisional geometric
+tolerance, not an accuracy claim. Geometry rendering and collision use the
+same retained live projection; session readiness still gates note dispatch.
 
 Invalidation releases active keys, stops the recording and cancels pending
 count-in/audio initialization. Restoring compatible observations permits a new

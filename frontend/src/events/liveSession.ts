@@ -1,7 +1,5 @@
 import {
   compatibleCalibration,
-  MARKER_CHECK_INTERVAL_MS,
-  MARKER_CHECK_SLACK_MS,
   validateCalibration,
   type CameraSignature,
 } from "../cv/calibration";
@@ -18,8 +16,6 @@ export type LiveState =
   | "interrupted"
   | "error";
 export const TRACKING_TIMEOUT_MS = 500;
-// Marker jitter has its own budget; hand freshness remains independent.
-export const CALIBRATION_TIMEOUT_MS = MARKER_CHECK_INTERVAL_MS + MARKER_CHECK_SLACK_MS;
 export type LiveStatus = Readonly<{
   state: LiveState;
   message: string;
@@ -73,7 +69,7 @@ export class LiveSession {
   private fresh() {
     return (
       !this.hidden &&
-      this.now() - this.calibrationAt < CALIBRATION_TIMEOUT_MS &&
+      Number.isFinite(this.calibrationAt) &&
       this.now() - this.trackingAt < TRACKING_TIMEOUT_MS
     );
   }
@@ -148,11 +144,8 @@ export class LiveSession {
   }
   private watch(wasFresh: boolean) {
     clearTimeout(this.timer);
-    const remaining =
-      Math.min(this.calibrationAt + CALIBRATION_TIMEOUT_MS,
-        this.trackingAt + TRACKING_TIMEOUT_MS) -
-      this.now();
-    if (remaining > 0)
+    const remaining = this.trackingAt + TRACKING_TIMEOUT_MS - this.now();
+    if (Number.isFinite(this.calibrationAt) && remaining > 0)
       this.timer = setTimeout(() => {
         this.interrupt(
           "Tracking timed out. Restore the camera and sheet, wait for tracking, then select Enable audio.",

@@ -52,6 +52,18 @@ and worker overload. Do not claim those tests already exist.
 - Supported configurations and inability to meet targets must be explicit.
   No test is marked passed based on an architectural choice.
 
+## Recording playback extension (#130)
+
+PB-1: play an existing recording at 0.25x–4x speed with pause, seek, stop, and
+cleanup on audio interruption. Audio dispatch is independent of React rendering.
+The timeline supplies position to future piano-tiles views; their visuals/scoring
+remain #131/#132. Existing live-CV accuracy/latency requirements are unchanged.
+
+Inventory PB-1.1–PB-1.5 maps timing, lifecycle, input validation, delayed callbacks,
+and production audio-owner integration. Deterministic timer/device fixtures do
+not establish audible browser performance or physical latency. Browser timing
+measurements and listening evidence remain pending.
+
 ## Document maintenance
 
 For this browser transition, use this addendum with the inventory as the

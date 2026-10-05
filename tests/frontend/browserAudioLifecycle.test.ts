@@ -2,6 +2,7 @@ import { LiveSession } from "../../frontend/src/events/liveSession";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAudioSession } from "../../frontend/src/events/audioSession";
 import { BrowserAudio } from "../../frontend/src/app/audio/audioEngine";
+import { createPlaybackTimeline } from "../../frontend/src/app/midi/playbackTimeline";
 
 class Context {
   static instances: Context[] = [];
@@ -51,7 +52,104 @@ beforeEach(() => {
   vi.stubGlobal("AudioContext", Context);
   vi.stubGlobal("AudioWorkletNode", Worklet);
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
+
+describe("recording timeline with the production audio owner", () => {
+  const take = {
+    id: "playback",
+    name: "Playback",
+    bpm: 120,
+    createdAt: "2026-09-29T00:00:00Z",
+    notes: [
+      { pitch: "C4", velocity: 80, startMs: 0, durationMs: 500 },
+      { pitch: "C4", velocity: 40, startMs: 100, durationMs: 500 },
+    ],
+  };
+
+  it("uses distinct audio tokens and releases all owned voices on pause/seek/dispose", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
+    const audio = new BrowserAudio();
+    const timeline = createPlaybackTimeline(take, audio);
+    try {
+      expect(await timeline.play()).toBe(true);
+      const node = Worklet.instances[0];
+      node.ack();
+      await vi.advanceTimersByTimeAsync(100);
+      const ons = node.port.postMessage.mock.calls
+        .map(([e]) => e)
+        .filter((e) => e.type === "note-on");
+      expect(ons.map((e) => [e.note, e.velocity])).toEqual([
+        [60, 0.8],
+        [60, 0.4],
+      ]);
+      expect(ons[0].press).not.toBe(ons[1].press);
+      timeline.pause();
+      const offs = node.port.postMessage.mock.calls
+        .map(([e]) => e)
+        .filter((e) => e.type === "note-off");
+      expect(offs.map((e) => e.press)).toEqual(ons.map((e) => e.press));
+      node.ack();
+      await timeline.play();
+      timeline.seek(550);
+      node.ack();
+      await vi.advanceTimersByTimeAsync(50);
+      expect(timeline.getSnapshot().state).toBe("ended");
+      timeline.dispose();
+      const commands = node.port.postMessage.mock.calls.map(([e]) => e);
+      expect(
+        commands
+          .filter((e) => e.type === "note-off")
+          .map((e) => e.press)
+          .sort(),
+      ).toEqual(
+        commands
+          .filter((e) => e.type === "note-on")
+          .map((e) => e.press)
+          .sort(),
+      );
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      timeline.dispose();
+      await audio.close();
+    }
+  });
+
+  it.each(["suspend", "processor", "close"])(
+    "pauses on real owner %s invalidation without later playback",
+    async (cause) => {
+      vi.useFakeTimers({
+        toFake: ["setTimeout", "clearTimeout", "performance"],
+      });
+      const audio = new BrowserAudio();
+      const timeline = createPlaybackTimeline(take, audio);
+      try {
+        await timeline.play();
+        const node = Worklet.instances[0];
+        node.ack();
+        await vi.advanceTimersByTimeAsync(50);
+        if (cause === "suspend") {
+          Context.instances[0].state = "suspended";
+          Context.instances[0].onstatechange?.();
+        } else if (cause === "processor") node.onprocessorerror?.();
+        else await audio.close();
+        expect(timeline.getSnapshot()).toMatchObject({
+          state: "paused",
+          positionMs: 50,
+        });
+        const count = node.port.postMessage.mock.calls.length;
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(node.port.postMessage).toHaveBeenCalledTimes(count);
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        timeline.dispose();
+        await audio.close();
+      }
+    },
+  );
+});
 
 describe("browser audio owner lifecycle", () => {
   it("never initializes from notes; shares initialization and requests interactive latency", async () => {
