@@ -49,13 +49,14 @@ A successful hand inference on a newly decoded frame refreshes tracking. An
 empty successful result means no hands and releases keys through normal
 transitions; it is not a detector failure. Explicit inference failure interrupts
 immediately and offers reload. Successful hand inference must be younger than 500 ms.
-Compatible marker observations expire after 12 seconds, using the shared
-ten-second marker cadence plus an independent two-second detector/scheduling
-jitter allowance. This allowance is provisional, not a measured detector bound.
-It does not extend the 500 ms hand-tracking deadline. If either stops arriving, a watchdog
-interrupts; receive and observation-refresh paths also check the deadline, so
-a delayed timer cannot keep or resurrect a session. Returning observations
-permit a new user-started session, never automatic resumption.
+Once a compatible marker observation is received, calibration remains valid
+through any number of missed periodic scans while the last good projection is
+retained. A complete incompatible marker observation or camera/frame loss still
+invalidates it. Hand tracking remains subject to its independent 500 ms
+deadline; if tracking expires, a watchdog interrupts. Receive and observation-
+refresh paths also check that deadline, so a delayed timer cannot keep or
+resurrect a session. Returning observations permit a new user-started session,
+never automatic resumption.
 
 The 500 ms watchdog is a provisional stale-input safety bound, not contact
 debounce or a measured physical latency claim. Browser scheduling can delay the

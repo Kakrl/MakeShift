@@ -1,6 +1,5 @@
-// Shared marker cadence and provisional detector/scheduling jitter allowance.
+// Shared live marker cadence.
 export const MARKER_CHECK_INTERVAL_MS = 10_000;
-export const MARKER_CHECK_SLACK_MS = 2_000;
 export const MARKER_ACQUIRE_INTERVAL_MS = 250;
 
 import { computeHomography, projectPoint } from "./homography";

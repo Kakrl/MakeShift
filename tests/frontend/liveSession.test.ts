@@ -2,10 +2,13 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   LiveSession,
   TRACKING_TIMEOUT_MS,
-  CALIBRATION_TIMEOUT_MS,
 } from "../../frontend/src/events/liveSession";
 import type { BrowserAudio } from "../../frontend/src/app/audio/audioEngine";
-import { CURRENT_LAYOUT, SHEET_ID } from "../../frontend/src/cv/calibration";
+import {
+  CURRENT_LAYOUT,
+  MARKER_CHECK_INTERVAL_MS,
+  SHEET_ID,
+} from "../../frontend/src/cv/calibration";
 
 const calibration = () => ({
   version: 1,
@@ -302,22 +305,44 @@ it("named note methods retain readiness and malformed-input checks", async () =>
   expect(audio.releaseAll).toHaveBeenCalled();
 });
 
-it("fresh hand tracking allows ten-second marker cadence but cannot hide marker expiry", async () => {
+it("stays ready through one missed marker scan when the next ten-second scan succeeds", async () => {
+  await play();
+  for (
+    let elapsed = 100;
+    elapsed <= MARKER_CHECK_INTERVAL_MS * 2;
+    elapsed += 100
+  ) {
+    now += 100;
+    vi.advanceTimersByTime(100);
+    gate.observeTracking();
+  }
+  expect(gate.status.state).toBe("playing");
+  expect(
+    gate.observeCalibration(
+      calibration(),
+      calibration().camera,
+      calibration().corners,
+    ),
+  ).toBe(true);
+  expect(gate.status.state).toBe("playing");
+});
+
+it("keeps calibration valid across unlimited missed marker scans while tracking stays fresh", async () => {
   const id = await play();
   gate.noteOn(id, 1, 60, 0.8);
-  for (let elapsed = 100; elapsed < CALIBRATION_TIMEOUT_MS; elapsed += 100) {
+  for (
+    let elapsed = 100;
+    elapsed <= MARKER_CHECK_INTERVAL_MS * 5;
+    elapsed += 100
+  ) {
     now += 100;
     vi.advanceTimersByTime(100);
     gate.observeTracking();
     expect(gate.status.state).toBe("playing");
   }
-  now += 100;
-  vi.advanceTimersByTime(100);
-  expect(gate.status.state).toBe("interrupted");
-  expect(audio.releaseAll).toHaveBeenCalledTimes(1);
-  observe();
   expect(gate.status.canStart).toBe(true);
-  expect(gate.noteOn(id, 2, 64, 0.8)).toBe("stale");
+  expect(gate.noteOff(id, 1, 60)).toBe("accepted");
+  expect(audio.releaseAll).not.toHaveBeenCalled();
 });
 
 it("accepts marker detector jitter beyond the old 500 ms slack with fresh hands", async () => {

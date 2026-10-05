@@ -41,6 +41,7 @@ tests/
 │   ├── performanceMetrics.test.ts # aggregation, clocks, bounds and overhead
 │   ├── performanceResources.test.tsx # CameraProvider lifecycle
 │   ├── performanceMetrics.browser.mjs # profiles and paired overhead
+│   ├── fingerState.test.ts           # per-finger contact state transitions
 │   ├── browserAudio.test.ts      # production DSP offline rendering
 │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   ├── browserAudio.browser.mjs  # production browser graph check
@@ -83,6 +84,39 @@ No test implementation requires an exception to this layout.
 | Pipeline profiling | `cd frontend && npm run test:performance-browser` | Production server on port 3100, Playwright + Edge; synthetic camera; local only |
 | Camera feed layout | `cd frontend && npm run test:layout-browser` | Running production server; Playwright bundled Chromium; optional MAKE_SHIFT_URL / LAYOUT_BROWSER_CHANNEL |
 | RCA automation | `node --test tests/automation/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
+
+## Per-finger contact state verification
+
+Local execution on macOS, 2026-10-04, Node 24.2.0 and Vitest 4.1.11:
+
+- `cd frontend && npx vitest run`: **308 passed, 5 expected failures across 17
+  files.** The expected failures are existing `it.fails` cases; no unexpected
+  failures occurred.
+- `cd frontend && npx vitest run ../tests/frontend/fingerState.test.ts`:
+  **6 tests passed.** Cases cover unavailable recovery through ready, unknown
+  and stale shadow results, press confirmation, eligibility loss, release
+  grace/recovery, stale release, and shadow-free tracking timeout.
+- `cd frontend && ./node_modules/.bin/eslint --config eslint.config.mjs src/cv/finger.ts`
+  passed; from the repository root,
+  `./frontend/node_modules/.bin/eslint --config frontend/eslint.config.mjs tests/frontend/fingerState.test.ts tests/frontend/recordingControls.test.tsx`
+  also passed.
+- `cd frontend && npx tsc --noEmit`: passed.
+- The recording-controls fixture now sends the next stable observation after
+  the initial unavailable-to-ready transition. Its timing remains synthetic
+  and does not measure camera or physical latency.
+- The normal Vitest configuration initially could not load because dependencies
+  were missing from `node_modules`. `npm ci` restored the locked dependencies;
+  no manifest or lockfile changes were made. Actions execution evidence is
+  pending.
+
+## Marker acquisition and geometry retention verification
+
+Local execution on 2026-10-04, Node 24.2.0 and Vitest 4.1.11:
+
+- `cd frontend && npx vitest run`: **313 passed, 5 expected failures across 18 files**. New policy and overlay cases verify 250 ms acquisition, latched 10-second checks after a missed marker scan, retaining/replacing last good geometry, and resetting for a new camera session. Live-session coverage verifies calibration remains valid across unlimited missed marker scans while hand tracking stays fresh. Overlay integration coverage retains geometry across three consecutive missed scans and checks the detector remains on its 10-second cadence.
+- `cd frontend && npm run lint` and `cd frontend && npx tsc --noEmit` passed. `cd frontend && npm run test:contrast` passed all 18 pairs.
+- `cd frontend && npm run build` passed after retrying with network access; the sandboxed attempt could not fetch the existing Geist and Geist Mono Google Fonts.
+- The marker policy is unit-tested; a browser run with real marker misses and a physical sheet/camera remains unverified. Actions evidence is pending.
 
 ## Playback timeline verification (issue #130)
 
