@@ -34,3 +34,13 @@ invalid data and snapshot isolation. Home-page tests exercise Stop, visible quot
 remount persistence. Production browser tests cover seeded takes across reload,
 rename/delete and real downloads. A full browser restart, cross-browser coverage
 and Listen/playback remain outside this verification.
+
+The `midi/RecordingsLibraryPanel.tsx` component owns library loading, display, rename,
+delete, retry, and error state. The home page forwards completed takes through
+its `completeTake` handle and receives loading/availability status for controls.
+Recording session and count-in coordination remain in the home page.
+
+The panel is imported with server rendering disabled because it reads browser
+storage. Its controller and displayed list initialize with lazy `useState`
+initializers; no initialization effect or timer is needed. The import displays
+a loading placeholder until the browser component is available.

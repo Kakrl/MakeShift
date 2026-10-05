@@ -10,7 +10,6 @@ import CameraStatusOverlay from "./CameraStatusOverlay";
 import SideNav from "./SideNav";
 import {
   createRecorder,
-  downloadMidi,
   type Recorder,
   type Recording,
 } from "./midi/midiUtils";
@@ -19,8 +18,12 @@ import { browserAudio } from "./audio/audioEngine";
 import { LiveSession } from "../events/liveSession";
 import { loadCalibration } from "../cv/calibration";
 import { connectPianoConsumers } from "../events/pianoConsumers";
-import { createRecordingsLibrary, type LibraryEntry } from "./midi/recordingsLibrary";
-import type { WriteResult } from "../lib/storage";
+import type { RecordingsLibraryHandle } from "./midi/RecordingsLibraryPanel";
+
+const RecordingsLibrary = dynamic(
+  () => import("./midi/RecordingsLibraryPanel"),
+  { ssr: false, loading: () => <p role="status">Loading recordings?</p> },
+);
 
 const CVOverlayCoordinator = dynamic(
   () => import("./CVOverlayCoordinator"),
@@ -74,50 +77,16 @@ export default function Home() {
   }
   const recorder = recorderRef.current;
   const consumersRef = useRef<ReturnType<typeof connectPianoConsumers> | null>(null);
-  const libraryRef = useRef<ReturnType<typeof createRecordingsLibrary> | null>(null);
-  const [recordings, setRecordings] = useState<LibraryEntry[]>([]);
+  const recordingsLibraryRef = useRef<RecordingsLibraryHandle | null>(null);
   const [libraryLoaded, setLibraryLoaded] = useState(false);
-  const [libraryError, setLibraryError] = useState<string | null>(null);
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [recordingName, setRecordingName] = useState("");
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      libraryRef.current ??= createRecordingsLibrary();
-      setRecordings(libraryRef.current.list());
-      setLibraryLoaded(true);
-    }, 0);
-    return () => clearTimeout(timer);
+  const [hasRecordings, setHasRecordings] = useState(false);
+  const updateLibraryStatus = useCallback((loaded: boolean, hasRecordings: boolean) => {
+    setLibraryLoaded(loaded);
+    setHasRecordings(hasRecordings);
   }, []);
-
-  const refreshLibrary = useCallback((result: WriteResult) => {
-    if (!libraryRef.current) return;
-    setRecordings(libraryRef.current.list());
-    setLibraryError(result.ok ? null : result.reason === "quota"
-      ? "Storage is full. Unsaved recordings will be lost when you leave. Download them or free space and retry."
-      : "The change could not be saved. Download any unsaved recordings before leaving.");
-  }, []);
-
   const completeTake = useCallback((take: Recording) => {
-    if (libraryRef.current) refreshLibrary(libraryRef.current.completeTake(take));
-  }, [refreshLibrary]);
-
-  function renameRecording(id: string) {
-    if (!libraryRef.current) return;
-    const result = libraryRef.current.renameRecording(id, recordingName);
-    refreshLibrary(result);
-    if (result.ok) setRenamingId(null);
-  }
-
-  function deleteRecording(id: string) {
-    if (libraryRef.current && window.confirm("Delete this recording?")) {
-      refreshLibrary(libraryRef.current.deleteRecording(id));
-    }
-  }
-
-  function retrySaving() {
-    if (libraryRef.current) refreshLibrary(libraryRef.current.retrySaving());
-  }
+    recordingsLibraryRef.current?.completeTake(take);
+  }, []);
 
   // ── Tempo & time signature (controlled) ─────────────────────────────────
   const [tempo, setTempo] = useState(120);
@@ -146,10 +115,9 @@ export default function Home() {
   //   countInBeat      → 1 … beatsPerMeasure (one measure count-in), then recording
   //   isRecording      → actively recording (or paused)
   //   isPaused         → recording paused mid-session
-  //   hasFinishedRecording → stop pressed; MIDI controls visible
+  //   hasRecordings → stop pressed; MIDI controls visible
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const hasFinishedRecording = recordings.length > 0;
   const [showRecordingComplete, setShowRecordingComplete] = useState(false);
 
   // ── Export / delete ──────────────────────────────────────────────────────
@@ -599,24 +567,7 @@ export default function Home() {
               </button>
             </div>
 
-            <section aria-labelledby="recordings-heading" className="w-full text-ink">
-              <h2 id="recordings-heading" className="font-medium">Recordings</h2>
-              {libraryError && <div role="alert" className="text-danger"><p>{libraryError}</p><button type="button" className="underline" onClick={retrySaving}>Retry saving</button></div>}
-              {!libraryLoaded ? <p role="status">Loading recordings?</p> : recordings.length === 0 ? <p>No recordings yet.</p> :
-                <ul>{recordings.map(({ recording, saved }) => <li key={recording.id} className="my-3" aria-label={recording.name}>
-                  <p className="break-words">{recording.name}{!saved && " ? Not saved"}</p>
-                  {renamingId === recording.id ? <form onSubmit={(event) => { event.preventDefault(); renameRecording(recording.id); }}>
-                    <label htmlFor={`name-${recording.id}`}>Name</label>
-                    <input id={`name-${recording.id}`} value={recordingName} onChange={(event) => setRecordingName(event.target.value)} className="w-full border border-control-border bg-white text-ink" />
-                    <button type="submit" className="underline mr-3" disabled={!recordingName.trim()}>Save name</button>
-                    <button type="button" className="underline" onClick={() => setRenamingId(null)}>Cancel</button>
-                  </form> : <div className="flex flex-wrap gap-3">
-                    <button type="button" className="underline" onClick={() => { setRenamingId(recording.id); setRecordingName(recording.name); }}>Rename</button>
-                    <button type="button" className="underline" onClick={() => downloadMidi(recording)}>Download MIDI</button>
-                    <button type="button" className="underline text-danger" onClick={() => deleteRecording(recording.id)}>Delete</button>
-                  </div>}
-                </li>)}</ul>}
-            </section>
+            <RecordingsLibrary ref={recordingsLibraryRef} onStatusChange={updateLibraryStatus} />
           </div>
         </SideNav>
       </div>
@@ -624,7 +575,7 @@ export default function Home() {
       {/* Bottom: Listen (left) + Play/Stop (centre) */}
       <div className="flex items-center shrink-0 pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)] pb-[clamp(12px,3dvh,36px)] pt-[clamp(8px,2dvh,24px)]">
         <div className="flex-1 relative flex flex-wrap items-center justify-center gap-[27px]">
-          {hasFinishedRecording && (
+          {hasRecordings && (
             <button className="lg:absolute lg:left-0 border-[1.5px] border-black bg-surface px-5 py-2 rounded-[8px] text-[17px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]">
               Listen to Recording
             </button>

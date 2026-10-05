@@ -1050,3 +1050,25 @@ export/delete dialogs and the placeholder path field.
 - Deployment smoke was stopped at the 45-second limit; no pass claimed.
 - Desktop (1280x720) and mobile (390x844) screenshots inspected: plain list,
   rename/download/delete controls readable; no redesign introduced.
+
+### Recordings library component extraction (2026-10-05)
+
+PR #167 review follow-up: moved library UI/state into
+`frontend/src/app/midi/RecordingsLibraryPanel.tsx`; the page forwards completed
+takes and receives loaded/availability status. On Windows, lint, TypeScript,
+Vitest (281 passed, five existing expected failures), all 18 contrast checks,
+and production build passed. Production Chromium 151 library reload, rename,
+delete, two named downloads/exact MIDI bytes, and audio smoke passed. The build
+needed network access for existing Google Fonts. Deployment smoke was retried with network access but stalled in the camera
+workflow and was stopped without a pass; no physical camera/audio verification
+is claimed.
+
+### Browser-only library initialization (2026-10-05)
+
+PR #167: removed the library initialization effect and zero-delay timer. The
+browser-only panel initializes its controller and list directly. Updated
+`next/dynamic` test mocks to render the real panel. Lint, TypeScript, Vitest
+(281 passed, five existing expected failures), 18 contrast checks, production
+build, Chromium 151 library/download checks, and audio smoke passed. The wider
+deployment camera smoke remains incomplete as recorded in the extraction
+verification above. Physical camera/audio measurements remain unverified.

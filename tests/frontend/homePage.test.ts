@@ -51,9 +51,11 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push, back: vi.fn() }) }
 // set instead of running CV.
 const calibration = vi.hoisted(() => ({ valid: false }));
 vi.mock("next/dynamic", async () => {
+  const { default: LibraryPanel } = await import("../../frontend/src/app/midi/RecordingsLibraryPanel");
   const { useEffect } = await import("react");
   return {
-    default: () =>
+    default: (loader: () => unknown) =>
+      loader.toString().includes("RecordingsLibraryPanel") ? LibraryPanel :
       function CoordinatorStub({ session }: { session: LiveSession }) {
         useEffect(() => {
           if (!calibration.valid) return;
