@@ -54,6 +54,9 @@ tests/
 │   ├── midiUtils.test.ts             # MIDI unit tests
 │   └── check-contrast.mjs            # theme token contrast audit
 ├── python/
+│   ├── latency_analysis.py          # synchronized PCM latency analyzer
+│   ├── latency_config.example.json  # capture metadata and detector settings
+│   ├── test_latency_analysis.py     # generated known-delay PCM fixtures
 │   └── test_dummy.py                 # existing placeholder, no product coverage
 └── manual/
     └── manual_test_template.md
@@ -76,6 +79,7 @@ No test implementation requires an exception to this layout.
 | :--- | :--- | :--- |
 | C++ (GoogleTest) | `cmake -B build -S backend && cmake --build build --config Release && ctest --test-dir build -C Release --output-on-failure` | CMake 3.15+, C++23 compiler, Python 3.12, `pip install -r requirements.txt` |
 | Python | `python -m pytest --cov=backend --cov-report=term-missing` | `pip install -r requirements.txt` |
+| Physical latency analysis | `python tests/python/latency_analysis.py capture.wav run.json report.json` | Shared-clock stereo PCM16 contact-reference/microphone capture; [procedure and equipment](../docs/latency_benchmark.md) |
 | Frontend unit (Vitest) | `cd frontend && npx vitest run` | `npm ci` in `frontend/` |
 | Browser audio smoke | `cd frontend && npm run test:audio-browser` | Production server on `MAKE_SHIFT_URL` (default `http://127.0.0.1:3000`); `AUDIO_BROWSER_CHANNEL=chromium` for Playwright Chromium (default `msedge`) |
 | Deployment smoke | `cd frontend && npm run test:deployment` | Production server or Vercel URL in `MAKE_SHIFT_URL`; `npx playwright install chromium`; network for jsDelivr WASM; `EXPECT_DATABASE=ok` requires Supabase secrets (`infisical run`) |
@@ -140,6 +144,29 @@ on `feature/130-playback-timeline` based on upstream `614203f`:
   the sandboxed attempt failed to fetch the existing Geist Google Fonts.
 - No real browser timing/listening run was performed. PB-1.1–PB-1.5 map the
   actual coverage; CI does not run these Vitest cases and remains pending.
+
+## Physical latency analyzer verification (issue #30)
+
+Local Windows execution on 2026-10-05, Python 3.12.10, pytest 8.2.2,
+branch `test/30-end-to-end-latency`, based on `0cc8469`.
+Generated PCM fixtures: 19 analyzer tests passed (20 total including the
+existing placeholder). Known 20/49/50/80 ms delays were recovered within one
+sample at 44.1/48/96 kHz. Tests also cover missing and ambiguous audio,
+unmatched onsets, invalid references, calibration correction, uncertainty,
+strict 50 ms interpretation, all-missing distributions, transient rejection,
+rearming, invalid metadata/windows/configuration, wrong WAV format, ramped
+sine bursts with noise and actual CLI report/failure-exit behavior.
+Ruff and required backend mypy checks passed. The existing `testing.yml`
+invokes pytest when Python changes; specific Actions execution is pending.
+
+Use the [capture procedure](../docs/latency_benchmark.md) and copy
+`python/latency_config.example.json` to configure real input. Thresholds and
+calibration defaults require measured validation. Equipment includes a
+shared-clock stereo ADC, contact reference and acoustic microphone; no physical
+capture or calibrated equipment was supplied for this work.
+[Physical report 2.3.1](manual/2026-10-05_2.3.1.md) remains BLOCKED.
+No product latency, Bluetooth result, detection accuracy or physical PASS is
+claimed. Software #38 exports remain separate from physical measurements.
 
 ## Note-list recorder verification (issues #108 and #115)
 

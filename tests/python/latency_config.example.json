@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "phase": "warm",
+  "metadata": {
+    "commit": "TODO exact production commit",
+    "tester": "TODO name",
+    "date": "TODO date",
+    "browser": "TODO browser and version",
+    "os": "TODO OS and version",
+    "hardware": "TODO CPU RAM machine",
+    "camera": "TODO model",
+    "camera_fps": "TODO actual configured rate and observed delivery rate",
+    "camera_resolution": "TODO width x height",
+    "output_device": "TODO model volume and microphone distance",
+    "output_route": "wired",
+    "settings": "TODO model delegate calibration lighting velocity envelope and sample rate",
+    "physical_reference": "TODO sensor model mounting contact definition and validation",
+    "capture_device": "TODO interface microphone recorder PCM settings",
+    "synchronization": "TODO shared ADC clock calibration artifact offset drift",
+    "onset_validation": "TODO noise floor thresholds uncertainty budget and threshold sensitivity",
+    "accuracy_evidence": "TODO companion issue 39 report or explicitly unexecuted"
+  },
+  "correction_ms": 0,
+  "uncertainty_ms": 5,
+  "response_window_ms": 500,
+  "reference_detector": {
+    "threshold": 0.1,
+    "sustain_ms": 1,
+    "quiet_ms": 20
+  },
+  "audio_detector": {
+    "threshold": 0.02,
+    "sustain_ms": 2,
+    "quiet_ms": 100
+  },
+  "trials": [
+    {"start_ms": 1000, "end_ms": 2000},
+    {"start_ms": 3000, "end_ms": 4000}
+  ]
+}
