@@ -57,38 +57,44 @@ function ChevronDown() {
 function AlertTriangle() {
   return (
     <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 4L22 20H2L12 4Z" stroke="white" strokeWidth="2" strokeLinejoin="round" />
-      <line x1="12" y1="11" x2="12" y2="16" stroke="white" strokeWidth="2" strokeLinecap="round" />
-      <circle cx="12" cy="18.5" r="1" fill="white" />
+      <path d="M12 4L22 20H2L12 4Z" fill="var(--color-danger)" stroke="var(--color-danger)" strokeWidth="2" strokeLinejoin="round" />
+      <line x1="12" y1="10" x2="12" y2="15" stroke="var(--color-white)" strokeWidth="2" strokeLinecap="round" />
+      <circle cx="12" cy="17.75" r="1" fill="var(--color-white)" />
     </svg>
   );
 }
 
 function SuccessBadge({ label }: { label: string }) {
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-success-soft border border-success">
+    <div className="ms-chip ms-chip-success">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <circle cx="8" cy="8" r="7" fill="var(--color-success)" />
-        <path d="M4.5 8L6.8 10.5L11.5 5.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M4.5 8L6.8 10.5L11.5 5.5" stroke="var(--color-white)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      <span className="text-[13px] font-sans text-success-strong whitespace-nowrap">{label}</span>
+      <span>{label}</span>
     </div>
   );
 }
 
 function ProgressBar({ total, current, className = "" }: { total: number; current: number; className?: string }) {
   return (
-    <div className={`flex flex-1 items-center ${className}`} role="progressbar" aria-valuenow={current} aria-valuemin={1} aria-valuemax={total}>
+    <div className={`ms-well flex flex-1 items-center gap-1 p-1 rounded-full ${className}`} role="progressbar" aria-label="Calibration progress" aria-valuenow={current} aria-valuemin={1} aria-valuemax={total}>
       {Array.from({ length: total }, (_, i) => {
         const stepNum = i + 1;
-        const circleFilled = stepNum <= current;
-        const barFilled = stepNum < current;
+        const done = stepNum < current;
+        const isCurrent = stepNum === current;
         return (
-          <div key={i} className="flex flex-1 items-center last:flex-none">
-            <div className={`shrink-0 size-[20px] rounded-full border-2 transition-colors duration-200 ${circleFilled ? "bg-accent border-accent" : "bg-control-inactive border-control-inactive"}`} />
-            {i < total - 1 && (
-              <div className={`flex-1 h-[10px] transition-colors duration-200 ${barFilled ? "bg-accent" : "bg-control-inactive"}`} />
-            )}
+          <div
+            key={i}
+            className={`flex h-7 flex-1 items-center justify-center rounded-full text-[12px] font-semibold tabular-nums transition-[background-color,color,box-shadow] duration-200 ease-out ${
+              isCurrent
+                ? "bg-accent text-white shadow-(--shadow-1)"
+                : done
+                  ? "bg-accent-soft text-accent-strong"
+                  : "text-ink-muted"
+            }`}
+          >
+            {stepNum}
           </div>
         );
       })}
@@ -673,20 +679,20 @@ export default function Calibration() {
     if (step === 2) {
       if (!lighting) {
         return (
-          <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-surface-dark px-4 py-2 rounded-full pointer-events-none">
-            <span className="text-white text-[16px] font-sans">Measuring lighting…</span>
+          <div className="ms-pill absolute top-4 left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none">
+            <span>Measuring lighting…</span>
           </div>
         );
       }
       return lighting.verdict === "ok" ? (
-        <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-success-strong px-4 py-2 rounded-full pointer-events-none">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="var(--color-success)"/><path d="M5 9L7.5 12L13 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          <span className="text-white text-[16px] font-sans">{LIGHTING_MESSAGES.ok}</span>
+        <div className="ms-pill ms-pill-success absolute top-4 left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="var(--color-white)"/><path d="M5.5 9.25L7.75 11.5L12.5 6.5" stroke="var(--color-success-strong)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <span>{LIGHTING_MESSAGES.ok}</span>
         </div>
       ) : (
-        <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-surface-dark px-4 py-2 rounded-full pointer-events-none">
+        <div className="ms-pill absolute top-4 left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none">
           <AlertTriangle />
-          <p className="text-white text-[18px] font-sans">{LIGHTING_MESSAGES[lighting.verdict]}</p>
+          <p>{LIGHTING_MESSAGES[lighting.verdict]}</p>
         </div>
       );
     }
@@ -697,36 +703,38 @@ export default function Calibration() {
         <div className="absolute inset-0">
           {/* Paper error banner */}
           {paperError && (
-            <div className="absolute top-5 left-1/2 -translate-x-1/2 z-20 bg-white rounded-[10px] shadow-xl px-5 py-4 flex items-start gap-3 w-[480px] max-w-[90%]">
+            <div className="ms-dialog absolute top-4 left-1/2 -translate-x-1/2 z-20 rounded-[16px] px-5 py-4 flex items-start gap-3 w-[480px] max-w-[90%]">
               {/* Red triangle icon */}
               <svg className="shrink-0 mt-0.5" width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                 <path d="M12 3L22 20H2L12 3Z" fill="var(--color-danger)" />
-                <line x1="12" y1="9" x2="12" y2="14" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                <circle cx="12" cy="17" r="1" fill="white" />
+                <line x1="12" y1="9" x2="12" y2="14" stroke="var(--color-white)" strokeWidth="2" strokeLinecap="round" />
+                <circle cx="12" cy="17" r="1" fill="var(--color-white)" />
               </svg>
               <div className="flex flex-col gap-0.5">
-                <p className="text-[15px] font-bold text-danger font-sans">ERROR: Paper position is not accepted</p>
-                <p className="text-[14px] text-ink-subtle font-sans">Impossible placement. Click the &lsquo;?&rsquo; button for help</p>
+                <p className="text-[15px] font-semibold text-danger">ERROR: Paper position is not accepted</p>
+                <p className="text-[14px] text-ink-muted">Impossible placement. Click the &lsquo;?&rsquo; button for help</p>
               </div>
               <button
                 onClick={() => setPaperError(false)}
                 aria-label="Dismiss error"
-                className="ml-auto shrink-0 text-ink-subtle hover:text-black text-[20px] leading-none transition-colors"
-              >×</button>
+                className="ms-key ms-key-ghost ms-key-icon ml-auto -mr-2 -mt-1.5 size-8 shrink-0"
+              >
+                <svg aria-hidden="true" width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" /></svg>
+              </button>
             </div>
           )}
 
           {/* Marker-detection status */}
           {!paperError && sheetDetected && (
-            <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-success-strong px-4 py-2 rounded-full pointer-events-none">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="var(--color-success)"/><path d="M5 9L7.5 12L13 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              <span className="text-white text-[16px] font-sans">Piano sheet detected</span>
+            <div className="ms-pill ms-pill-success absolute top-4 left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="var(--color-white)"/><path d="M5.5 9.25L7.75 11.5L12.5 6.5" stroke="var(--color-success-strong)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <span>Piano sheet detected</span>
             </div>
           )}
 
           {!paperError && !sheetDetected && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-surface-dark px-5 py-2 rounded-full pointer-events-none text-center">
-              <p className="text-white text-[15px] font-sans">
+            <div className="ms-pill absolute bottom-4 left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none text-center">
+              <p>
                 Detected: {markerDetection?.observations.map(({ id }) => id).join(", ") || "none"}
                 {" · "}
                 Missing: {markerDetection?.missingIds.join(", ") || "0, 1, 2, 3"}
@@ -735,7 +743,7 @@ export default function Calibration() {
           )}
           {/* Help button */}
           {!isCounting && !fingersShown && (
-            <button onClick={() => setShowHelpModal(true)} aria-label="Show help" className="absolute bottom-4 right-4 w-10 h-10 bg-white rounded-[6px] flex items-center justify-center text-black text-[18px] font-bold shadow hover:bg-gray-100 transition-colors">?</button>
+            <button onClick={() => setShowHelpModal(true)} aria-label="Show help" className="ms-key ms-key-icon absolute bottom-4 right-4 z-20 text-[17px] font-bold">?</button>
           )}
         </div>
       );
@@ -748,27 +756,27 @@ export default function Calibration() {
         <>
           {/* Instruction pill — only before countdown starts */}
           {!hasStarted && (
-            <div className="absolute top-[35%] left-1/2 -translate-x-1/2 flex items-center gap-2 bg-surface-dark px-5 py-2 rounded-full pointer-events-none">
-              <span className="text-white text-[16px] font-sans">Hover hands above the paper, then press Start</span>
+            <div className="ms-pill absolute top-[35%] left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none">
+              <span>Hover hands above the paper, then press Start</span>
             </div>
           )}
 
           {/* Success overlay */}
           {fingersShown && (
             <div className="absolute inset-0 flex flex-col items-center justify-start pt-[14%] gap-3 pointer-events-none">
-              <div className="flex items-center gap-3 bg-surface-dark px-6 py-3 rounded-full">
-                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--color-success)"/><path d="M8 14L11.5 18L20 10" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                <span className="text-white text-[26px] font-sans font-medium">Hands detected!</span>
+              <div className="ms-pill gap-3 px-6 py-3">
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--color-success)"/><path d="M8 14L11.5 18L20 10" stroke="var(--color-white)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <span className="font-display text-[24px] sm:text-[28px] font-bold tracking-tight">Hands detected!</span>
               </div>
-              <p className="rounded-full bg-surface-dark px-4 py-1 text-white text-[15px] font-sans">Click Next Step to continue</p>
+              <p className="ms-pill py-1.5 text-[14px]">Click Next Step to continue</p>
             </div>
           )}
 
           {/* Status banner: capture failure, detector failure, or no hands */}
           {(captureError || landmarkerStatus === "error" || handNotDetected) && (
-            <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-surface-dark px-4 py-2 rounded-full">
+            <div className="ms-pill absolute top-4 left-1/2 -translate-x-1/2 max-w-[92%] w-max">
               <AlertTriangle />
-              <p className="text-white text-[18px] font-sans pointer-events-none">
+              <p className="pointer-events-none">
                 {captureError ??
                   (landmarkerStatus === "error"
                     ? "Hand detection failed to load."
@@ -777,7 +785,7 @@ export default function Calibration() {
               {landmarkerStatus === "error" && (
                 <button
                   onClick={reloadLandmarker}
-                  className="rounded-[6px] border border-white px-3 py-1 text-[15px] font-sans text-white transition-[background-color,transform] hover:bg-white/15 active:scale-[0.97]"
+                  className="ms-key ms-key-glass rounded-full px-3 py-1 text-[14px]"
                 >
                   Reload
                 </button>
@@ -787,19 +795,19 @@ export default function Calibration() {
 
           {/* Waiting on the detector or the first decoded frame */}
           {!hasStarted && landmarkerStatus === "loading" && (
-            <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-surface-dark px-4 py-2 rounded-full pointer-events-none">
-              <p className="text-white text-[16px] font-sans">Loading hand detection…</p>
+            <div className="ms-pill absolute top-4 left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none">
+              <p>Loading hand detection…</p>
             </div>
           )}
           {!hasStarted && landmarkerStatus === "ready" && cameraReady && !frameReady && (
-            <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-surface-dark px-4 py-2 rounded-full pointer-events-none">
-              <p className="text-white text-[16px] font-sans">Waiting for the camera…</p>
+            <div className="ms-pill absolute top-4 left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none">
+              <p>Waiting for the camera…</p>
             </div>
           )}
 
           {/* Help button */}
           {!isCounting && !step5Success && (
-            <button onClick={() => setShowHelpModal(true)} aria-label="Show help" className="absolute bottom-4 right-4 w-10 h-10 bg-white rounded-[6px] flex items-center justify-center text-black text-[18px] font-bold shadow hover:bg-gray-100 transition-colors">?</button>
+            <button onClick={() => setShowHelpModal(true)} aria-label="Show help" className="ms-key ms-key-icon absolute bottom-4 right-4 z-20 text-[17px] font-bold">?</button>
           )}
         </>
       );
@@ -811,24 +819,24 @@ export default function Calibration() {
         <>
           {/* Instruction pill — before the first capture */}
           {!hasStarted && !step5Success && (
-            <div className="absolute top-[35%] left-1/2 -translate-x-1/2 flex items-center gap-2 bg-surface-dark px-5 py-2 rounded-full pointer-events-none">
-                  <span className="text-white text-[16px] font-sans">Capture your right hand at the four corners and center</span>
+            <div className="ms-pill absolute top-[35%] left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none">
+                  <span>Capture your right hand at the four corners and center</span>
             </div>
           )}
 
           {/* Success overlay */}
           {step5Success && (
             <div className="absolute inset-0 flex flex-col items-center justify-start pt-[14%] gap-3 pointer-events-none">
-              <div className="flex items-center gap-3 bg-surface-dark px-6 py-3 rounded-full">
-                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--color-success)"/><path d="M8 14L11.5 18L20 10" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                <span className="text-white text-[26px] font-sans font-medium">Success!</span>
+              <div className="ms-pill gap-3 px-6 py-3">
+                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--color-success)"/><path d="M8 14L11.5 18L20 10" stroke="var(--color-white)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <span className="font-display text-[24px] sm:text-[28px] font-bold tracking-tight">Success!</span>
               </div>
-              <p className="rounded-full bg-surface-dark px-4 py-1 text-white text-[15px] font-sans">Click Next Step to finish calibration</p>
+              <p className="ms-pill py-1.5 text-[14px]">Click Next Step to finish calibration</p>
             </div>
           )}
 
           {/* Help button */}
-          <button onClick={() => setShowHelpModal(true)} aria-label="Show help" className="absolute bottom-4 right-4 w-10 h-10 bg-white rounded-[6px] flex items-center justify-center text-black text-[18px] font-bold shadow hover:bg-gray-100 transition-colors">?</button>
+          <button onClick={() => setShowHelpModal(true)} aria-label="Show help" className="ms-key ms-key-icon absolute bottom-4 right-4 z-20 text-[17px] font-bold">?</button>
         </>
       );
     }
@@ -841,8 +849,8 @@ export default function Calibration() {
     if (!isCounting || isComplete) return null;
     if (step !== 4 && step !== 5) return null;
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-40 pointer-events-none">
-        <span className="text-white font-bold drop-shadow-lg" style={{ fontSize: "clamp(80px,20vw,150px)" }}>
+      <div className="absolute inset-0 flex items-center justify-center bg-surface-dark/55 z-40 pointer-events-none">
+        <span key={countdown} className="ms-beat font-display text-white font-bold leading-none tabular-nums" style={{ fontSize: "clamp(80px,20vw,150px)" }}>
           {countdown}
         </span>
       </div>
@@ -853,15 +861,16 @@ export default function Calibration() {
   const renderHelpModal = () => {
     if (!showHelpModal) return null;
     return (
-      <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60">
-        <div className="relative w-[88%] max-w-[640px] overflow-hidden rounded-[8px] shadow-2xl">
+      <div className="ms-backdrop absolute inset-0 z-50 flex items-center justify-center">
+        <div className="ms-dialog relative w-[88%] max-w-[640px] overflow-hidden rounded-[18px]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/hand-reference.png" alt="Hand positioning reference" className="w-full block" style={{ aspectRatio: "16/9", objectFit: "cover" }} />
-          <div className="absolute bottom-0 left-0 right-0 bg-black/75 px-5 py-3 flex items-center justify-between">
-            <p className="text-white text-[17px] font-sans">Position your hands on the paper like this</p>
-            <div aria-hidden="true" className="w-8 h-8 bg-white rounded-[4px] flex items-center justify-center text-black text-[14px] font-bold">?</div>
+          <div className="px-5 py-3.5 flex items-center justify-between">
+            <p className="text-ink text-[15px] font-medium">Position your hands on the paper like this</p>
           </div>
-          <button onClick={() => setShowHelpModal(false)} aria-label="Close" className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center text-white text-[24px] font-bold hover:opacity-70 transition-opacity leading-none">×</button>
+          <button onClick={() => setShowHelpModal(false)} aria-label="Close" className="ms-key ms-key-glass ms-key-icon absolute top-3 right-3 size-9 rounded-full">
+            <svg aria-hidden="true" width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" /></svg>
+          </button>
         </div>
       </div>
     );
@@ -872,8 +881,8 @@ export default function Calibration() {
     if (isComplete) {
       return (
         <div className="flex flex-wrap items-center gap-4">
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--color-success)"/><path d="M8 14L11.5 18L20 10" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          <p className="text-[18px] sm:text-[24px] text-black font-sans">Calibration captured. Keep the camera and sheet in place.</p>
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--color-success)"/><path d="M8 14L11.5 18L20 10" stroke="var(--color-white)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <p className="font-display text-[20px] sm:text-[24px] font-semibold tracking-tight text-ink">Calibration captured. Keep the camera and sheet in place.</p>
         </div>
       );
     }
@@ -881,24 +890,24 @@ export default function Calibration() {
     if (step === 1) {
       return (
         <div className="flex items-center gap-5 flex-wrap">
-          <p className="text-[18px] sm:text-[24px] text-black font-sans">Step 1: Current sheet — one octave, C3–C4</p>
+          <p className="font-display text-[20px] sm:text-[24px] font-semibold tracking-tight text-ink">Step 1: Current sheet — one octave, C3–C4</p>
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex flex-col gap-1">
-              <label htmlFor="octave-count" className="text-[13px] text-black font-sans"># of Octaves</label>
+              <label htmlFor="octave-count" className="ms-label"># of Octaves</label>
               <div className="relative">
-                <select id="octave-count" value={octaves} onChange={(e) => setOctaves(e.target.value)} className="border border-control-border rounded-[8px] pl-3 pr-8 py-2 text-[15px] text-ink bg-white appearance-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
+                <select id="octave-count" value={octaves} onChange={(e) => setOctaves(e.target.value)} className="ms-input min-w-[110px]">
                   {OCTAVE_OPTIONS.map((o) => <option key={o}>{o}</option>)}
                 </select>
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"><ChevronDown /></div>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-ink-muted"><ChevronDown /></div>
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              <label htmlFor="starting-note" className="text-[13px] text-black font-sans">Starting Octave</label>
+              <label htmlFor="starting-note" className="ms-label">Starting Octave</label>
               <div className="relative">
-                <select id="starting-note" value={startingNote} onChange={(e) => setStartingNote(e.target.value)} className="border border-control-border rounded-[8px] pl-3 pr-8 py-2 text-[15px] text-ink bg-white appearance-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
+                <select id="starting-note" value={startingNote} onChange={(e) => setStartingNote(e.target.value)} className="ms-input min-w-[110px]">
                   {NOTE_OPTIONS.map((n) => <option key={n}>{n}</option>)}
                 </select>
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"><ChevronDown /></div>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-ink-muted"><ChevronDown /></div>
               </div>
             </div>
             <SuccessBadge label="Settings ready" />
@@ -911,19 +920,19 @@ export default function Calibration() {
       const pct = lighting ? Math.round(lighting.brightness * 100) : null;
       return (
         <div className="flex items-center gap-5 flex-wrap">
-          <p className="text-[18px] sm:text-[24px] text-black font-sans">Step 2: Check your lighting</p>
+          <p className="font-display text-[20px] sm:text-[24px] font-semibold tracking-tight text-ink">Step 2: Check your lighting</p>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            <span className="text-[14px] text-ink-muted font-sans" aria-live="polite">
+            <span className="text-[14px] text-ink-muted tabular-nums" aria-live="polite">
               Current: {pct === null ? "measuring…" : `${pct}% brightness`}
             </span>
-            <span className="text-[14px] text-ink-muted font-sans">
+            <span className="text-[14px] text-ink-muted tabular-nums">
               Target: {Math.round(MIN_BRIGHTNESS * 100)}–{Math.round(MAX_BRIGHTNESS * 100)}%
             </span>
             {lightingOk ? (
               <SuccessBadge label="Lighting OK" />
             ) : lighting ? (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-50 border border-red-300">
-                <span className="text-[13px] text-red-600">{LIGHTING_MESSAGES[lighting.verdict]}</span>
+              <div className="ms-chip ms-chip-danger">
+                <span>{LIGHTING_MESSAGES[lighting.verdict]}</span>
               </div>
             ) : null}
           </div>
@@ -932,20 +941,26 @@ export default function Calibration() {
     }
 
     if (step === 3) {
-      return <div><p>Step 3: Show all four paper markers</p><button onClick={checkPaper} className="border rounded px-4 py-2">Check paper</button>{corners && <SuccessBadge label="Sheet geometry validated" />}</div>;
+      return (
+        <div className="flex flex-wrap items-center gap-4">
+          <p className="font-display text-[20px] sm:text-[24px] font-semibold tracking-tight text-ink">Step 3: Show all four paper markers</p>
+          <button onClick={checkPaper} className="ms-key ms-key-primary px-5">Check paper</button>
+          {corners && <SuccessBadge label="Sheet geometry validated" />}
+        </div>
+      );
     }
 
     if (step === 4) {
       return (
         <div className="flex flex-wrap items-center gap-4">
-          <p className="text-[18px] sm:text-[24px] text-black font-sans">Step 4: Hover hands above paper for 3 s</p>
+          <p className="font-display text-[20px] sm:text-[24px] font-semibold tracking-tight text-ink">Step 4: Hover hands above paper for 3 s</p>
           {!fingersShown && (
-            <button onClick={handleStartCountdown} disabled={isCounting || !canCapture} className="shrink-0 border-[1.5px] border-black bg-surface px-5 py-2 rounded-[8px] text-[20px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform] disabled:opacity-40 disabled:cursor-not-allowed">
+            <button onClick={handleStartCountdown} disabled={isCounting || !canCapture} className="ms-key ms-key-primary shrink-0 px-6">
               {hasStarted && !isCounting ? "Retry" : "Start"}
             </button>
           )}
           {!fingersShown && !canCapture && (
-            <span className="text-[14px] text-ink-muted font-sans" aria-live="polite">
+            <span className="text-[14px] text-ink-muted tabular-nums" aria-live="polite">
               {landmarkerStatus === "loading"
                 ? "Loading hand detection…"
                 : landmarkerStatus === "error"
@@ -962,7 +977,7 @@ export default function Calibration() {
       return (
         <div className="flex flex-wrap items-center gap-4">
           <div className="w-full max-w-[720px]">
-            <p className="mb-3 text-[18px] sm:text-[24px] text-black font-sans">
+            <p className="mb-3 font-display text-[20px] sm:text-[24px] font-semibold tracking-tight text-ink">
               Step 5: Calibrate depth at the four corners and center
             </p>
             {!step5Success && depthPositionIndex < DEPTH_CALIBRATION_POSITIONS.length && (
@@ -976,7 +991,7 @@ export default function Calibration() {
               />
             )}
             {depthCaptureMessage && (
-              <p className="mt-2 text-[14px] text-ink-muted font-sans" aria-live="polite">
+              <p className="mt-2 text-[14px] text-ink-muted" aria-live="polite">
                 {depthCaptureMessage}
               </p>
             )}
@@ -993,9 +1008,9 @@ export default function Calibration() {
   return (
     <div className="flex-1 bg-surface flex flex-col" data-hand-detection={landmarkerStatus} data-sheet-detector={sheetDetectorStatus}>
       {/* Main area */}
-      <div className="flex flex-col lg:flex-row pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)]">
+      <div className="flex flex-col lg:flex-row pl-(--gutter-l) pr-(--gutter-r)">
         {/* Camera */}
-        <div className="w-full lg:w-auto lg:flex-1 aspect-video bg-surface-dark relative overflow-hidden">
+        <div className="ms-stage w-full lg:w-auto lg:flex-1 aspect-video bg-surface-dark relative overflow-hidden">
           <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" style={{ display: showingImage ? "none" : "block" }} />
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover" style={{ display: showingImage ? "block" : "none" }} />
           <canvas
@@ -1017,30 +1032,30 @@ export default function Calibration() {
         <SideNav active="calibration" />
       </div>
 
-      {isComplete && <button className="underline text-ink" onClick={() => {
+      {isComplete && <button className="ms-key ms-key-ghost self-start mt-3 ml-[calc(var(--gutter-l)-12px)] text-[14px]" onClick={() => {
         generationRef.current++; resultRef.current = null; hoverRef.current = null;
         setCorners(null); resetInteractiveStepState(); setStep(1);
       }}>Restart calibration</button>}
-      {captureError && <p role="alert" className="px-6 text-danger">{captureError}</p>}
+      {captureError && <p role="alert" className="pl-(--gutter-l) pr-(--gutter-r) pt-3 text-[14px] text-danger">{captureError}</p>}
       {/* Step content row */}
-      <div className="flex flex-wrap items-center gap-4 shrink-0 pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)] pt-[clamp(8px,2dvh,28px)] pb-[clamp(6px,1.5dvh,16px)]">
+      <div className="flex flex-wrap items-center gap-4 shrink-0 pl-(--gutter-l) pr-(--gutter-r) pt-[clamp(14px,2.5dvh,28px)] pb-[clamp(10px,2dvh,20px)]">
         {renderStepContent()}
       </div>
 
       {/* Bottom nav */}
-      <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:flex items-center shrink-0 pl-[clamp(20px,3.8vw,56px)] pr-[clamp(12px,3.2vw,47px)] pb-[clamp(10px,2.5dvh,30px)]">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:flex items-center shrink-0 pl-(--gutter-l) pr-(--gutter-r) pb-[clamp(14px,2.5dvh,30px)]">
         {showExitCalibration ? (
-          <Link href="/" className="justify-self-start shrink-0 border-[1.5px] border-black bg-surface px-4 sm:px-6 py-2 sm:py-3 rounded-[8px] text-[18px] sm:text-[22px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]">Exit Calibration</Link>
+          <Link href="/" className="ms-key justify-self-start shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 text-[15px] sm:text-[16px]">Exit Calibration</Link>
         ) : showPreviousStep ? (
-          <button onClick={() => goToAdjacentStep(-1)} className="justify-self-start shrink-0 border-[1.5px] border-black bg-surface px-4 sm:px-6 py-2 sm:py-3 rounded-[8px] text-[18px] sm:text-[22px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]">Previous Step</button>
+          <button onClick={() => goToAdjacentStep(-1)} className="ms-key justify-self-start shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 text-[15px] sm:text-[16px]">Previous Step</button>
         ) : <div aria-hidden="true" />}
 
         <ProgressBar total={TOTAL_STEPS} current={isComplete ? TOTAL_STEPS : step} className="col-span-2 row-start-1 sm:col-auto sm:row-auto" />
 
         {isComplete ? (
-          <button onClick={handleComplete} className="justify-self-end shrink-0 border-[1.5px] border-black bg-surface px-4 sm:px-6 py-2 sm:py-3 rounded-[8px] text-[18px] sm:text-[22px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]">Start Playing</button>
+          <button onClick={handleComplete} className="ms-key ms-key-primary justify-self-end shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 text-[15px] sm:text-[16px]">Start Playing</button>
         ) : showNextStep ? (
-          <button onClick={() => goToAdjacentStep(1)} className="justify-self-end shrink-0 border-[1.5px] border-black bg-surface px-4 sm:px-6 py-2 sm:py-3 rounded-[8px] text-[18px] sm:text-[22px] text-black font-sans transition-[background-color,transform] hover:bg-black/5 active:scale-[0.97]">
+          <button onClick={() => goToAdjacentStep(1)} className="ms-key ms-key-primary justify-self-end shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 text-[15px] sm:text-[16px]">
             Next Step
           </button>
         ) : <div aria-hidden="true" />}

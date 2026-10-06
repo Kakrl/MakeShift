@@ -61,55 +61,55 @@ export default function AudioCheck() {
   }
 
   return (
-    <main className="p-8 text-ink bg-surface overflow-auto">
-      <h1 className="text-2xl font-bold">Audio check</h1>
-      <p className="my-4">
-        Check sound before using the printed keyboard. Start with a comfortable
-        device volume.
-      </p>
-      <div className="flex flex-wrap gap-4">
-        <button
-          className="border border-control-border rounded p-3"
-          onClick={enable}
-        >
-          Enable audio
-        </button>
-        <button
-          className="border border-control-border rounded p-3 disabled:opacity-50"
-          disabled={!ready}
-          onClick={() => play([69], 0.25)}
-        >
-          Soft A4
-        </button>
-        <button
-          className="border border-control-border rounded p-3 disabled:opacity-50"
-          disabled={!ready}
-          onClick={() => play([69], 0.75)}
-        >
-          Loud A4
-        </button>
-        <button
-          className="border border-control-border rounded p-3 disabled:opacity-50"
-          disabled={!ready}
-          onClick={() => play([48, 52, 55, 60, 64, 67, 72, 76, 79, 84], 0.5)}
-        >
-          Ten-note chord
-        </button>
-        <button
-          className="border border-control-border rounded p-3"
-          onClick={() => {
-            if (timer.current) clearTimeout(timer.current);
-            held.current = [];
-            engine.current?.releaseAll();
-            setStatus("Stopped.");
-          }}
-        >
-          Stop sound
-        </button>
+    <main className="flex-1 bg-surface overflow-auto pl-(--gutter-l) pr-(--gutter-r) pt-2 pb-10">
+      <div className="ms-panel max-w-[640px] p-6 sm:p-8">
+        <p className="ms-label mb-2">Sound</p>
+        <h1 className="font-display text-[28px] sm:text-[32px] font-bold leading-tight tracking-tight text-ink">Audio check</h1>
+        <p className="mt-2 mb-6 text-[15px] leading-relaxed text-ink-muted">
+          Check sound before using the printed keyboard. Start with a comfortable
+          device volume.
+        </p>
+        <div className="flex flex-wrap gap-2.5">
+          <button className="ms-key ms-key-primary" onClick={enable}>
+            Enable audio
+          </button>
+          <button
+            className="ms-key"
+            disabled={!ready}
+            onClick={() => play([69], 0.25)}
+          >
+            Soft A4
+          </button>
+          <button
+            className="ms-key"
+            disabled={!ready}
+            onClick={() => play([69], 0.75)}
+          >
+            Loud A4
+          </button>
+          <button
+            className="ms-key"
+            disabled={!ready}
+            onClick={() => play([48, 52, 55, 60, 64, 67, 72, 76, 79, 84], 0.5)}
+          >
+            Ten-note chord
+          </button>
+          <button
+            className="ms-key ms-key-ghost ms-key-danger"
+            onClick={() => {
+              if (timer.current) clearTimeout(timer.current);
+              held.current = [];
+              engine.current?.releaseAll();
+              setStatus("Stopped.");
+            }}
+          >
+            Stop sound
+          </button>
+        </div>
+        <p className="ms-well mt-6 px-4 py-3 text-[14px] text-ink-muted" role="status">
+          {status}
+        </p>
       </div>
-      <p className="mt-4" role="status">
-        {status}
-      </p>
     </main>
   );
 }

@@ -31,11 +31,11 @@ export default function DepthCalibrationCapture({
   const positionLabel = POSITION_LABELS[position];
 
   return (
-    <div className="flex flex-col gap-3 rounded-[8px] border border-control-border bg-white p-4">
-      <p className="text-[18px] text-black font-sans">
+    <div className="ms-panel flex flex-col gap-2 p-4">
+      <p className="text-[16px] font-semibold text-ink">
         Place your right hand at the {positionLabel} of the sheet.
       </p>
-      <p className="text-[14px] text-ink-muted font-sans" aria-live="polite">
+      <p className="text-[14px] text-ink-muted" aria-live="polite">
         {rightHandDetected === true
           ? "Hold still, then capture this position."
           : "Place your right hand at this position, then capture."}
@@ -44,11 +44,11 @@ export default function DepthCalibrationCapture({
         type="button"
         onClick={onCapture}
         disabled={disabled || rightHandDetected === false}
-        className="self-start rounded-[8px] border-[1.5px] border-black bg-surface px-5 py-2 text-[18px] text-black font-sans transition-[background-color,transform] hover:bg-black/5 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
+        className="ms-key ms-key-primary self-start mt-1 px-5"
       >
         Capture {positionLabel} position
       </button>
-      <p className="text-[13px] text-ink-muted font-sans">
+      <p className="text-[13px] text-ink-muted tabular-nums">
         Captured: {sampleCount}
       </p>
     </div>

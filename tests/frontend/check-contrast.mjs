@@ -32,6 +32,9 @@ const checks = [
   { name: "Input border on white", foreground: "control-border", background: "white", minimum: 3 },
   { name: "Inactive control on app surface", foreground: "control-inactive", background: "surface", minimum: 3 },
   { name: "Paper guide on white", foreground: "danger", background: "white", minimum: 3 },
+  { name: "Selected key text on pressed well", foreground: "accent-strong", background: "well", minimum: 4.5 },
+  { name: "Muted text in pressed well", foreground: "ink-muted", background: "well", minimum: 4.5 },
+  { name: "Step badge text on soft accent", foreground: "accent-strong", background: "accent-soft", minimum: 4.5 },
 ];
 
 for (const token of checks.flatMap(({ foreground, background }) => [foreground, background])) {

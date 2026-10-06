@@ -58,30 +58,79 @@ function ChevronDown() {
   );
 }
 
-function PlayIcon({ color = "var(--color-ink)" }: { color?: string }) {
+function RecordIcon() {
   return (
-    <svg aria-hidden="true" width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="20" cy="20" r="18.5" stroke={color} strokeWidth="1.5" style={{ transition: "stroke 120ms ease" }} />
-      <path d="M16 14L28 20L16 26V14Z" fill={color} style={{ transition: "fill 120ms ease" }} />
+    <svg aria-hidden="true" width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <circle cx="11" cy="11" r="7" fill="var(--color-danger)" />
+    </svg>
+  );
+}
+
+function ResumeIcon() {
+  return (
+    <svg aria-hidden="true" width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M8 5.5v11l8.5-5.5L8 5.5Z" fill="var(--color-info)" stroke="var(--color-info)" strokeWidth="1.5" strokeLinejoin="round" />
     </svg>
   );
 }
 
 function PauseIcon() {
   return (
-    <svg aria-hidden="true" width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="20" cy="20" r="18.5" stroke="var(--color-info)" strokeWidth="1.5" />
-      <rect x="13" y="13" width="5" height="14" rx="1.5" fill="var(--color-info)" />
-      <rect x="22" y="13" width="5" height="14" rx="1.5" fill="var(--color-info)" />
+    <svg aria-hidden="true" width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="6" y="5" width="3.5" height="12" rx="1.25" fill="currentColor" />
+      <rect x="12.5" y="5" width="3.5" height="12" rx="1.25" fill="currentColor" />
     </svg>
   );
 }
 
 function StopIcon() {
   return (
-    <svg aria-hidden="true" width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="20" cy="20" r="18.5" stroke="var(--color-ink)" strokeWidth="1.5" />
-      <rect x="13" y="13" width="14" height="14" fill="var(--color-ink)" />
+    <svg aria-hidden="true" width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="6" y="6" width="10" height="10" rx="2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function SpeakerIcon() {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 16 16" fill="none">
+      <path d="M2.5 6v4h2.5l3.5 3V3L5 6H2.5Z" fill="currentColor" />
+      <path d="M11 5.5a3.5 3.5 0 0 1 0 5M12.75 3.5a6 6 0 0 1 0 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CheckBadge({ size = 28 }: { size?: number }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 28 28" fill="none">
+      <circle cx="14" cy="14" r="13" fill="var(--color-success)" />
+      <path d="M8.5 14.5L12 18L19.5 10.5" stroke="var(--color-white)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** A small keyboard with one key held down, used in the onboarding dialogs. */
+function KeysIllustration() {
+  const whites = [0, 1, 2, 3, 4, 5, 6];
+  const blacks = [0, 1, 3, 4, 5];
+  return (
+    <svg aria-hidden="true" width="112" height="56" viewBox="0 0 112 56" fill="none">
+      <rect x="0.5" y="0.5" width="111" height="55" rx="9.5" fill="var(--color-well)" stroke="var(--color-divider)" />
+      {whites.map((i) => (
+        <rect
+          key={i}
+          x={5 + i * 14.6}
+          y={i === 2 ? 6 : 5}
+          width="13.2"
+          height={i === 2 ? 45 : 46}
+          rx="3"
+          fill={i === 2 ? "var(--color-accent-soft)" : "var(--color-white)"}
+          stroke={i === 2 ? "var(--color-accent)" : "var(--color-divider)"}
+        />
+      ))}
+      {blacks.map((i) => (
+        <rect key={i} x={14.4 + i * 14.6} y="5" width="8.4" height="27" rx="2.5" fill="var(--color-ink)" />
+      ))}
     </svg>
   );
 }
@@ -327,89 +376,65 @@ export default function Home() {
     if (!isNaN(parsed)) setTempo(Math.max(MIN_TEMPO, Math.min(MAX_TEMPO, parsed)));
   };
 
+  const recordLabel = isRecording && !isPaused ? "Pause" : isPaused ? "Resume" : "Record";
+  const recordDisabled = !libraryLoaded || !canPlay || countInBeat !== null || liveStatus.state === "starting";
+  const stopDisabled = !isRecording && countInBeat === null && liveStatus.state !== "starting";
+  const statusTone =
+    liveStatus.state === "error" ? "bg-danger" :
+    liveStatus.state === "playing" ? "bg-success" : "bg-control-inactive";
+
   return (
     <div className="flex-1 bg-surface flex flex-col">
-      <p role={liveStatus.state === "error" ? "alert" : "status"} className="text-ink px-4">{liveStatus.message}</p>
+      <p
+        role={liveStatus.state === "error" ? "alert" : "status"}
+        className={`flex items-start gap-2 pl-(--gutter-l) pr-(--gutter-r) pb-3 text-[13px] ${liveStatus.state === "error" ? "text-danger" : "text-ink-muted"}`}
+      >
+        <span aria-hidden="true" className={`mt-[7px] size-1.5 shrink-0 rounded-full transition-colors duration-200 ${statusTone}`} />
+        {liveStatus.message}
+      </p>
       <div aria-live="polite" className="sr-only">
         {isRecording ? "Recording started" : showRecordingComplete ? "Recording complete" : ""}
       </div>
 
       {/* ── Welcome Modal (first visit) ─────────────────────────────────────── */}
       {showWelcome && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-surface rounded-[20px] shadow-2xl w-[540px] max-w-[92vw] max-h-[90dvh] overflow-y-auto">
-
-            {/* Body */}
-            <div className="px-6 sm:px-10 pt-7 sm:pt-9 pb-6 sm:pb-8">
-              {/* Piano icon */}
-              <div className="flex items-center gap-3 mb-5">
-                <svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
-                  <rect x="1" y="6" width="34" height="24" rx="3" fill="var(--color-ink)" />
-                  {/* White keys */}
-                  {[4, 9, 14, 19, 24, 29].map((x) => (
-                    <rect key={x} x={x} y="6" width="4" height="18" rx="1" fill="white" />
-                  ))}
-                  {/* Black keys */}
-                  {[6.5, 11.5, 21.5, 26.5].map((x) => (
-                    <rect key={x} x={x} y="6" width="3" height="11" rx="1" fill="var(--color-ink)" />
-                  ))}
-                </svg>
-                <h2 className="text-[22px] sm:text-[28px] font-bold text-black font-sans tracking-tight">
-                  Welcome to MakeShift
-                </h2>
-              </div>
-
-              <p className="text-[15px] text-ink-muted font-sans leading-relaxed mb-7">
+        <div className="ms-backdrop fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="welcome-title" className="ms-dialog w-[540px] max-w-full max-h-[90dvh] overflow-y-auto">
+            <div className="px-6 sm:px-9 pt-8 sm:pt-9 pb-6 sm:pb-8">
+              <KeysIllustration />
+              <h2 id="welcome-title" className="mt-5 mb-2 font-display text-[26px] sm:text-[32px] font-bold leading-tight tracking-tight text-ink">
+                Welcome to MakeShift
+              </h2>
+              <p className="text-[15px] text-ink-muted leading-relaxed mb-7">
                 MakeShift turns a sheet of paper and your webcam into a playable piano, no hardware needed. Before you start, here&apos;s how to get going:
               </p>
 
-              <div className="flex flex-col gap-4 mb-8">
+              <ol className="flex flex-col gap-4 mb-8">
                 {[
-                  {
-                    num: "1",
-                    color: "var(--color-accent)",
-                    title: "Read the Tutorial",
-                    body: "Get familiar with the setup steps and how finger tracking works.",
-                  },
-                  {
-                    num: "2",
-                    color: "var(--color-accent)",
-                    title: "Run Calibration",
-                    body: "Place a sheet of paper in view of your camera and walk through the 5-step calibration so MakeShift can map your keys.",
-                  },
-                  {
-                    num: "3",
-                    color: "var(--color-accent)",
-                    title: "Press Play and perform",
-                    body: "Set your tempo, toggle the metronome, hit Play, and start tapping the paper to make music.",
-                  },
-                ].map(({ num, color, title, body }) => (
-                  <div key={num} className="flex gap-4 items-start">
-                    <span
-                      className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-white text-[13px] font-bold mt-0.5"
-                      style={{ background: color }}
-                    >
-                      {num}
-                    </span>
+                  { title: "Read the Tutorial", body: "Get familiar with the setup steps and how finger tracking works." },
+                  { title: "Run Calibration", body: "Place a sheet of paper in view of your camera and walk through the 5-step calibration so MakeShift can map your keys." },
+                  { title: "Press Play and perform", body: "Set your tempo, toggle the metronome, hit Play, and start tapping the paper to make music." },
+                ].map(({ title, body }, i) => (
+                  <li key={title} className="flex gap-3.5 items-start">
+                    <span className="ms-step">{i + 1}</span>
                     <div>
-                      <p className="text-[15px] font-semibold text-black font-sans">{title}</p>
-                      <p className="text-[14px] text-ink-muted font-sans leading-relaxed">{body}</p>
+                      <p className="text-[15px] font-semibold text-ink">{title}</p>
+                      <p className="text-[14px] text-ink-muted leading-relaxed">{body}</p>
                     </div>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ol>
 
-              {/* CTA row */}
               <div className="flex gap-3">
                 <button
                   onClick={() => { setShowWelcome(false); router.push("/tutorial"); }}
-                  className="flex-1 border border-black bg-surface py-3 rounded-[10px] text-[15px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]"
+                  className="ms-key flex-1 py-3"
                 >
                   Read Tutorial
                 </button>
                 <button
                   onClick={() => { setShowWelcome(false); setShowCalibrationIntro(true); }}
-                  className="flex-1 border border-black bg-black py-3 rounded-[10px] text-[15px] text-white font-sans hover:bg-black/80 active:scale-[0.97] transition-[background-color,transform]"
+                  className="ms-key ms-key-primary flex-1 py-3"
                 >
                   Start Calibration
                 </button>
@@ -417,7 +442,7 @@ export default function Home() {
 
               <button
                 onClick={() => setShowWelcome(false)}
-                className="w-full mt-3 py-2 text-[13px] text-ink-muted font-sans hover:text-black transition-colors"
+                className="ms-key ms-key-ghost w-full mt-2 text-[13px]"
               >
                 Skip for now
               </button>
@@ -429,48 +454,47 @@ export default function Home() {
       {/* ── Calibration Intro Modal ─────────────────────────────────────────── */}
       {showCalibrationIntro && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          className="ms-backdrop fixed inset-0 z-50 flex items-center justify-center p-4"
           onClick={() => setShowCalibrationIntro(false)}
         >
           <div
-            className="bg-white rounded-[16px] shadow-2xl w-[520px] max-w-[90vw] max-h-[90dvh] overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="calibration-intro-title"
+            className="ms-dialog w-[520px] max-w-full max-h-[90dvh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-6 sm:px-8 pt-8 pb-5">
-              <h2 className="text-[22px] sm:text-[26px] font-bold text-black font-sans">Before You Begin: Calibration</h2>
-            </div>
-            <hr className="border-divider-subtle" />
-            <div className="px-6 sm:px-8 py-6">
-              <p className="text-[15px] text-ink-subtle font-sans mb-5 leading-relaxed">
+            <div className="px-6 sm:px-8 pt-8 pb-6">
+              <p className="ms-label mb-2">Calibration</p>
+              <h2 id="calibration-intro-title" className="font-display text-[24px] sm:text-[28px] font-bold leading-tight tracking-tight text-ink">Before You Begin: Calibration</h2>
+              <p className="mt-3 text-[15px] text-ink-muted leading-relaxed">
                 Calibration maps your paper keyboard to the screen. Make sure you have a sheet of paper, good lighting, and your webcam is unobstructed before starting.
               </p>
-              <ol className="flex flex-col gap-3">
-                {[
-                  "Select the number of octaves and your starting note",
-                  "Check your environment's lighting",
-                  "Align the paper outline with your physical sheet",
-                  "Hover both hands above the paper to detect fingertips",
-                  "Place hands flat on the paper to set note boundaries",
-                ].map((text, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="shrink-0 w-6 h-6 rounded-full bg-accent flex items-center justify-center text-white text-[13px] font-bold mt-0.5">
-                      {i + 1}
-                    </span>
-                    <span className="text-[15px] text-black/80 font-sans leading-relaxed">{text}</span>
-                  </li>
-                ))}
-              </ol>
             </div>
-            <div className="px-6 sm:px-8 pb-8 flex gap-3 justify-end">
+            <ol className="ms-well mx-4 sm:mx-6 p-4 flex flex-col gap-3">
+              {[
+                "Select the number of octaves and your starting note",
+                "Check your environment's lighting",
+                "Align the paper outline with your physical sheet",
+                "Hover both hands above the paper to detect fingertips",
+                "Place hands flat on the paper to set note boundaries",
+              ].map((text, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <span className="ms-step size-6 rounded-[7px] text-[12px]">{i + 1}</span>
+                  <span className="text-[15px] text-ink leading-relaxed">{text}</span>
+                </li>
+              ))}
+            </ol>
+            <div className="px-6 sm:px-8 pt-6 pb-7 flex gap-3 justify-end">
               <button
                 onClick={() => { setShowCalibrationIntro(false); router.push("/calibration"); }}
-                className="border border-black bg-surface px-6 py-3 rounded-[10px] text-[16px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]"
+                className="ms-key ms-key-ghost px-5"
               >
                 Skip
               </button>
               <button
                 onClick={() => { setShowCalibrationIntro(false); router.push("/calibration"); }}
-                className="border border-black bg-black px-6 py-3 rounded-[10px] text-[16px] text-white font-sans hover:bg-black/80 active:scale-[0.97] transition-[background-color,transform]"
+                className="ms-key ms-key-primary px-6 py-3"
               >
                 Begin Calibration
               </button>
@@ -478,10 +502,10 @@ export default function Home() {
           </div>
         </div>
       )}
-      <div className="flex flex-col lg:flex-row pt-4 lg:pt-0 pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)]">
+      <div className="flex flex-col lg:flex-row pl-(--gutter-l) pr-(--gutter-r)">
         {/* Camera feed: 16:9 and sized like the calibration and about pages.
             self-start keeps the taller sidebar from stretching it. */}
-        <div className="w-full lg:w-auto lg:flex-1 lg:self-start aspect-video bg-surface-dark relative overflow-hidden">
+        <div className="ms-stage w-full lg:w-auto lg:flex-1 lg:self-start aspect-video bg-surface-dark relative overflow-hidden">
           <video
             ref={videoRef}
             autoPlay
@@ -499,27 +523,34 @@ export default function Home() {
 
           {/* "Click Calibration to Begin" overlay */}
           {!isCalibrated && cameraReady && (
-            <div className="absolute inset-0 flex items-start justify-center pt-6 sm:pt-[60px] pointer-events-none">
-              <p className="text-white text-[20px] sm:text-[32px] font-sans text-center px-8">Click &lsquo;Calibration&rsquo; to Begin</p>
+            <div className="absolute inset-0 flex items-start justify-center pt-6 sm:pt-[56px] pointer-events-none">
+              <p className="ms-pill font-display text-[18px] sm:text-[24px] font-semibold px-5 sm:px-7 py-2.5 sm:py-3 text-center">Click &lsquo;Calibration&rsquo; to Begin</p>
+            </div>
+          )}
+
+          {/* Live recording indicator */}
+          {isRecording && (
+            <div aria-hidden="true" className="ms-pill absolute top-3 left-3 z-30 py-1.5 pl-3 pr-3.5 text-[12px] font-semibold tracking-[0.08em]">
+              <span className={`size-2 rounded-full ${isPaused ? "bg-ink-inverse-muted" : "bg-danger ms-rec-dot"}`} />
+              {isPaused ? "PAUSED" : "REC"}
             </div>
           )}
 
           {/* Count-in overlay — one measure of beats before recording */}
           {countInBeat !== null && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-40 pointer-events-none">
-              <span className="text-white font-bold drop-shadow-lg leading-none tabular-nums" style={{ fontSize: "clamp(80px,20vw,160px)" }}>
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-dark/60 z-40 pointer-events-none">
+              <span
+                key={countInBeat}
+                className="ms-beat font-display text-white font-bold leading-none tabular-nums"
+                style={{ fontSize: "clamp(80px,20vw,160px)" }}
+              >
                 {countInBeat}
               </span>
-              <div className="flex items-center gap-2 mt-6">
+              <div className="flex items-center gap-2.5 mt-6">
                 {Array.from({ length: beatsPerMeasure }, (_, i) => (
                   <div
                     key={i}
-                    className="rounded-full transition-all duration-75"
-                    style={{
-                      width:  i + 1 === countInBeat ? 14 : 8,
-                      height: i + 1 === countInBeat ? 14 : 8,
-                      background: i + 1 <= countInBeat ? "var(--color-white)" : "color-mix(in srgb, var(--color-white) 30%, transparent)",
-                    }}
+                    className={`size-2.5 rounded-full transition-[transform,background-color] duration-150 ease-out ${i + 1 <= countInBeat ? "bg-white" : "bg-white/30"} ${i + 1 === countInBeat ? "scale-[1.4]" : ""}`}
                   />
                 ))}
               </div>
@@ -528,16 +559,14 @@ export default function Home() {
 
           {/* Recording Complete banner */}
           {showRecordingComplete && (
-            <div className="absolute inset-0 flex items-center justify-center z-50 bg-black/30">
-              <div className="bg-white rounded-[14px] px-6 sm:px-12 py-6 sm:py-8 max-w-[90%] shadow-2xl flex flex-col items-center gap-3">
-                <div className="flex items-center gap-3">
-                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="var(--color-success)"/><path d="M9 16L13.5 21L23 11" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  <p className="text-[22px] sm:text-[28px] font-bold text-black font-sans">Recording Complete!</p>
-                </div>
-                <p className="text-[14px] text-ink-subtle font-sans">Manage takes in the recordings list</p>
+            <div className="ms-backdrop absolute inset-0 flex items-center justify-center z-50">
+              <div className="ms-dialog px-6 sm:px-10 py-6 sm:py-7 max-w-[90%] flex flex-col items-center gap-2 text-center">
+                <CheckBadge size={36} />
+                <p className="mt-1 font-display text-[22px] sm:text-[26px] font-bold tracking-tight text-ink">Recording Complete!</p>
+                <p className="text-[14px] text-ink-muted">Manage takes in the recordings list</p>
                 <button
                   onClick={() => setShowRecordingComplete(false)}
-                  className="mt-1 border border-black/20 px-6 py-2 rounded-[8px] text-[15px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]"
+                  className="ms-key mt-3 px-6"
                 >
                   Dismiss
                 </button>
@@ -545,17 +574,16 @@ export default function Home() {
             </div>
           )}
 
-          {!canPlay && <p role="status" className="absolute bottom-2 left-2 right-2 z-20 bg-surface px-4 text-ink">Show the calibrated sheet and camera, or <a href="/calibration" className="underline">calibrate again</a>. Saved data is checked before playing.</p>}
+          {!canPlay && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Show the calibrated sheet and camera, or <a href="/calibration" className="underline underline-offset-2 font-medium">calibrate again</a>. Saved data is checked before playing.</span></p>}
         </div>
 
         {/* Right sidebar (below the camera under lg) */}
         <SideNav onCalibrationClick={() => setShowCalibrationIntro(true)}>
-          {/* Controls */}
-          <div className="flex flex-row flex-wrap items-end lg:flex-col lg:items-stretch gap-[23px] mt-6 lg:mt-[42px] lg:pl-[43px]">
+          <section aria-label="Playback settings" className="ms-panel p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-4">
             {/* Tempo */}
             <div className="flex flex-col gap-2">
-              <label htmlFor="set-tempo" className="text-[16px] text-ink font-sans leading-[1.4]">Set Tempo</label>
-              <div className="flex items-center gap-2">
+              <label htmlFor="set-tempo" className="ms-label">Set Tempo</label>
+              <div className="relative">
                 <input
                   id="set-tempo"
                   type="number"
@@ -564,54 +592,56 @@ export default function Home() {
                   disabled={!settingsLoaded}
                   value={tempo}
                   onChange={(e) => handleTempoChange(e.target.value)}
-                  className="border border-control-border rounded-[8px] px-4 py-3 text-[16px] text-ink bg-white w-[80px] leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                  className="ms-input w-full pr-12 tabular-nums"
                 />
-                <span className="text-[13px] text-ink-muted font-sans">BPM</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[12px] font-medium text-ink-muted">BPM</span>
               </div>
             </div>
 
             {/* Time Signature */}
             <div className="flex flex-col gap-2">
-              <label htmlFor="time-signature" className="text-[16px] text-ink font-sans leading-[1.4]">Time Signature</label>
-              <div className="relative w-[120px]">
+              <label htmlFor="time-signature" className="ms-label">Time Signature</label>
+              <div className="relative">
                 <select
                   id="time-signature"
                   value={timeSignature}
                   onChange={(e) => setTimeSignature(e.target.value)}
-                  className="border border-control-border rounded-[8px] pl-4 pr-8 py-[10px] text-[16px] text-ink bg-white w-full appearance-none leading-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
+                  className="ms-input w-full"
                 >
                   <option>4/4</option>
                   <option>3/4</option>
                   <option>6/8</option>
                 </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-ink"><ChevronDown /></div>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-ink-muted"><ChevronDown /></div>
               </div>
             </div>
 
             {/* Metronome toggle */}
-            <div className="flex items-center gap-3 h-[42px] lg:h-auto">
-              <span className="text-[16px] text-ink font-sans leading-[1.4] whitespace-nowrap">Metronome</span>
+            <div className="col-span-2 sm:col-span-1 lg:col-span-1 flex items-center justify-between gap-3 sm:self-end lg:self-auto sm:h-[38px] lg:h-auto lg:pt-1">
+              <span className="text-[15px] font-medium text-ink whitespace-nowrap">Metronome</span>
               <button
                 onClick={() => setMetronome((enabled) => !enabled)}
                 disabled={!settingsLoaded}
                 aria-label="Toggle metronome"
                 aria-pressed={metronome}
-                className={`relative w-[40px] h-[24px] rounded-full overflow-hidden transition-colors ${metronome ? "bg-ink" : "bg-control-inactive"}`}
+                className="ms-switch"
               >
-                <span className={`absolute top-[2px] left-0 w-[20px] h-[20px] rounded-full bg-white shadow transition-transform duration-150 ease-out ${metronome ? "translate-x-[18px]" : "translate-x-[2px]"}`} />
+                <span />
               </button>
             </div>
+          </section>
 
+          <div className="ms-panel p-4">
             <RecordingsLibrary ref={recordingsLibraryRef} onStatusChange={updateLibraryStatus} />
           </div>
         </SideNav>
       </div>
 
-      {/* Bottom: Listen (left) + Play/Stop (centre) */}
-      <div className="flex items-center shrink-0 pl-[clamp(20px,4.2vw,61px)] pr-[clamp(12px,3.2vw,47px)] pb-[clamp(12px,3dvh,36px)] pt-[clamp(8px,2dvh,24px)]">
-        <div className="flex-1 relative flex flex-wrap items-center justify-center gap-[27px]">
+      {/* Bottom: Listen (left) + transport (centre) */}
+      <div className="flex items-center shrink-0 pl-(--gutter-l) pr-(--gutter-r) pb-[clamp(16px,3dvh,36px)] pt-[clamp(16px,2.5dvh,28px)]">
+        <div className="flex-1 relative flex flex-wrap items-end justify-center gap-x-5 gap-y-3">
           {hasRecordings && (
-            <button className="lg:absolute lg:left-0 border-[1.5px] border-black bg-surface px-5 py-2 rounded-[8px] text-[17px] text-black font-sans hover:bg-black/5 active:scale-[0.97] transition-[background-color,transform]">
+            <button className="ms-key self-center lg:absolute lg:left-0 px-5">
               Listen to Recording
             </button>
           )}
@@ -619,22 +649,27 @@ export default function Home() {
           <button
             onClick={enableAudio}
             disabled={!canPlay || liveStatus.state === "starting" || liveStatus.state === "playing"}
-            className="border border-black rounded-[8px] px-4 py-2 text-ink disabled:opacity-30"
+            className="ms-transport"
           >
-            Enable audio
+            <span className="ms-transport-face text-ink"><SpeakerIcon /></span>
+            <span className="ms-transport-label">Enable audio</span>
           </button>
+
           {/* Record / Pause / Resume button */}
           <button
             onClick={handlePlay}
             aria-label={isRecording && !isPaused ? "Pause recording" : isPaused ? "Resume recording" : "Start recording"}
-            disabled={!libraryLoaded || !canPlay || countInBeat !== null || liveStatus.state === "starting"}
-            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!canPlay || countInBeat !== null || liveStatus.state === "starting" ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
+            disabled={recordDisabled}
+            data-live={isRecording && !isPaused ? "" : undefined}
+            className="ms-transport ms-transport-main"
           >
-            {isRecording && !isPaused
-              ? <PauseIcon />
-              : <PlayIcon color={isPaused ? "var(--color-info)" : "var(--color-ink)"} />}
-            <span className={`text-[13px] font-sans select-none ${isPaused ? "text-info" : "text-ink"}`}>
-              {isRecording && !isPaused ? "Pause" : isPaused ? "Resume" : "Record"}
+            <span className="ms-transport-face">
+              {isRecording && !isPaused
+                ? <PauseIcon />
+                : isPaused ? <ResumeIcon /> : <RecordIcon />}
+            </span>
+            <span className={`ms-transport-label ${isPaused ? "text-info" : ""}`}>
+              {recordLabel}
             </span>
           </button>
 
@@ -642,11 +677,11 @@ export default function Home() {
           <button
             onClick={handleStop}
             aria-label="Stop recording"
-            disabled={!isRecording && countInBeat === null && liveStatus.state !== "starting"}
-            className={`flex flex-col items-center gap-1 transition-[opacity,transform] active:scale-[0.97] ${!isRecording && countInBeat === null && liveStatus.state !== "starting" ? "opacity-30 cursor-not-allowed" : "hover:opacity-70"}`}
+            disabled={stopDisabled}
+            className="ms-transport"
           >
-            <StopIcon />
-            <span className="text-[13px] text-ink font-sans select-none">Stop</span>
+            <span className="ms-transport-face text-ink"><StopIcon /></span>
+            <span className="ms-transport-label">Stop</span>
           </button>
         </div>
         <div className="hidden lg:block w-[267px] shrink-0" />

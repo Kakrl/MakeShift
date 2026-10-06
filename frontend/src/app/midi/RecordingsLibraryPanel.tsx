@@ -76,61 +76,72 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
 
   return (
     <section aria-labelledby="recordings-heading" className="w-full text-ink">
-      <h2 id="recordings-heading" className="font-medium">
-        Recordings
-      </h2>
+      <div className="flex items-baseline justify-between mb-3">
+        <h2 id="recordings-heading" className="ms-label">
+          Recordings
+        </h2>
+        {recordings.length > 0 && (
+          <span className="text-[12px] text-ink-muted tabular-nums">{recordings.length}</span>
+        )}
+      </div>
       {libraryError && (
-        <div role="alert" className="text-danger">
+        <div role="alert" className="mb-3 rounded-[10px] bg-danger/5 p-3 text-[13px] leading-relaxed text-danger">
           <p>{libraryError}</p>
-          <button type="button" className="underline" onClick={retrySaving}>
+          <button type="button" className="ms-key ms-key-ghost ms-key-danger mt-2 -ml-2 px-2 py-1 text-[13px]" onClick={retrySaving}>
             Retry saving
           </button>
         </div>
       )}
       {recordings.length === 0 ? (
-        <p>No recordings yet.</p>
+        <p className="ms-well px-3 py-4 text-center text-[13px] text-ink-muted">No recordings yet.</p>
       ) : (
-        <ul>
+        <ul className="flex flex-col gap-2 max-h-[320px] overflow-y-auto -mx-1 px-1 py-1">
           {recordings.map(({ recording, saved }) => (
-            <li key={recording.id} className="my-3" aria-label={recording.name}>
-              <p className="break-words">
+            <li key={recording.id} className="ms-well p-3" aria-label={recording.name}>
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] font-medium break-words">
                 {recording.name}
-                {!saved && " ? Not saved"}
+                {!saved && (
+                  <span className="ms-chip ms-chip-danger px-2 py-0.5 text-[11px]">Not saved</span>
+                )}
               </p>
               {renamingId === recording.id ? (
                 <form
+                  className="mt-2 flex flex-col gap-2"
                   onSubmit={(event) => {
                     event.preventDefault();
                     renameRecording(recording.id);
                   }}
                 >
-                  <label htmlFor={`name-${recording.id}`}>Name</label>
+                  <label htmlFor={`name-${recording.id}`} className="ms-label">Name</label>
                   <input
                     id={`name-${recording.id}`}
                     value={recordingName}
                     onChange={(event) => setRecordingName(event.target.value)}
-                    className="w-full border border-control-border bg-white text-ink"
+                    className="ms-input w-full bg-white"
+                    autoFocus
                   />
-                  <button
-                    type="submit"
-                    className="underline mr-3"
-                    disabled={!recordingName.trim()}
-                  >
-                    Save name
-                  </button>
-                  <button
-                    type="button"
-                    className="underline"
-                    onClick={() => setRenamingId(null)}
-                  >
-                    Cancel
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      className="ms-key ms-key-primary flex-1 px-3 py-1.5 text-[13px]"
+                      disabled={!recordingName.trim()}
+                    >
+                      Save name
+                    </button>
+                    <button
+                      type="button"
+                      className="ms-key flex-1 px-3 py-1.5 text-[13px]"
+                      onClick={() => setRenamingId(null)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </form>
               ) : (
-                <div className="flex flex-wrap gap-3">
+                <div className="mt-2 flex flex-wrap gap-1.5">
                   <button
                     type="button"
-                    className="underline"
+                    className="ms-key px-2.5 py-1.5 text-[13px]"
                     onClick={() => {
                       setRenamingId(recording.id);
                       setRecordingName(recording.name);
@@ -140,14 +151,14 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
                   </button>
                   <button
                     type="button"
-                    className="underline"
+                    className="ms-key px-2.5 py-1.5 text-[13px]"
                     onClick={() => downloadMidi(recording)}
                   >
                     Download MIDI
                   </button>
                   <button
                     type="button"
-                    className="underline text-danger"
+                    className="ms-key ms-key-ghost ms-key-danger px-2.5 py-1.5 text-[13px]"
                     onClick={() => deleteRecording(recording.id)}
                   >
                     Delete
