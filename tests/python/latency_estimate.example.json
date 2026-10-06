@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "phase": "warm",
+  "metadata": {
+    "commit": "synthetic-example",
+    "browser": "synthetic-example",
+    "hardware": "synthetic-example",
+    "camera_resolution": "synthetic-example",
+    "output_device": "synthetic-example",
+    "output_route": "wired",
+    "settings": "Synthetic example only; replace with model, delegate, calibration, lighting, audio envelope, volume and warm-up duration",
+    "accuracy_evidence": "Unexecuted; synthetic input has no detection accuracy evidence"
+  },
+  "camera_fps": 30,
+  "fps_sensitivity": [15, 30, 60],
+  "frame_wait_model": "uniform-random-phase",
+  "frame_wait_rationale": "Illustrative random arrival independent of nominal camera frames; excludes exposure and buffering",
+  "diagnostic_stages": ["inference", "detection"],
+  "nonoverlap_rationale": "Synthetic disjoint inference and contact-processing durations; real runs must establish boundaries before adding stages",
+  "software_coverage": "Synthetic inference and synchronous detection only; omitted software/worker/event delays must be covered by contact_gating allowance",
+  "allowances": {
+    "camera_capture": {
+      "low_ms": null, "mean_ms": null, "high_ms": null,
+      "rationale": "Unknown exposure, buffering and delivery delay; enter an explicitly justified assumption to model it"
+    },
+    "contact_gating": {
+      "low_ms": null, "mean_ms": null, "high_ms": null,
+      "rationale": "Unknown asynchronous shadow work, scheduling, temporal contact history and omitted event/dispatch work"
+    },
+    "audio_output": {
+      "low_ms": null, "mean_ms": null, "high_ms": null,
+      "rationale": "Unknown worklet scheduling, envelope onset and hardware output delay for this output route"
+    }
+  }
+}

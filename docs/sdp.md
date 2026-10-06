@@ -23,6 +23,16 @@ Implementation belongs to #28, #34, #35, #37, #86–#89 and related issues liste
 in the architecture. #85 changes documentation only. External SDP/V&V links
 below remain historical planning sources; this update does not edit them.
 
+## Latency estimation delivery (issue #30)
+
+Issue #30 now delivers software-based latency estimation and sensitivity
+analysis, using camera FPS, measured software stages and explicit assumptions
+for unmeasured camera/CV/audio delays. No contact sensor, physical recording or
+manual test is required for that deliverable. See [the estimator procedure](latency_estimation.md).
+Estimator verification maps to 2.3.7; physical compliance test 2.3.1 remains
+planned. The under-50 ms physical requirement is unchanged and unverified;
+modeled values cannot establish compliance or detection accuracy.
+
 ## Recording playback extension (issue #130)
 
 PB-1 adds a browser-local playback timeline over the existing `Recording` model:

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "metadata": {"commit": "synthetic-example", "browser": "synthetic-example", "hardware": "synthetic-example"},
+  "clock": "Synthetic durations in main performance.now milliseconds",
+  "processedFps": 40,
+  "deliveredFps": 29,
+  "droppedFrames": 2,
+  "unavailable": ["physical press reference", "hardware output"],
+  "metrics": {
+    "inference": {"unit": "ms", "boundary": "synthetic synchronous inference", "count": 4, "mean": 10, "p50": 8, "p95": 20, "max": 20},
+    "detection": {"unit": "ms", "boundary": "synthetic synchronous detection", "count": 4, "mean": 2, "p50": 1, "p95": 5, "max": 5}
+  }
+}

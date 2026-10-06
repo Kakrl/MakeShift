@@ -32,7 +32,7 @@ MakeShift/
 │   ├── architecture.md              # browser target, tooling, delivery boundaries
 │   ├── rvtm_browser_addendum.md      # browser requirement/test reconciliation
 │   ├── performance.md              # bounded pipeline metrics, clocks and profiling
-│   ├── latency_benchmark.md        # physical capture, onset analysis and uncertainty
+│   ├── latency_estimation.md       # software estimate, assumptions and sensitivity
 │   ├── browser_audio.md             # browser DSP, transport and verification
 │   ├── audio.md                     # polyphony and voice stealing
 │   ├── audio_events.md              # native audio event queue contract
@@ -119,9 +119,10 @@ MakeShift/
 │   │   ├── storage.test.ts           # versioned localStorage module
 │   │   └── check-contrast.mjs
 │   ├── python/
-│   │   ├── latency_analysis.py      # shared-clock physical capture analyzer
-│   │   ├── latency_config.example.json # metadata, detector and trial windows
-│   │   ├── test_latency_analysis.py # generated known-delay capture fixtures
+│   │   ├── latency_estimate.py      # software latency estimator
+│   │   ├── latency_estimate.example.json # metadata and explicit allowances
+│   │   ├── test_latency_estimate.py # synthetic estimator regression cases
+│   │   ├── latency_profile.fixture.json # synthetic diagnostics export
 │   │   └── test_dummy.py
 │   └── manual/                     # manual test template and completed reports
 ├── .clang-format
