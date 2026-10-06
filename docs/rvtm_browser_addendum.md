@@ -19,7 +19,7 @@ Native tests remain native evidence and cannot prove browser integration.
 | 1.2, 1.3 | Consistent octave/layout configuration and browser MIDI pitch mapping | 1.2.1–1.2.2, 1.3.1; #36, #25, #76 |
 | 2.1 | Intentional press/release detection routed through shared browser events | 2.1.1–2.1.2; #34, #29, #39, #86, #28 |
 | 2.2 | Local synthesis, volume and velocity, up to ten voices and release behavior | 2.2.1–2.2.3; #35, #27, #28. Native 2.2.4–2.2.12 retain separate evidence |
-| 2.3 | Under 50 ms physical press to audible output; bounded frames and local events | 2.3.1–2.3.2; #30, #38, #37. Native 2.3.3–2.3.5 remain native only |
+| 2.3 | Under 50 ms physical press to audible output; bounded frames and local events | 2.3.1 physical verification remains planned; #30 delivers estimation only (2.3.7); #38 software stages (2.3.2), #37 bounded frames. Native 2.3.3–2.3.5 remain native only |
 | 2.4 | Timestamp-aware velocity estimation and browser amplitude response | 2.4.1–2.4.2; #34, #35 |
 | 3.2 | Feedback consumes the same press/session state as audio and recording | 3.2.1–3.2.2; #28, #24, #88 |
 | 4.1, 4.2 | Browser MIDI recording lifecycle and actual export | 4.1.1–4.1.7, 4.2.2–4.2.3; #88, #65. Persistence test 4.2.1 remains separately planned |
@@ -33,6 +33,14 @@ where coverage is missing, including session resets, worklet voices, event clock
 and worker overload. Do not claim those tests already exist.
 
 ## Measurement rules
+
+Issue #30's revised scope requires reproducible software estimation, explicit
+unknowns/assumptions and sensitivity analysis, with no physical manual test as
+a completion prerequisite. Its published baseline simulation yields a 47.67 ms
+mean and 63.83 ms p95 at 30 FPS under specified timing assumptions; regression
+checks preserve both results and threshold exceedances. [Estimator verification](latency_estimation.md)
+maps separately to 2.3.7. Physical verification rules below still apply to
+requirement 2.3 and test 2.3.1; estimates cannot substitute for that evidence.
 
 - Preserve the under-3% combined false-positive/false-negative target for 2.1.1.
   #39 must define the denominator, ground-truth matching and tolerances before

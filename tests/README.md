@@ -54,6 +54,12 @@ tests/
 │   ├── midiUtils.test.ts             # MIDI unit tests
 │   └── check-contrast.mjs            # theme token contrast audit
 ├── python/
+│   ├── latency_estimate.py          # software latency estimator
+│   ├── latency_estimate.example.json # metadata and explicit allowances
+│   ├── test_latency_estimate.py     # synthetic estimator regression cases
+│   ├── latency_profile.fixture.json # synthetic diagnostics export
+│   ├── latency_simulation.fixture.json # modeled software durations
+│   ├── latency_simulation.report.json # versioned scenario result
 │   └── test_dummy.py                 # existing placeholder, no product coverage
 └── manual/
     └── manual_test_template.md
@@ -76,6 +82,7 @@ No test implementation requires an exception to this layout.
 | :--- | :--- | :--- |
 | C++ (GoogleTest) | `cmake -B build -S backend && cmake --build build --config Release && ctest --test-dir build -C Release --output-on-failure` | CMake 3.15+, C++23 compiler, Python 3.12, `pip install -r requirements.txt` |
 | Python | `python -m pytest --cov=backend --cov-report=term-missing` | `pip install -r requirements.txt` |
+| Latency estimate | `python tests/python/latency_estimate.py profile.json config.json estimate.json` | #38 JSON export and explicit assumptions; [procedure](../docs/latency_estimation.md); no physical equipment required |
 | Frontend unit (Vitest) | `cd frontend && npx vitest run` | `npm ci` in `frontend/` |
 | Browser audio smoke | `cd frontend && npm run test:audio-browser` | Production server on `MAKE_SHIFT_URL` (default `http://127.0.0.1:3000`); `AUDIO_BROWSER_CHANNEL=chromium` for Playwright Chromium (default `msedge`) |
 | Deployment smoke | `cd frontend && npm run test:deployment` | Production server or Vercel URL in `MAKE_SHIFT_URL`; `npx playwright install chromium`; network for jsDelivr WASM; `EXPECT_DATABASE=ok` requires Supabase secrets (`infisical run`) |
@@ -140,6 +147,27 @@ on `feature/130-playback-timeline` based on upstream `614203f`:
   the sandboxed attempt failed to fetch the existing Geist Google Fonts.
 - No real browser timing/listening run was performed. PB-1.1–PB-1.5 map the
   actual coverage; CI does not run these Vitest cases and remains pending.
+
+## Software latency estimator verification (issue #30)
+
+Issue #30 delivers a completed simulation/software estimation workflow. Run
+`python tests/python/latency_estimate.py tests/python/latency_simulation.fixture.json tests/python/latency_estimate.example.json simulation.json`
+and see [the scenario procedure/results](../docs/latency_estimation.md).
+The versioned `python/latency_simulation.report.json` records 500 modeled samples
+from five synthetic software durations and uniform random frame phase.
+At 30 FPS with a 19 ms central allowance, the estimate is mean 47.67 ms,
+p50 47.50 ms, p95 63.83 ms, maximum modeled sample 69.17 ms and 43% at/above
+50 ms. Allowance/FPS sensitivity is included. Inputs are scenario assumptions,
+not a hardware measurement; physical and accuracy verification are outside #30.
+
+Local Windows verification on 2026-10-05, Python 3.12.10 and pytest 8.2.2,
+branch `test/30-end-to-end-latency`: 24 estimator cases passed
+(25 total including the placeholder). Ruff and required backend mypy passed.
+Cases include published numeric regression expectations, FPS/allowance
+sensitivity, aggregate arithmetic without invented quantiles, paired model
+distributions, retained misses/invalid data, invalid assumptions and CLI reports.
+`testing.yml` invokes these tests on Python changes. Inventory 2.3.7 maps the
+estimator/simulation; 2.3.1 retains the distinct physical test scope.
 
 ## Note-list recorder verification (issues #108 and #115)
 
