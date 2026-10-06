@@ -79,7 +79,7 @@ MakeShift/
 │   │   │   ├── shadowHeuristics.ts   # prototype RGB k-means dark-region segmentation
 │   │   │   └── shadowWorker.ts       # bounded background shadow segmentation
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
-│   │   ├── lib/                     # shared browser utilities (versioned storage)
+│   │   ├── lib/                     # shared utilities (versioned storage, recordings API schema)
 │   │   ├── server/                  # server-only Supabase access
 │   │   └── shims/                   # empty fs shim and type-only MIDI declaration bridge
 │   ├── package.json

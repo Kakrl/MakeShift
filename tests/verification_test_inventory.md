@@ -316,7 +316,6 @@ first CI execution on PR #164, 2026-10-02.
 | STOR-02 | Unit | Issue #114 acceptance criteria | Quota errors (`QuotaExceededError`, Firefox `NS_ERROR_DOM_QUOTA_REACHED`, native and jsdom `DOMException`) other write/serialization failures and values that do not serialize to JSON (`undefined`, functions, symbols) return a failure result without throwing ([source](frontend/storage.test.ts)) | Harry Deng | Vitest | Yes | Implemented; simulated errors, no real quota exhaustion | Yes (`frontend-ci.yml`) | Local run passed 2026-10-02; [Actions job log](https://github.com/Kakrl/MakeShift/actions/runs/37041595179/job/110952773365) passed 2026-10-02 |
 | STOR-03 | Unit | Issue #114 acceptance criteria | Import and calls with no `window` (server rendering), blocked `localStorage` access treated as unavailable, and jsdom `window.localStorage` default path ([source](frontend/storage.test.ts)) | Harry Deng | Vitest + jsdom | Yes | Implemented; Node/jsdom, no real browser or Next.js server render | Yes (`frontend-ci.yml`) | Local run passed 2026-10-02; [Actions job log](https://github.com/Kakrl/MakeShift/actions/runs/37041595179/job/110952773365) passed 2026-10-02 |
 
-
 ## Local recordings library operations (#124)
 
 Partial delivery: no hardware coverage or full browser restart yet. These
@@ -339,3 +338,16 @@ requirement 4.2. Existing requirement scope is unchanged. Vitest runs through
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | PREF-01 | Integration | Issue #123 acceptance criteria | Initial defaults, restore saved tempo/toggle without an initial overwrite, edit and remount with retained preferences ([source](frontend/homePage.test.ts)) | Jadden Picardal | Vitest + jsdom | Yes | Implemented; simulated page remount, not browser restart | Yes (`frontend-ci.yml`) | [Local verification](README.md#tempo-and-metronome-verification-issue-123) - passed 2026-10-02; Actions pending |
 | PREF-02 | Integration | Issue #123 acceptance criteria | Corrupt JSON, null/array, out-of-range/fractional/string/missing values use defaults; valid 20/300 BPM boundaries restore; input clamps and controls work with throwing reads and quota failures ([source](frontend/homePage.test.ts)) | Jadden Picardal | Vitest + jsdom | Yes | Implemented; simulated storage failures | Yes (`frontend-ci.yml`) | [Local verification](README.md#tempo-and-metronome-verification-issue-123) - passed 2026-10-02; Actions pending |
+
+## Recordings API schema (#117)
+
+Supporting contract for the shared recordings API (#119, #122, #128); these rows
+do not complete any RVTM test. Limits mirror the `recordings` table checks; note
+count (10,000) and duration (30 minutes) caps are API-only. Ran locally on macOS;
+CI runs these through `frontend-ci.yml`.
+
+| Test ID | Level | Requirement | Description / source | Owner | Tool | Automated? | Implementation Status | CI Integrated? | Execution evidence |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| REC-01 | Unit | Issue #117 acceptance criteria | Valid uploads pass with trimmed text and unknown fields dropped; every boundary value accepted; title/author/device length counted in code points like Postgres `char_length` ([source](frontend/recordingsSchema.test.ts)) | Harry Deng | Vitest | Yes | Implemented | Yes (`frontend-ci.yml`) | Local run passed 2026-10-03 (46 tests across REC-01 to REC-03); Actions pending |
+| REC-02 | Unit | Issue #117 acceptance criteria | Each out-of-range field rejected with a field-named issue: text lengths and types, non-integer or out-of-range BPM, empty or oversized note lists, malformed or out-of-range pitch, velocity outside integer 1-100, negative/non-finite timing and notes past the duration cap; only the first bad note reported; non-object bodies rejected ([source](frontend/recordingsSchema.test.ts)) | Harry Deng | Vitest | Yes | Implemented | Yes (`frontend-ci.yml`) | Local run passed 2026-10-03; Actions pending |
+| REC-03 | Unit | Issue #117 acceptance criteria | `recordingDurationMs` uses the latest note end; shared `pitchToMidi` parses sharps, flats and octave -1 to 9 and rejects malformed or out-of-range names ([source](frontend/recordingsSchema.test.ts)) | Harry Deng | Vitest | Yes | Implemented | Yes (`frontend-ci.yml`) | Local run passed 2026-10-03; Actions pending |
