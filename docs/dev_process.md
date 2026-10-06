@@ -36,17 +36,20 @@ MakeShift/
 │   ├── browser_audio.md             # browser DSP, transport and verification
 │   ├── audio.md                     # polyphony and voice stealing
 │   ├── audio_events.md              # native audio event queue contract
-│   ├── piano_integration.md         # one-octave shared-event consumers and limits
+│   ├── piano_integration.md         # shared-event consumers, octave layouts and limits
 │   ├── live_session.md              # readiness states, tracking timeout and recovery
 │   ├── note_events.md               # shared browser event/session/clock contract
 │   ├── dev_process.md
 │   ├── piano_sheet.md               # printable sheet and ArUco marker IDs
+│   ├── generate_piano_sheets.py     # deterministic vector PDF generator
+│   ├── piano_sheet_requirements.txt # pinned generator dependency
 │   ├── Piano Sheet.png
 │   ├── sdp.md
 │   ├── deployment.md                # Vercel hosting, browser support, permissions
 │   ├── supabase.md                  # recordings database, secrets, migrations
 │   ├── Design Document.pdf
 │   └── Final Verification and Validation Plan.pdf
+├── output/pdf/                     # actual-size starter and extension piano sheets
 ├── frontend/
 │   ├── public/
 │   │   ├── audio/                   # piano-worklet.js and shared synth.js
@@ -70,8 +73,10 @@ MakeShift/
 │   │   │   ├── lighting.ts
 │   │   │   ├── page.tsx
 │   │   │   ├── SideNav.tsx          # shared responsive nav tabs
+│   │   │   ├── useKeyboardLayout.ts # shared layout subscription
 │   │   │   └── useHandLandmarker.ts
 │   │   ├── cv/                      # ArUco detection, homography, key geometry
+│   │   │   ├── keyboardLayout.ts    # octave/start/paper dimensions and validation
 │   │   │   ├── contactPipeline.ts    # individual overlap, knuckle, and shadow checks
 │   │   │   ├── liveContactPipeline.ts # controller: eligibility, shadow worker/history, releases
 │   │   │   ├── combinedContact.ts    # contact state/gate types and timing constants
@@ -80,6 +85,7 @@ MakeShift/
 │   │   │   └── shadowWorker.ts       # bounded background shadow segmentation
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
 │   │   ├── lib/                     # shared utilities (versioned storage, recordings API schema)
+│   │   │   └── keyboardSettings.ts  # persisted layout and synchronous invalidation
 │   │   ├── server/                  # server-only Supabase access
 │   │   └── shims/                   # empty fs shim and type-only MIDI declaration bridge
 │   ├── package.json
@@ -115,6 +121,8 @@ MakeShift/
 │   │   ├── playbackTimeline.test.ts # recording playback clock and lifecycle
 │   │   ├── midiExport.browser.mjs  # production Export UI and downloaded MIDI bytes
 │   │   ├── cameraLayout.browser.mjs # home camera feed 16:9 across viewports
+│   │   ├── keyboardLayout.test.ts   # physical layout proportions and MIDI bounds
+│   │   ├── keyboardLayout.browser.mjs # production layout/override/persistence controls
 │   │   ├── midiUtils.test.ts
 │   │   ├── storage.test.ts           # versioned localStorage module
 │   │   └── check-contrast.mjs

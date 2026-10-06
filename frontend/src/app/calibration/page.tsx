@@ -19,7 +19,11 @@ import {
 } from "../../cv/depthCalibration";
 import type { DepthCalibrationModel } from "../../cv/depthCalibration";
 import { MarkerDetector } from "../../cv/markerDetector";
-import { getWhiteKeyPolygons, PIANO_CORNERS } from "../../cv/keyboardGeometry";
+import { getWhiteKeyPolygons, getPianoCorners } from "../../cv/keyboardGeometry";
+import { paperFits, paperOctaves, startingNotes, usableLayout, type KeyboardLayout } from "../../cv/keyboardLayout";
+import { saveKeyboardLayout, subscribeKeyboardLayout } from "../../lib/keyboardSettings";
+import { useKeyboardLayout } from "../useKeyboardLayout";
+import { midiToPitch } from "../../cv/noteMap";
 import { computeHomography, projectPoint } from "../../cv/homography";
 import type { Homography } from "../../cv/homography";
 import type { MarkerDetectionResult, Point } from "../../cv/types";
@@ -32,7 +36,7 @@ import {
 } from "../lighting";
 
 import { cameraSignature, markerCorners, compatibleCalibration, validateCalibration, saveCalibration, MARKER_ACQUIRE_INTERVAL_MS, MARKER_CHECK_INTERVAL_MS,
-  validSamples, CURRENT_LAYOUT, SHEET_ID, type CalibrationResult, type LandmarkSample } from "../../cv/calibration";
+  validSamples, SHEET_ID, type CalibrationResult, type LandmarkSample } from "../../cv/calibration";
 const TOTAL_STEPS = 5;
 
 const PAGE_CORNERS: [Point, Point, Point, Point] = [
@@ -43,8 +47,7 @@ const PAGE_CORNERS: [Point, Point, Point, Point] = [
 ];
 
 
-const OCTAVE_OPTIONS = ["1"];
-const NOTE_OPTIONS = ["C3"];
+const OCTAVE_OPTIONS = [1, 2, 3];
 
 function ChevronDown() {
   return (
@@ -100,8 +103,7 @@ export default function Calibration() {
   const [step, setStep] = useState(1);
 
   // Step 1
-  const [octaves, setOctaves] = useState("1");
-  const [startingNote, setStartingNote] = useState("C3");
+  const layout = useKeyboardLayout();
 
   // Steps 4 & 5 — shared countdown
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -149,6 +151,24 @@ export default function Calibration() {
   const depthModelRef = useRef<DepthCalibrationModel | null>(null);
   const { status: landmarkerStatus, detect, reload: reloadLandmarker } =
     useHandLandmarker();
+
+  useEffect(() => subscribeKeyboardLayout(() => {
+    // Covers both local controls and another tab changing settings mid-capture.
+    generationRef.current++;
+    hoverRef.current = null;
+    resultRef.current = null;
+    depthModelRef.current = null;
+    depthCollectorRef.current = new DepthCalibrationCollector();
+    setStep(1);
+    setCountdown(null);
+    setCorners(null);
+    setSheetGeometry(null);
+    setSheetDetected(false);
+    setFingersShown(false);
+    setStep5Success(false);
+    setDepthPositionIndex(0);
+    setDepthCaptureBusy(false);
+  }), []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -205,7 +225,7 @@ export default function Calibration() {
     };
   }, [step, cameraReady, frameReady]);
 
-  function resetInteractiveStepState() {
+  function resetInteractiveStepState(resetDepth = true) {
     setCountdown(null);
     setHasStarted(false);
     setFingersShown(false);
@@ -215,7 +235,7 @@ export default function Calibration() {
     setDepthCaptureMessage(null);
     setDepthCaptureBusy(false);
     depthCollectorRef.current = new DepthCalibrationCollector();
-    depthModelRef.current = null;
+    if (resetDepth) depthModelRef.current = null;
     setShowHelpModal(false);
     setPaperError(false);
     setCaptureError(null);
@@ -227,8 +247,24 @@ export default function Calibration() {
   function goToAdjacentStep(delta: -1 | 1) {
     generationRef.current++;
     if (delta === -1) { resultRef.current = null; hoverRef.current = null; }
-    resetInteractiveStepState();
+    resetInteractiveStepState(!(delta === 1 && step === 5));
     setStep((s) => s + delta);
+  }
+
+  function changeLayout(patch: Partial<KeyboardLayout>) {
+    const octaves = patch.octaves ?? layout.octaves;
+    const starts = startingNotes(octaves);
+    const startingMidi = Math.min(patch.startingMidi ?? layout.startingMidi, starts.at(-1)!);
+    const result = saveKeyboardLayout({ ...layout, paperOctaves: paperOctaves(layout),
+      paperFitOverride: false, ...patch, octaves, startingMidi, whiteKeys: octaves * 7 + 1 });
+    generationRef.current++;
+    resultRef.current = null;
+    hoverRef.current = null;
+    setCorners(null);
+    setSheetGeometry(null);
+    setSheetDetected(false);
+    resetInteractiveStepState();
+    if (!result.ok) setCaptureError("Could not save keyboard settings. Enable browser storage and retry.");
   }
 
   useEffect(() => {
@@ -277,9 +313,10 @@ export default function Calibration() {
     try {
       const observed = readSheet();
       setCorners(observed.corners);
+      setSheetDetected(true);
       setPaperError(false); setCaptureError(null);
     } catch (error) {
-      setCorners(null); setPaperError(true);
+      setCorners(null); setPaperError(true); setSheetDetected(false);
       setCaptureError(error instanceof Error ? error.message : "Unable to detect the sheet.");
     }
   }
@@ -316,8 +353,10 @@ export default function Calibration() {
     setHasStarted(true);
     setDepthCaptureBusy(true);
     setDepthCaptureMessage(null);
+    const generation = generationRef.current;
     try {
       const image = await capture();
+      if (generation !== generationRef.current) return;
       if (!image) {
         setDepthCaptureMessage("The camera was not ready. Try again.");
         return;
@@ -336,6 +375,10 @@ export default function Calibration() {
         rightHandIndex >= 0 ? result.landmarks?.[rightHandIndex] : undefined;
       if (!rightHand) {
         setDepthCaptureMessage("Right hand not detected. Try again.");
+        return;
+      }
+      if (!validSamples(result.landmarks)) {
+        setDepthCaptureMessage("Show one or two complete hands, then retry.");
         return;
       }
 
@@ -377,22 +420,34 @@ export default function Calibration() {
           depthCollectorRef.current = new DepthCalibrationCollector();
           return;
         }
-        depthModelRef.current = model;
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(
-            DEPTH_CALIBRATION_STORAGE_KEY,
-            JSON.stringify(toPersistedDepthCalibration(model)),
-          );
+        const observed = readSheet();
+        const calibrated = validateCalibration({ version: 1,
+          coordinates: "unmirrored-frame-pixels/marker-unit-square",
+          sheet: SHEET_ID, camera: observed.camera, layout, corners,
+          contact: { model: "landmark-reference-v1", hover: hoverRef.current,
+            rest: result.landmarks } });
+        if (!calibrated || !compatibleCalibration(calibrated, observed.camera, observed.corners, layout)) {
+          setDepthCaptureMessage("Sheet or settings changed. Return to Align your paper and capture again.");
+          setDepthPositionIndex(0);
+          depthCollectorRef.current = new DepthCalibrationCollector();
+          return;
         }
+        depthModelRef.current = model;
+        resultRef.current = calibrated;
         setStep5Success(true);
         setDepthCaptureMessage("Depth calibration captured successfully.");
       } else {
         setDepthCaptureMessage(`${position} position captured.`);
       }
+    } catch (error) {
+      if (generation === generationRef.current)
+        setDepthCaptureMessage(error instanceof Error ? error.message : "Capture failed. Retry.");
     } finally {
-      setDepthCaptureBusy(false);
+      if (generation === generationRef.current) setDepthCaptureBusy(false);
     }
-  }, [capture, depthCaptureBusy, depthPositionIndex, detect]);
+  // readSheet checks the current detector/camera refs at each real capture.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [capture, depthCaptureBusy, depthPositionIndex, detect, corners, layout, stream]);
 
   useEffect(() => {
     if (step !== 3 || !cameraReady || !frameReady) return;
@@ -437,10 +492,10 @@ export default function Calibration() {
               ? computeHomography(PAGE_CORNERS, targetCorners)
               : null;
             if (homography) {
-              const pianoCorners = PIANO_CORNERS.map((corner) =>
+              const pianoCorners = getPianoCorners(layout).map((corner) =>
                 projectPoint(homography, corner),
               );
-              const whiteKeys = getWhiteKeyPolygons().map((key) =>
+              const whiteKeys = getWhiteKeyPolygons(layout).map((key) =>
                 key.map((corner) => projectPoint(homography, corner)),
               );
               if (
@@ -488,7 +543,7 @@ export default function Calibration() {
       if (timeout !== undefined) window.clearTimeout(timeout);
       detector?.dispose();
     };
-  }, [cameraReady, frameReady, step, stream]);
+  }, [cameraReady, frameReady, step, stream, layout]);
 
   useEffect(() => {
     const canvas = sheetOverlayCanvasRef.current;
@@ -586,13 +641,6 @@ export default function Calibration() {
       if (step === 4) {
         hoverRef.current = structuredClone(landmarks);
         setFingersShown(true);
-      } else if (step === 5) {
-        const result = validateCalibration({ version: 1, coordinates: "unmirrored-frame-pixels/marker-unit-square",
-          sheet: SHEET_ID, camera: observed.camera, layout: CURRENT_LAYOUT, corners,
-          contact: { model: "landmark-reference-v1", hover: hoverRef.current, rest: landmarks } });
-        if (!result) throw new Error("Capture the hover step again before placing your hands.");
-        resultRef.current = result;
-        setStep5Success(true);
       }
       setShowingImage(true);
     }).catch(error => {
@@ -616,24 +664,25 @@ export default function Calibration() {
   };
 
   const handleComplete = () => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("isCalibrated", "true");
-      const depthModel = depthModelRef.current;
-      if (depthModel) {
-        localStorage.setItem(
-          DEPTH_CALIBRATION_STORAGE_KEY,
-          JSON.stringify(toPersistedDepthCalibration(depthModel)),
-        );
-      }
-    }
-    router.push("/");
     try {
       const observed = readSheet();
       const result = resultRef.current;
-      if (!result || !compatibleCalibration(result, observed.camera, observed.corners)) {
+      const model = depthModelRef.current;
+      if (!result || !model || !compatibleCalibration(result, observed.camera, observed.corners, layout)) {
         throw new Error("Calibration changed. Return to calibration and capture again.");
       }
-      if (!saveCalibration(result)) throw new Error("Could not save calibration. Enable browser storage and retry.");
+      const previousDepth = localStorage.getItem(DEPTH_CALIBRATION_STORAGE_KEY);
+      try {
+        localStorage.setItem(DEPTH_CALIBRATION_STORAGE_KEY, JSON.stringify(toPersistedDepthCalibration(model)));
+        if (!saveCalibration(result)) throw new Error("save failed");
+      } catch {
+        // Restore the previous companion model if the primary save failed.
+        try {
+          if (previousDepth === null) localStorage.removeItem(DEPTH_CALIBRATION_STORAGE_KEY);
+          else localStorage.setItem(DEPTH_CALIBRATION_STORAGE_KEY, previousDepth);
+        } catch { /* A blocked storage area remains unusable. */ }
+        throw new Error("Could not save calibration. Enable browser storage and retry.");
+      }
       router.push("/");
     } catch (error) { setCaptureError(error instanceof Error ? error.message : "Please retry calibration."); }
   };
@@ -641,6 +690,7 @@ export default function Calibration() {
   const lightingOk = lighting?.verdict === "ok";
 
   const canAdvance = () => {
+    if (step === 1) return usableLayout(layout);
     if (step === 2) return lightingOk; // #16
     if (step === 3) return sheetDetected;
     if (step === 4) return fingersShown;
@@ -656,12 +706,11 @@ export default function Calibration() {
 
   // Counting down right now?
   const isCounting = countdown !== null && countdown > 0;
-  const isInteractiveStep = step === 2 || step === 3 || step === 4 || step === 5;
   const showPreviousStep = !isComplete && step > 1 && !isCounting;
   const showExitCalibration = step === 1;
   // Step 1 is settings only; every later step asks the user to judge the camera feed.
   const showNextStep =
-    !isComplete && (!isInteractiveStep || canAdvance()) && (step === 1 || cameraReady);
+    !isComplete && canAdvance() && (step === 1 || cameraReady);
 
   // ── Camera overlays per step ──────────────────────────────────────────────
   const renderCameraOverlay = () => {
@@ -881,27 +930,40 @@ export default function Calibration() {
     if (step === 1) {
       return (
         <div className="flex items-center gap-5 flex-wrap">
-          <p className="text-[18px] sm:text-[24px] text-black font-sans">Step 1: Current sheet — one octave, C3–C4</p>
+          <p className="text-[18px] sm:text-[24px] text-black font-sans">Step 1: Choose your keyboard — {midiToPitch(layout.startingMidi)}–{midiToPitch(layout.startingMidi + 12 * layout.octaves)}</p>
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex flex-col gap-1">
               <label htmlFor="octave-count" className="text-[13px] text-black font-sans"># of Octaves</label>
               <div className="relative">
-                <select id="octave-count" value={octaves} onChange={(e) => setOctaves(e.target.value)} className="border border-control-border rounded-[8px] pl-3 pr-8 py-2 text-[15px] text-ink bg-white appearance-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
+                <select id="octave-count" value={layout.octaves} onChange={(e) => changeLayout({ octaves: Number(e.target.value) })} className="border border-control-border rounded-[8px] pl-3 pr-8 py-2 text-[15px] text-ink bg-white appearance-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
                   {OCTAVE_OPTIONS.map((o) => <option key={o}>{o}</option>)}
                 </select>
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"><ChevronDown /></div>
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              <label htmlFor="starting-note" className="text-[13px] text-black font-sans">Starting Octave</label>
+              <label htmlFor="starting-note" className="text-[13px] text-black font-sans">Starting note (leftmost C)</label>
               <div className="relative">
-                <select id="starting-note" value={startingNote} onChange={(e) => setStartingNote(e.target.value)} className="border border-control-border rounded-[8px] pl-3 pr-8 py-2 text-[15px] text-ink bg-white appearance-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
-                  {NOTE_OPTIONS.map((n) => <option key={n}>{n}</option>)}
+                <select id="starting-note" value={layout.startingMidi} onChange={(e) => changeLayout({ startingMidi: Number(e.target.value) })} className="border border-control-border rounded-[8px] pl-3 pr-8 py-2 text-[15px] text-ink bg-white appearance-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black">
+                  {startingNotes(layout.octaves).map((midi) => <option key={midi} value={midi}>{midiToPitch(midi)}</option>)}
                 </select>
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"><ChevronDown /></div>
               </div>
             </div>
-            <SuccessBadge label="Settings ready" />
+            <div className="flex flex-col gap-1">
+              <label htmlFor="paper-octaves" className="text-[13px] text-black font-sans">Octaves assembled on paper</label>
+              <select id="paper-octaves" value={paperOctaves(layout)} onChange={(e) => changeLayout({ paperOctaves: Number(e.target.value) })} className="border border-control-border rounded px-3 py-2 text-ink bg-white">
+                {OCTAVE_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+            {usableLayout(layout) && <SuccessBadge label="Settings ready" />}
+            {!paperFits(layout) && <div role="alert" className="w-full text-danger">
+              <p>The selected {layout.octaves}-octave range does not fit your {paperOctaves(layout)}-octave paper. Add extension sheets or explicitly continue beyond the paper.</p>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={!!layout.paperFitOverride} onChange={(e) => changeLayout({ paperFitOverride: e.target.checked })} />
+                Allow the full keyboard to extend beyond my paper
+              </label>
+            </div>}
           </div>
         </div>
       );

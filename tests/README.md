@@ -1,5 +1,53 @@
 # MakeShift Testing
 
+## Octave layout and calibration verification (issues #36 and #162)
+
+Local Windows 11 Home 10.0.26200, Node 22.20.0, Vitest 4.1.11 execution on
+2026-10-06, branch `feature/36-octave-layouts`, based on main `856eef9`:
+
+- Full Vitest suite: **451 passed**, across 21 files, with no expected failures.
+- Inventory 1.2.1/1.3.1: every white key in all 27 supported starting-C/octave
+  combinations (391 pitch cases) reaches the real DSP, audio adapter, recorder
+  and feedback. A two-second 48 kHz offline render checks frequency using
+  positive zero crossings over its final second (error below 1.1 Hz).
+  This verifies software pitch, not physical sound or black-key contact mapping.
+- `keyboardLayout.test.ts`: physical 23.5 mm key pitch, 8/15/22 hit regions,
+  overlap/marker proportions, all MIDI bounds, invalid inputs and unchanged
+  full range under explicit paper-fit override. These are synthetic points.
+- `calibrationWorkflow.test.tsx`: 14 passing cases follow the actual five depth
+  buttons; complete hover/rest landmarks and both records are saved before
+  navigation. Missing hands/markers and storage failures block completion.
+  One/two/three-octave selection, starting-C bounds, override and invalidation
+  are covered. The old five `it.fails` cases are restored as normal regressions.
+- Live-session/real-overlay fixtures verify immediate held-note release,
+  interrupted startup, stale producer rejection and recalibrated two/three-
+  octave geometry/pitches. Contact techniques and hardware are mocked.
+- Frontend lint, TypeScript, 18 contrast pairs and production build passed.
+- PDF vector measurements, marker payload/quiet-zone pixels, deterministic
+  regeneration and simulated sheet overlaps passed; both pages were rendered
+  with Poppler and visually reviewed. Physical printer/camera checks are pending.
+
+Production browser checks passed using Microsoft Edge 154.0.4258.53 with fake
+media against `npm start -- -p 3100`: `test:keyboard-layout-browser` verified all
+three persisted layouts, reload, warning/override, invalidation and MIDI bounds;
+`test:deployment` verified five assets/pages, camera denial/retry/loss/recovery
+and three local-play rounds with no per-note network; `test:audio-browser`
+verified production DSP loading, output RMS, suspension recovery and navigation
+cleanup. Set `MAKE_SHIFT_URL=http://127.0.0.1:3100`, `BROWSER_CHANNEL=msedge`
+for layout/deployment and `AUDIO_BROWSER_CHANNEL=msedge` for audio.
+Downloaded Chromium 151.0.7922.34 failed to launch locally (`spawn UNKNOWN`),
+so its local checks are unverified; CI uses Chromium. Python 3.12.10 Ruff/mypy
+and all 25 pytest cases passed; generator Ruff and 18 RCA automation cases passed.
+CI execution evidence remains pending until linked to a job log.
+Manual system test 1.2.2 records physical limitations in
+[the configuration workflow report](manual/2026-10-06_1.2.2.md).
+
+The #162 root cause is replacing the reachable fifth-step countdown with depth
+buttons without creating the validated primary result from those buttons,
+combined with navigation/legacy writes before validation. Final depth capture
+now creates the result, completion retains its model, and saving precedes
+navigation. RCA publication is left to merge automation.
+
 This directory holds MakeShift's verification tests and their documentation:
 the test inventory, manual test reports, known defects, and root cause
 analyses (RCAs).
@@ -470,7 +518,7 @@ defect report is filed.
 | D18 | High | MIDI / UI | Runtime path alias points midi-writer-js at a declarations-only file, so final Export throws on undefined Track and produces no download (Req 4.2) | `frontend/tsconfig.json` | [#140](https://github.com/Kakrl/MakeShift/issues/140) | Fix verified locally in [#141](https://github.com/Kakrl/MakeShift/pull/141); review/merge pending |
 | D19 | Medium | CI | The `Vercel preview` workflow fails on every fork PR: `actions/checkout` refuses fork code in `pull_request_target` unless the step sets `allow-unsafe-pr-checkout: true`, so labeling `preview-link` never deploys | `.github/workflows/preview.yml:33-39` | [#160](https://github.com/Kakrl/MakeShift/issues/160) | Open |
 | D20 | High | UI | (Req 3.1, 3.2, 4.2, 6.2) Merge `30706c4` (PR #98) resolved `page.tsx` by keeping the branch's older JSX, dropping the welcome and Calibration intro modals, count-in overlay, Recording Complete banner, Delete confirmation, calibration prompt, `CameraStatusOverlay`, and the aria-live region. The home Calibration tab and Delete button did nothing. ESLint flagged the orphaned state only as warnings | `frontend/src/app/page.tsx` | [#112](https://github.com/Kakrl/MakeShift/issues/112) | Fixed in [#113](https://github.com/Kakrl/MakeShift/pull/113) |
-| D21 | High | Calibration | (Req 6.2, 1.1, 2.1) After PR #148, step 5 renders the depth capture, so the step 5 capture that set the validated result can't be reached. `handleComplete` calls `router.push("/")` and writes the legacy `isCalibrated` flag before validating, so `makeshift.calibration.v1` is never saved and failed saves still navigate. 6.2.3 marks 5 cases `it.fails` until fixed | `frontend/src/app/calibration/page.tsx` | [#162](https://github.com/Kakrl/MakeShift/issues/162) | Open |
+| D21 | High | Calibration | (Req 6.2, 1.1, 2.1) #148 replaced the reachable result capture with depth buttons and navigated before validation/save. Final depth capture now creates the primary result; completion retains its model and saves both records before navigation. 6.2.3's expected failures are restored as passing regressions. | `frontend/src/app/calibration/page.tsx` | [#162](https://github.com/Kakrl/MakeShift/issues/162) | Fix verified locally 2026-10-06; review/merge and physical check pending |
 
 ## Root Cause Analysis Log
 

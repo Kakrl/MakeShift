@@ -1,16 +1,21 @@
 import type { Point } from "./types";
+import { DEFAULT_LAYOUT, MARKER_INSET_MM, keyboardWidthMm, paperOctaves, validLayout, type KeyboardLayout } from "./keyboardLayout";
 
-export const PIANO_CORNERS: [Point, Point, Point, Point] = [
-  { x: -0.05, y: 0.1 },
-  { x: 1.05, y: 0.1 },
-  { x: 1.05, y: 0.9 },
-  { x: -0.05, y: 0.9 },
-];
+export const PIANO_CORNERS = getPianoCorners(DEFAULT_LAYOUT);
 
-export const WHITE_KEY_COUNT = 8;
+export const WHITE_KEY_COUNT = DEFAULT_LAYOUT.whiteKeys;
 
-function pointOnPiano(u: number, v: number): Point {
-  const [topLeft, topRight, bottomRight, bottomLeft] = PIANO_CORNERS;
+export function getPianoCorners(layout: KeyboardLayout = DEFAULT_LAYOUT): Point[] {
+  if (!validLayout(layout)) return [];
+  const markerSpan = keyboardWidthMm(paperOctaves(layout)) - 2 * MARKER_INSET_MM;
+  const left = -MARKER_INSET_MM / markerSpan;
+  const right = left + keyboardWidthMm(layout.octaves) / markerSpan;
+  return [{ x: left, y: 0.1 }, { x: right, y: 0.1 },
+    { x: right, y: 0.9 }, { x: left, y: 0.9 }];
+}
+
+function pointOnPiano(u: number, v: number, corners: Point[]): Point {
+  const [topLeft, topRight, bottomRight, bottomLeft] = corners;
   const top = {
     x: topLeft.x + (topRight.x - topLeft.x) * u,
     y: topLeft.y + (topRight.y - topLeft.y) * u,
@@ -26,16 +31,18 @@ function pointOnPiano(u: number, v: number): Point {
   };
 }
 
-export function getWhiteKeyPolygons(): Point[][] {
-  return Array.from({ length: WHITE_KEY_COUNT }, (_, index) => {
-    const left = index / WHITE_KEY_COUNT;
-    const right = (index + 1) / WHITE_KEY_COUNT;
+export function getWhiteKeyPolygons(layout: KeyboardLayout = DEFAULT_LAYOUT): Point[][] {
+  const corners = getPianoCorners(layout);
+  if (corners.length !== 4) return [];
+  return Array.from({ length: layout.whiteKeys }, (_, index) => {
+    const left = index / layout.whiteKeys;
+    const right = (index + 1) / layout.whiteKeys;
 
     return [
-      pointOnPiano(left, 0),
-      pointOnPiano(right, 0),
-      pointOnPiano(right, 1),
-      pointOnPiano(left, 1),
+      pointOnPiano(left, 0, corners),
+      pointOnPiano(right, 0, corners),
+      pointOnPiano(right, 1, corners),
+      pointOnPiano(left, 1, corners),
     ];
   });
 }

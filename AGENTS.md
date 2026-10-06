@@ -61,6 +61,7 @@ it separates existing behavior from planned work and links implementation issues
 | `tests/automation/` | Repository-process RCA tests |
 | `tests/manual/` | Manual test template and completed manual test reports |
 | `docs/` | Architecture, browser RVTM addendum, process, SDP, V&V plan, design, subsystem notes |
+| `output/pdf/` | Actual-size printable starter and right-marker extension piano sheets; generator in `docs/generate_piano_sheets.py` |
 | `.github/workflows/` | CI: tests, linting, frontend checks, RCA validation/publication |
 | `.github/scripts/` | Trusted RCA validation and comment automation |
 | `.github/pull_request_template.md` | PR description and RCA authoring instructions |
@@ -83,7 +84,7 @@ it separates existing behavior from planned work and links implementation issues
 | Area touched | Commands (from repo root unless noted) |
 | :--- | :--- |
 | Frontend | `cd frontend && npm run lint && npx tsc --noEmit && npx vitest run && npm run test:contrast && npm run build` |
-| Frontend browser | With `npm start` running: `npm run test:deployment` and `AUDIO_BROWSER_CHANNEL=chromium npm run test:audio-browser` (`npx playwright install chromium` once) |
+| Frontend browser | With `npm start` running: `npm run test:deployment`, `npm run test:keyboard-layout-browser` and `AUDIO_BROWSER_CHANNEL=chromium npm run test:audio-browser` (`npx playwright install chromium` once) |
 | Database | `npx supabase db push --linked` for new migrations; see `docs/supabase.md` |
 | Python | `python -m ruff check backend/src tests`, `python -m mypy backend/src --check-untyped-defs`, `python -m pytest` |
 | C++ | `cmake -B build -S backend && cmake --build build --config Release && ctest --test-dir build -C Release --output-on-failure` |

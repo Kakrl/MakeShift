@@ -4,15 +4,12 @@ export const MARKER_ACQUIRE_INTERVAL_MS = 250;
 
 import { computeHomography, projectPoint } from "./homography";
 import type { MarkerDetectionResult, Point } from "./types";
+import { DEFAULT_LAYOUT, usableLayout, sameLayout, type KeyboardLayout } from "./keyboardLayout";
 
 export const CALIBRATION_KEY = "makeshift.calibration.v1";
 export const SHEET_ID = "aruco-0-3-white-keys-v1";
-// Matches the geometry and MIDI mapping currently shipped. #36 expands this.
-export const CURRENT_LAYOUT = {
-  octaves: 1,
-  startingMidi: 48,
-  whiteKeys: 8,
-} as const;
+// Backward-compatible name for callers using the default configuration.
+export const CURRENT_LAYOUT = DEFAULT_LAYOUT;
 export const PAGE_CORNERS: Point[] = [
   { x: 0, y: 0 },
   { x: 1, y: 0 },
@@ -35,7 +32,7 @@ export interface CalibrationResult {
   coordinates: "unmirrored-frame-pixels/marker-unit-square";
   sheet: typeof SHEET_ID;
   camera: CameraSignature;
-  layout: { octaves: number; startingMidi: number; whiteKeys: number };
+  layout: KeyboardLayout;
   corners: Point[];
   contact: {
     model: "landmark-reference-v1";
@@ -166,14 +163,7 @@ export function validateCalibration(value: unknown): CalibrationResult | null {
     value.sheet !== SHEET_ID ||
     !validCamera(value.camera) ||
     !validCorners(value.corners, value.camera) ||
-    !object(value.layout) ||
-    ![1, 2, 3].includes(value.layout.octaves as number) ||
-    !Number.isInteger(value.layout.startingMidi) ||
-    (value.layout.startingMidi as number) < 0 ||
-    (value.layout.startingMidi as number) +
-      12 * (value.layout.octaves as number) >
-      127 ||
-    value.layout.whiteKeys !== 7 * (value.layout.octaves as number) + 1 ||
+    !usableLayout(value.layout as KeyboardLayout) ||
     !object(value.contact) ||
     value.contact.model !== "landmark-reference-v1" ||
     !validSamples(value.contact.hover) ||
@@ -198,9 +188,7 @@ export function compatibleCalibration(
     result.camera.width === camera.width &&
     result.camera.height === camera.height &&
     result.camera.facingMode === camera.facingMode &&
-    result.layout.octaves === layout.octaves &&
-    result.layout.startingMidi === layout.startingMidi &&
-    result.layout.whiteKeys === layout.whiteKeys &&
+    usableLayout(layout) && sameLayout(result.layout, layout) &&
     result.corners.every(
       (p, i) =>
         Math.hypot(p.x - corners[i].x, p.y - corners[i].y) <=

@@ -82,6 +82,14 @@ inputs, invalidate or reproject when inputs change, and make detection/drawing
 use the same geometry revision. Map key IDs to configured MIDI pitches in browser
 TypeScript; a backend spatial hash is not required.
 
+Issue #36 implements a shared white-key layout for 1–3 octaves with C-root
+starting pitches, actual-size starter/extension PDFs, declared paper coverage
+and explicit override. Configuration changes invalidate calibration and release
+notes synchronously. Geometry reflects assembled marker spacing and preserves
+23.5 mm key pitch; the audio producer captures the session's immutable layout.
+See [sheet/layout semantics](piano_sheet.md). Black-key contact mapping remains
+#25; physical printing/contact/audibility verification remains pending.
+
 Polygon overlap alone does not prove contact. #34 defines the calibrated model,
 finger/press identity, hover/press/hold/release transitions, velocity estimation,
 occlusion and same-key multi-finger behavior. Relative hand-landmark depth is not

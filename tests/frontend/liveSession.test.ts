@@ -9,6 +9,7 @@ import {
   MARKER_CHECK_INTERVAL_MS,
   SHEET_ID,
 } from "../../frontend/src/cv/calibration";
+import { createKeyEventProducer } from "../../frontend/src/events/keyEventProducer";
 
 const calibration = () => ({
   version: 1,
@@ -144,6 +145,45 @@ it("rejects camera mismatch and requires successful tracking", async () => {
   gate.observeCalibration(saved, saved.camera, saved.corners);
   expect(await gate.prepare()).toBe(false);
   gate.stop();
+});
+
+it.each([
+  { octaves: 2, startingMidi: 48, whiteKeys: 15 },
+  { octaves: 1, startingMidi: 60, whiteKeys: 8 },
+  { octaves: 1, startingMidi: 48, whiteKeys: 8, paperOctaves: 2 },
+])("releases held notes and rejects stale configuration on change to %j", async (layout) => {
+  const id = await play();
+  const oldProducer = createKeyEventProducer(gate, id);
+  oldProducer([{ keyIndex: 0, velocity: 0.8 }], [], now);
+  gate.setLayout(layout);
+  expect(gate.status).toMatchObject({ state: "interrupted", canStart: false });
+  expect(audio.releaseAll).toHaveBeenCalledTimes(1);
+  const old = calibration();
+  expect(gate.observeCalibration(old, old.camera, old.corners)).toBe(false);
+  gate.observeTracking();
+  expect(await gate.prepare()).toBe(false);
+  const saved = { ...old, layout };
+  expect(gate.observeCalibration(saved, saved.camera, saved.corners)).toBe(true);
+  expect(await gate.prepare()).toBe(true);
+  const next = gate.play()!;
+  oldProducer([{ keyIndex: 1, velocity: 1 }], [0], now);
+  expect(audio.noteOn).toHaveBeenCalledTimes(1);
+  const producer = createKeyEventProducer(gate, next);
+  producer([{ keyIndex: layout.whiteKeys - 1, velocity: 0.8 }], [], now);
+  expect(audio.noteOn).toHaveBeenLastCalledWith(layout.startingMidi + layout.octaves * 12, 0.8);
+});
+
+it("cancels pending audio startup when the layout changes", async () => {
+  let complete!: () => void;
+  audio.initialize.mockImplementation(() => new Promise<void>(resolve => { complete = resolve; }));
+  observe();
+  const pending = gate.prepare();
+  gate.setLayout({ octaves: 3, startingMidi: 48, whiteKeys: 22 });
+  audio.status = "ready";
+  complete();
+  expect(await pending).toBe(false);
+  expect(gate.play()).toBeNull();
+  expect(gate.status.canStart).toBe(false);
 });
 it("transitions stopped -> starting -> ready -> playing -> stopped with fresh identities", async () => {
   observe();

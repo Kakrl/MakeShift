@@ -60,6 +60,25 @@ requirement 2.3 and test 2.3.1; estimates cannot substitute for that evidence.
 - Supported configurations and inability to meet targets must be explicit.
   No test is marked passed based on an architectural choice.
 
+## Octave layouts (#36)
+
+Requirements 1.2/1.3 retain the one-to-three-octave scope. Starting-note semantics
+for the printed C-root white-key pipeline are explicit: the leftmost C maps to
+the selected C octave, with the shared final C included once. Black-key contact
+mapping remains #25. Available starts are bounded so all emitted notes are
+MIDI 0–127. The selected range and declared paper coverage are distinct;
+override preserves physical key pitch and extends beyond the paper.
+
+Inventory 1.2.1 and 1.3.1 now cover every supported white-key/start combination
+through production DSP offline rendering, audio dispatch, recorder and feedback.
+Geometry fixtures check actual-size assembly proportions and matching hit regions.
+The physical 1.2.2 workflow remains partially verified: jsdom and production
+Chromium checks cover warning/override, persistence and invalidation, while
+printer/camera/audible checks remain pending in the manual report. Calibration
+6.2.3 follows the real five-position depth capture and validates save-before-
+navigation, replacing #162's expected failures. Software results establish
+neither physical contact accuracy nor sensor-to-sound latency.
+
 ## Recording playback extension (#130)
 
 PB-1: play an existing recording at 0.25x–4x speed with pause, seek, stop, and
