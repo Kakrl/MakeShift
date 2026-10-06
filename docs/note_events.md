@@ -103,6 +103,53 @@ not move an event later in the recording. A new recording uses a new start ancho
 Tests cover known positive/negative worker offsets, delayed delivery, audio
 suspend/reanchor, recording reset and explicit excluded pause time.
 
+### Recording playback timeline (#130)
+
+`frontend/src/app/midi/playbackTimeline.ts` exports `createPlaybackTimeline`.
+It snapshots a `Recording` and uses the existing browser audio owner by default.
+Playback needs a user gesture to initialize audio, but no camera, calibration,
+storage, MIDI parser, or React render. The later falling-notes/scoring views
+(#131/#132) can read `getSnapshot()` on their own animation frames. This issue
+provides the transport API; it does not wire the home page's Listen button.
+
+```ts
+const timeline = createPlaybackTimeline(recording);
+await timeline.play(); // Call from a user gesture; false means cancelled/failed.
+timeline.pause();
+timeline.seek(1500); // Milliseconds on the original recording timeline.
+timeline.setPlaybackRate(1.5); // 0.25 to 4; tempo changes without pitch changes.
+await timeline.play();
+const { positionMs, durationMs, state, bpm, error } = timeline.getSnapshot();
+timeline.stop(); // Release owned notes and return to zero.
+timeline.dispose(); // On owner unmount/replacement; no global audio shutdown.
+```
+
+The clock uses a monotonic anchor and scales elapsed time by playback rate.
+One timer targets the next note boundary; rate changes preserve position and
+held voices. Pause freezes position and releases owned voices. Seek clamps to
+the take's bounds, releases previous voices, and stays paused unless already
+playing. Resume/playing seek rearticulates notes spanning the position for their
+remaining duration. End-of-take releases notes; Play at the end restarts at zero.
+Silent and zero-duration notes produce no voice; their endpoints still contribute
+to duration. Empty recordings end immediately. Input notes and BPM are validated
+and copied; invalid seeks/rates leave transport state unchanged.
+
+Pitch names use MIDI's C4=60 convention, including sharps/flats; writer velocities
+0–100 convert to audio's 0–1. Overlapping same-pitch notes receive distinct audio
+press tokens. Cleanup releases only this timeline's tokens. Audio invalidation
+or rejected notes pauses the transport and exposes an error. Stop, pause, seek,
+and disposal invalidate pending initialization; obsolete timers cannot restart
+playback. The owner must dispose on navigation/unmount and may explicitly pause
+on backgrounding. A suspended/error audio owner pauses playback automatically.
+
+Scheduling is independent of React, but runs on the main thread. The current
+audio API accepts immediate commands, not future audio-clock timestamps. Delayed
+callbacks skip notes that have already ended and shorten late starts to their
+remaining interval; they do not replay the missed passage or shift later deadlines.
+This does not guarantee sample-accurate or background-tab timing. Existing audio
+voice/queue limits still apply. Fake-timer and mocked-device evidence does not
+establish physical latency, audible quality, or browser timing distributions.
+
 ### Note-list recorder and pause/resume (#115, #108)
 
 The current `midiUtils.ts` recorder has recording, paused, and stopped states.

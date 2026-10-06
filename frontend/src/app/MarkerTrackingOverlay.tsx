@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCamera } from "./CameraContext";
-import { cameraSignature, loadCalibration, markerCorners, MARKER_ACQUIRE_INTERVAL_MS, MARKER_CHECK_INTERVAL_MS } from "../cv/calibration";
+import { cameraSignature, loadCalibration, markerCorners } from "../cv/calibration";
 import {
   getWhiteKeyPolygons,
   PIANO_CORNERS,
@@ -35,6 +35,7 @@ import {
 } from "../cv/shadowHeuristics";
 import type { ShadowContactState, ShadowState } from "../cv/shadowHeuristics";
 import { MarkerDetector } from "../cv/markerDetector";
+import { MarkerGeometryPolicy } from "../cv/markerGeometryPolicy";
 import {
   computeHomography,
   invertHomography,
@@ -157,6 +158,13 @@ export default function MarkerTrackingOverlay({
   const homographyRef = useRef<Homography | null>(null);
   const projectedPianoCornersRef = useRef<Point[] | null>(null);
   const projectedWhiteKeysRef = useRef<Point[][] | null>(null);
+  const markerGeometryPolicyRef = useRef(
+    new MarkerGeometryPolicy<{
+      homography: Homography;
+      pianoCorners: Point[];
+      whiteKeys: Point[][];
+    }>(),
+  );
   const displayPianoCornersRef = useRef<Point[] | null>(null);
   const displayWhiteKeysRef = useRef<Point[][] | null>(null);
   const markerDetectionRef = useRef<MarkerDetectionResult | null>(null);
@@ -367,6 +375,19 @@ export default function MarkerTrackingOverlay({
     let animationFrame = 0;
     let detector: MarkerDetector | null = null;
     let lastDetectionTime = -Infinity;
+    let videoWasUnavailable = false;
+
+    // Camera/source changes begin a new acquisition session.
+    markerGeometryPolicyRef.current.reset();
+    markerDetectionRef.current = null;
+    homographyRef.current = null;
+    projectedPianoCornersRef.current = null;
+    projectedWhiteKeysRef.current = null;
+    displayPianoCornersRef.current = null;
+    displayWhiteKeysRef.current = null;
+    queueMicrotask(() => {
+      if (!cancelled) setMarkerDetection(null);
+    });
 
     const detect = (time: number) => {
       const video = videoRef.current;
@@ -375,6 +396,7 @@ export default function MarkerTrackingOverlay({
       if (!cancelled) {
         if (video && processingCanvas && video.readyState >= 2) {
           if (video.videoWidth > 0 && video.videoHeight > 0) {
+            videoWasUnavailable = false;
             if (
               processingCanvas.width !== video.videoWidth ||
               processingCanvas.height !== video.videoHeight
@@ -395,9 +417,7 @@ export default function MarkerTrackingOverlay({
             }
 
             const markerInterval =
-              markerDetectionRef.current?.missingIds.length === 0
-                ? MARKER_CHECK_INTERVAL_MS
-                : MARKER_ACQUIRE_INTERVAL_MS;
+              markerGeometryPolicyRef.current.checkIntervalMs;
             if (time - lastDetectionTime >= markerInterval) {
               const context = processingCanvas.getContext("2d");
               if (context && detector) {
@@ -428,7 +448,18 @@ export default function MarkerTrackingOverlay({
         if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) {
           markerDetectionRef.current = null;
           setMarkerDetection(null);
-          lastDetectionTime = -Infinity;
+          if (!videoWasUnavailable) {
+            // A camera/frame interruption starts acquisition over. A marker
+            // miss while frames are flowing does not enter this path.
+            markerGeometryPolicyRef.current.reset();
+            homographyRef.current = null;
+            projectedPianoCornersRef.current = null;
+            projectedWhiteKeysRef.current = null;
+            displayPianoCornersRef.current = null;
+            displayWhiteKeysRef.current = null;
+            lastDetectionTime = -Infinity;
+            videoWasUnavailable = true;
+          }
         }
         animationFrame = requestAnimationFrame(detect);
       }
@@ -455,9 +486,28 @@ export default function MarkerTrackingOverlay({
   }, [videoRef, stream, cameraReady]);
 
   useEffect(() => {
+    // Effects can observe the previous render's marker result immediately after
+    // a camera source changes. Do not project that result into the new source.
+    if (markerDetection !== markerDetectionRef.current) return;
+
     const camera = cameraReady ? cameraSignature(stream, videoRef.current) : null;
     const corners = camera && markerDetection ? markerCorners(markerDetection, camera) : null;
     const saved = loadCalibration();
+
+    // A missed/failed marker scan is not proof that the paper moved. Keep the
+    // last good projection and calibration freshness until a complete scan or
+    // an actual camera-session change provides stronger evidence.
+    const videoTrackLive =
+      stream?.getVideoTracks()[0]?.readyState === "live";
+    if (cameraReady && stream && videoTrackLive && camera && !corners) {
+      const geometry = markerGeometryPolicyRef.current.observe(null);
+      if (geometry) {
+        homographyRef.current = geometry.homography;
+        projectedPianoCornersRef.current = geometry.pianoCorners;
+        projectedWhiteKeysRef.current = geometry.whiteKeys;
+      }
+      return;
+    }
 
     let homography: Homography | null = null;
     let projectedPianoCorners: Point[] | null = null;
@@ -512,10 +562,23 @@ export default function MarkerTrackingOverlay({
       ) {
         // The debug switch enables marker-derived overlap visualization only;
         // session readiness still gates note dispatch in syncContactKeys.
-        homographyRef.current = homography;
-        projectedPianoCornersRef.current = projectedPianoCorners;
-        projectedWhiteKeysRef.current = projectedWhiteKeys;
+        const geometry = markerGeometryPolicyRef.current.observe({
+          homography,
+          pianoCorners: projectedPianoCorners,
+          whiteKeys: projectedWhiteKeys,
+        })!;
+        homographyRef.current = geometry.homography;
+        projectedPianoCornersRef.current = geometry.pianoCorners;
+        projectedWhiteKeysRef.current = geometry.whiteKeys;
       } else {
+        if (homography && projectedPianoCorners && projectedWhiteKeys) {
+          markerGeometryPolicyRef.current.observe({
+            homography,
+            pianoCorners: projectedPianoCorners,
+            whiteKeys: projectedWhiteKeys,
+          });
+        }
+        markerGeometryPolicyRef.current.clearGeometry();
         homographyRef.current = null;
         projectedPianoCornersRef.current = null;
         projectedWhiteKeysRef.current = null;
@@ -524,9 +587,14 @@ export default function MarkerTrackingOverlay({
     }
     if (!homography || !projectedPianoCorners || !projectedWhiteKeys) return;
 
-    homographyRef.current = homography;
-    projectedPianoCornersRef.current = projectedPianoCorners;
-    projectedWhiteKeysRef.current = projectedWhiteKeys;
+    const geometry = markerGeometryPolicyRef.current.observe({
+      homography,
+      pianoCorners: projectedPianoCorners,
+      whiteKeys: projectedWhiteKeys,
+    })!;
+    homographyRef.current = geometry.homography;
+    projectedPianoCornersRef.current = geometry.pianoCorners;
+    projectedWhiteKeysRef.current = geometry.whiteKeys;
   }, [markerDetection, stream, cameraReady, videoRef, onCalibrationObservation, onKeyTransitions, debugShowSheetWithoutCalibration]);
 
   useEffect(() => {
@@ -931,8 +999,7 @@ export default function MarkerTrackingOverlay({
             ) : (
               fingerDebug.map((finger) => (
                 <div key={finger.id} className="mb-1">
-                  H{finger.handIndex} {finger.finger}:{" "}
-                  {finger.keyOverlap ? finger.state : "outside key"}
+                  H{finger.handIndex} {finger.finger}: state={finger.state}
                   <div>
                     overlap={finger.keyOverlap ? "yes" : "no"} · knuckles=
                     {CONTACT_TECHNIQUES.knuckles

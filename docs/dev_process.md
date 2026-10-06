@@ -58,7 +58,7 @@ MakeShift/
 │   │   │   ├── calibration/
 │   │   │   ├── cv/                  # hand landmark overlay and drawing
 │   │   │   ├── documentation/
-│   │   │   ├── midi/                # MIDI recording utils
+│   │   │   ├── midi/                # MIDI recorder, export and playback timeline
 │   │   │   ├── tutorial/
 │   │   │   ├── PipelineDiagnostics.tsx # opt-in metrics and report export
 │   │   │   ├── CameraContext.tsx
@@ -73,7 +73,8 @@ MakeShift/
 │   │   ├── cv/                      # ArUco detection, homography, key geometry
 │   │   │   ├── contactPipeline.ts    # individual overlap, knuckle, and shadow checks
 │   │   │   ├── liveContactPipeline.ts # controller: eligibility, shadow worker/history, releases
-│   │   │   ├── combinedContact.ts    # prototype per-finger gated press/release state
+│   │   │   ├── combinedContact.ts    # contact state/gate types and timing constants
+│   │   │   ├── finger.ts             # per-finger state owner and checkState entry point
 │   │   │   ├── shadowHeuristics.ts   # prototype RGB k-means dark-region segmentation
 │   │   │   └── shadowWorker.ts       # bounded background shadow segmentation
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
@@ -110,6 +111,7 @@ MakeShift/
 │   │   ├── pianoIntegration.test.ts # deterministic note-to-audio/MIDI/feedback
 │   │   ├── liveSession.test.ts       # readiness transitions and stale-input safety
 │   │   ├── noteEvents.test.ts        # shared events, lifecycle, clocks and MessagePort
+│   │   ├── playbackTimeline.test.ts # recording playback clock and lifecycle
 │   │   ├── midiExport.browser.mjs  # production Export UI and downloaded MIDI bytes
 │   │   ├── cameraLayout.browser.mjs # home camera feed 16:9 across viewports
 │   │   ├── midiUtils.test.ts

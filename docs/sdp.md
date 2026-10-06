@@ -23,6 +23,16 @@ Implementation belongs to #28, #34, #35, #37, #86–#89 and related issues liste
 in the architecture. #85 changes documentation only. External SDP/V&V links
 below remain historical planning sources; this update does not edit them.
 
+## Recording playback extension (issue #130)
+
+PB-1 adds a browser-local playback timeline over the existing `Recording` model:
+play, pause, seek and 0.25x–4x speed control, with note cleanup on transport changes
+and audio interruption. It supplies the transport for later piano-tiles views
+(#131/#132), not the views or scoring themselves. Storage and calibration are
+not prerequisites for playing an in-memory recording. See the
+[RVTM mapping](rvtm_browser_addendum.md#recording-playback-extension-130) and
+[transport contract](note_events.md#recording-playback-timeline-130).
+
 **Previous SDP Work**
 
 [Initial SDP](https://docs.google.com/document/d/1dI5X3cngPTwBOdPjmCn8FGk9viVCrHLxQcX2h_NOIWU/edit?usp=sharing)
