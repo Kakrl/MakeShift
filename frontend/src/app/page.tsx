@@ -19,6 +19,26 @@ import { browserAudio } from "./audio/audioEngine";
 import { LiveSession } from "../events/liveSession";
 import { loadCalibration } from "../cv/calibration";
 import { connectPianoConsumers } from "../events/pianoConsumers";
+import { readStored, writeStored } from "../lib/storage";
+
+const MIN_TEMPO = 20;
+const MAX_TEMPO = 300;
+const SETTINGS_NAME = "playback-settings";
+const SETTINGS_VERSION = 1;
+type PlaybackSettings = { tempo: number; metronome: boolean };
+const DEFAULT_SETTINGS: PlaybackSettings = { tempo: 120, metronome: true };
+
+function isPlaybackSettings(value: unknown): value is PlaybackSettings {
+  if (typeof value !== "object" || value === null) return false;
+  const settings = value as Record<string, unknown>;
+  return (
+    typeof settings.tempo === "number" &&
+    Number.isInteger(settings.tempo) &&
+    settings.tempo >= MIN_TEMPO &&
+    settings.tempo <= MAX_TEMPO &&
+    typeof settings.metronome === "boolean"
+  );
+}
 
 const CVOverlayCoordinator = dynamic(
   () => import("./CVOverlayCoordinator"),
@@ -76,13 +96,20 @@ export default function Home() {
     useState<Recording | null>(null);
 
   // ── Tempo & time signature (controlled) ─────────────────────────────────
-  const [tempo, setTempo] = useState(120);
+  const [tempo, setTempo] = useState(DEFAULT_SETTINGS.tempo);
   const [timeSignature, setTimeSignature] = useState("4/4");
   const beatsPerMeasure = parseInt(timeSignature.split("/")[0]);
 
   // ── Metronome ────────────────────────────────────────────────────────────
-  const [metronome, setMetronome] = useState(true);
+  const [metronome, setMetronome] = useState(DEFAULT_SETTINGS.metronome);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    // Initial defaults must not overwrite preferences before restoration.
+    if (!settingsLoaded) return;
+    writeStored(SETTINGS_NAME, SETTINGS_VERSION, { tempo, metronome });
+  }, [settingsLoaded, tempo, metronome]);
 
   // ── Count-in beat (1 → beatsPerMeasure, then recording starts) ──────────
   const [countInBeat, setCountInBeat] = useState<number | null>(null);
@@ -125,6 +152,12 @@ export default function Home() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
+      const saved = readStored(
+        SETTINGS_NAME, SETTINGS_VERSION, DEFAULT_SETTINGS, isPlaybackSettings,
+      );
+      setTempo(saved.tempo);
+      setMetronome(saved.metronome);
+      setSettingsLoaded(true);
       setIsCalibrated(loadCalibration() !== null);
       // Show welcome modal only on the very first visit
       try {
@@ -291,7 +324,7 @@ export default function Home() {
   // ── Tempo input helper ───────────────────────────────────────────────────
   const handleTempoChange = (raw: string) => {
     const parsed = parseInt(raw);
-    if (!isNaN(parsed)) setTempo(Math.max(20, Math.min(300, parsed)));
+    if (!isNaN(parsed)) setTempo(Math.max(MIN_TEMPO, Math.min(MAX_TEMPO, parsed)));
   };
 
   return (
@@ -549,8 +582,9 @@ export default function Home() {
                 <input
                   id="set-tempo"
                   type="number"
-                  min={20}
-                  max={300}
+                  min={MIN_TEMPO}
+                  max={MAX_TEMPO}
+                  disabled={!settingsLoaded}
                   value={tempo}
                   onChange={(e) => handleTempoChange(e.target.value)}
                   className="border border-control-border rounded-[8px] px-4 py-3 text-[16px] text-ink bg-white w-[80px] leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
@@ -581,7 +615,8 @@ export default function Home() {
             <div className="flex items-center gap-3 h-[42px] lg:h-auto">
               <span className="text-[16px] text-ink font-sans leading-[1.4] whitespace-nowrap">Metronome</span>
               <button
-                onClick={() => setMetronome(!metronome)}
+                onClick={() => setMetronome((enabled) => !enabled)}
+                disabled={!settingsLoaded}
                 aria-label="Toggle metronome"
                 aria-pressed={metronome}
                 className={`relative w-[40px] h-[24px] rounded-full overflow-hidden transition-colors ${metronome ? "bg-ink" : "bg-control-inactive"}`}
