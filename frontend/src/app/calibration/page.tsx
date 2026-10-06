@@ -78,23 +78,17 @@ function SuccessBadge({ label }: { label: string }) {
 
 function ProgressBar({ total, current, className = "" }: { total: number; current: number; className?: string }) {
   return (
-    <div className={`ms-well flex flex-1 items-center gap-1 p-1 rounded-full ${className}`} role="progressbar" aria-label="Calibration progress" aria-valuenow={current} aria-valuemin={1} aria-valuemax={total}>
+    <div className={`flex flex-1 items-center ${className}`} role="progressbar" aria-valuenow={current} aria-valuemin={1} aria-valuemax={total}>
       {Array.from({ length: total }, (_, i) => {
         const stepNum = i + 1;
-        const done = stepNum < current;
-        const isCurrent = stepNum === current;
+        const circleFilled = stepNum <= current;
+        const barFilled = stepNum < current;
         return (
-          <div
-            key={i}
-            className={`flex h-7 flex-1 items-center justify-center rounded-full text-[12px] font-semibold tabular-nums transition-[background-color,color,box-shadow] duration-200 ease-out ${
-              isCurrent
-                ? "bg-accent text-white shadow-(--shadow-1)"
-                : done
-                  ? "bg-accent-soft text-accent-strong"
-                  : "text-ink-muted"
-            }`}
-          >
-            {stepNum}
+          <div key={i} className="flex flex-1 items-center last:flex-none">
+            <div className={`shrink-0 size-[20px] rounded-full border-2 transition-colors duration-200 ${circleFilled ? "bg-accent border-accent" : "bg-control-inactive border-control-inactive"}`} />
+            {i < total - 1 && (
+              <div className={`flex-1 h-[10px] transition-colors duration-200 ${barFilled ? "bg-accent" : "bg-control-inactive"}`} />
+            )}
           </div>
         );
       })}
@@ -877,55 +871,66 @@ export default function Calibration() {
   };
 
   // ── Bottom bar step content ───────────────────────────────────────────────
-  const renderStepContent = () => {
+  // Every step fills the same three fixed rows (title, controls, status) so
+  // moving between steps, or a badge or message appearing, never shifts the
+  // layout below.
+  const restartCalibration = () => {
+    generationRef.current++; resultRef.current = null; hoverRef.current = null;
+    setCorners(null); resetInteractiveStepState(); setStep(1);
+  };
+
+  const stepContent = (): { title: string; controls: React.ReactNode; status?: string | null } => {
     if (isComplete) {
-      return (
-        <div className="flex flex-wrap items-center gap-4">
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--color-success)"/><path d="M8 14L11.5 18L20 10" stroke="var(--color-white)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          <p className="font-display text-[20px] sm:text-[24px] font-semibold tracking-tight text-ink">Calibration captured. Keep the camera and sheet in place.</p>
-        </div>
-      );
+      return {
+        title: "Calibration captured. Keep the camera and sheet in place.",
+        controls: (
+          <>
+            <SuccessBadge label="Calibration saved" />
+            <button className="ms-key" onClick={restartCalibration}>Restart calibration</button>
+          </>
+        ),
+      };
     }
 
     if (step === 1) {
-      return (
-        <div className="flex items-center gap-5 flex-wrap">
-          <p className="font-display text-[20px] sm:text-[24px] font-semibold tracking-tight text-ink">Step 1: Current sheet — one octave, C3–C4</p>
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="flex flex-col gap-1">
-              <label htmlFor="octave-count" className="ms-label"># of Octaves</label>
+      return {
+        title: "Step 1: Current sheet — one octave, C3–C4",
+        controls: (
+          <>
+            <div className="flex items-center gap-2">
+              <label htmlFor="octave-count" className="text-[15px] text-ink-muted"># of Octaves</label>
               <div className="relative">
-                <select id="octave-count" value={octaves} onChange={(e) => setOctaves(e.target.value)} className="ms-input min-w-[110px]">
+                <select id="octave-count" value={octaves} onChange={(e) => setOctaves(e.target.value)} className="ms-input min-w-[84px] py-2">
                   {OCTAVE_OPTIONS.map((o) => <option key={o}>{o}</option>)}
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-ink-muted"><ChevronDown /></div>
               </div>
             </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor="starting-note" className="ms-label">Starting Octave</label>
+            <div className="flex items-center gap-2">
+              <label htmlFor="starting-note" className="text-[15px] text-ink-muted">Starting Octave</label>
               <div className="relative">
-                <select id="starting-note" value={startingNote} onChange={(e) => setStartingNote(e.target.value)} className="ms-input min-w-[110px]">
+                <select id="starting-note" value={startingNote} onChange={(e) => setStartingNote(e.target.value)} className="ms-input min-w-[84px] py-2">
                   {NOTE_OPTIONS.map((n) => <option key={n}>{n}</option>)}
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-ink-muted"><ChevronDown /></div>
               </div>
             </div>
             <SuccessBadge label="Settings ready" />
-          </div>
-        </div>
-      );
+          </>
+        ),
+      };
     }
 
     if (step === 2) {
       const pct = lighting ? Math.round(lighting.brightness * 100) : null;
-      return (
-        <div className="flex items-center gap-5 flex-wrap">
-          <p className="font-display text-[20px] sm:text-[24px] font-semibold tracking-tight text-ink">Step 2: Check your lighting</p>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            <span className="text-[14px] text-ink-muted tabular-nums" aria-live="polite">
+      return {
+        title: "Step 2: Check your lighting",
+        controls: (
+          <>
+            <span className="min-w-[190px] text-[15px] text-ink-muted tabular-nums" aria-live="polite">
               Current: {pct === null ? "measuring…" : `${pct}% brightness`}
             </span>
-            <span className="text-[14px] text-ink-muted tabular-nums">
+            <span className="text-[15px] text-ink-muted tabular-nums">
               Target: {Math.round(MIN_BRIGHTNESS * 100)}–{Math.round(MAX_BRIGHTNESS * 100)}%
             </span>
             {lightingOk ? (
@@ -935,73 +940,63 @@ export default function Calibration() {
                 <span>{LIGHTING_MESSAGES[lighting.verdict]}</span>
               </div>
             ) : null}
-          </div>
-        </div>
-      );
+          </>
+        ),
+      };
     }
 
     if (step === 3) {
-      return (
-        <div className="flex flex-wrap items-center gap-4">
-          <p className="font-display text-[20px] sm:text-[24px] font-semibold tracking-tight text-ink">Step 3: Show all four paper markers</p>
-          <button onClick={checkPaper} className="ms-key ms-key-primary px-5">Check paper</button>
-          {corners && <SuccessBadge label="Sheet geometry validated" />}
-        </div>
-      );
+      return {
+        title: "Step 3: Show all four paper markers",
+        controls: (
+          <>
+            <button onClick={checkPaper} className="ms-key ms-key-primary px-5">Check paper</button>
+            {corners && <SuccessBadge label="Sheet geometry validated" />}
+          </>
+        ),
+      };
     }
 
     if (step === 4) {
-      return (
-        <div className="flex flex-wrap items-center gap-4">
-          <p className="font-display text-[20px] sm:text-[24px] font-semibold tracking-tight text-ink">Step 4: Hover hands above paper for 3 s</p>
-          {!fingersShown && (
-            <button onClick={handleStartCountdown} disabled={isCounting || !canCapture} className="ms-key ms-key-primary shrink-0 px-6">
-              {hasStarted && !isCounting ? "Retry" : "Start"}
-            </button>
-          )}
-          {!fingersShown && !canCapture && (
-            <span className="text-[14px] text-ink-muted tabular-nums" aria-live="polite">
-              {landmarkerStatus === "loading"
-                ? "Loading hand detection…"
-                : landmarkerStatus === "error"
-                  ? "Hand detection unavailable"
-                  : "Waiting for the camera…"}
-            </span>
-          )}
-          {fingersShown && <SuccessBadge label="Hands detected" />}
-        </div>
-      );
+      return {
+        title: "Step 4: Hover hands above paper for 3 s",
+        controls: fingersShown ? (
+          <SuccessBadge label="Hands detected" />
+        ) : (
+          <button onClick={handleStartCountdown} disabled={isCounting || !canCapture} className="ms-key ms-key-primary min-w-[96px] px-6">
+            {hasStarted && !isCounting ? "Retry" : "Start"}
+          </button>
+        ),
+        status: !fingersShown && !canCapture
+          ? landmarkerStatus === "loading"
+            ? "Loading hand detection…"
+            : landmarkerStatus === "error"
+              ? "Hand detection unavailable"
+              : "Waiting for the camera…"
+          : null,
+      };
     }
 
     if (step === 5) {
-      return (
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="w-full max-w-[720px]">
-            <p className="mb-3 font-display text-[20px] sm:text-[24px] font-semibold tracking-tight text-ink">
-              Step 5: Calibrate depth at the four corners and center
-            </p>
-            {!step5Success && depthPositionIndex < DEPTH_CALIBRATION_POSITIONS.length && (
-              <DepthCalibrationCapture
-                position={DEPTH_CALIBRATION_POSITIONS[depthPositionIndex]}
-                sampleCount={depthCollectorRef.current.getSampleCount(
-                  DEPTH_CALIBRATION_POSITIONS[depthPositionIndex],
-                )}
-                disabled={depthCaptureBusy || !canCapture}
-                onCapture={captureDepthPosition}
-              />
+      return {
+        title: "Step 5: Calibrate depth at the four corners and center",
+        controls: step5Success ? (
+          <SuccessBadge label="Depth calibrated!" />
+        ) : depthPositionIndex < DEPTH_CALIBRATION_POSITIONS.length ? (
+          <DepthCalibrationCapture
+            position={DEPTH_CALIBRATION_POSITIONS[depthPositionIndex]}
+            sampleCount={depthCollectorRef.current.getSampleCount(
+              DEPTH_CALIBRATION_POSITIONS[depthPositionIndex],
             )}
-            {depthCaptureMessage && (
-              <p className="mt-2 text-[14px] text-ink-muted" aria-live="polite">
-                {depthCaptureMessage}
-              </p>
-            )}
-            {step5Success && <SuccessBadge label="Depth calibrated!" />}
-          </div>
-        </div>
-      );
+            disabled={depthCaptureBusy || !canCapture}
+            onCapture={captureDepthPosition}
+          />
+        ) : null,
+        status: depthCaptureMessage,
+      };
     }
 
-    return null;
+    return { title: "", controls: null };
   };
 
   // The data attributes let the deployment smoke test wait for detectors.
@@ -1032,33 +1027,43 @@ export default function Calibration() {
         <SideNav active="calibration" />
       </div>
 
-      {isComplete && <button className="ms-key ms-key-ghost self-start mt-3 ml-[calc(var(--gutter-l)-12px)] text-[14px]" onClick={() => {
-        generationRef.current++; resultRef.current = null; hoverRef.current = null;
-        setCorners(null); resetInteractiveStepState(); setStep(1);
-      }}>Restart calibration</button>}
-      {captureError && <p role="alert" className="pl-(--gutter-l) pr-(--gutter-r) pt-3 text-[14px] text-danger">{captureError}</p>}
-      {/* Step content row */}
-      <div className="flex flex-wrap items-center gap-4 shrink-0 pl-(--gutter-l) pr-(--gutter-r) pt-[clamp(14px,2.5dvh,28px)] pb-[clamp(10px,2dvh,20px)]">
-        {renderStepContent()}
-      </div>
+      {/* Step content: fixed rows so nothing below moves between steps */}
+      {(() => {
+        const { title, controls, status } = stepContent();
+        return (
+          <div className="shrink-0 pl-(--gutter-l) pr-(--gutter-r) pt-[clamp(14px,2.5dvh,28px)] pb-[clamp(10px,2dvh,18px)]">
+            <p className="min-h-[2lh] sm:min-h-[1lh] text-[20px] sm:text-[24px] leading-[1.25] font-semibold tracking-[-0.01em] text-ink">{title}</p>
+            <div className="mt-3 flex min-h-[112px] lg:min-h-[44px] flex-wrap content-start lg:content-center items-center gap-x-4 gap-y-2">{controls}</div>
+            <div className="mt-2 min-h-[2lh] sm:min-h-[1lh] text-[14px] leading-5">
+              {captureError ? (
+                <p role="alert" className="text-danger">{captureError}</p>
+              ) : status ? (
+                <p className="text-ink-muted" aria-live="polite">{status}</p>
+              ) : null}
+            </div>
+          </div>
+        );
+      })()}
 
-      {/* Bottom nav */}
+      {/* Bottom nav: fixed-width slots keep the progress bar from resizing */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:flex items-center shrink-0 pl-(--gutter-l) pr-(--gutter-r) pb-[clamp(14px,2.5dvh,30px)]">
-        {showExitCalibration ? (
-          <Link href="/" className="ms-key justify-self-start shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 text-[15px] sm:text-[16px]">Exit Calibration</Link>
-        ) : showPreviousStep ? (
-          <button onClick={() => goToAdjacentStep(-1)} className="ms-key justify-self-start shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 text-[15px] sm:text-[16px]">Previous Step</button>
-        ) : <div aria-hidden="true" />}
+        <div className="flex sm:w-[180px] shrink-0">
+          {showExitCalibration ? (
+            <Link href="/" className="ms-key w-full py-2.5 sm:py-3">Exit Calibration</Link>
+          ) : showPreviousStep ? (
+            <button onClick={() => goToAdjacentStep(-1)} className="ms-key w-full py-2.5 sm:py-3">Previous Step</button>
+          ) : null}
+        </div>
 
         <ProgressBar total={TOTAL_STEPS} current={isComplete ? TOTAL_STEPS : step} className="col-span-2 row-start-1 sm:col-auto sm:row-auto" />
 
-        {isComplete ? (
-          <button onClick={handleComplete} className="ms-key ms-key-primary justify-self-end shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 text-[15px] sm:text-[16px]">Start Playing</button>
-        ) : showNextStep ? (
-          <button onClick={() => goToAdjacentStep(1)} className="ms-key ms-key-primary justify-self-end shrink-0 px-4 sm:px-6 py-2.5 sm:py-3 text-[15px] sm:text-[16px]">
-            Next Step
-          </button>
-        ) : <div aria-hidden="true" />}
+        <div className="flex sm:w-[180px] shrink-0">
+          {isComplete ? (
+            <button onClick={handleComplete} className="ms-key ms-key-primary w-full py-2.5 sm:py-3">Start Playing</button>
+          ) : showNextStep ? (
+            <button onClick={() => goToAdjacentStep(1)} className="ms-key ms-key-primary w-full py-2.5 sm:py-3">Next Step</button>
+          ) : null}
+        </div>
       </div>
     </div>
   );

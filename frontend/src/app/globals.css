@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f4ef;
-  --foreground: #17141c;
+  --background: #ffffff;
+  --foreground: #1e1e1e;
   /* The app is designed light-only; keep native controls light too. */
   color-scheme: light;
 }
@@ -12,7 +12,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-bricolage);
+  --font-display: var(--font-geist-sans);
 }
 
 /*
@@ -25,37 +25,45 @@
  */
 @theme {
   --color-white: #ffffff;
-  --color-surface: #f6f4ef;
-  --color-well: #efece6;
-  --color-surface-dark: #15121b;
-  --color-ink: #17141c;
-  --color-ink-muted: #5f5a68;
-  --color-ink-subtle: #5f5a68;
-  --color-ink-inverse-muted: #aaa5b4;
-  --color-ink-inverse: #e4e1ea;
-  --color-divider: #dcd8d1;
-  --color-divider-subtle: #e8e5df;
-  --color-control-border: #8a8592;
-  --color-control-inactive: #8f8a97;
-  --color-accent: #6236e0;
-  --color-accent-strong: #5b2fd6;
-  --color-accent-light: #b8a4ff;
-  --color-accent-soft: #ece6ff;
-  --color-danger: #c0261a;
-  --color-danger-hover: #9c1d14;
-  --color-success: #1f8a4c;
-  --color-success-strong: #17683a;
-  --color-success-soft: #e4f6ec;
-  --color-info: #2459d6;
+  --color-surface: #ffffff;
+  --color-well: #f5f5f5;
+  --color-surface-dark: #090909;
+  --color-ink: #1e1e1e;
+  --color-ink-muted: #595854;
+  --color-ink-subtle: #595959;
+  --color-ink-inverse-muted: #bdbdbd;
+  --color-ink-inverse: #d9d9d9;
+  --color-divider: #d9d9d9;
+  --color-divider-subtle: #e5e5e5;
+  --color-control-border: #767676;
+  --color-control-inactive: #8a8882;
+  --color-accent: #7440a8;
+  --color-accent-strong: #5f3490;
+  --color-accent-light: #c78cff;
+  --color-accent-soft: #e7d0ff;
+  --color-danger: #b42318;
+  --color-danger-hover: #8f1c13;
+  --color-success: #237a45;
+  --color-success-strong: #1a6b3a;
+  --color-success-soft: #e7faf0;
+  --color-info: #2563eb;
 }
 
 /*
- * Quiet-depth surface system. Edges are 0.5px inset rings, depth is a stack
- * of faint ink-tinted shadows, and pressing flips a surface from raised to
- * sunk, the same way a piano key goes down.
+ * Every button is a piano key. White keys have an ink outline, a soft shade
+ * at the bottom and a solid front ledge; pressing drops the key onto its
+ * ledge. Black keys are the primary action.
  */
 :root {
-  --ring: inset 0 0 0 0.5px color-mix(in srgb, var(--color-ink) 11%, transparent);
+  --key-shade: inset 0 -14px 16px -6px color-mix(in srgb, var(--color-ink) 9%, transparent);
+  --key-lit: inset 0 3px 0 color-mix(in srgb, var(--color-white) 30%, transparent);
+  --key-ledge: 0 3px 0 0 var(--color-ink);
+  --key-ledge-pressed: 0 1px 0 0 var(--color-ink);
+  --halo: 0 0 0 3px color-mix(in srgb, var(--color-accent) 24%, transparent);
+
+  /* Quiet-depth stack for everything that is not a key: hairline rings and
+     faint ink-tinted shadows instead of borders, wells pressed into the page. */
+  --ring: inset 0 0 0 0.5px color-mix(in srgb, var(--color-ink) 12%, transparent);
   --lit: inset 0 1px 0 color-mix(in srgb, var(--color-white) 90%, transparent);
   --shadow-1: 0 1px 1.5px color-mix(in srgb, var(--color-ink) 5%, transparent);
   --shadow-2:
@@ -67,8 +75,6 @@
   --sunk:
     inset 0 1px 2px color-mix(in srgb, var(--color-ink) 7%, transparent),
     inset 0 0 0 0.5px color-mix(in srgb, var(--color-ink) 10%, transparent);
-  --halo: 0 0 0 3px color-mix(in srgb, var(--color-accent) 24%, transparent);
-  --primary-lit: inset 0 0.5px 0 color-mix(in srgb, var(--color-white) 34%, transparent);
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
@@ -92,118 +98,104 @@ body {
 @layer components {
   /* ── Surfaces ─────────────────────────────────────────────────────────── */
 
-  /* Level 1: the default container. */
+  /* Plain grouping on the page; content sits straight on the paper. */
   .ms-panel {
-    background: var(--color-white);
-    border-radius: 16px;
-    box-shadow: var(--ring), var(--shadow-1);
+    background: transparent;
   }
 
-  /* Level -1: pressed into the page. Holds keys, fields and tool groups. */
+  /* A quiet inset area: lists, empty states, step lists. */
   .ms-well {
     background: var(--color-well);
-    border-radius: 14px;
+    border-radius: 12px;
     box-shadow: var(--sunk);
   }
 
-  /* Level 3: the one static thing that floats, the camera stage. */
+  /* The camera feed and the About panel. */
   .ms-stage {
-    border-radius: 20px;
-    box-shadow:
-      0 0 0 0.5px color-mix(in srgb, var(--color-ink) 14%, transparent),
-      0 1px 2px color-mix(in srgb, var(--color-ink) 6%, transparent),
-      0 10px 28px color-mix(in srgb, var(--color-ink) 8%, transparent);
+    border-radius: 0;
   }
 
-  /* Small uppercase section label. */
   .ms-label {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--color-ink-muted);
+    font-size: 16px;
+    line-height: 1.4;
+    color: var(--color-ink);
   }
 
   /* ── Keys (buttons) ──────────────────────────────────────────────────── */
 
+  /* White key. */
   .ms-key {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    border-radius: 12px;
-    padding: 9px 16px;
-    font-size: 15px;
-    font-weight: 500;
+    border: 1px solid var(--color-ink);
+    border-radius: 3px 3px 9px 9px;
+    padding: 9px 18px;
+    font-size: 16px;
     line-height: 1.2;
     color: var(--color-ink);
-    background: linear-gradient(
-      180deg,
-      var(--color-white),
-      color-mix(in srgb, var(--color-ink) 2%, var(--color-white))
-    );
-    box-shadow: var(--ring), var(--lit), var(--shadow-1);
+    background: var(--color-white);
+    box-shadow: var(--key-shade), var(--key-ledge);
     cursor: pointer;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
     transition:
-      transform 160ms var(--ease-out),
-      box-shadow 160ms var(--ease-out),
-      background-color 160ms var(--ease-out),
-      opacity 160ms var(--ease-out);
+      transform 120ms var(--ease-out),
+      box-shadow 120ms var(--ease-out),
+      background-color 120ms var(--ease-out),
+      opacity 120ms var(--ease-out);
   }
   @media (hover: hover) and (pointer: fine) {
     .ms-key:hover:not(:disabled) {
-      box-shadow: var(--ring), var(--lit), var(--shadow-2);
+      background-color: var(--color-well);
     }
   }
-  .ms-key:active:not(:disabled),
-  .ms-key[aria-current="page"] {
-    background: var(--color-well);
-    box-shadow: var(--sunk);
-    transform: scale(0.97);
+  .ms-key:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow:
+      inset 0 -8px 12px -6px color-mix(in srgb, var(--color-ink) 14%, transparent),
+      var(--key-ledge-pressed);
   }
+  /* The current page is a key held down. */
   .ms-key[aria-current="page"] {
-    transform: none;
-    color: var(--color-accent-strong);
+    transform: translateY(2px);
+    background: var(--color-accent-soft);
+    box-shadow: var(--key-shade), var(--key-ledge-pressed);
     cursor: default;
   }
   .ms-key:focus-visible {
     outline: none;
-    box-shadow: var(--ring), var(--lit), var(--shadow-1), var(--halo);
+    box-shadow: var(--key-shade), var(--key-ledge), var(--halo);
   }
   .ms-key:disabled {
-    box-shadow: var(--ring);
-    opacity: 0.45;
+    opacity: 0.4;
     cursor: not-allowed;
   }
 
-  /* Filled key for the single main action in a region. */
+  /* Black key: the main action in a region. */
   .ms-key-primary {
     color: var(--color-white);
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-white) 8%, var(--color-accent)),
-      var(--color-accent)
-    );
-    box-shadow: var(--primary-lit), var(--shadow-2);
+    background: var(--color-ink);
+    box-shadow:
+      var(--key-lit),
+      0 3px 0 0 color-mix(in srgb, var(--color-ink) 70%, var(--color-surface-dark));
   }
   @media (hover: hover) and (pointer: fine) {
     .ms-key-primary:hover:not(:disabled) {
-      box-shadow: var(--primary-lit), var(--shadow-3);
+      background-color: color-mix(in srgb, var(--color-white) 12%, var(--color-ink));
     }
   }
   .ms-key-primary:active:not(:disabled) {
-    background: var(--color-accent-strong);
-    box-shadow:
-      inset 0 1px 3px color-mix(in srgb, var(--color-ink) 28%, transparent);
+    box-shadow: 0 1px 0 0 var(--color-surface-dark);
   }
   .ms-key-primary:focus-visible {
-    box-shadow: var(--primary-lit), var(--shadow-2), var(--halo);
+    box-shadow: var(--key-lit), 0 3px 0 0 var(--color-surface-dark), var(--halo);
   }
 
-  /* Quiet text-only key; still sinks on press. */
+  /* Text-only control; no key body. */
   .ms-key-ghost {
+    border-color: transparent;
     background: transparent;
     box-shadow: none;
     color: var(--color-ink-muted);
@@ -211,9 +203,12 @@ body {
   @media (hover: hover) and (pointer: fine) {
     .ms-key-ghost:hover:not(:disabled) {
       background: color-mix(in srgb, var(--color-ink) 5%, transparent);
-      box-shadow: none;
       color: var(--color-ink);
     }
+  }
+  .ms-key-ghost:active:not(:disabled) {
+    transform: scale(0.97);
+    box-shadow: none;
   }
   .ms-key-ghost:focus-visible {
     box-shadow: var(--halo);
@@ -229,32 +224,27 @@ body {
     }
   }
 
-  /* Translucent key for use on the dark camera stage. */
+  /* Outline key for the dark camera feed. */
   .ms-key-glass {
     color: var(--color-white);
-    background: color-mix(in srgb, var(--color-white) 12%, transparent);
-    box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--color-white) 28%, transparent);
+    border-color: var(--color-white);
+    background: transparent;
+    box-shadow: none;
   }
   @media (hover: hover) and (pointer: fine) {
     .ms-key-glass:hover:not(:disabled) {
-      background: color-mix(in srgb, var(--color-white) 20%, transparent);
-      box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--color-white) 36%, transparent);
+      background: color-mix(in srgb, var(--color-white) 12%, transparent);
     }
   }
   .ms-key-glass:active:not(:disabled) {
-    background: color-mix(in srgb, var(--color-white) 8%, transparent);
-    box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--color-white) 20%, transparent);
+    transform: scale(0.97);
+    box-shadow: none;
   }
 
-  /* Square icon key. Smaller targets press a little deeper. */
   .ms-key-icon {
     padding: 0;
     width: 40px;
     height: 40px;
-    border-radius: 12px;
-  }
-  .ms-key-icon:active:not(:disabled) {
-    transform: scale(0.94);
   }
 
   /* ── Fields ──────────────────────────────────────────────────────────── */
@@ -264,14 +254,14 @@ body {
     border: none;
     border-radius: 10px;
     box-shadow: var(--sunk);
-    padding: 9px 12px;
+    padding: 10px 14px;
     font: inherit;
-    font-size: 15px;
+    font-size: 16px;
     line-height: 1.2;
     color: var(--color-ink);
     transition:
-      box-shadow 160ms var(--ease-out),
-      background-color 160ms var(--ease-out);
+      box-shadow 140ms var(--ease-out),
+      background-color 140ms var(--ease-out);
   }
   .ms-input:focus,
   .ms-input:focus-visible {
@@ -296,79 +286,78 @@ body {
     width: 40px;
     height: 24px;
     border-radius: 999px;
-    background: var(--color-control-inactive);
-    box-shadow: inset 0 1px 2px color-mix(in srgb, var(--color-ink) 18%, transparent);
-    transition: background-color 200ms var(--ease-out);
+    background: var(--color-well);
+    box-shadow:
+      inset 0 1px 2px color-mix(in srgb, var(--color-ink) 10%, transparent),
+      inset 0 0 0 0.5px color-mix(in srgb, var(--color-control-inactive) 70%, transparent);
+    transition:
+      background-color 150ms var(--ease-out),
+      box-shadow 150ms var(--ease-out);
   }
   .ms-switch[aria-pressed="true"] {
-    background: var(--color-accent);
+    background: var(--color-ink);
+    box-shadow: inset 0 1px 2px color-mix(in srgb, var(--color-surface-dark) 40%, transparent);
   }
   .ms-switch > span {
     position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 18px;
-    height: 18px;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
     border-radius: 999px;
     background: var(--color-white);
-    box-shadow:
-      0 1px 2px color-mix(in srgb, var(--color-ink) 18%, transparent),
-      0 0 0 0.5px color-mix(in srgb, var(--color-ink) 8%, transparent);
-    transition: transform 200ms var(--ease-out);
+    box-shadow: var(--ring), var(--shadow-2);
+    transition: transform 150ms var(--ease-out);
   }
   .ms-switch[aria-pressed="true"] > span {
     transform: translateX(16px);
   }
   .ms-switch:focus-visible {
     outline: none;
-    box-shadow:
-      inset 0 1px 2px color-mix(in srgb, var(--color-ink) 18%, transparent),
-      var(--halo);
+    box-shadow: var(--sunk), var(--halo);
   }
   .ms-switch:disabled {
     opacity: 0.45;
   }
 
-  /* ── Camera stage overlays ───────────────────────────────────────────── */
+  /* ── Camera overlays ─────────────────────────────────────────────────── */
 
-  /* Status pill floating over live video. */
   .ms-pill {
     display: flex;
     align-items: center;
     gap: 10px;
     border-radius: 999px;
     padding: 8px 16px;
-    font-size: 15px;
+    font-size: 16px;
     line-height: 1.3;
     color: var(--color-white);
-    background: color-mix(in srgb, var(--color-surface-dark) 78%, transparent);
+    background: color-mix(in srgb, var(--color-surface-dark) 82%, transparent);
     box-shadow:
       inset 0 0 0 0.5px color-mix(in srgb, var(--color-white) 14%, transparent),
-      0 4px 16px color-mix(in srgb, var(--color-ink) 18%, transparent);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    animation: ms-pill-in 260ms var(--ease-out);
+      var(--shadow-2);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: ms-pill-in 220ms var(--ease-out);
   }
   .ms-pill-success {
-    background: color-mix(in srgb, var(--color-success-strong) 92%, transparent);
+    background: var(--color-success-strong);
   }
 
   /* ── Dialogs ─────────────────────────────────────────────────────────── */
 
   .ms-backdrop {
-    background: color-mix(in srgb, var(--color-surface-dark) 48%, transparent);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    animation: ms-fade-in 200ms var(--ease-out);
+    background: color-mix(in srgb, var(--color-ink) 36%, transparent);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    animation: ms-fade-in 180ms var(--ease-out);
   }
   .ms-dialog {
     background: var(--color-white);
-    border-radius: 24px;
+    border-radius: 20px;
     box-shadow: var(--ring), var(--lit), var(--shadow-3);
-    animation: ms-dialog-in 260ms var(--ease-out);
+    animation: ms-dialog-in 240ms var(--ease-out);
   }
 
-  /* Numbered step badge. */
   .ms-step {
     display: flex;
     flex-shrink: 0;
@@ -376,23 +365,40 @@ body {
     justify-content: center;
     width: 28px;
     height: 28px;
-    border-radius: 9px;
+    border-radius: 999px;
     font-size: 13px;
     font-weight: 700;
-    color: var(--color-accent-strong);
-    background: var(--color-accent-soft);
-    box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--color-accent) 18%, transparent);
+    color: var(--color-white);
+    background: var(--color-accent);
   }
 
-  /* ── Transport (record / stop) ──────────────────────────────────────── */
+  .ms-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    padding: 5px 12px 5px 8px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .ms-chip-success {
+    color: var(--color-success-strong);
+    background: var(--color-success-soft);
+    box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--color-success) 35%, transparent);
+  }
+  .ms-chip-danger {
+    color: var(--color-danger);
+    background: color-mix(in srgb, var(--color-danger) 7%, var(--color-white));
+    box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--color-danger) 30%, transparent);
+  }
 
-  /* A round key with its label underneath. The face sinks on press. */
+  /* ── Transport: record / stop are keys too ──────────────────────────── */
+
   .ms-transport {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 6px;
-    border-radius: 16px;
     -webkit-tap-highlight-color: transparent;
     cursor: pointer;
   }
@@ -401,69 +407,58 @@ body {
   }
   .ms-transport-face {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: center;
-    width: 48px;
-    height: 48px;
-    border-radius: 999px;
-    background: linear-gradient(
-      180deg,
-      var(--color-white),
-      color-mix(in srgb, var(--color-ink) 2%, var(--color-white))
-    );
-    box-shadow: var(--ring), var(--lit), var(--shadow-1);
+    padding-bottom: 10px;
+    width: 52px;
+    height: 64px;
+    border: 1px solid var(--color-ink);
+    border-radius: 3px 3px 10px 10px;
+    color: var(--color-ink);
+    background: var(--color-white);
+    box-shadow: var(--key-shade), var(--key-ledge);
     transition:
-      transform 160ms var(--ease-out),
-      box-shadow 160ms var(--ease-out),
-      background-color 160ms var(--ease-out),
-      opacity 160ms var(--ease-out);
+      transform 120ms var(--ease-out),
+      box-shadow 120ms var(--ease-out),
+      background-color 120ms var(--ease-out),
+      opacity 120ms var(--ease-out);
   }
   .ms-transport-main .ms-transport-face {
     width: 60px;
-    height: 60px;
-    box-shadow: var(--ring), var(--lit), var(--shadow-2);
+    height: 76px;
   }
   @media (hover: hover) and (pointer: fine) {
     .ms-transport:hover:not(:disabled) .ms-transport-face {
-      box-shadow: var(--ring), var(--lit), var(--shadow-2);
-    }
-    .ms-transport-main:hover:not(:disabled) .ms-transport-face {
-      box-shadow: var(--ring), var(--lit), var(--shadow-3);
+      background-color: var(--color-well);
     }
   }
   .ms-transport:active:not(:disabled) .ms-transport-face {
-    background: var(--color-well);
-    box-shadow: var(--sunk);
-    transform: scale(0.94);
+    transform: translateY(2px);
+    box-shadow:
+      inset 0 -8px 12px -6px color-mix(in srgb, var(--color-ink) 14%, transparent),
+      var(--key-ledge-pressed);
   }
   .ms-transport:focus-visible .ms-transport-face {
-    box-shadow: var(--ring), var(--lit), var(--shadow-1), var(--halo);
+    box-shadow: var(--key-shade), var(--key-ledge), var(--halo);
   }
-  /* While recording, the main key is lit red so the state reads at a glance. */
+  /* While recording, the main key is lit red. */
   .ms-transport-main[data-live] .ms-transport-face {
     color: var(--color-white);
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--color-white) 8%, var(--color-danger)),
-      var(--color-danger)
-    );
-    box-shadow: var(--primary-lit), var(--shadow-2);
+    background: var(--color-danger);
+    border-color: var(--color-danger-hover);
+    box-shadow: var(--key-lit), 0 3px 0 0 var(--color-danger-hover);
   }
   .ms-transport-label {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--color-ink-muted);
+    font-size: 13px;
+    color: var(--color-ink);
     user-select: none;
   }
   .ms-transport:disabled {
     cursor: not-allowed;
   }
-  .ms-transport:disabled .ms-transport-face {
-    box-shadow: var(--ring);
-    opacity: 0.4;
-  }
+  .ms-transport:disabled .ms-transport-face,
   .ms-transport:disabled .ms-transport-label {
-    opacity: 0.55;
+    opacity: 0.35;
   }
 
   .ms-beat {
@@ -471,28 +466,6 @@ body {
   }
   .ms-rec-dot {
     animation: ms-rec 1.6s ease-in-out infinite;
-  }
-
-  /* Status chip, e.g. "Lighting OK". */
-  .ms-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    border-radius: 999px;
-    padding: 5px 12px 5px 8px;
-    font-size: 13px;
-    font-weight: 500;
-    white-space: nowrap;
-  }
-  .ms-chip-success {
-    color: var(--color-success-strong);
-    background: var(--color-success-soft);
-    box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--color-success) 30%, transparent);
-  }
-  .ms-chip-danger {
-    color: var(--color-danger);
-    background: color-mix(in srgb, var(--color-danger) 7%, var(--color-white));
-    box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--color-danger) 28%, transparent);
   }
 }
 

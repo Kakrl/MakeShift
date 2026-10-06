@@ -117,7 +117,7 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
                     id={`name-${recording.id}`}
                     value={recordingName}
                     onChange={(event) => setRecordingName(event.target.value)}
-                    className="ms-input w-full bg-white"
+                    className="ms-input w-full"
                     autoFocus
                   />
                   <div className="flex gap-2">

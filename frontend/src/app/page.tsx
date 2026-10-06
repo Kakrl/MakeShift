@@ -465,7 +465,6 @@ export default function Home() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-6 sm:px-8 pt-8 pb-6">
-              <p className="ms-label mb-2">Calibration</p>
               <h2 id="calibration-intro-title" className="font-display text-[24px] sm:text-[28px] font-bold leading-tight tracking-tight text-ink">Before You Begin: Calibration</h2>
               <p className="mt-3 text-[15px] text-ink-muted leading-relaxed">
                 Calibration maps your paper keyboard to the screen. Make sure you have a sheet of paper, good lighting, and your webcam is unobstructed before starting.
@@ -579,7 +578,7 @@ export default function Home() {
 
         {/* Right sidebar (below the camera under lg) */}
         <SideNav onCalibrationClick={() => setShowCalibrationIntro(true)}>
-          <section aria-label="Playback settings" className="ms-panel p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-4">
+          <section aria-label="Playback settings" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-[23px] mt-6 lg:mt-[42px] lg:pl-[43px]">
             {/* Tempo */}
             <div className="flex flex-col gap-2">
               <label htmlFor="set-tempo" className="ms-label">Set Tempo</label>
@@ -618,7 +617,7 @@ export default function Home() {
 
             {/* Metronome toggle */}
             <div className="col-span-2 sm:col-span-1 lg:col-span-1 flex items-center justify-between gap-3 sm:self-end lg:self-auto sm:h-[38px] lg:h-auto lg:pt-1">
-              <span className="text-[15px] font-medium text-ink whitespace-nowrap">Metronome</span>
+              <span className="text-[16px] text-ink whitespace-nowrap">Metronome</span>
               <button
                 onClick={() => setMetronome((enabled) => !enabled)}
                 disabled={!settingsLoaded}
@@ -631,7 +630,7 @@ export default function Home() {
             </div>
           </section>
 
-          <div className="ms-panel p-4">
+          <div className="mt-[23px] lg:pl-[43px]">
             <RecordingsLibrary ref={recordingsLibraryRef} onStatusChange={updateLibraryStatus} />
           </div>
         </SideNav>

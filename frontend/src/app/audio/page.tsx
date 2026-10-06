@@ -63,7 +63,6 @@ export default function AudioCheck() {
   return (
     <main className="flex-1 bg-surface overflow-auto pl-(--gutter-l) pr-(--gutter-r) pt-2 pb-10">
       <div className="ms-panel max-w-[640px] p-6 sm:p-8">
-        <p className="ms-label mb-2">Sound</p>
         <h1 className="font-display text-[28px] sm:text-[32px] font-bold leading-tight tracking-tight text-ink">Audio check</h1>
         <p className="mt-2 mb-6 text-[15px] leading-relaxed text-ink-muted">
           Check sound before using the printed keyboard. Start with a comfortable

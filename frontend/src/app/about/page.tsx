@@ -24,7 +24,6 @@ export default function About() {
         {/* Content area: locked to 16:9 from lg up, grows with its text below that */}
         <div className="ms-stage lg:flex-1 lg:aspect-video bg-surface-dark relative overflow-hidden">
           <div className="lg:absolute lg:inset-0 overflow-y-auto p-6 sm:p-[48px]">
-            <p className="ms-label text-accent-light! mb-3">About</p>
             <h1 className="font-display text-white text-[30px] sm:text-[44px] font-bold leading-[1.05] tracking-tight mb-[20px]">About MakeShift</h1>
             <p className="text-ink-inverse text-[17px] sm:text-[18px] leading-relaxed mb-[32px] max-w-[560px]">
               MakeShift turns any flat surface into a virtual piano. Using computer vision and your webcam,

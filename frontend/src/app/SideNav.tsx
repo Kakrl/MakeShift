@@ -2,43 +2,17 @@ import Link from "next/link";
 
 type NavPage = "calibration" | "tutorial" | "about";
 
-function CalibrationIcon() {
-  return (
-    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <path d="M2.5 6V3.5a1 1 0 0 1 1-1H6M12 2.5h2.5a1 1 0 0 1 1 1V6M15.5 12v2.5a1 1 0 0 1-1 1H12M6 15.5H3.5a1 1 0 0 1-1-1V12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <circle cx="9" cy="9" r="2" fill="currentColor" />
-    </svg>
-  );
-}
-
-function TutorialIcon() {
-  return (
-    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <rect x="2.25" y="3.25" width="13.5" height="11.5" rx="2.5" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M7.5 6.75v4.5L11.25 9 7.5 6.75Z" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function AboutIcon() {
-  return (
-    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none">
-      <circle cx="9" cy="9" r="6.75" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M9 8.25v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <circle cx="9" cy="5.75" r="0.95" fill="currentColor" />
-    </svg>
-  );
-}
-
-const TABS: { page: NavPage; href: string; label: string; Icon: () => React.JSX.Element }[] = [
-  { page: "calibration", href: "/calibration", label: "Calibration", Icon: CalibrationIcon },
-  { page: "tutorial", href: "/tutorial", label: "Tutorial", Icon: TutorialIcon },
-  { page: "about", href: "/about", label: "About", Icon: AboutIcon },
+const TABS: { page: NavPage; href: string; label: string }[] = [
+  { page: "calibration", href: "/calibration", label: "Calibration" },
+  { page: "tutorial", href: "/tutorial", label: "Tutorial" },
+  { page: "about", href: "/about", label: "About" },
 ];
 
-// Each tab is a key on a small keybed. The current page stays pressed down.
+// Below lg the tabs sit in a row under the camera; from lg up they stack in
+// the 267px right sidebar with the piano-key decoration.
 const TAB_CLASS =
-  "ms-key justify-center sm:justify-start gap-2.5 px-2 sm:px-3 lg:px-4 h-12 lg:h-[52px] text-[15px] lg:text-[16px] min-w-0";
+  "flex-1 lg:flex-none border border-black h-12 lg:h-[72px] flex items-center justify-center lg:justify-end px-2 lg:pr-[19px] lg:pl-[100px] relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] " +
+  "not-first:-ml-px lg:not-first:ml-0 lg:not-first:-mt-px first:rounded-bl-[8px] last:rounded-br-[8px] lg:first:rounded-bl-none lg:first:rounded-tr-[8px]";
 
 export default function SideNav({
   active,
@@ -51,37 +25,37 @@ export default function SideNav({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="w-full lg:w-[267px] lg:pl-5 flex flex-col gap-4 shrink-0 mt-4 lg:mt-0">
-      <nav aria-label="Main" className="ms-well p-1.5 grid grid-cols-3 lg:grid-cols-1 gap-1.5">
-        {TABS.map(({ page, href, label, Icon }) => {
-          const content = (
-            <>
-              <span className={`hidden sm:inline ${page === active ? "text-accent" : "text-ink-muted"}`}>
-                <Icon />
-              </span>
-              <span className="truncate">{label}</span>
-              {page === active && (
-                <span aria-hidden="true" className="ml-auto hidden lg:block size-1.5 rounded-full bg-accent" />
-              )}
-            </>
+    <div className="w-full lg:w-[267px] relative flex flex-col shrink-0">
+      {/* Piano key bars */}
+      <div className="hidden lg:flex absolute left-0 top-[50px] flex-col gap-[24px] z-10 pointer-events-none">
+        <div className="bg-black h-[46px] w-[140px] rounded-tr-[4px] rounded-br-[4px] shadow-[2px_1px_1px_0px_rgba(0,0,0,0.1)]" />
+        <div className="bg-black h-[46px] w-[140px] rounded-tr-[4px] rounded-br-[4px] shadow-[2px_1px_1px_0px_rgba(0,0,0,0.1)]" />
+      </div>
+
+      {/* Nav tabs */}
+      <nav aria-label="Main" className="flex flex-row lg:flex-col">
+        {TABS.map(({ page, href, label }) => {
+          const text = (
+            <span className="text-[17px] lg:text-[20px] text-black font-sans whitespace-nowrap">{label}</span>
           );
           if (page === active) {
             return (
-              <div key={page} aria-current="page" className={TAB_CLASS}>
-                {content}
+              <div key={page} aria-current="page" className={`${TAB_CLASS} bg-accent-soft`}>
+                {text}
               </div>
             );
           }
+          const className = `${TAB_CLASS} bg-surface hover:bg-black/5 transition-colors`;
           if (page === "calibration" && onCalibrationClick) {
             return (
-              <button key={page} onClick={onCalibrationClick} className={TAB_CLASS}>
-                {content}
+              <button key={page} onClick={onCalibrationClick} className={className}>
+                {text}
               </button>
             );
           }
           return (
-            <Link key={page} href={href} className={TAB_CLASS}>
-              {content}
+            <Link key={page} href={href} className={className}>
+              {text}
             </Link>
           );
         })}

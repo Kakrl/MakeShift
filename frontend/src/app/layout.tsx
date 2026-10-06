@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import "./globals.css";
@@ -14,12 +14,6 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-// Display face for headings; its hand-cut shapes sit well next to the logo.
-const bricolage = Bricolage_Grotesque({
-  variable: "--font-bricolage",
   subsets: ["latin"],
 });
 
@@ -45,7 +39,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${bricolage.variable} h-full antialiased bg-surface`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased bg-surface`}
     >
       <body className="min-h-dvh flex flex-col bg-surface">
         {/* Shared header — same height on every page, so camera position never shifts */}

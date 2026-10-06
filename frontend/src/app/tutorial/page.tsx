@@ -59,7 +59,6 @@ export default function Tutorial() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4 px-6 sm:px-8 pt-7 pb-4">
           <div>
-            <p className="ms-label mb-1.5">Getting started</p>
             <h1 id="tutorial-title" className="font-display text-[30px] sm:text-[34px] font-bold leading-none tracking-tight text-ink">Tutorial</h1>
           </div>
           <button
