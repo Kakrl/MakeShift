@@ -1068,6 +1068,68 @@ Vitest is now invoked by frontend CI; Actions evidence for this update is pendin
 The browser profiling runner remains local-only. Older stacked rebase instructions
 are obsolete; current main is integrated directly.
 
+
+## Recordings library operations verification (issue #124)
+
+Partial non-UI delivery on feature/124-local-recordings-library, Windows,
+2026-10-03, Node 22.17.0, Vitest 4.1.11:
+
+- Lint, TypeScript, production build and all 18 contrast pairs passed.
+- Full Vitest: 279 passed and five existing expected failures in 16 files.
+  Twelve library cases and one filename case were added. The library cases
+  use injected in-memory storage, not a real browser restart.
+- Chromium 151.0.7922.34: two production MIDI downloads passed, with named
+  filenames, exact bytes and dialog closure. The export fixture now skips
+  the unrelated first-visit welcome overlay, which blocked the initial run.
+- Chromium audio smoke passed; audible hardware was not measured.
+- Deployment smoke stalled and was stopped after 45 seconds; no pass claimed.
+- Actions execution evidence is pending. Inventory 4.2.1/4.2.2 remain partial:
+  home-page integration, library UI, visible quota errors and restart verification
+  are not delivered by these operations. See docs/recordings_library.md.
+
+
+## Recordings library UI verification (issue #124)
+
+Supersedes the partial-delivery status above. Home now loads the library and
+saves completed takes on Stop/session interruption. Bare-bones controls replace
+export/delete dialogs and the placeholder path field.
+
+- Windows, 2026-10-03: lint, TypeScript, build and all 18 contrast pairs passed.
+- Vitest: 281 passed and five existing expected failures across 16 files. Home
+  tests cover saved-list rename/delete/remount and Stop with quota failure/retry.
+  Existing recording-controls expectations now target the library download action.
+- Chromium 151.0.7922.34: seeded production takes survive reload, rename/delete
+  persist, two named MIDI downloads have exact expected bytes. The fixture was
+  corrected to seed only missing storage, rather than overwrite rename on reload.
+- Browser audio smoke passed; physical audible output not measured.
+- Full browser restart, Listen and cross-browser behavior remain unverified.
+  Deployment check and visual inspection results follow. Actions evidence pending.
+
+- Deployment smoke was stopped at the 45-second limit; no pass claimed.
+- Desktop (1280x720) and mobile (390x844) screenshots inspected: plain list,
+  rename/download/delete controls readable; no redesign introduced.
+
+### Recordings library component extraction (2026-10-05)
+
+PR #167 review follow-up: moved library UI/state into
+`frontend/src/app/midi/RecordingsLibraryPanel.tsx`; the page forwards completed
+takes and receives loaded/availability status. On Windows, lint, TypeScript,
+Vitest (281 passed, five existing expected failures), all 18 contrast checks,
+and production build passed. Production Chromium 151 library reload, rename,
+delete, two named downloads/exact MIDI bytes, and audio smoke passed. The build
+needed network access for existing Google Fonts. Deployment smoke was retried with network access but stalled in the camera
+workflow and was stopped without a pass; no physical camera/audio verification
+is claimed.
+
+### Browser-only library initialization (2026-10-05)
+
+PR #167: removed the library initialization effect and zero-delay timer. The
+browser-only panel initializes its controller and list directly. Updated
+`next/dynamic` test mocks to render the real panel. Lint, TypeScript, Vitest
+(281 passed, five existing expected failures), 18 contrast checks, production
+build, Chromium 151 library/download checks, and audio smoke passed. The wider
+deployment camera smoke remains incomplete as recorded in the extraction
+verification above. Physical camera/audio measurements remain unverified.
 ## Tempo and metronome verification (issue #123)
 
 Local execution on Windows, 2026-10-02, Node 22.17.0, Vitest 4.1.11,
