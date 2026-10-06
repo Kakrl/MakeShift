@@ -32,6 +32,7 @@ MakeShift/
 │   ├── architecture.md              # browser target, tooling, delivery boundaries
 │   ├── rvtm_browser_addendum.md      # browser requirement/test reconciliation
 │   ├── performance.md              # bounded pipeline metrics, clocks and profiling
+│   ├── latency_estimation.md       # software estimate, assumptions and sensitivity
 │   ├── browser_audio.md             # browser DSP, transport and verification
 │   ├── audio.md                     # polyphony and voice stealing
 │   ├── audio_events.md              # native audio event queue contract
@@ -78,7 +79,7 @@ MakeShift/
 │   │   │   ├── shadowHeuristics.ts   # prototype RGB k-means dark-region segmentation
 │   │   │   └── shadowWorker.ts       # bounded background shadow segmentation
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
-│   │   ├── lib/                     # shared browser utilities (versioned storage)
+│   │   ├── lib/                     # shared utilities (versioned storage, recordings API schema)
 │   │   ├── server/                  # server-only Supabase access
 │   │   └── shims/                   # empty fs shim and type-only MIDI declaration bridge
 │   ├── package.json
@@ -118,6 +119,12 @@ MakeShift/
 │   │   ├── storage.test.ts           # versioned localStorage module
 │   │   └── check-contrast.mjs
 │   ├── python/
+│   │   ├── latency_estimate.py      # software latency estimator
+│   │   ├── latency_estimate.example.json # metadata and explicit allowances
+│   │   ├── test_latency_estimate.py # synthetic estimator regression cases
+│   │   ├── latency_profile.fixture.json # synthetic diagnostics export
+│   │   ├── latency_simulation.fixture.json # modeled software durations
+│   │   ├── latency_simulation.report.json # versioned scenario result
 │   │   └── test_dummy.py
 │   └── manual/                     # manual test template and completed reports
 ├── .clang-format
