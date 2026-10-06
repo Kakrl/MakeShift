@@ -15,6 +15,16 @@ npm run dev   # starts the local dev server at http://localhost:3000
 
 ---
 
+## Tempo and metronome preferences
+
+The home page remembers tempo and the metronome toggle between visits using
+the shared versioned browser storage module (`makeshift:playback-settings:v1`).
+The existing tempo range is 20–300 BPM. Missing or invalid settings restore
+120 BPM and metronome on; out-of-range saved BPM falls back to defaults,
+while user input is clamped to the range. If browser storage is blocked or
+full, the controls still work for the current visit. Restoring preferences
+does not start audio or recording.
+
 ## CV visual debugging
 
 Visual debugging defaults to off. Set `SHOW_VISUAL_DEBUG` to `true` in
@@ -106,3 +116,11 @@ Frontend test implementations live in `../tests/frontend/`: MIDI unit tests in
 commands above from `frontend/`; dependencies remain in this package. ESLint
 and TypeScript include the moved tests. Add future frontend specs, helpers, and
 fixtures to the same test directory and update the verification inventory.
+
+## Local recordings
+
+Finished takes are saved locally and listed on the home page. Rename, delete
+(with confirmation), and download MIDI per take. Storage failures keep the take
+in memory with a Not saved label and a retry action; download unsaved takes
+before leaving. The browser chooses the download location. See
+[the library contract](../docs/recordings_library.md).

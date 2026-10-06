@@ -73,7 +73,8 @@ MakeShift/
 │   │   ├── cv/                      # ArUco detection, homography, key geometry
 │   │   │   ├── contactPipeline.ts    # individual overlap, knuckle, and shadow checks
 │   │   │   ├── liveContactPipeline.ts # controller: eligibility, shadow worker/history, releases
-│   │   │   ├── combinedContact.ts    # prototype per-finger gated press/release state
+│   │   │   ├── combinedContact.ts    # contact state/gate types and timing constants
+│   │   │   ├── finger.ts             # per-finger state owner and checkState entry point
 │   │   │   ├── shadowHeuristics.ts   # prototype RGB k-means dark-region segmentation
 │   │   │   └── shadowWorker.ts       # bounded background shadow segmentation
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter

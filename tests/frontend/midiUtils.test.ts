@@ -345,9 +345,17 @@ describe("downloadMidi adapter (MIDI writer and DOM mocked)", () => {
       { pitch: "E4", velocity: 60, tick: 128, duration: "T64" },
     ]);
     expect(link.href).toBe("data:audio/midi;base64,test");
-    expect(link.download).toBe("recording.mid");
+    expect(link.download).toBe("Example.mid");
     expect(link.click).toHaveBeenCalledOnce();
     expect(JSON.stringify(take)).toBe(before);
+  });
+
+  it("uses a safe bounded filename with a fallback for an empty name", () => {
+    const take: Recording = { id: "take", name: "../Take:one", bpm: 120,
+      createdAt: "2026-10-03T00:00:00Z", notes: [] };
+    expect(download(take).download).toBe("___Take_one.mid");
+    expect(download({ ...take, name: " " }).download).toBe("recording.mid");
+    expect(download({ ...take, name: "a".repeat(100) }).download).toBe(`${"a".repeat(80)}.mid`);
   });
 
   it("exports a completed paused/resumed take without inserting the pause", () => {

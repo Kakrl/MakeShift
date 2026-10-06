@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // overlays while leaving the state that opens them, so the controls did nothing.
 
 import type { LiveSession } from "../../frontend/src/events/liveSession";
+import { storageKey } from "../../frontend/src/lib/storage";
 import {
   CALIBRATION_KEY,
   CURRENT_LAYOUT,
@@ -51,9 +52,11 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push, back: vi.fn() }) }
 // set instead of running CV.
 const calibration = vi.hoisted(() => ({ valid: false }));
 vi.mock("next/dynamic", async () => {
+  const { default: LibraryPanel } = await import("../../frontend/src/app/midi/RecordingsLibraryPanel");
   const { useEffect } = await import("react");
   return {
-    default: () =>
+    default: (loader: () => unknown) =>
+      loader.toString().includes("RecordingsLibraryPanel") ? LibraryPanel :
       function CoordinatorStub({ session }: { session: LiveSession }) {
         useEffect(() => {
           if (!calibration.valid) return;
@@ -109,6 +112,21 @@ function renderHome() {
 }
 
 describe("home page", () => {
+  it("loads multiple takes and persists per-take rename/delete across remounts", () => {
+    const take = { id: "one", name: "First", bpm: 120, createdAt: "2026-10-03T00:00:00Z", notes: [] };
+    localStorage.setItem("makeshift:recordings:v1", JSON.stringify([take, { ...take, id: "two", name: "Second" }]));
+    renderHome();
+    fireEvent.click(screen.getAllByText("Rename")[0]);
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Renamed" } });
+    fireEvent.click(screen.getByText("Save name"));
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    fireEvent.click(screen.getAllByText("Delete")[1]);
+    cleanup(); renderHome();
+    expect(screen.getByText("Renamed")).toBeTruthy();
+    expect(screen.queryByText("Second")).toBeNull();
+    expect(screen.getAllByText("Download MIDI")).toHaveLength(1);
+  });
+
   beforeEach(() => {
     vi.useFakeTimers();
     localStorage.clear();
@@ -119,7 +137,64 @@ describe("home page", () => {
 
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
     vi.useRealTimers();
+  });
+
+  it("restores saved preferences without overwriting them on initial render", () => {
+    const key = storageKey("playback-settings", 1);
+    localStorage.setItem(key, JSON.stringify({ tempo: 180, metronome: false }));
+    render(createElement(Home));
+    expect(JSON.parse(localStorage.getItem(key)!)).toEqual({ tempo: 180, metronome: false });
+    act(() => vi.advanceTimersByTime(0));
+    expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("180");
+    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("persists edited tempo and metronome across a remount", () => {
+    renderHome();
+    expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("120");
+    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("true");
+    fireEvent.change(screen.getByLabelText("Set Tempo"), { target: { value: "175" } });
+    fireEvent.click(screen.getByLabelText("Toggle metronome"));
+    cleanup();
+    renderHome();
+    expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("175");
+    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it.each([
+    "broken JSON", "null", "[]",
+    JSON.stringify({ tempo: 19, metronome: false }),
+    JSON.stringify({ tempo: 301, metronome: false }),
+    JSON.stringify({ tempo: 120.5, metronome: false }),
+    JSON.stringify({ tempo: "120", metronome: false }),
+    JSON.stringify({ tempo: 120, metronome: "false" }),
+    JSON.stringify({ tempo: 120 }),
+  ])("uses defaults for invalid stored settings: %s", (raw) => {
+    localStorage.setItem(storageKey("playback-settings", 1), raw);
+    renderHome();
+    expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("120");
+    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it.each([20, 300])("restores valid boundary tempo %s", (tempo) => {
+    localStorage.setItem(storageKey("playback-settings", 1), JSON.stringify({ tempo, metronome: true }));
+    renderHome();
+    expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe(String(tempo));
+  });
+
+  it("clamps input and keeps controls usable when storage fails", () => {
+    vi.spyOn(window.localStorage, "getItem").mockImplementation(() => { throw new Error("blocked"); });
+    vi.spyOn(window.localStorage, "setItem").mockImplementation(() => { throw new DOMException("full", "QuotaExceededError"); });
+    renderHome();
+    const input = screen.getByLabelText("Set Tempo") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "350" } });
+    expect(input.value).toBe("300");
+    fireEvent.change(input, { target: { value: "10" } });
+    expect(input.value).toBe("20");
+    fireEvent.click(screen.getByLabelText("Toggle metronome"));
+    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
   });
 
   it("shows the welcome modal on the first visit only", () => {
@@ -160,7 +235,7 @@ describe("home page", () => {
     expect(screen.getByText("Camera access blocked")).toBeTruthy();
   });
 
-  it("shows the count-in, completion banner, and delete confirmation", async () => {
+  it.each([false, true])("saves a stopped take and supports quota retry (quota=%s)", async (quota) => {
     localStorage.setItem("hasVisited", "true");
     calibration.valid = true;
     localStorage.setItem(CALIBRATION_KEY, JSON.stringify(validCalibration()));
@@ -177,13 +252,24 @@ describe("home page", () => {
     for (let beat = 0; beat < 4; beat++) act(() => vi.advanceTimersByTime(500));
     expect(screen.getByText("Recording started")).toBeTruthy();
 
+    const write = quota ? vi.spyOn(window.localStorage, "setItem").mockImplementation(() => {
+      throw new DOMException("full", "QuotaExceededError");
+    }) : null;
     fireEvent.click(screen.getByLabelText("Stop recording"));
     expect(screen.getByText("Recording Complete!")).toBeTruthy();
     fireEvent.click(screen.getByText("Dismiss"));
 
-    fireEvent.click(screen.getByText("Delete .MIDI Recording"));
-    expect(screen.getByText("Delete this MIDI recording?")).toBeTruthy();
+    if (quota) {
+      expect(screen.getByText(/Storage is full/)).toBeTruthy();
+      expect(screen.getByText(/Not saved/)).toBeTruthy();
+      write!.mockRestore();
+      fireEvent.click(screen.getByText("Retry saving"));
+      expect(screen.queryByText(/Not saved/)).toBeNull();
+    }
+    cleanup(); renderHome();
+    expect(screen.getByText("Download MIDI")).toBeTruthy();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-    expect(screen.queryByText("Delete .MIDI Recording")).toBeNull();
+    expect(screen.queryByText("Download MIDI")).toBeNull();
   });
 });
