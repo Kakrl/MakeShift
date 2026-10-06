@@ -52,7 +52,6 @@ export default function RootLayout({
         <header className="h-16 shrink-0 flex items-center pl-(--gutter-l) pr-(--gutter-r) bg-surface">
           <Link
             href="/"
-            aria-label="MakeShift home"
             className="-ml-1.5 rounded-[10px] transition-[opacity,transform] duration-150 ease-out hover:opacity-70 active:scale-[0.97] focus-visible:outline-none focus-visible:shadow-(--halo)"
           >
             {/* The artwork has a small inset; -ml-1.5 lines the mark up with the gutter. */}
