@@ -70,6 +70,7 @@ describe("validateUpload", () => {
     const max = RECORDING_LIMITS.titleLength.max;
     expect(validateUpload({ ...valid(), title: "🎹".repeat(max) }).ok).toBe(true);
     expect(issueFields({ ...valid(), title: "🎹".repeat(max + 1) })).toEqual(["title"]);
+    expect(issueFields({ ...valid(), title: "x🎹".repeat(100_000) })).toEqual(["title"]);
   });
 
   it.each([

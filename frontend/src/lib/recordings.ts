@@ -70,7 +70,13 @@ export function recordingDurationMs(notes: readonly RecordedNote[]): number {
 }
 
 // Counts code points, as Postgres char_length does, not UTF-16 units.
-const charLength = (value: string) => [...value].length;
+// Stops just past `max` so oversized input is not copied into an array.
+function charLength(value: string, max: number): number {
+  let length = 0;
+  for (let i = 0; i < value.length && length <= max; length++)
+    i += value.codePointAt(i)! > 0xffff ? 2 : 1;
+  return length;
+}
 
 function text(
   issues: ValidationIssue[],
@@ -84,7 +90,7 @@ function text(
     return "";
   }
   const trimmed = value.trim();
-  const length = charLength(trimmed);
+  const length = charLength(trimmed, limits.max);
   if (length < limits.min || length > limits.max)
     issues.push({
       field,
