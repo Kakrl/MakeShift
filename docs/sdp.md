@@ -30,8 +30,9 @@ analysis, using camera FPS, measured software stages and explicit assumptions
 for unmeasured camera/CV/audio delays. No contact sensor, physical recording or
 manual test is required for that deliverable. See [the estimator procedure](latency_estimation.md).
 Estimator verification maps to 2.3.7; physical compliance test 2.3.1 remains
-planned. The under-50 ms physical requirement is unchanged and unverified;
-modeled values cannot establish compliance or detection accuracy.
+a separate product-verification activity. The simulation supplies documented
+scenario results and regression expectations; the physical requirement and
+detection-accuracy requirement retain their own evidence criteria.
 
 ## Recording playback extension (issue #130)
 

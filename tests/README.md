@@ -58,6 +58,8 @@ tests/
 │   ├── latency_estimate.example.json # metadata and explicit allowances
 │   ├── test_latency_estimate.py     # synthetic estimator regression cases
 │   ├── latency_profile.fixture.json # synthetic diagnostics export
+│   ├── latency_simulation.fixture.json # modeled software durations
+│   ├── latency_simulation.report.json # versioned scenario result
 │   └── test_dummy.py                 # existing placeholder, no product coverage
 └── manual/
     └── manual_test_template.md
@@ -148,26 +150,24 @@ on `feature/130-playback-timeline` based on upstream `614203f`:
 
 ## Software latency estimator verification (issue #30)
 
-The scope of #30 now delivers estimation, without physical capture or manual
-execution. Run the estimator with a #38 diagnostic JSON and explicit FPS and
-allowance assumptions; see [the procedure](../docs/latency_estimation.md).
-`python/latency_estimate.example.json` intentionally leaves allowances unknown.
-The synthetic `python/latency_profile.fixture.json` is analyzer input only,
-not product performance evidence.
+Issue #30 delivers a completed simulation/software estimation workflow. Run
+`python tests/python/latency_estimate.py tests/python/latency_simulation.fixture.json tests/python/latency_estimate.example.json simulation.json`
+and see [the scenario procedure/results](../docs/latency_estimation.md).
+The versioned `python/latency_simulation.report.json` records 500 modeled samples
+from five synthetic software durations and uniform random frame phase.
+At 30 FPS with a 19 ms central allowance, the estimate is mean 47.67 ms,
+p50 47.50 ms, p95 63.83 ms, maximum modeled sample 69.17 ms and 43% at/above
+50 ms. Allowance/FPS sensitivity is included. Inputs are scenario assumptions,
+not a hardware measurement; physical and accuracy verification are outside #30.
 
 Local Windows verification on 2026-10-05, Python 3.12.10 and pytest 8.2.2,
-branch `test/30-end-to-end-latency`: 23 estimator regression cases passed
-(24 total including the existing placeholder). Required Ruff/backend mypy
-checks passed. Cases cover aggregate arithmetic without fabricated quantiles,
-FPS/allowance sensitivity, paired modeled distributions and misses/invalid
-attempts, unknown stages/allowances, invalid configuration, mismatched profile
-metadata, input preservation and CLI serialization/exit behavior.
-`testing.yml` invokes pytest on Python changes; specific Actions evidence
-remains pending. No real product timing profile was collected for this update.
-
-Inventory 2.3.7 covers estimator verification. Physical test 2.3.1 remains
-planned with no result: completing #30 does not verify the physical under-50 ms
-requirement. Reports always say UNVERIFIED for physical compliance.
+branch `test/30-end-to-end-latency`: 24 estimator cases passed
+(25 total including the placeholder). Ruff and required backend mypy passed.
+Cases include published numeric regression expectations, FPS/allowance
+sensitivity, aggregate arithmetic without invented quantiles, paired model
+distributions, retained misses/invalid data, invalid assumptions and CLI reports.
+`testing.yml` invokes these tests on Python changes. Inventory 2.3.7 maps the
+estimator/simulation; 2.3.1 retains the distinct physical test scope.
 
 ## Note-list recorder verification (issues #108 and #115)
 

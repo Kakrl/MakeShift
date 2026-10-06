@@ -8,28 +8,41 @@
     "camera_resolution": "synthetic-example",
     "output_device": "synthetic-example",
     "output_route": "wired",
-    "settings": "Synthetic example only; replace with model, delegate, calibration, lighting, audio envelope, volume and warm-up duration",
-    "accuracy_evidence": "Unexecuted; synthetic input has no detection accuracy evidence"
+    "settings": "Simulation baseline: 30 FPS, disjoint modeled inference/contact durations, wired output; all allowance values are scenario assumptions",
+    "accuracy_evidence": "Accuracy is outside this timing simulation; failed attempts are retained if supplied"
   },
   "camera_fps": 30,
-  "fps_sensitivity": [15, 30, 60],
+  "fps_sensitivity": [
+    15,
+    30,
+    60
+  ],
   "frame_wait_model": "uniform-random-phase",
   "frame_wait_rationale": "Illustrative random arrival independent of nominal camera frames; excludes exposure and buffering",
-  "diagnostic_stages": ["inference", "detection"],
+  "diagnostic_stages": [
+    "inference",
+    "detection"
+  ],
   "nonoverlap_rationale": "Synthetic disjoint inference and contact-processing durations; real runs must establish boundaries before adding stages",
-  "software_coverage": "Synthetic inference and synchronous detection only; omitted software/worker/event delays must be covered by contact_gating allowance",
+  "software_coverage": "Synthetic per-attempt inference and synchronous detection; allowance covers asynchronous contact history and omitted dispatch work",
   "allowances": {
     "camera_capture": {
-      "low_ms": null, "mean_ms": null, "high_ms": null,
-      "rationale": "Unknown exposure, buffering and delivery delay; enter an explicitly justified assumption to model it"
+      "low_ms": 4,
+      "mean_ms": 8,
+      "high_ms": 16,
+      "rationale": "Scenario assumption: 8 ms exposure/buffering/delivery beyond frame phase, swept over 4-16 ms; chosen for sensitivity, not fitted hardware data"
     },
     "contact_gating": {
-      "low_ms": null, "mean_ms": null, "high_ms": null,
-      "rationale": "Unknown asynchronous shadow work, scheduling, temporal contact history and omitted event/dispatch work"
+      "low_ms": 2,
+      "mean_ms": 5,
+      "high_ms": 10,
+      "rationale": "Scenario assumption: 5 ms asynchronous contact/scheduling/dispatch work, swept over 2-10 ms; longer temporal gates require a separate scenario"
     },
     "audio_output": {
-      "low_ms": null, "mean_ms": null, "high_ms": null,
-      "rationale": "Unknown worklet scheduling, envelope onset and hardware output delay for this output route"
+      "low_ms": 3,
+      "mean_ms": 6,
+      "high_ms": 12,
+      "rationale": "Scenario assumption: 6 ms wired worklet/envelope/device output allowance, swept over 3-12 ms; excludes Bluetooth scenario"
     }
   }
 }

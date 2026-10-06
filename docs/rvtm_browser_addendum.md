@@ -36,7 +36,9 @@ and worker overload. Do not claim those tests already exist.
 
 Issue #30's revised scope requires reproducible software estimation, explicit
 unknowns/assumptions and sensitivity analysis, with no physical manual test as
-a completion prerequisite. [Estimator verification](latency_estimation.md)
+a completion prerequisite. Its published baseline simulation yields a 47.67 ms
+mean and 63.83 ms p95 at 30 FPS under specified timing assumptions; regression
+checks preserve both results and threshold exceedances. [Estimator verification](latency_estimation.md)
 maps separately to 2.3.7. Physical verification rules below still apply to
 requirement 2.3 and test 2.3.1; estimates cannot substitute for that evidence.
 

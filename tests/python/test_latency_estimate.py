@@ -19,6 +19,9 @@ def inputs(known=True):
         for item in config["allowances"].values():
             item.update(low_ms=1, mean_ms=2, high_ms=3,
                         rationale="Synthetic assumed delay, not measured")
+    else:
+        for item in config["allowances"].values():
+            item.update(low_ms=None, mean_ms=None, high_ms=None)
     return source, config
 
 
@@ -35,8 +38,8 @@ def test_known_aggregate_and_no_fabricated_quantiles():
     assert central(report)["mean_ms"] == pytest.approx(12 + 6 + 500 / 30)
     assert central(report)["modeled_distribution"]["p95_ms"] is None
     assert central(report)["modeled_distribution"]["sample_max_ms"] is None
-    assert report["observed_source"] == source
-    assert report["physical_requirement_status"] == "UNVERIFIED"
+    assert report["input_source"] == source
+    assert report["scope"].startswith("Software/model estimate")
 
 
 def test_fps_and_allowance_sensitivity():
@@ -63,7 +66,7 @@ def test_unavailable_stage_and_retained_diagnostics():
     report = estimate(source, config)
     assert report["unknown_components"] == ["transfer"]
     assert report["software_mean_ms"] is None
-    assert report["observed_source"]["droppedFrames"] == 2
+    assert report["input_source"]["droppedFrames"] == 2
 
 
 def test_paired_distribution_retains_failures_and_invalid_samples():
@@ -80,7 +83,7 @@ def test_paired_distribution_retains_failures_and_invalid_samples():
     report = estimate(source, config)
     assert report["attempt_count"] == 3
     assert len(report["failures"]) == len(report["invalid_attempts"]) == 1
-    assert report["observed_paired_distribution"]["count"] == 1
+    assert report["input_paired_distribution"]["count"] == 1
     distribution = central(report)["modeled_distribution"]
     assert distribution["count"] == 100
     assert distribution["mean_ms"] == pytest.approx(18 + 500 / 30)
@@ -135,7 +138,7 @@ def test_all_failed_has_null_statistics():
     report = estimate({"schema_version": 1, "clock_convention": "ms",
                        "attempts": [{"status": "missed"}]}, config)
     assert report["estimate_status"] == "INCOMPLETE"
-    assert report["observed_paired_distribution"]["p95_ms"] is None
+    assert report["input_paired_distribution"]["p95_ms"] is None
 
 
 def test_invalid_count_and_placeholder_rationale():
@@ -158,8 +161,8 @@ def test_exact_50_remains_estimate_only():
     scenario = central(report, 100)
     assert scenario["mean_ms"] == 50
     assert scenario["mean_at_or_over_50_ms"] is True
-    assert report["estimate_status"] == "CONDITIONAL"
-    assert report["physical_requirement_status"] == "UNVERIFIED"
+    assert report["estimate_status"] == "ESTIMATED"
+    assert report["scope"].startswith("Software/model estimate")
 
 
 @pytest.mark.parametrize("known,expected", [(True, 0), (False, 1)])
@@ -175,4 +178,22 @@ def test_cli_exit_and_serialized_report(tmp_path, known, expected):
     assert result.returncode == expected, result.stderr
     report = json.loads(paths[2].read_text())
     assert len(report["source_sha256"]) == 64
-    assert report["physical_requirement_status"] == "UNVERIFIED"
+    assert report["scope"].startswith("Software/model estimate")
+
+
+def test_published_simulation_regression_values():
+    source = json.loads((ROOT / "latency_simulation.fixture.json").read_text())
+    config = json.loads((ROOT / "latency_estimate.example.json").read_text())
+    saved = json.loads((ROOT / "latency_simulation.report.json").read_text())
+    report = estimate(source, config)
+    assert report["scenarios"] == saved["scenarios"]
+    baseline = central(report)
+    # Independent arithmetic: 12 ms software + 19 ms allowance + 16 2/3 frame.
+    assert baseline["mean_ms"] == pytest.approx(47.66666666666667)
+    dist = baseline["modeled_distribution"]
+    assert dist["count"] == 500
+    assert dist["p50_ms"] == pytest.approx(47.5)
+    assert dist["p95_ms"] == pytest.approx(63.83333333333333)
+    assert dist["sample_max_ms"] == pytest.approx(69.16666666666666)
+    assert dist["fraction_at_or_over_50_ms"] == pytest.approx(0.43)
+    assert central(report, 60)["mean_ms"] == pytest.approx(39.33333333333333)

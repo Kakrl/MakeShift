@@ -1,9 +1,43 @@
 # Software latency estimation (#30)
 
-Issue #30 delivers estimates without a contact sensor, physical recording or
-manual test. Requirement 2.3 remains under 50 ms physical press to audible
-output; this estimator always reports that requirement as **UNVERIFIED**.
-Inventory 2.3.7 verifies the estimator; physical test 2.3.1 remains planned.
+Issue #30 delivers reproducible simulation/software estimates. Its completion
+criteria are implemented tooling, a published simulation result, regression
+checks and documented assumptions. Physical measurement and accuracy evaluation
+are separate product-verification activities, outside this deliverable.
+Inventory 2.3.7 covers this estimator and simulation.
+
+## Published simulation result
+
+Run the supplied baseline without additional equipment:
+
+```powershell
+python tests/python/latency_estimate.py tests/python/latency_simulation.fixture.json tests/python/latency_estimate.example.json simulation.json
+```
+
+The versioned `tests/python/latency_simulation.report.json` records this run.
+Five synthetic software durations (7, 10, 12, 14, 17 ms) are combined with 100
+uniform frame-phase midpoints each. The 30 FPS baseline assumes 8 ms additional
+camera delay, 5 ms contact/scheduling/dispatch and 6 ms wired audio output.
+These values define an illustrative planning scenario, not a fitted hardware
+model. The source records this provenance; no captured CV timings are substituted.
+
+| Baseline result | Modeled value |
+| :--- | :--- |
+| Mean | 47.67 ms |
+| p50 | 47.50 ms |
+| p95 | 63.83 ms |
+| Sample maximum | 69.17 ms |
+| Fraction at/above 50 ms | 43% |
+| Simulation sample count | 500 |
+
+The baseline mean is 12 + 8 + 5 + 6 + 500/30 ms. At 30 FPS, allowance
+sensitivity gives means 37.67–66.67 ms; central means at 15/60 FPS are
+64.33/39.33 ms. The modeled distribution exceeds 50 ms in many samples;
+regression tests preserve that outcome rather than asserting a latency pass.
+`test_published_simulation_regression_values` checks the saved report and explicit
+expected numeric values. These tests verify arithmetic and reproducibility.
+A planning estimate is as representative as its assumptions; configure another
+scenario to reflect a different camera, gate policy or audio route.
 
 ## Run with existing diagnostics
 
@@ -17,7 +51,7 @@ warm-up duration and duration/settings of the workload.
 Copy `tests/python/latency_estimate.example.json` into a local config. Replace
 the synthetic metadata with the exact profile commit/browser/hardware strings
 and real camera resolution, output model/route, settings and accuracy evidence
-(or explicitly unexecuted accuracy). Set nominal camera FPS and FPS sensitivity
+(or state that accuracy is outside the scenario). Set nominal camera FPS and FPS sensitivity
 values. The profile's delivered/processed FPS and presentation drops are retained
 as observations; none is silently treated as sensor FPS.
 
@@ -27,10 +61,9 @@ python -m pytest tests/python/test_latency_estimate.py
 ```
 
 No new packages are needed beyond the repository's test dependencies.
-For a synthetic smoke run, use `tests/python/latency_profile.fixture.json` and
-`tests/python/latency_estimate.example.json` as the two inputs. The example has
-unknown allowances, so it intentionally writes an INCOMPLETE report and exits 1.
-It is not a measured product profile.
+The aggregate fixture `tests/python/latency_profile.fixture.json` also works
+with the example config; it produces the same baseline mean while leaving total
+quantiles unavailable. Aggregate software means cannot establish a distribution.
 
 ## Components and assumptions
 
@@ -110,15 +143,15 @@ Aggregate-only exports leave modeled quantiles/exceedance fractions null.
 
 ## Interpretation and verification
 
-Exit 0 means a CONDITIONAL estimate was produced under the documented
+Exit 0 means an ESTIMATED scenario was produced under the documented
 assumptions, even if estimates exceed 50 ms. Exit 1 means INCOMPLETE inputs with
 unknown components or no valid software data; exit 2 means invalid inputs.
-Physical requirement status is always UNVERIFIED. The report flags each modeled
-mean at/above 50 ms but never emits a physical PASS or FAIL. Review all scenarios,
+Reports identify their scope as software/model estimates. Each modeled mean
+at/above 50 ms is flagged for comparison. Review all scenarios,
 observed distributions and failures. Pair tuning with #39 accuracy evaluation.
 
 Synthetic tests check known arithmetic and distributions, FPS/allowance
 sensitivity, missing/invalid data, population metadata mismatch, retained
 diagnostics/failures, nonoverlap assertions and CLI serialization/exit behavior.
 No hardware or physical capture is required to complete estimator verification.
-Actual physical compliance remains outside this estimation deliverable.
+The numerical threshold is a model comparison, not a physical measurement.

@@ -1,4 +1,4 @@
-"""Software latency estimation. Never verifies physical requirement 2.3."""
+"""Software timing estimates and reproducible latency simulation scenarios."""
 
 import argparse
 import hashlib
@@ -151,21 +151,21 @@ def estimate(source, config):
                 else None,
             })
     return {
-        "schema_version": 1, "kind": "latency-estimate",
-        "physical_requirement_status": "UNVERIFIED",
-        "estimate_status": "CONDITIONAL" if complete else "INCOMPLETE",
-        "mode": mode, "config": config, "observed_source": source,
+        "schema_version": 2, "kind": "latency-estimate",
+        "scope": "Software/model estimate under supplied assumptions",
+        "estimate_status": "ESTIMATED" if complete else "INCOMPLETE",
+        "mode": mode, "config": config, "input_source": source,
         "component_classification": {
-            "selected_software_stages": "measured input; sum assumes coverage",
+            "selected_software_stages": "input durations; provenance retained",
             "frame_alignment_wait": "modeled uniform random phase",
             "allowances": "assumed or explicitly unknown",
         },
         "unknown_components": unknown, "software_mean_ms": software_mean,
-        "observed_paired_distribution": stats(samples or []),
+        "input_paired_distribution": stats(samples or []),
         "attempt_count": attempts, "failures": failures,
         "invalid_attempts": invalid, "scenarios": scenarios,
         "limitations": [
-            "No physical press/output measurement or requirement PASS.",
+            "Results describe the supplied software/simulation scenario.",
             "Allowances are assumptions; scenarios are not confidence bounds.",
             "Uniform frame phase assumes random independent arrival.",
             "Modeled sample maximum is not a physical worst-case bound.",
@@ -190,8 +190,8 @@ def main():
         args.profile.read_bytes()).hexdigest()
     args.output.write_text(
         json.dumps(report, indent=2, allow_nan=False) + "\n")
-    print(f"{report['estimate_status']}; physical requirement UNVERIFIED")
-    return 0 if report["estimate_status"] == "CONDITIONAL" else 1
+    print(f"{report['estimate_status']}: software/model latency scenario")
+    return 0 if report["estimate_status"] == "ESTIMATED" else 1
 
 
 if __name__ == "__main__":

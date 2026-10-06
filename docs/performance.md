@@ -109,7 +109,8 @@ collision/event timings can remain unavailable. Hardware latency, intentional
 presses, worker transfer, long-session memory growth, physical camera unplug,
 and other browsers require separate profiling. Use the [software estimator](latency_estimation.md) in #30 for modeled
 latency and sensitivity, and labeled accuracy verification in #39. Physical
-latency remains unverified; #30 no longer requires physical capture.
+latency measurement is separate product-verification scope; #30 delivers the
+reproducible simulation and software estimate without physical capture.
 
 ## Verification and delivery
 

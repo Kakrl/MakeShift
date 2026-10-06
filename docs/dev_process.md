@@ -123,6 +123,8 @@ MakeShift/
 │   │   ├── latency_estimate.example.json # metadata and explicit allowances
 │   │   ├── test_latency_estimate.py # synthetic estimator regression cases
 │   │   ├── latency_profile.fixture.json # synthetic diagnostics export
+│   │   ├── latency_simulation.fixture.json # modeled software durations
+│   │   ├── latency_simulation.report.json # versioned scenario result
 │   │   └── test_dummy.py
 │   └── manual/                     # manual test template and completed reports
 ├── .clang-format
