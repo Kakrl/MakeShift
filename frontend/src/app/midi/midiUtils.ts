@@ -145,11 +145,11 @@ export function downloadMidi(recording: Recording): void {
     const event = new MidiWriter.NoteEvent({
       pitch: note.pitch,
       velocity: note.velocity,
-      tick: startTick,
       duration: `T${Math.max(0, endTick - startTick)}`,
     });
-    // midi-writer-js treats constructor tick: 0 as absent. Keep every note
-    // on its absolute timeline, including simultaneous notes at the origin.
+    // midi-writer-js uses `fields.startTick || fields.tick || null` in its
+    // constructor, losing tick zero. Assign once after construction to preserve
+    // the absolute timeline, including simultaneous notes at the origin.
     event.tick = startTick;
     track.addEvent(event);
   }

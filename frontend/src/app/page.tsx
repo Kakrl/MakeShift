@@ -144,7 +144,9 @@ export default function Home() {
   //   isRecording      → actively recording (or paused)
   //   isPaused         → recording paused mid-session
   //   hasRecordings → stop pressed; MIDI controls visible
-  const [recordingState, setRecordingState] = useState<RecordingState>(recorder.getState());
+  // The recorder owns capture state; this React snapshot triggers UI updates.
+  // Reading getState() alone cannot rerender when the mutable recorder changes.
+  const [recordingState, setRecordingState] = useState<RecordingState>(() => recorder.getState());
   const isRecording = recordingState !== "stopped";
   const isPaused = recordingState === "paused";
   const [showRecordingComplete, setShowRecordingComplete] = useState(false);

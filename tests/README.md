@@ -2,6 +2,21 @@
 
 ## Recording lifecycle and export verification (issue #88)
 
+PR #173 review follow-up, local Windows execution on 2026-10-06,
+Node 22.20.0, based on `852a10e`: removed the redundant constructor tick
+argument while retaining the post-construction tick-zero workaround, and
+documented the React recording-state snapshot with lazy initialization.
+Lint, TypeScript, all 18 contrast pairs and production build passed;
+Vitest reported 344 passed and the same 5 expected D21 failures.
+Existing real-writer chord/timeline and recording-control regressions passed.
+Production checks against `npm start -- -p 3173` passed in Edge
+154.0.4258.53: MIDI exact bytes/downloads/reload/rename/delete,
+deployment assets/camera recovery/local playing, and audio output,
+suspension recovery/navigation cleanup. Chromium failed to launch locally
+(`spawn UNKNOWN`); `test:keyboard-layout-browser` is absent on this PR branch.
+Browser inputs were synthetic; physical hardware and Actions execution for
+this follow-up remain unverified. No test implementations changed.
+
 Local Windows execution on 2026-10-05, Node 22.20.0 and Vitest 4.1.11,
 branch `fix/88-midi-recording-export`, based on `8c9d33d`:
 

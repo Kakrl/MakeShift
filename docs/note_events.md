@@ -178,7 +178,9 @@ Actual MIDI parsing and browser workflow verification remain pending.
 The recorder consumes accepted shared events through `connectPianoConsumers`,
 using observation timestamps and session/press identities for note matching.
 Controls drain deferred history before changing capture boundaries. The UI reads
-the recorder's state after each transition; its accessible status distinguishes
+the recorder's state into a React snapshot after each transition to trigger a
+render; reading the mutable recorder alone does not notify React. Its accessible
+status distinguishes
 recording, paused, initial count-in, resume count-in and completion.
 The held-key policy is to end recorded notes on Pause and begin new recorded
 notes for keys detected as held when capture resumes after the count-in. This
