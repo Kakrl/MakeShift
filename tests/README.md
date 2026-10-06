@@ -38,7 +38,13 @@ for layout/deployment and `AUDIO_BROWSER_CHANNEL=msedge` for audio.
 Downloaded Chromium 151.0.7922.34 failed to launch locally (`spawn UNKNOWN`),
 so its local checks are unverified; CI uses Chromium. Python 3.12.10 Ruff/mypy
 and all 25 pytest cases passed; generator Ruff and 18 RCA automation cases passed.
-CI execution evidence remains pending until linked to a job log.
+CI at `2d7698a` passed on 2026-10-06: [Frontend job log](https://github.com/Kakrl/MakeShift/actions/runs/37531834854/job/112502867295)
+records all 451 tests, lint/types/contrast/build and all three production browser
+checks in Chromium 151.0.7922.34 on Ubuntu. [Python tests](https://github.com/Kakrl/MakeShift/actions/runs/37531834799/job/112502867677),
+[lint](https://github.com/Kakrl/MakeShift/actions/runs/37531834858/job/112502867866),
+[RCA automation](https://github.com/Kakrl/MakeShift/actions/runs/37531834865/job/112502867581)
+and [RCA requirements](https://github.com/Kakrl/MakeShift/actions/runs/37531868674/job/112502989054)
+also passed. These logs verify software execution, not physical hardware.
 Manual system test 1.2.2 records physical limitations in
 [the configuration workflow report](manual/2026-10-06_1.2.2.md).
 
