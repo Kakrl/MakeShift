@@ -16,7 +16,7 @@ export type Recording = {
   notes: RecordedNote[];
 };
 
-type RecordingState = "stopped" | "recording" | "paused";
+export type RecordingState = "stopped" | "recording" | "paused";
 type ActiveNote = { pitch: string; startMs: number; velocity: number };
 
 export function millisecondsToTicks(milliseconds: number, bpm: number): number {
@@ -120,6 +120,7 @@ export function createRecorder() {
   }
 
   return {
+    getState: (): RecordingState => recordingState,
     startRecording,
     noteOn,
     noteOff,
@@ -141,15 +142,20 @@ export function downloadMidi(recording: Recording): void {
       note.startMs + note.durationMs,
       recording.bpm,
     );
-    track.addEvent(
-      new MidiWriter.NoteEvent({
-        pitch: note.pitch,
-        velocity: note.velocity,
-        tick: startTick,
-        duration: `T${Math.max(0, endTick - startTick)}`,
-      }),
-    );
+    const event = new MidiWriter.NoteEvent({
+      pitch: note.pitch,
+      velocity: note.velocity,
+      tick: startTick,
+      duration: `T${Math.max(0, endTick - startTick)}`,
+    });
+    // midi-writer-js treats constructor tick: 0 as absent. Keep every note
+    // on its absolute timeline, including simultaneous notes at the origin.
+    event.tick = startTick;
+    track.addEvent(event);
   }
+  // Resolve explicit-tick events first. The writer's recursive merge build
+  // appends an extra end marker; its subsequent normal build emits only one.
+  track.buildData();
   const writer = new MidiWriter.Writer(track);
   const link = document.createElement("a");
   link.href = writer.dataUri();

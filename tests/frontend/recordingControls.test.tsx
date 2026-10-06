@@ -248,6 +248,22 @@ async function start() {
   expect(button("Pause recording").disabled).toBe(false);
 }
 
+it("announces capture state through pause, resume count-in and completion", async () => {
+  const status = () => host.querySelector('[aria-live="polite"]')?.textContent;
+  await click(button("Start recording"));
+  expect(status()).toBe("Count-in to start recording");
+  await countIn();
+  expect(status()).toBe("Recording started");
+  await click(button("Pause recording"));
+  expect(status()).toBe("Recording paused");
+  await click(button("Resume recording"));
+  expect(status()).toBe("Count-in to resume recording");
+  await countIn();
+  expect(status()).toBe("Recording started");
+  await click(button("Stop recording"));
+  expect(status()).toBe("Recording complete");
+});
+
 it("uses the real page/coordinator/marker transitions to capture held keys after resume", async () => {
   await start();
   await keys(115); // First key, via real geometry and transitions.

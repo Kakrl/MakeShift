@@ -1,5 +1,41 @@
 # MakeShift Testing
 
+## Recording lifecycle and export verification (issue #88)
+
+Local Windows execution on 2026-10-05, Node 22.20.0 and Vitest 4.1.11,
+branch `fix/88-midi-recording-export`, based on `8c9d33d`:
+
+- Full Vitest suite: 344 passed and 5 expected failures (existing D21),
+  across 20 files. The real-writer regression failed before the fix: the second
+  origin chord note started at tick 128 instead of tick 0.
+- `recordingExport.test.ts` independently reads actual exported MIDI bytes:
+  header/track lengths, resolution, tempo, pitches, velocities, absolute note
+  times, chord alignment, release before rearticulation, split held notes,
+  pause exclusion, stop closure, rejected stopped writes and independent takes.
+  It uses a deterministic fixture and a fake download anchor, not a browser.
+- `recordingControls.test.tsx` covers accessible announcements through initial
+  count-in, capture, pause, resume count-in and completion with mocked hardware.
+- These tests run through Vitest in `frontend-ci.yml`; Actions evidence is
+  pending. Seeded random streams and physical recording remain unverified.
+- Final frontend lint, TypeScript, 18 contrast pairs and production build
+  passed. Playwright Chromium 151.0.7922.34 passed production MIDI downloads
+  with exact bytes and library reload/rename/delete, deployment recovery/assets
+  and audio suspension/navigation checks. Browser camera/audio are synthetic;
+  audible hardware was not measured.
+
+Issue #88's required RCA and fix-PR log entry still need the eventual PR URL.
+The root cause of the newly exposed chord error is midi-writer-js's constructor
+using a truthiness check for tick zero; prior writer mocks and a single-note
+browser fixture could not expose it. Export now explicitly assigns every note's
+absolute tick after construction and resolves the explicit-event merge before
+serialization so the file contains a single end-of-track marker. The strict
+reader rejects trailing events after that marker. Keep real-writer lifecycle
+parsing in CI.
+The original D2 came from UI controls changing React state without recorder or
+download calls; the existing shared-event wiring and library download implement
+that behavior. D11 came from retaining the writable track after Stop; the
+instance recorder's stopped-state guards prevent later input from changing it.
+
 This directory holds MakeShift's verification tests and their documentation:
 the test inventory, manual test reports, known defects, and root cause
 analyses (RCAs).
@@ -423,7 +459,7 @@ defect report is filed.
 | ID | Severity | Area | Defect | Location | Issue | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | D1 | High | CV / UI | (Req 1.1, 3.2) The ArUco marker and virtual keyboard overlay from PR #63 never renders. `MarkerTrackingOverlay` is imported in `page.tsx` but no JSX uses it. The `<MarkerTrackingOverlay videoRef={videoRef} />` element was dropped while resolving conflicts in merge `1669079` ("Merge branch 'main' into feature/visual-keyboard"). ESLint flags it as an unused variable, but warnings don't fail CI | `frontend/src/app/page.tsx:10` | | Open |
-| D2 | High | MIDI / UI | (Req 4.1, 4.2) Original audit found UI-only recording/export. Recording now calls the recorder through shared-event consumers (#139); production download is verified locally by 4.2.3 (#141, D18). Delete clears the completed take but lacks browser verification; Listen has no handler. Complete file-control coverage in 4.2.2 remains pending. | `frontend/src/app/page.tsx`, `frontend/src/events/pianoIntegration.ts` | [#28](https://github.com/Kakrl/MakeShift/issues/28), [#140](https://github.com/Kakrl/MakeShift/issues/140) | Recording/export fixes verified locally in [#139](https://github.com/Kakrl/MakeShift/pull/139) / [#141](https://github.com/Kakrl/MakeShift/pull/141); review/merge pending; Listen and full file-control verification open |
+| D2 | High | MIDI / UI | (Req 4.1, 4.2) Original audit found UI-only recording/export. Recording now calls the recorder through shared-event consumers (#139); production download is verified locally by 4.2.3 (#141, D18). Delete clears the completed take but lacks browser verification; Listen has no handler. Issue #88 adds recorder-owned UI state and accessible pause/count-in announcements. Real-file parsing exposed origin chords shifted by the writer treating tick zero as absent; explicit ticks fix that locally. Complete file-control coverage in 4.2.2 remains pending. | `frontend/src/app/page.tsx`, `frontend/src/events/pianoIntegration.ts` | [#28](https://github.com/Kakrl/MakeShift/issues/28), [#140](https://github.com/Kakrl/MakeShift/issues/140) | Recording/export fixes verified locally in [#139](https://github.com/Kakrl/MakeShift/pull/139) / [#141](https://github.com/Kakrl/MakeShift/pull/141); review/merge pending; Listen and full file-control verification open |
 | D3 | Medium | CI | The Vitest suite (4.1.3-4.1.7, 4.2.3) is not run in CI. `frontend-ci.yml` runs lint, type check, contrast, and build, but not `vitest run`, so MIDI regressions merge undetected | `.github/workflows/frontend-ci.yml` | [#152](https://github.com/Kakrl/MakeShift/issues/152) | Fixed in [#158](https://github.com/Kakrl/MakeShift/pull/158) |
 | D4 | Medium | CI | The C++ test path filter `'CMakeLists.txt'` only matches a root-level file. A PR that only changes `backend/CMakeLists.txt` skips the C++ build and tests. It should be `'**/CMakeLists.txt'` | `.github/workflows/testing.yml:29` | | Open |
 | D5 | Medium | Tests | `AudioEngineTest.StreamStartsAndStops` and `MultipleStartStopCycles` `return` early when there is no audio device, so on CI they report PASS without testing anything. Use `GTEST_SKIP()` so the skip shows in results | `tests/audio/test_audio.cpp:24-27`, `:35-38` | | Open |
@@ -432,7 +468,7 @@ defect report is filed.
 | D8 | Medium | Audio | Calling `AudioEngine::startStream()` twice overwrites `stream` without closing it, which leaks the first PortAudio stream. `Pa_GetDeviceInfo` is dereferenced without a null check | `backend/src/audio/AudioEngine.cpp:89-119` | | Open |
 | D9 | Medium | Audio / Python | Importing `backend.src.audio` builds an `AudioEngine` and calls `Pa_Initialize()` as a side effect. Any import (including from pytest) touches audio hardware and fails if the extension is not built. The example in `docs/audio_events.md` creates a second engine | `backend/src/audio/__init__.py:3-5` | | Open |
 | D10 | Low | CV | `HandTrackingOverlay` loads MediaPipe WASM from `@latest`, the version mismatch that #12 fixed in `useHandLandmarker`. The component isn't used right now | `frontend/src/app/cv/HandTrackingOverlay.tsx:7-8` | | Fixed on `feature/116-89-supabase-vercel` (#89): WASM path reuses the pinned version |
-| D11 | Low | MIDI | `stopRecording` leaves `track` set, so `noteOn` and `noteOff` calls after stopping are still recorded | `frontend/src/app/midi/midiUtils.ts:66-82` | | Open |
+| D11 | Low | MIDI | Original recorder kept a writable track after Stop. The instance-owned recorder now rejects paused/stopped input; real-writer lifecycle regression also verifies stopped input cannot leak into export or the next take. | `frontend/src/app/midi/midiUtils.ts` | [#88](https://github.com/Kakrl/MakeShift/issues/88) | Fixed locally; regression passed 2026-10-05; PR and review pending |
 | D12 | Low | Backend | `backend/src/MIDI/noteMap.ts` is a TypeScript file inside the Python backend package and nothing imports it | `backend/src/MIDI/noteMap.ts` | | Open |
 | D13 | Low | Tests | The contrast audit only checks `--color-*` token pairs. Hardcoded canvas colors drawn over live video (`#00ff88`, `#ffd60a`, `#ff3b30`) aren't checked | `frontend/src/app/MarkerTrackingOverlay.tsx:136-192`, `frontend/src/app/cv/handLandmarkDrawing.ts:33-34` | | Open |
 | D14 | Low | Tests | The only Python test is `test_dummy.py`, so the pytest coverage report in CI measures nothing | `tests/python/test_dummy.py` | | Open |

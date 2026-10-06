@@ -175,8 +175,11 @@ snapshot isolation and mocked export calls. See the
 [local verification record](../tests/README.md#note-list-recorder-verification-issues-108-and-115).
 Actual MIDI parsing and browser workflow verification remain pending.
 
-This recorder still uses local `performance.now()` timestamps and pitch-based
-note matching; it does not yet consume the shared event history described above.
+The recorder consumes accepted shared events through `connectPianoConsumers`,
+using observation timestamps and session/press identities for note matching.
+Controls drain deferred history before changing capture boundaries. The UI reads
+the recorder's state after each transition; its accessible status distinguishes
+recording, paused, initial count-in, resume count-in and completion.
 The held-key policy is to end recorded notes on Pause and begin new recorded
 notes for keys detected as held when capture resumes after the count-in. This
 includes keys first pressed during the pause. Keys released before capture
@@ -184,11 +187,9 @@ resumes contribute no resumed note. A key held through the entire pause creates
 two note events, not one sustained event; paused/count-in time is excluded.
 Capture is based on detector observations, not a claim of exact physical timing.
 
-Pausing disables key-transition output, releases audio notes, and resets tracked
-keys. The reset was restored when integrating current upstream for this PR;
-without it, keys held before Pause were not recorded again on Resume.
-On resume the next collision
-evaluation reports currently held keys as new presses, implementing that policy.
+Pausing affects MIDI capture while live audio and accepted key transitions
+continue. After starting/resuming capture, `captureHeld()` opens recorded notes
+for the consumer's current accepted presses without retriggering audio.
 Five integration tests mount the real page, coordinator, marker overlay and
 recorder with simulated marker/hand input and mocked audio/canvas. They verify
 held keys, paused releases, repeated resumes, UI labels and count-in cancellation.
