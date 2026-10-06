@@ -1130,3 +1130,37 @@ browser-only panel initializes its controller and list directly. Updated
 build, Chromium 151 library/download checks, and audio smoke passed. The wider
 deployment camera smoke remains incomplete as recorded in the extraction
 verification above. Physical camera/audio measurements remain unverified.
+## Tempo and metronome verification (issue #123)
+
+Local execution on Windows, 2026-10-02, Node 22.17.0, Vitest 4.1.11,
+branch `feature/123-persist-tempo-metronome`:
+
+- Frontend lint and TypeScript passed.
+- Full Vitest suite: 280 passed and five existing expected failures across
+  15 files. Fourteen new cases in `frontend/homePage.test.ts` cover defaults,
+  restore-before-save, changes retained across remounts, invalid saved values,
+  valid range boundaries and usable controls with blocked reads/quota errors.
+- All 18 contrast pairs passed. Production build passed with network access
+  for existing Google Fonts.
+- Production Chromium 151.0.7922.34 check: changed to 175 BPM/metronome off,
+  reloaded and observed both retained; seeded invalid 999 BPM, reloaded and
+  observed 120 BPM/metronome on. This was a one-off scripted browser check,
+  not a committed browser regression or full browser restart test.
+- Production Chromium audio smoke passed (worklet load, rendered amplitude,
+  suspension recovery and navigation cleanup). Audible hardware not measured.
+- Deployment smoke did not complete: two runs stalled waiting for fresh fake-
+  camera frames in `expectLivePreview` on `/calibration` and were stopped.
+  The diagnostic run reached that wait after asset/page/offline audio/health
+  checks. No deployment smoke pass is claimed; camera recovery remains unverified
+  in this environment.
+- Actions execution evidence for these changes is pending; existing frontend
+  CI invokes the Vitest tests.
+
+### PR #166 review follow-up
+
+2026-10-03, Windows: settings restoration now shares the existing calibration/
+welcome mount timeout, retaining the restore-before-save guard. Final newlines
+added to this guide and the inventory. Lint, TypeScript, all 18 contrast pairs
+and production build passed. Vitest: 280 passed and five existing expected
+failures across 15 files. No new test cases; browser checks were not repeated
+for this consolidation.
