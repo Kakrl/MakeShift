@@ -4,10 +4,10 @@ import {
   type HandObservation,
 } from "./collision";
 import {
-  evaluateFingerContact,
   type FingerContactEvaluation,
   type FingerContactGate,
 } from "./combinedContact";
+import { Finger } from "./finger";
 import {
   checkKeyOverlap,
   checkKnuckleEligibility,
@@ -37,8 +37,8 @@ export interface ContactTechniques {
 // Change these independently to debug either technique. Key overlap is required.
 // Both false isolates key overlap for debugging, without knuckles or shadows.
 export const CONTACT_TECHNIQUES: Readonly<ContactTechniques> = {
-  knuckles: true,
-  shadows: true,
+  knuckles: false,
+  shadows: false,
 };
 
 export interface ContactPipelineFrame {
@@ -62,6 +62,7 @@ interface PipelineCallbacks {
 
 /** Owns live eligibility, shadow work/history, and press/release timing. */
 export class LiveContactPipeline {
+  readonly fingers = new Map<string, Finger>();
   readonly gates = new Map<string, FingerContactGate>();
   readonly contacts = new Map<string, FingerContactEvaluation>();
   readonly observations = new Map<string, ShadowObservation>();
@@ -124,7 +125,10 @@ export class LiveContactPipeline {
       for (const [id, previous] of this.contacts) {
         const gate = this.gates.get(id);
         if (!gate) continue;
-        const next = evaluateFingerContact(previous, gate, now, undefined, {
+        const finger = this.fingers.get(id);
+        if (!finger) continue;
+        finger.contact = previous;
+        const next = finger.checkState(gate, now, undefined, {
           shadowsEnabled: this.techniques.shadows,
         });
         this.contacts.set(id, next);
@@ -135,6 +139,8 @@ export class LiveContactPipeline {
   }
 
   reset() {
+    for (const finger of this.fingers.values()) finger.reset();
+    this.fingers.clear();
     this.contacts.clear();
     this.gates.clear();
     this.measurements.clear();
@@ -243,16 +249,16 @@ export class LiveContactPipeline {
       }
 
       this.gates.set(fingertip.id, gate);
-      this.contacts.set(
-        fingertip.id,
-        evaluateFingerContact(
-          gateChanged ? null : (this.contacts.get(fingertip.id) ?? null),
-          gate,
-          now,
-          undefined,
-          { shadowsEnabled: this.techniques.shadows },
-        ),
+      const finger = this.fingers.get(fingertip.id) ?? new Finger(fingertip.id);
+      this.fingers.set(fingertip.id, finger);
+      if (gateChanged) finger.reset();
+      const contact = finger.checkState(
+        gate,
+        now,
+        undefined,
+        { shadowsEnabled: this.techniques.shadows },
       );
+      this.contacts.set(fingertip.id, contact);
 
     }
 
@@ -262,6 +268,7 @@ export class LiveContactPipeline {
       this.measurements,
       this.observations,
       this.shadowContacts,
+      this.fingers,
     ]) {
       for (const id of map.keys()) if (!activeIds.has(id)) map.delete(id);
     }
@@ -386,9 +393,12 @@ export class LiveContactPipeline {
       this.shadowContacts.set(id, contact);
       this.measurements.set(id, observation.measurement);
       this.observations.set(id, observation);
+      const finger = this.fingers.get(id);
+      if (!finger) continue;
+      finger.contact = this.contacts.get(id) ?? null;
       this.contacts.set(
         id,
-        evaluateFingerContact(this.contacts.get(id) ?? null, gate, now, {
+        finger.checkState(gate, now, {
           state: contact.state,
           frameAtMs: data.frameAtMs,
         }),
