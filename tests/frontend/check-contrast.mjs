@@ -35,6 +35,18 @@ const checks = [
   { name: "Selected key text on pressed well", foreground: "accent-strong", background: "well", minimum: 4.5 },
   { name: "Muted text in pressed well", foreground: "ink-muted", background: "well", minimum: 4.5 },
   { name: "Step badge text on soft accent", foreground: "accent-strong", background: "accent-soft", minimum: 4.5 },
+  { name: "White step number on red", foreground: "white", background: "red", minimum: 4.5 },
+  { name: "White step number on yellow", foreground: "white", background: "yellow-strong", minimum: 4.5 },
+  { name: "White step number on green", foreground: "white", background: "green", minimum: 4.5 },
+  { name: "White step number on blue", foreground: "white", background: "blue", minimum: 4.5 },
+  { name: "White step number on purple", foreground: "white", background: "purple", minimum: 4.5 },
+  { name: "Ink text on green page tab", foreground: "ink", background: "green-soft", minimum: 4.5 },
+  { name: "Ink text on yellow page tab", foreground: "ink", background: "yellow-soft", minimum: 4.5 },
+  { name: "Ink text on blue page tab", foreground: "ink", background: "blue-soft", minimum: 4.5 },
+  { name: "Yellow label on dark surface", foreground: "yellow-light", background: "surface-dark", minimum: 4.5 },
+  { name: "Green label on dark surface", foreground: "green-light", background: "surface-dark", minimum: 4.5 },
+  { name: "Red label on dark surface", foreground: "red-light", background: "surface-dark", minimum: 4.5 },
+  { name: "Metronome switch on white", foreground: "green", background: "white", minimum: 3 },
 ];
 
 for (const token of checks.flatMap(({ foreground, background }) => [foreground, background])) {

@@ -10,9 +10,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-fredoka);
   --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-geist-sans);
+  --font-display: var(--font-fredoka);
 }
 
 /*
@@ -37,10 +37,30 @@
   --color-divider-subtle: #e5e5e5;
   --color-control-border: #767676;
   --color-control-inactive: #8a8882;
-  --color-accent: #7440a8;
-  --color-accent-strong: #5f3490;
-  --color-accent-light: #c78cff;
-  --color-accent-soft: #e7d0ff;
+  --color-accent: #2f55d4;
+  --color-accent-strong: #2445b8;
+  --color-accent-light: #9db4ff;
+  --color-accent-soft: #dde5fb;
+
+  /* Rainbow, warm and a little muted (toy-box primaries). Every color is
+     deep enough to carry white text, except bright yellow, which is only for
+     decoration with no text on it (stripe, illustration, stepper line);
+     yellow-strong is the yellow that carries white text. Soft tints sit
+     behind ink text; light tints are for text on the dark camera. */
+  --color-red: #cf3a22;
+  --color-yellow: #ffd60a;
+  --color-yellow-strong: #9e6a00;
+  --color-green: #178056;
+  --color-blue: #2f55d4;
+  --color-purple: #7440a8;
+  --color-red-soft: #fde3de;
+  --color-yellow-soft: #fff1c2;
+  --color-green-soft: #d6f3e5;
+  --color-blue-soft: #dde5fb;
+  --color-purple-soft: #ead9fb;
+  --color-yellow-light: #ffd25e;
+  --color-green-light: #6fdcae;
+  --color-red-light: #ff9a85;
   --color-danger: #b42318;
   --color-danger-hover: #8f1c13;
   --color-success: #237a45;
@@ -57,8 +77,9 @@
 :root {
   --key-shade: inset 0 -14px 16px -6px color-mix(in srgb, var(--color-ink) 9%, transparent);
   --key-lit: inset 0 3px 0 color-mix(in srgb, var(--color-white) 30%, transparent);
-  --key-ledge: 0 3px 0 0 var(--color-ink);
-  --key-ledge-pressed: 0 1px 0 0 var(--color-ink);
+  /* Soft lift instead of a solid ledge; pressing sinks the key into its shade. */
+  --key-ledge: var(--shadow-1);
+  --key-pressed: inset 0 1px 3px color-mix(in srgb, var(--color-ink) 16%, transparent);
   --halo: 0 0 0 3px color-mix(in srgb, var(--color-accent) 24%, transparent);
 
   /* Quiet-depth stack for everything that is not a key: hairline rings and
@@ -130,7 +151,7 @@ body {
     justify-content: center;
     gap: 8px;
     border: 1px solid var(--color-ink);
-    border-radius: 3px 3px 9px 9px;
+    border-radius: 8px;
     padding: 9px 18px;
     font-size: 16px;
     line-height: 1.2;
@@ -152,16 +173,13 @@ body {
     }
   }
   .ms-key:active:not(:disabled) {
-    transform: translateY(2px);
-    box-shadow:
-      inset 0 -8px 12px -6px color-mix(in srgb, var(--color-ink) 14%, transparent),
-      var(--key-ledge-pressed);
+    transform: translateY(1px);
+    box-shadow: var(--key-shade), var(--key-pressed);
   }
   /* The current page is a key held down. */
   .ms-key[aria-current="page"] {
-    transform: translateY(2px);
     background: var(--color-accent-soft);
-    box-shadow: var(--key-shade), var(--key-ledge-pressed);
+    box-shadow: var(--key-shade), var(--key-pressed);
     cursor: default;
   }
   .ms-key:focus-visible {
@@ -179,7 +197,7 @@ body {
     background: var(--color-ink);
     box-shadow:
       var(--key-lit),
-      0 3px 0 0 color-mix(in srgb, var(--color-ink) 70%, var(--color-surface-dark));
+      var(--shadow-2);
   }
   @media (hover: hover) and (pointer: fine) {
     .ms-key-primary:hover:not(:disabled) {
@@ -187,10 +205,10 @@ body {
     }
   }
   .ms-key-primary:active:not(:disabled) {
-    box-shadow: 0 1px 0 0 var(--color-surface-dark);
+    box-shadow: inset 0 1px 3px color-mix(in srgb, var(--color-surface-dark) 60%, transparent);
   }
   .ms-key-primary:focus-visible {
-    box-shadow: var(--key-lit), 0 3px 0 0 var(--color-surface-dark), var(--halo);
+    box-shadow: var(--key-lit), var(--shadow-2), var(--halo);
   }
 
   /* Text-only control; no key body. */
@@ -271,6 +289,7 @@ body {
   }
   .ms-input:disabled {
     opacity: 0.55;
+    cursor: not-allowed;
   }
   select.ms-input {
     appearance: none;
@@ -295,7 +314,7 @@ body {
       box-shadow 150ms var(--ease-out);
   }
   .ms-switch[aria-pressed="true"] {
-    background: var(--color-ink);
+    background: var(--color-green);
     box-shadow: inset 0 1px 2px color-mix(in srgb, var(--color-surface-dark) 40%, transparent);
   }
   .ms-switch > span {
@@ -392,73 +411,53 @@ body {
     box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--color-danger) 30%, transparent);
   }
 
-  /* ── Transport: record / stop are keys too ──────────────────────────── */
-
-  .ms-transport {
-    display: flex;
-    flex-direction: column;
+  /* "Calibrate first!" pill laid over locked controls. Red reads as a
+     requirement; it shakes on hover and press (see CalibrateFirstLock). */
+  .ms-lock-pill {
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-    -webkit-tap-highlight-color: transparent;
-    cursor: pointer;
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--color-white);
+    background: var(--color-red);
+    box-shadow: var(--key-lit), var(--shadow-2);
+    transition: box-shadow 160ms var(--ease-out);
   }
-  .ms-transport:focus-visible {
-    outline: none;
+  .group:focus-visible > .ms-lock-pill {
+    box-shadow: var(--key-lit), var(--shadow-2), var(--halo);
   }
-  .ms-transport-face {
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    padding-bottom: 10px;
-    width: 52px;
-    height: 64px;
-    border: 1px solid var(--color-ink);
-    border-radius: 3px 3px 10px 10px;
-    color: var(--color-ink);
-    background: var(--color-white);
-    box-shadow: var(--key-shade), var(--key-ledge);
-    transition:
-      transform 120ms var(--ease-out),
-      box-shadow 120ms var(--ease-out),
-      background-color 120ms var(--ease-out),
-      opacity 120ms var(--ease-out);
+
+  /* ── Transport: Enable audio / Record / Stop ────────────────────────── */
+
+  /* Same white key as everywhere else; equal widths so the row never jumps
+     when Record changes to Pause or Resume. */
+  .ms-transport-key {
+    min-width: 148px;
+    padding-top: 11px;
+    padding-bottom: 11px;
   }
-  .ms-transport-main .ms-transport-face {
-    width: 60px;
-    height: 76px;
+  .ms-transport-key > svg {
+    width: 18px;
+    height: 18px;
   }
-  @media (hover: hover) and (pointer: fine) {
-    .ms-transport:hover:not(:disabled) .ms-transport-face {
-      background-color: var(--color-well);
-    }
-  }
-  .ms-transport:active:not(:disabled) .ms-transport-face {
-    transform: translateY(2px);
-    box-shadow:
-      inset 0 -8px 12px -6px color-mix(in srgb, var(--color-ink) 14%, transparent),
-      var(--key-ledge-pressed);
-  }
-  .ms-transport:focus-visible .ms-transport-face {
-    box-shadow: var(--key-shade), var(--key-ledge), var(--halo);
-  }
-  /* While recording, the main key is lit red. */
-  .ms-transport-main[data-live] .ms-transport-face {
+  /* While recording, the record key is lit red. */
+  .ms-key-live {
     color: var(--color-white);
     background: var(--color-danger);
     border-color: var(--color-danger-hover);
-    box-shadow: var(--key-lit), 0 3px 0 0 var(--color-danger-hover);
+    box-shadow: var(--key-lit), var(--shadow-2);
   }
-  .ms-transport-label {
-    font-size: 13px;
-    color: var(--color-ink);
-    user-select: none;
+  @media (hover: hover) and (pointer: fine) {
+    .ms-key-live:hover:not(:disabled) {
+      background-color: var(--color-danger-hover);
+    }
   }
-  .ms-transport:disabled {
-    cursor: not-allowed;
-  }
-  .ms-transport:disabled .ms-transport-face,
-  .ms-transport:disabled .ms-transport-label {
-    opacity: 0.35;
+  .ms-key-live:active:not(:disabled) {
+    box-shadow: inset 0 1px 3px color-mix(in srgb, var(--color-danger-hover) 70%, transparent);
   }
 
   .ms-beat {

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fredoka, Geist_Mono } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import "./globals.css";
@@ -7,8 +7,9 @@ import { DEBUG_FLAGS } from "../debugFlags";
 import PipelineDiagnostics from "./PipelineDiagnostics";
 import { CameraProvider } from "./CameraContext";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Rounded UI face; friendly for kids and close to the hand-drawn logo.
+const fredoka = Fredoka({
+  variable: "--font-fredoka",
   subsets: ["latin"],
 });
 
@@ -39,10 +40,18 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased bg-surface`}
+      className={`${fredoka.variable} ${geistMono.variable} h-full antialiased bg-surface`}
     >
       <body className="min-h-dvh flex flex-col bg-surface">
-        {/* Shared header — same height on every page, so camera position never shifts */}
+        {/* Rainbow stripe across the top, one band per brand color */}
+        <div aria-hidden="true" className="flex h-1.5 shrink-0">
+          <span className="flex-1 bg-red" />
+          <span className="flex-1 bg-yellow" />
+          <span className="flex-1 bg-green" />
+          <span className="flex-1 bg-blue" />
+          <span className="flex-1 bg-purple" />
+        </div>
+        {/* Shared header, same height on every page, so camera position never shifts */}
         <header className="h-16 shrink-0 flex items-center pl-(--gutter-l) pr-(--gutter-r) bg-surface">
           <Link
             href="/"

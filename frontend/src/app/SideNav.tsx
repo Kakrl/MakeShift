@@ -2,10 +2,11 @@ import Link from "next/link";
 
 type NavPage = "calibration" | "tutorial" | "about";
 
-const TABS: { page: NavPage; href: string; label: string }[] = [
-  { page: "calibration", href: "/calibration", label: "Calibration" },
-  { page: "tutorial", href: "/tutorial", label: "Tutorial" },
-  { page: "about", href: "/about", label: "About" },
+// Each page has its own color; the held-down tab shows it.
+const TABS: { page: NavPage; href: string; label: string; active: string }[] = [
+  { page: "calibration", href: "/calibration", label: "Calibration", active: "bg-green-soft" },
+  { page: "tutorial", href: "/tutorial", label: "Tutorial", active: "bg-yellow-soft" },
+  { page: "about", href: "/about", label: "About", active: "bg-blue-soft" },
 ];
 
 // Below lg the tabs sit in a row under the camera; from lg up they stack in
@@ -34,13 +35,13 @@ export default function SideNav({
 
       {/* Nav tabs */}
       <nav aria-label="Main" className="flex flex-row lg:flex-col">
-        {TABS.map(({ page, href, label }) => {
+        {TABS.map(({ page, href, label, active: activeColor }) => {
           const text = (
             <span className="text-[17px] lg:text-[20px] text-black font-sans whitespace-nowrap">{label}</span>
           );
           if (page === active) {
             return (
-              <div key={page} aria-current="page" className={`${TAB_CLASS} bg-accent-soft`}>
+              <div key={page} aria-current="page" className={`${TAB_CLASS} ${activeColor}`}>
                 {text}
               </div>
             );

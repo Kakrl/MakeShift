@@ -65,8 +65,7 @@ export default function AudioCheck() {
       <div className="ms-panel max-w-[640px] p-6 sm:p-8">
         <h1 className="font-display text-[28px] sm:text-[32px] font-bold leading-tight tracking-tight text-ink">Audio check</h1>
         <p className="mt-2 mb-6 text-[15px] leading-relaxed text-ink-muted">
-          Check sound before using the printed keyboard. Start with a comfortable
-          device volume.
+          Test your sound first. Start with the volume low.
         </p>
         <div className="flex flex-wrap gap-2.5">
           <button className="ms-key ms-key-primary" onClick={enable}>

@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useCamera } from "./CameraContext";
 import CameraStatusOverlay from "./CameraStatusOverlay";
 import SideNav from "./SideNav";
+import PageTopBar from "./PageTopBar";
 import {
   createRecorder,
   type Recorder,
@@ -20,6 +21,7 @@ import { loadCalibration } from "../cv/calibration";
 import { connectPianoConsumers } from "../events/pianoConsumers";
 import type { RecordingsLibraryHandle } from "./midi/RecordingsLibraryPanel";
 import { readStored, writeStored } from "../lib/storage";
+import { rainbow } from "./rainbow";
 
 const RecordingsLibrary = dynamic(
   () => import("./midi/RecordingsLibraryPanel"),
@@ -109,10 +111,65 @@ function CheckBadge({ size = 28 }: { size?: number }) {
   );
 }
 
+function LockIcon() {
+  return (
+    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <rect x="2.5" y="6" width="9" height="6.5" rx="1.75" fill="currentColor" />
+      <path d="M4.5 6V4.5a2.5 2.5 0 0 1 5 0V6" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+// A quick "nope" shake: big at first, settling fast.
+const SHAKE: Keyframe[] = [
+  { transform: "translateX(0)" },
+  { transform: "translateX(-7px)" },
+  { transform: "translateX(6px)" },
+  { transform: "translateX(-4px)" },
+  { transform: "translateX(3px)" },
+  { transform: "translateX(-1px)" },
+  { transform: "translateX(0)" },
+];
+// Reduced motion: a soft pulse instead of side-to-side movement.
+const PULSE: Keyframe[] = [{ opacity: 1 }, { opacity: 0.5 }, { opacity: 1 }];
+
+/**
+ * Sits on top of a locked group of controls. It adds no layout, so nothing
+ * moves when calibration unlocks the group. Hovering or pressing it shakes
+ * the pill to say "not yet"; the camera card is where calibration starts.
+ */
+function CalibrateFirstLock({ label, className = "" }: { label: string; className?: string }) {
+  const pill = useRef<HTMLSpanElement>(null);
+  const shake = () => {
+    const el = pill.current;
+    if (!el?.animate) return;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    // Restart from rest so repeated hovers and clicks always read clearly.
+    el.getAnimations().forEach((animation) => animation.cancel());
+    el.animate(reduce ? PULSE : SHAKE, { duration: reduce ? 320 : 420, easing: "ease-out" });
+  };
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onPointerEnter={(event) => { if (event.pointerType === "mouse") shake(); }}
+      onClick={shake}
+      className={`group absolute -inset-2 z-10 flex cursor-pointer items-center justify-center rounded-[14px] bg-white/60 focus-visible:outline-none ${className}`}
+    >
+      <span ref={pill} className="ms-lock-pill">
+        <LockIcon />
+        Calibrate first!
+      </span>
+    </button>
+  );
+}
+
 /** A small keyboard with one key held down, used in the onboarding dialogs. */
 function KeysIllustration() {
   const whites = [0, 1, 2, 3, 4, 5, 6];
   const blacks = [0, 1, 3, 4, 5];
+  // A chord held down: three keys lit in the rainbow colors.
+  const HELD: Record<number, string> = { 0: "var(--color-red)", 2: "var(--color-yellow)", 4: "var(--color-blue)" };
   return (
     <svg aria-hidden="true" width="112" height="56" viewBox="0 0 112 56" fill="none">
       <rect x="0.5" y="0.5" width="111" height="55" rx="9.5" fill="var(--color-well)" stroke="var(--color-divider)" />
@@ -120,12 +177,13 @@ function KeysIllustration() {
         <rect
           key={i}
           x={5 + i * 14.6}
-          y={i === 2 ? 6 : 5}
+          y={HELD[i] ? 6 : 5}
           width="13.2"
-          height={i === 2 ? 45 : 46}
+          height={HELD[i] ? 45 : 46}
           rx="3"
-          fill={i === 2 ? "var(--color-accent-soft)" : "var(--color-white)"}
-          stroke={i === 2 ? "var(--color-accent)" : "var(--color-divider)"}
+          fill={HELD[i] ?? "var(--color-white)"}
+          stroke={HELD[i] ? "var(--color-ink)" : "var(--color-divider)"}
+          strokeOpacity={HELD[i] ? 0.25 : 1}
         />
       ))}
       {blacks.map((i) => (
@@ -202,7 +260,8 @@ export default function Home() {
   useEffect(() => registerCameraVideo(videoRef.current), []);
   const { stream, cameraReady } = useCamera();
   // Drives the calibration prompt; live readiness stays with the session.
-  const [isCalibrated, setIsCalibrated] = useState(false);
+  // null until storage is read, so calibrated users never see the prompt flash.
+  const [isCalibrated, setIsCalibrated] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (stream && videoRef.current) videoRef.current.srcObject = stream;
@@ -254,7 +313,7 @@ export default function Home() {
     const timer = setTimeout(() => {
       if (countInActionRef.current === null) return;
       if (countInBeat >= beatsPerMeasure) {
-        // Measure complete — start recording
+        // Measure complete, start recording
         if (session.status.state !== "playing") {
           session.interrupt("Readiness changed during count-in. Wait for tracking, then select Enable audio.");
           return;
@@ -346,7 +405,7 @@ export default function Home() {
       setCountInBeat(1);
       return;
     }
-    // Start fresh — clear previous session and begin count-in
+    // Start fresh, clear previous session and begin count-in
     setIsRecording(false);
     setIsPaused(false);
     setShowRecordingComplete(false);
@@ -379,19 +438,26 @@ export default function Home() {
   const recordLabel = isRecording && !isPaused ? "Pause" : isPaused ? "Resume" : "Record";
   const recordDisabled = !libraryLoaded || !canPlay || countInBeat !== null || liveStatus.state === "starting";
   const stopDisabled = !isRecording && countInBeat === null && liveStatus.state !== "starting";
+  // Playback settings only matter once a calibration exists.
+  const settingsLocked = !settingsLoaded || isCalibrated !== true;
+  const needsCalibration = isCalibrated === false;
+  const openCalibration = () => setShowCalibrationIntro(true);
+  const settingLabel = settingsLocked ? "text-ink-muted" : "text-ink";
   const statusTone =
     liveStatus.state === "error" ? "bg-danger" :
     liveStatus.state === "playing" ? "bg-success" : "bg-control-inactive";
 
   return (
     <div className="flex-1 bg-surface flex flex-col">
-      <p
-        role={liveStatus.state === "error" ? "alert" : "status"}
-        className={`flex items-start gap-2 pl-(--gutter-l) pr-(--gutter-r) pb-3 text-[13px] ${liveStatus.state === "error" ? "text-danger" : "text-ink-muted"}`}
-      >
-        <span aria-hidden="true" className={`mt-[7px] size-1.5 shrink-0 rounded-full transition-colors duration-200 ${statusTone}`} />
-        {liveStatus.message}
-      </p>
+      <PageTopBar>
+        <p
+          role={liveStatus.state === "error" ? "alert" : "status"}
+          className={`flex items-start gap-2 pb-1 text-[13px] leading-5 ${liveStatus.state === "error" ? "text-danger" : "text-ink-muted"}`}
+        >
+          <span aria-hidden="true" className={`mt-[7px] size-1.5 shrink-0 rounded-full transition-colors duration-200 ${statusTone}`} />
+          {liveStatus.message}
+        </p>
+      </PageTopBar>
       <div aria-live="polite" className="sr-only">
         {isRecording ? "Recording started" : showRecordingComplete ? "Recording complete" : ""}
       </div>
@@ -406,17 +472,17 @@ export default function Home() {
                 Welcome to MakeShift
               </h2>
               <p className="text-[15px] text-ink-muted leading-relaxed mb-7">
-                MakeShift turns a sheet of paper and your webcam into a playable piano, no hardware needed. Before you start, here&apos;s how to get going:
+                Turn paper and your webcam into a piano! Here&apos;s how:
               </p>
 
               <ol className="flex flex-col gap-4 mb-8">
                 {[
-                  { title: "Read the Tutorial", body: "Get familiar with the setup steps and how finger tracking works." },
-                  { title: "Run Calibration", body: "Place a sheet of paper in view of your camera and walk through the 5-step calibration so MakeShift can map your keys." },
-                  { title: "Press Play and perform", body: "Set your tempo, toggle the metronome, hit Play, and start tapping the paper to make music." },
+                  { title: "Watch the tutorial", body: "See how it works." },
+                  { title: "Calibrate", body: "Show MakeShift your paper piano." },
+                  { title: "Play!", body: "Tap the paper keys to make music." },
                 ].map(({ title, body }, i) => (
                   <li key={title} className="flex gap-3.5 items-start">
-                    <span className="ms-step">{i + 1}</span>
+                    <span className={`ms-step ${rainbow(i * 2).fill}`}>{i + 1}</span>
                     <div>
                       <p className="text-[15px] font-semibold text-ink">{title}</p>
                       <p className="text-[14px] text-ink-muted leading-relaxed">{body}</p>
@@ -467,19 +533,19 @@ export default function Home() {
             <div className="px-6 sm:px-8 pt-8 pb-6">
               <h2 id="calibration-intro-title" className="font-display text-[24px] sm:text-[28px] font-bold leading-tight tracking-tight text-ink">Before You Begin: Calibration</h2>
               <p className="mt-3 text-[15px] text-ink-muted leading-relaxed">
-                Calibration maps your paper keyboard to the screen. Make sure you have a sheet of paper, good lighting, and your webcam is unobstructed before starting.
+                Grab your paper piano and find a bright spot.
               </p>
             </div>
             <ol className="ms-well mx-4 sm:mx-6 p-4 flex flex-col gap-3">
               {[
-                "Select the number of octaves and your starting note",
-                "Check your environment's lighting",
-                "Align the paper outline with your physical sheet",
-                "Hover both hands above the paper to detect fingertips",
-                "Place hands flat on the paper to set note boundaries",
+                "Pick your keyboard",
+                "Check the lighting",
+                "Show the whole paper",
+                "Hover your hands",
+                "Touch the corners and middle",
               ].map((text, i) => (
                 <li key={i} className="flex items-start gap-3">
-                  <span className="ms-step size-6 rounded-[7px] text-[12px]">{i + 1}</span>
+                  <span className={`ms-step size-6 text-[12px] ${rainbow(i).fill}`}>{i + 1}</span>
                   <span className="text-[15px] text-ink leading-relaxed">{text}</span>
                 </li>
               ))}
@@ -520,10 +586,24 @@ export default function Home() {
           />
           <CameraStatusOverlay />
 
-          {/* "Click Calibration to Begin" overlay */}
-          {!isCalibrated && cameraReady && (
-            <div className="absolute inset-0 flex items-start justify-center pt-6 sm:pt-[56px] pointer-events-none">
-              <p className="ms-pill font-display text-[18px] sm:text-[24px] font-semibold px-5 sm:px-7 py-2.5 sm:py-3 text-center">Click &lsquo;Calibration&rsquo; to Begin</p>
+          {/* Calibrate-first call to action: the first thing to do on this page */}
+          {needsCalibration && cameraReady && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center p-3 pointer-events-none">
+              <section
+                aria-labelledby="calibrate-first-title"
+                className="ms-dialog pointer-events-auto flex max-w-[440px] flex-col items-center gap-2 px-6 py-4 sm:px-9 sm:py-7 text-center"
+              >
+                <div className="hidden sm:block mb-1"><KeysIllustration /></div>
+                <h2 id="calibrate-first-title" className="text-[24px] sm:text-[34px] font-bold leading-tight tracking-[-0.01em] text-ink">
+                  Calibrate first!
+                </h2>
+                <p className="hidden sm:block text-[15px] leading-relaxed text-ink-muted">
+                  Show MakeShift your paper piano. Then you can play!
+                </p>
+                <button onClick={openCalibration} className="ms-key ms-key-primary mt-2 px-7">
+                  Start calibration
+                </button>
+              </section>
             </div>
           )}
 
@@ -535,7 +615,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* Count-in overlay — one measure of beats before recording */}
+          {/* Count-in overlay, one measure of beats before recording */}
           {countInBeat !== null && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-dark/60 z-40 pointer-events-none">
               <span
@@ -549,7 +629,7 @@ export default function Home() {
                 {Array.from({ length: beatsPerMeasure }, (_, i) => (
                   <div
                     key={i}
-                    className={`size-2.5 rounded-full transition-[transform,background-color] duration-150 ease-out ${i + 1 <= countInBeat ? "bg-white" : "bg-white/30"} ${i + 1 === countInBeat ? "scale-[1.4]" : ""}`}
+                    className={`size-2.5 rounded-full transition-[transform,background-color] duration-150 ease-out ${i + 1 <= countInBeat ? rainbow(i).fill : "bg-white/30"} ${i + 1 === countInBeat ? "scale-[1.4]" : ""}`}
                   />
                 ))}
               </div>
@@ -562,7 +642,7 @@ export default function Home() {
               <div className="ms-dialog px-6 sm:px-10 py-6 sm:py-7 max-w-[90%] flex flex-col items-center gap-2 text-center">
                 <CheckBadge size={36} />
                 <p className="mt-1 font-display text-[22px] sm:text-[26px] font-bold tracking-tight text-ink">Recording Complete!</p>
-                <p className="text-[14px] text-ink-muted">Manage takes in the recordings list</p>
+                <p className="text-[14px] text-ink-muted">Find it in Recordings.</p>
                 <button
                   onClick={() => setShowRecordingComplete(false)}
                   className="ms-key mt-3 px-6"
@@ -573,22 +653,22 @@ export default function Home() {
             </div>
           )}
 
-          {!canPlay && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Show the calibrated sheet and camera, or <a href="/calibration" className="underline underline-offset-2 font-medium">calibrate again</a>. Saved data is checked before playing.</span></p>}
+          {!canPlay && isCalibrated === true && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Show the calibrated sheet and camera, or <a href="/calibration" className="underline underline-offset-2 font-medium">calibrate again</a>. Saved data is checked before playing.</span></p>}
         </div>
 
         {/* Right sidebar (below the camera under lg) */}
         <SideNav onCalibrationClick={() => setShowCalibrationIntro(true)}>
-          <section aria-label="Playback settings" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-[23px] mt-6 lg:mt-[42px] lg:pl-[43px]">
+          <section aria-label="Playback settings" className="relative grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-[23px] mt-6 lg:mt-[42px] lg:pl-[43px]">
             {/* Tempo */}
             <div className="flex flex-col gap-2">
-              <label htmlFor="set-tempo" className="ms-label">Set Tempo</label>
+              <label htmlFor="set-tempo" className={`ms-label transition-colors ${settingLabel}`}>Set Tempo</label>
               <div className="relative">
                 <input
                   id="set-tempo"
                   type="number"
                   min={MIN_TEMPO}
                   max={MAX_TEMPO}
-                  disabled={!settingsLoaded}
+                  disabled={settingsLocked}
                   value={tempo}
                   onChange={(e) => handleTempoChange(e.target.value)}
                   className="ms-input w-full pr-12 tabular-nums"
@@ -599,12 +679,13 @@ export default function Home() {
 
             {/* Time Signature */}
             <div className="flex flex-col gap-2">
-              <label htmlFor="time-signature" className="ms-label">Time Signature</label>
+              <label htmlFor="time-signature" className={`ms-label transition-colors ${settingLabel}`}>Time Signature</label>
               <div className="relative">
                 <select
                   id="time-signature"
                   value={timeSignature}
                   onChange={(e) => setTimeSignature(e.target.value)}
+                  disabled={settingsLocked}
                   className="ms-input w-full"
                 >
                   <option>4/4</option>
@@ -617,10 +698,10 @@ export default function Home() {
 
             {/* Metronome toggle */}
             <div className="col-span-2 sm:col-span-1 lg:col-span-1 flex items-center justify-between gap-3 sm:self-end lg:self-auto sm:h-[38px] lg:h-auto lg:pt-1">
-              <span className="text-[16px] text-ink whitespace-nowrap">Metronome</span>
+              <span className={`text-[16px] whitespace-nowrap transition-colors ${settingLabel}`}>Metronome</span>
               <button
                 onClick={() => setMetronome((enabled) => !enabled)}
-                disabled={!settingsLoaded}
+                disabled={settingsLocked}
                 aria-label="Toggle metronome"
                 aria-pressed={metronome}
                 className="ms-switch"
@@ -628,6 +709,9 @@ export default function Home() {
                 <span />
               </button>
             </div>
+            {needsCalibration && (
+              <CalibrateFirstLock label="Calibrate first to set tempo and metronome" className="lg:left-[35px]" />
+            )}
           </section>
 
           <div className="mt-[23px] lg:pl-[43px]">
@@ -638,20 +722,21 @@ export default function Home() {
 
       {/* Bottom: Listen (left) + transport (centre) */}
       <div className="flex items-center shrink-0 pl-(--gutter-l) pr-(--gutter-r) pb-[clamp(16px,3dvh,36px)] pt-[clamp(16px,2.5dvh,28px)]">
-        <div className="flex-1 relative flex flex-wrap items-end justify-center gap-x-5 gap-y-3">
+        <div className="flex-1 relative flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
           {hasRecordings && (
-            <button className="ms-key self-center lg:absolute lg:left-0 px-5">
+            <button className="ms-key lg:absolute lg:left-0 px-5">
               Listen to Recording
             </button>
           )}
 
+          <div className="relative flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
           <button
             onClick={enableAudio}
             disabled={!canPlay || liveStatus.state === "starting" || liveStatus.state === "playing"}
-            className="ms-transport"
+            className="ms-key ms-transport-key"
           >
-            <span className="ms-transport-face text-ink"><SpeakerIcon /></span>
-            <span className="ms-transport-label">Enable audio</span>
+            <SpeakerIcon />
+            Enable audio
           </button>
 
           {/* Record / Pause / Resume button */}
@@ -659,17 +744,12 @@ export default function Home() {
             onClick={handlePlay}
             aria-label={isRecording && !isPaused ? "Pause recording" : isPaused ? "Resume recording" : "Start recording"}
             disabled={recordDisabled}
-            data-live={isRecording && !isPaused ? "" : undefined}
-            className="ms-transport ms-transport-main"
+            className={`ms-key ms-transport-key ${isRecording && !isPaused ? "ms-key-live" : ""} ${isPaused ? "text-info" : ""}`}
           >
-            <span className="ms-transport-face">
-              {isRecording && !isPaused
-                ? <PauseIcon />
-                : isPaused ? <ResumeIcon /> : <RecordIcon />}
-            </span>
-            <span className={`ms-transport-label ${isPaused ? "text-info" : ""}`}>
-              {recordLabel}
-            </span>
+            {isRecording && !isPaused
+              ? <PauseIcon />
+              : isPaused ? <ResumeIcon /> : <RecordIcon />}
+            {recordLabel}
           </button>
 
           {/* Stop button */}
@@ -677,11 +757,15 @@ export default function Home() {
             onClick={handleStop}
             aria-label="Stop recording"
             disabled={stopDisabled}
-            className="ms-transport"
+            className="ms-key ms-transport-key"
           >
-            <span className="ms-transport-face text-ink"><StopIcon /></span>
-            <span className="ms-transport-label">Stop</span>
+            <StopIcon />
+            Stop
           </button>
+          {needsCalibration && (
+            <CalibrateFirstLock label="Calibrate first to record" />
+          )}
+          </div>
         </div>
         <div className="hidden lg:block w-[267px] shrink-0" />
       </div>

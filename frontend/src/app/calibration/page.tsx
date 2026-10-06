@@ -5,11 +5,13 @@ import { registerCameraVideo } from "../../diagnostics/cameraVideo";
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import SideNav from "../SideNav";
+import PageTopBar from "../PageTopBar";
 import { useRouter } from "next/navigation";
 import { useCamera } from "../CameraContext";
 import CameraStatusOverlay from "../CameraStatusOverlay";
 import { useHandLandmarker } from "../useHandLandmarker";
 import DepthCalibrationCapture from "./DepthCalibrationCapture";
+import { rainbow } from "../rainbow";
 import {
   DEPTH_CALIBRATION_POSITIONS,
   DEPTH_CALIBRATION_STORAGE_KEY,
@@ -76,18 +78,61 @@ function SuccessBadge({ label }: { label: string }) {
   );
 }
 
-function ProgressBar({ total, current, className = "" }: { total: number; current: number; className?: string }) {
+const STEP_NAMES = ["Setup", "Lighting", "Paper", "Hands", "Depth"];
+
+/** Labeled stepper above the camera. Each step has its own rainbow color;
+ * done steps are checked and each line segment fills solid in its step's color. */
+function ProgressBar({ current, complete }: { current: number; complete: boolean }) {
+  const total = STEP_NAMES.length;
   return (
-    <div className={`flex flex-1 items-center ${className}`} role="progressbar" aria-valuenow={current} aria-valuemin={1} aria-valuemax={total}>
-      {Array.from({ length: total }, (_, i) => {
+    <div
+      role="progressbar"
+      aria-label="Calibration progress"
+      aria-valuenow={current}
+      aria-valuemin={1}
+      aria-valuemax={total}
+      aria-valuetext={complete ? "Calibration complete" : `Step ${current} of ${total}: ${STEP_NAMES[current - 1]}`}
+      className="flex items-center pb-[22px]"
+    >
+      {STEP_NAMES.map((name, i) => {
         const stepNum = i + 1;
-        const circleFilled = stepNum <= current;
-        const barFilled = stepNum < current;
+        const done = complete || stepNum < current;
+        const isCurrent = !complete && stepNum === current;
+        const hue = rainbow(i);
+        const align = i === 0 ? "left-0" : i === total - 1 ? "right-0" : "left-1/2 -translate-x-1/2";
         return (
-          <div key={i} className="flex flex-1 items-center last:flex-none">
-            <div className={`shrink-0 size-[20px] rounded-full border-2 transition-colors duration-200 ${circleFilled ? "bg-accent border-accent" : "bg-control-inactive border-control-inactive"}`} />
+          <div key={name} className="flex flex-1 items-center last:flex-none">
+            <div className="relative shrink-0">
+              <span
+                aria-hidden="true"
+                className={`flex size-6 items-center justify-center rounded-full text-[12px] font-semibold tabular-nums transition-[background-color,color,box-shadow] duration-200 ease-out ${
+                  done || isCurrent
+                    ? hue.fill
+                    : "bg-white text-ink-muted shadow-[inset_0_0_0_1.5px_var(--color-divider)]"
+                }`}
+                style={isCurrent ? { boxShadow: `0 0 0 4px color-mix(in srgb, ${hue.color} 28%, transparent)` } : undefined}
+              >
+                {done ? (
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6.25L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                ) : stepNum}
+              </span>
+              <span
+                aria-hidden="true"
+                className={`absolute top-[30px] ${align} whitespace-nowrap text-[12px] transition-colors duration-200 ${isCurrent ? "font-semibold text-ink" : done ? "text-ink" : "text-ink-muted"}`}
+              >
+                {name}
+              </span>
+            </div>
             {i < total - 1 && (
-              <div className={`flex-1 h-[10px] transition-colors duration-200 ${barFilled ? "bg-accent" : "bg-control-inactive"}`} />
+              <div aria-hidden="true" className="mx-1.5 h-1 flex-1 overflow-hidden rounded-full bg-divider">
+                <div
+                  className="h-full w-full origin-left rounded-full transition-transform duration-300 ease-out"
+                  style={{
+                    background: hue.color,
+                    transform: `scaleX(${done ? 1 : 0})`,
+                  }}
+                />
+              </div>
             )}
           </div>
         );
@@ -103,7 +148,7 @@ export default function Calibration() {
   const [octaves, setOctaves] = useState("1");
   const [startingNote, setStartingNote] = useState("C3");
 
-  // Steps 4 & 5 — shared countdown
+  // Steps 4 & 5, shared countdown
   const [countdown, setCountdown] = useState<number | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [fingersShown, setFingersShown] = useState(false);
@@ -126,10 +171,10 @@ export default function Calibration() {
   const [sheetDetectorStatus, setSheetDetectorStatus] =
     useState<"loading" | "ready" | "error">("loading");
 
-  // #13 — the video element reports 0x0 until it has decoded a frame
+  // #13: the video element reports 0x0 until it has decoded a frame
   const [frameReady, setFrameReady] = useState(false);
 
-  // #16 — sampled from the live frame during step 2
+  // #16: sampled from the live frame during step 2
   const [lighting, setLighting] = useState<LightingReading | null>(null);
 
   const [corners, setCorners] = useState<Point[] | null>(null);
@@ -181,7 +226,7 @@ export default function Calibration() {
     }
   }, [stream]);
 
-  // #16 — poll the live frame only while the lighting step is visible
+  // #16: poll the live frame only while the lighting step is visible
   useEffect(() => {
     if (step !== 2 || !cameraReady || !frameReady) return;
 
@@ -299,7 +344,7 @@ export default function Calibration() {
     if (!video || !canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    // #13 — a 0x0 canvas throws on toDataURL and silently breaks detection
+    // #13: a 0x0 canvas throws on toDataURL and silently breaks detection
     if (!video.videoWidth || !video.videoHeight) return;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -563,7 +608,7 @@ export default function Calibration() {
     }
   }, [frameReady, markerDetection, sheetGeometry, step]);
 
-  // Single countdown tick — behaviour at 0 differs per step
+  // Single countdown tick, behaviour at 0 differs per step
   // The timer schedules a real capture; it never establishes success itself.
   useEffect(() => {
     if (countdown === null || countdown < 0) return;
@@ -705,8 +750,8 @@ export default function Calibration() {
                 <circle cx="12" cy="17" r="1" fill="var(--color-white)" />
               </svg>
               <div className="flex flex-col gap-0.5">
-                <p className="text-[15px] font-semibold text-danger">ERROR: Paper position is not accepted</p>
-                <p className="text-[14px] text-ink-muted">Impossible placement. Click the &lsquo;?&rsquo; button for help</p>
+                <p className="text-[15px] font-semibold text-danger">Hmm, that doesn&apos;t look right</p>
+                <p className="text-[14px] text-ink-muted">Fix the paper, or press ? for help.</p>
               </div>
               <button
                 onClick={() => setPaperError(false)}
@@ -722,7 +767,7 @@ export default function Calibration() {
           {!paperError && sheetDetected && (
             <div className="ms-pill ms-pill-success absolute top-4 left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none">
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="var(--color-white)"/><path d="M5.5 9.25L7.75 11.5L12.5 6.5" stroke="var(--color-success-strong)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              <span>Piano sheet detected</span>
+              <span>Paper found!</span>
             </div>
           )}
 
@@ -748,10 +793,10 @@ export default function Calibration() {
       const handNotDetected = showingImage && !fingersShown;
       return (
         <>
-          {/* Instruction pill — only before countdown starts */}
+          {/* Instruction pill, only before countdown starts */}
           {!hasStarted && (
             <div className="ms-pill absolute top-[35%] left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none">
-              <span>Hover hands above the paper, then press Start</span>
+              <span>Hover your hands, then press Start</span>
             </div>
           )}
 
@@ -762,7 +807,7 @@ export default function Calibration() {
                 <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--color-success)"/><path d="M8 14L11.5 18L20 10" stroke="var(--color-white)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 <span className="font-display text-[24px] sm:text-[28px] font-bold tracking-tight">Hands detected!</span>
               </div>
-              <p className="ms-pill py-1.5 text-[14px]">Click Next Step to continue</p>
+              <p className="ms-pill py-1.5 text-[14px]">Press Next Step</p>
             </div>
           )}
 
@@ -811,10 +856,10 @@ export default function Calibration() {
     if (step === 5) {
       return (
         <>
-          {/* Instruction pill — before the first capture */}
+          {/* Instruction pill, before the first capture */}
           {!hasStarted && !step5Success && (
             <div className="ms-pill absolute top-[35%] left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none">
-                  <span>Capture your right hand at the four corners and center</span>
+                  <span>Right hand on each corner and the middle</span>
             </div>
           )}
 
@@ -825,7 +870,7 @@ export default function Calibration() {
                 <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--color-success)"/><path d="M8 14L11.5 18L20 10" stroke="var(--color-white)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 <span className="font-display text-[24px] sm:text-[28px] font-bold tracking-tight">Success!</span>
               </div>
-              <p className="ms-pill py-1.5 text-[14px]">Click Next Step to finish calibration</p>
+              <p className="ms-pill py-1.5 text-[14px]">Press Next Step to finish</p>
             </div>
           )}
 
@@ -860,7 +905,7 @@ export default function Calibration() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/hand-reference.png" alt="Hand positioning reference" className="w-full block" style={{ aspectRatio: "16/9", objectFit: "cover" }} />
           <div className="px-5 py-3.5 flex items-center justify-between">
-            <p className="text-ink text-[15px] font-medium">Position your hands on the paper like this</p>
+            <p className="text-ink text-[15px] font-medium">Put your hands like this</p>
           </div>
           <button onClick={() => setShowHelpModal(false)} aria-label="Close" className="ms-key ms-key-glass ms-key-icon absolute top-3 right-3 size-9 rounded-full">
             <svg aria-hidden="true" width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" /></svg>
@@ -882,7 +927,7 @@ export default function Calibration() {
   const stepContent = (): { title: string; controls: React.ReactNode; status?: string | null } => {
     if (isComplete) {
       return {
-        title: "Calibration captured. Keep the camera and sheet in place.",
+        title: "All set! Don't move the camera or paper.",
         controls: (
           <>
             <SuccessBadge label="Calibration saved" />
@@ -894,7 +939,7 @@ export default function Calibration() {
 
     if (step === 1) {
       return {
-        title: "Step 1: Current sheet — one octave, C3–C4",
+        title: "Step 1: Pick your keyboard",
         controls: (
           <>
             <div className="flex items-center gap-2">
@@ -947,7 +992,7 @@ export default function Calibration() {
 
     if (step === 3) {
       return {
-        title: "Step 3: Show all four paper markers",
+        title: "Step 3: Show the whole paper",
         controls: (
           <>
             <button onClick={checkPaper} className="ms-key ms-key-primary px-5">Check paper</button>
@@ -959,7 +1004,7 @@ export default function Calibration() {
 
     if (step === 4) {
       return {
-        title: "Step 4: Hover hands above paper for 3 s",
+        title: "Step 4: Hover your hands",
         controls: fingersShown ? (
           <SuccessBadge label="Hands detected" />
         ) : (
@@ -979,7 +1024,7 @@ export default function Calibration() {
 
     if (step === 5) {
       return {
-        title: "Step 5: Calibrate depth at the four corners and center",
+        title: "Step 5: Touch the corners and middle",
         controls: step5Success ? (
           <SuccessBadge label="Depth calibrated!" />
         ) : depthPositionIndex < DEPTH_CALIBRATION_POSITIONS.length ? (
@@ -1002,10 +1047,17 @@ export default function Calibration() {
   // The data attributes let the deployment smoke test wait for detectors.
   return (
     <div className="flex-1 bg-surface flex flex-col" data-hand-detection={landmarkerStatus} data-sheet-detector={sheetDetectorStatus}>
+      {/* Stepper: top of the page, as wide as the camera */}
+      <PageTopBar>
+        <div className="px-1">
+          <ProgressBar current={isComplete ? TOTAL_STEPS : step} complete={isComplete} />
+        </div>
+      </PageTopBar>
+
       {/* Main area */}
       <div className="flex flex-col lg:flex-row pl-(--gutter-l) pr-(--gutter-r)">
         {/* Camera */}
-        <div className="ms-stage w-full lg:w-auto lg:flex-1 aspect-video bg-surface-dark relative overflow-hidden">
+        <div className="ms-stage w-full lg:w-auto lg:flex-1 lg:self-start aspect-video bg-surface-dark relative overflow-hidden">
           <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" style={{ display: showingImage ? "none" : "block" }} />
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover" style={{ display: showingImage ? "block" : "none" }} />
           <canvas
@@ -1024,47 +1076,54 @@ export default function Calibration() {
           {renderHelpModal()}
         </div>
 
-        <SideNav active="calibration" />
+        {/* Step panel lives beside the camera, so calibration never needs a
+            scroll. Below lg it moves above the nav keys, right under the feed. */}
+        <SideNav active="calibration">
+          {(() => {
+            const { title, controls, status } = stepContent();
+            return (
+              <section
+                aria-label="Calibration step"
+                className="order-first lg:order-none flex flex-1 flex-col pt-4 lg:pt-6 lg:pl-6"
+              >
+                <div data-step-body className="flex min-h-[280px] flex-col">
+                <p className="text-[18px] leading-[1.3] font-semibold tracking-[-0.01em] text-ink">
+                  {title}
+                </p>
+                <div className="mt-3 flex flex-col items-start gap-3">{controls}</div>
+                <div className="mt-2 min-h-[2lh] text-[14px] leading-5">
+                  {captureError ? (
+                    <p role="alert" className="text-danger">{captureError}</p>
+                  ) : status ? (
+                    <p className="text-ink-muted" aria-live="polite">{status}</p>
+                  ) : null}
+                </div>
+                </div>
+
+                {/* Pinned to the bottom of the sidebar, level with the camera. */}
+                <div className="mt-auto grid grid-cols-2 gap-3 pt-4 pb-1">
+                  <div className="flex">
+                    {showExitCalibration ? (
+                      <Link href="/" aria-label="Exit Calibration" className="ms-key w-full px-2 text-[15px] whitespace-nowrap">Exit</Link>
+                    ) : showPreviousStep ? (
+                      <button onClick={() => goToAdjacentStep(-1)} aria-label="Previous Step" className="ms-key w-full px-2 text-[15px] whitespace-nowrap">Back</button>
+                    ) : null}
+                  </div>
+                  <div className="flex">
+                    {isComplete ? (
+                      <button onClick={handleComplete} className="ms-key ms-key-primary w-full px-2 text-[15px] whitespace-nowrap">Start Playing</button>
+                    ) : showNextStep ? (
+                      <button onClick={() => goToAdjacentStep(1)} className="ms-key ms-key-primary w-full px-2 text-[15px] whitespace-nowrap">Next Step</button>
+                    ) : null}
+                  </div>
+                </div>
+              </section>
+            );
+          })()}
+        </SideNav>
       </div>
 
-      {/* Step content: fixed rows so nothing below moves between steps */}
-      {(() => {
-        const { title, controls, status } = stepContent();
-        return (
-          <div className="shrink-0 pl-(--gutter-l) pr-(--gutter-r) pt-[clamp(14px,2.5dvh,28px)] pb-[clamp(10px,2dvh,18px)]">
-            <p className="min-h-[2lh] sm:min-h-[1lh] text-[20px] sm:text-[24px] leading-[1.25] font-semibold tracking-[-0.01em] text-ink">{title}</p>
-            <div className="mt-3 flex min-h-[112px] lg:min-h-[44px] flex-wrap content-start lg:content-center items-center gap-x-4 gap-y-2">{controls}</div>
-            <div className="mt-2 min-h-[2lh] sm:min-h-[1lh] text-[14px] leading-5">
-              {captureError ? (
-                <p role="alert" className="text-danger">{captureError}</p>
-              ) : status ? (
-                <p className="text-ink-muted" aria-live="polite">{status}</p>
-              ) : null}
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Bottom nav: fixed-width slots keep the progress bar from resizing */}
-      <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:flex items-center shrink-0 pl-(--gutter-l) pr-(--gutter-r) pb-[clamp(14px,2.5dvh,30px)]">
-        <div className="flex sm:w-[180px] shrink-0">
-          {showExitCalibration ? (
-            <Link href="/" className="ms-key w-full py-2.5 sm:py-3">Exit Calibration</Link>
-          ) : showPreviousStep ? (
-            <button onClick={() => goToAdjacentStep(-1)} className="ms-key w-full py-2.5 sm:py-3">Previous Step</button>
-          ) : null}
-        </div>
-
-        <ProgressBar total={TOTAL_STEPS} current={isComplete ? TOTAL_STEPS : step} className="col-span-2 row-start-1 sm:col-auto sm:row-auto" />
-
-        <div className="flex sm:w-[180px] shrink-0">
-          {isComplete ? (
-            <button onClick={handleComplete} className="ms-key ms-key-primary w-full py-2.5 sm:py-3">Start Playing</button>
-          ) : showNextStep ? (
-            <button onClick={() => goToAdjacentStep(1)} className="ms-key ms-key-primary w-full py-2.5 sm:py-3">Next Step</button>
-          ) : null}
-        </div>
-      </div>
+      <div className="pb-[clamp(8px,2dvh,36px)]" />
     </div>
   );
 }

@@ -31,24 +31,24 @@ export default function DepthCalibrationCapture({
   const positionLabel = POSITION_LABELS[position];
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+    <div className="flex w-full flex-col gap-2">
       <button
         type="button"
         onClick={onCapture}
         disabled={disabled || rightHandDetected === false}
-        className="ms-key ms-key-primary px-5"
+        className="ms-key ms-key-primary w-full px-4 text-[15px]"
       >
         Capture {positionLabel} position
       </button>
       <div className="flex flex-col">
         <p className="text-[15px] text-ink">
-          Place your right hand at the {positionLabel} of the sheet.
+          Right hand on the {positionLabel}.
         </p>
         <p className="text-[13px] text-ink-muted" aria-live="polite">
-          <span className="hidden sm:inline">
+          <span>
             {rightHandDetected === true
-              ? "Hold still, then capture this position."
-              : "Place your right hand at this position, then capture."}
+              ? "Hold still, then capture."
+              : "Then press Capture."}
             {" · "}
           </span>
           <span className="tabular-nums">Captured: {sampleCount}</span>

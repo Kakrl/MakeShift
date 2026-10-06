@@ -28,9 +28,9 @@ export function classifyBrightness(brightness: number): LightingVerdict {
 }
 
 export const LIGHTING_MESSAGES: Record<LightingVerdict, string> = {
-  dark: "Too dim. Add light or move somewhere brighter.",
+  dark: "Too dark. Find more light!",
   ok: "Lighting looks good!",
-  bright: "Too bright. Reduce glare or move away from direct light.",
+  bright: "Too bright. Move out of direct light.",
 };
 
 /**

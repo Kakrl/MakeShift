@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { rainbow } from "../rainbow";
 
 export default function Tutorial() {
   const router = useRouter();
@@ -18,27 +19,27 @@ export default function Tutorial() {
     {
       step: "1",
       title: "Run Calibration",
-      body: "Click Calibration in the sidebar. Set your octave range and starting note, verify your lighting, align your paper in view of the camera, then hover and place your hands to complete setup.",
+      body: "Click Calibration and follow the 5 steps.",
     },
     {
       step: "2",
       title: "Position your paper",
-      body: "Lay a sheet of paper flat on a surface directly in front of the webcam. Make sure the whole sheet is visible and well-lit. This is your virtual keyboard.",
+      body: "Lay it flat where the camera can see all of it.",
     },
     {
       step: "3",
       title: "Hover your hands",
-      body: "Hold both hands just above the paper. MakeShift detects your fingertips in real time and maps each finger to a piano key across your selected octave range.",
+      body: "Hold them just above the paper.",
     },
     {
       step: "4",
-      title: "Press Play and perform",
-      body: "Hit Play on the home screen. Tap your fingers onto the paper surface to trigger notes. Use the Metronome toggle and BPM setting to stay in time.",
+      title: "Play!",
+      body: "Press Enable audio, then tap the paper keys.",
     },
     {
       step: "5",
-      title: "Record and export",
-      body: "Press Play to begin recording after the count-in. Pause ends recorded notes and leaves out the break. Resume continues the same take after another count-in; keys still held then begin new recorded notes, including keys first pressed during the pause. Notes released before the count-in finishes are omitted. Press Stop, then Export .MIDI Recording in the sidebar to save the file. Stop during a resume count-in also keeps your take.",
+      title: "Record your song",
+      body: "Press Record and play after the count-in. Press Stop when you're done, then download it from Recordings.",
     },
   ];
 
@@ -87,9 +88,9 @@ export default function Tutorial() {
 
           {/* Step-by-step guide */}
           <ol className="flex flex-col gap-5 mb-8">
-            {steps.map((s) => (
+            {steps.map((s, i) => (
               <li key={s.step} className="flex gap-4">
-                <span className="ms-step mt-[1px]">{s.step}</span>
+                <span className={`ms-step mt-[1px] ${rainbow(i).fill}`}>{s.step}</span>
                 <div>
                   <p className="text-ink text-[17px] font-semibold mb-[4px]">{s.title}</p>
                   <p className="text-ink-muted text-[15px] leading-relaxed">{s.body}</p>
