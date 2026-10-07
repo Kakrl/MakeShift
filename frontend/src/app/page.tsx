@@ -551,11 +551,13 @@ export default function Home() {
             </div>
           )}
 
-          {!canPlay && <p role="status" className="absolute bottom-2 left-2 right-2 z-20 bg-surface px-4 text-ink">Show the calibrated sheet and camera, or <a href="/calibration" className="underline">calibrate again</a>. Saved data is checked before playing.</p>}
+          {!canPlay && (devMode
+            ? <p role="status" className="absolute bottom-2 left-2 right-2 z-20 bg-surface px-4 text-ink">Dev mode: show all four sheet markers and your hands to play.</p>
+            : <p role="status" className="absolute bottom-2 left-2 right-2 z-20 bg-surface px-4 text-ink">Show the calibrated sheet and camera, or <a href="/calibration" className="underline">calibrate again</a>. Saved data is checked before playing.</p>)}
         </div>
 
         {/* Right sidebar (below the camera under lg) */}
-        <SideNav onCalibrationClick={() => setShowCalibrationIntro(true)}>
+        <SideNav onCalibrationClick={() => setShowCalibrationIntro(true)} calibrationDisabled={devMode}>
           {/* Controls */}
           <div className="flex flex-row flex-wrap items-end lg:flex-col lg:items-stretch gap-[23px] mt-6 lg:mt-[42px] lg:pl-[43px]">
             {/* Tempo */}

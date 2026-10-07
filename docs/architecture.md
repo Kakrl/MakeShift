@@ -243,3 +243,5 @@ CV, audio and events without importing instrumentation from the CV subsystem.
 Developer visibility switches live in `frontend/src/debugFlags.ts`.
 Outside production, `?dev=1` on the home page skips saved calibration: a
 complete live marker scan plus fresh hand tracking gates playing instead.
+The home calibration tab is disabled in dev mode; open `/` without the flag
+to calibrate.

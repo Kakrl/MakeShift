@@ -353,3 +353,15 @@ CI runs these through `frontend-ci.yml`.
 | REC-01 | Unit | Issue #117 acceptance criteria | Valid uploads pass with trimmed text and unknown fields dropped; every boundary value accepted; title/author/device length counted in code points like Postgres `char_length` ([source](frontend/recordingsSchema.test.ts)) | Harry Deng | Vitest | Yes | Implemented | Yes (`frontend-ci.yml`) | Local run passed 2026-10-03 (46 tests across REC-01 to REC-03); Actions pending |
 | REC-02 | Unit | Issue #117 acceptance criteria | Each out-of-range field rejected with a field-named issue: text lengths and types, non-integer or out-of-range BPM, empty or oversized note lists, malformed or out-of-range pitch, velocity outside integer 1-100, negative/non-finite timing and notes past the duration cap; only the first bad note reported; non-object bodies rejected ([source](frontend/recordingsSchema.test.ts)) | Harry Deng | Vitest | Yes | Implemented | Yes (`frontend-ci.yml`) | Local run passed 2026-10-03; Actions pending |
 | REC-03 | Unit | Issue #117 acceptance criteria | `recordingDurationMs` uses the latest note end; shared `pitchToMidi` parses sharps, flats and octave -1 to 9 and rejects malformed or out-of-range names ([source](frontend/recordingsSchema.test.ts)) | Harry Deng | Vitest | Yes | Implemented | Yes (`frontend-ci.yml`) | Local run passed 2026-10-03; Actions pending |
+
+## Developer dev mode (#179)
+
+Developer tooling for `?dev=1`, which skips calibration on local and preview
+builds; these rows do not complete any RVTM test. The session gate itself is
+covered in 2.1.5. Vitest runs through `frontend-ci.yml`; Actions execution
+evidence for this change is pending.
+
+| Test ID | Level | Requirement | Description / source | Owner | Tool | Automated? | Implementation Status | CI Integrated? | Execution evidence |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| DEV-01 | Unit | Issue #179 acceptance criteria | `isDevMode()` is true only for `?dev=1` and false when `NEXT_PUBLIC_VERCEL_ENV` is `production` ([source](frontend/devMode.test.tsx)) | Harry Deng | Vitest | Yes | Implemented; stubbed `window` and env | Yes (`frontend-ci.yml`) | Local run passed 2026-10-07; Actions pending |
+| DEV-02 | Unit | Issue #179 acceptance criteria | Home calibration tab renders as a disabled button in dev mode and stays enabled otherwise ([source](frontend/devMode.test.tsx)) | Jadden Picardal | Vitest (`react-dom/server`) | Yes | Implemented; static render, no click simulation | Yes (`frontend-ci.yml`) | Local run passed 2026-10-07; Actions pending |
