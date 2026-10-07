@@ -15,9 +15,8 @@ Local Windows execution on 2026-10-06: 15 calibration workflow cases and all
 pairs and production build passed. Production deployment, keyboard-layout
 and audio browser checks passed in Edge 154.0.4258.53 with fake camera
 on port 3100; audible hardware was not measured. New-regression CI and physical camera
-verification remain pending. Required defect issue filing is pending:
-GitHub connector returned HTTP 403 and automatic approval review rejected
-an authentication fallback.
+verification remain pending. The Medium defect is tracked in
+[#178](https://github.com/Kakrl/MakeShift/issues/178), fixed by PR #177.
 
 ## Octave layout and calibration verification (issues #36 and #162)
 
@@ -543,7 +542,7 @@ defect report is filed.
 | D18 | High | MIDI / UI | Runtime path alias points midi-writer-js at a declarations-only file, so final Export throws on undefined Track and produces no download (Req 4.2) | `frontend/tsconfig.json` | [#140](https://github.com/Kakrl/MakeShift/issues/140) | Fix verified locally in [#141](https://github.com/Kakrl/MakeShift/pull/141); review/merge pending |
 | D19 | Medium | CI | The `Vercel preview` workflow fails on every fork PR: `actions/checkout` refuses fork code in `pull_request_target` unless the step sets `allow-unsafe-pr-checkout: true`, so labeling `preview-link` never deploys | `.github/workflows/preview.yml:33-39` | [#160](https://github.com/Kakrl/MakeShift/issues/160) | Open |
 | D20 | High | UI | (Req 3.1, 3.2, 4.2, 6.2) Merge `30706c4` (PR #98) resolved `page.tsx` by keeping the branch's older JSX, dropping the welcome and Calibration intro modals, count-in overlay, Recording Complete banner, Delete confirmation, calibration prompt, `CameraStatusOverlay`, and the aria-live region. The home Calibration tab and Delete button did nothing. ESLint flagged the orphaned state only as warnings | `frontend/src/app/page.tsx` | [#112](https://github.com/Kakrl/MakeShift/issues/112) | Fixed in [#113](https://github.com/Kakrl/MakeShift/pull/113) |
-| D22 | Medium | Calibration | Final depth sheet-check exception removed capture/Next controls. Reset collector/index on exception and retain hover for retry. | `frontend/src/app/calibration/page.tsx` | Issue filing pending (HTTP 403); [review](https://github.com/Kakrl/MakeShift/pull/177#discussion_r4201139161) | Fixed in PR #177; local 6.2.3 regression passed; CI/merge pending |
+| D22 | Medium | Calibration | Final depth sheet-check exception removed capture/Next controls. Reset collector/index on exception and retain hover for retry. | `frontend/src/app/calibration/page.tsx` | [#178](https://github.com/Kakrl/MakeShift/issues/178) | Fixed in PR #177; local 6.2.3 regression passed; CI/merge pending |
 | D21 | High | Calibration | (Req 6.2, 1.1, 2.1) #148 replaced the reachable result capture with depth buttons and navigated before validation/save. Final depth capture now creates the primary result; completion retains its model and saves both records before navigation. 6.2.3's expected failures are restored as passing regressions. | `frontend/src/app/calibration/page.tsx` | [#162](https://github.com/Kakrl/MakeShift/issues/162) | Fix verified locally 2026-10-06; review/merge and physical check pending |
 
 ## Root Cause Analysis Log
