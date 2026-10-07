@@ -121,6 +121,8 @@ import { browserAudio } from "../../frontend/src/app/audio/audioEngine";
 import Home from "../../frontend/src/app/page";
 import Coordinator from "../../frontend/src/app/CVOverlayCoordinator";
 import Marker from "../../frontend/src/app/MarkerTrackingOverlay";
+import { saveKeyboardLayout } from "../../frontend/src/lib/keyboardSettings";
+import { getWhiteKeyPolygons } from "../../frontend/src/cv/keyboardGeometry";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -247,6 +249,30 @@ async function start() {
   await countIn();
   expect(button("Pause recording").disabled).toBe(false);
 }
+
+it.each([2, 3])("uses %i-octave live geometry, shifted notes and feedback after recalibration", async (octaves) => {
+  await start();
+  await keys(115);
+  await advance(100);
+  const oldCalibration = JSON.parse(localStorage.getItem("makeshift.calibration.v1")!);
+  const layout = { octaves, startingMidi: 60, whiteKeys: octaves * 7 + 1, paperOctaves: octaves };
+  await act(async () => {
+    expect(saveKeyboardLayout(layout).ok).toBe(true);
+    // Release happens in the store callback before any new marker scan.
+    expect(browserAudio.releaseAll).toHaveBeenCalled();
+  });
+  expect(fixtures.takes.at(-1)?.notes[0]).toMatchObject({ pitch: "C3", durationMs: 100 });
+  const enable = [...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!;
+  expect(enable.disabled).toBe(true);
+  localStorage.setItem("makeshift.calibration.v1", JSON.stringify({ ...oldCalibration, layout }));
+  await advance(10_000);
+  await click(enable);
+  const last = getWhiteKeyPolygons(layout).at(-1)!;
+  const x = 100 + (last[0].x + last[1].x) / 2 * 800;
+  await keys(x);
+  expect(browserAudio.noteOn).toHaveBeenLastCalledWith(60 + 12 * octaves, 0.8);
+  expect(fixtures.highlight).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), expect.anything());
+});
 
 it("announces capture state through pause, resume count-in and completion", async () => {
   const status = () => host.querySelector('[aria-live="polite"]')?.textContent;

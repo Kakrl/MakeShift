@@ -3,7 +3,7 @@
 import { DEBUG_FLAGS } from "../debugFlags";
 
 import dynamic from "next/dynamic";
-import { useCallback, useMemo, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useState, type RefObject } from "react";
 import type { LiveSession } from "../events/liveSession";
 import type { CameraSignature } from "../cv/calibration";
 import type { Point } from "../cv/types";
@@ -15,6 +15,15 @@ import {
   parsePersistedDepthCalibration,
 } from "../cv/depthCalibration";
 import type { PersistedDepthCalibration } from "../cv/depthCalibration";
+import { useKeyboardLayout } from "./useKeyboardLayout";
+import { subscribeKeyboardLayout } from "../lib/keyboardSettings";
+
+function readDepthCalibration() {
+  try {
+    return typeof window === "undefined" ? null : parsePersistedDepthCalibration(
+      window.localStorage.getItem(DEPTH_CALIBRATION_STORAGE_KEY));
+  } catch { return null; }
+}
 
 const MarkerTrackingOverlay = dynamic(
   () => import("./MarkerTrackingOverlay"),
@@ -37,17 +46,13 @@ export default function CVOverlayCoordinator({
   session: LiveSession;
   activePitches: ReadonlySet<number>;
 }) {
+  const layout = useKeyboardLayout();
   const id = session.sessionId;
   const producer = useMemo(() => id ? createKeyEventProducer(session, id) : null, [session, id]);
   const [fingertips, setFingertips] = useState<Fingertip[]>([]);
   const [hands, setHands] = useState<HandObservation[]>([]);
-  const [depthCalibration] = useState<PersistedDepthCalibration | null>(() =>
-    typeof window === "undefined"
-      ? null
-      : parsePersistedDepthCalibration(
-          window.localStorage.getItem(DEPTH_CALIBRATION_STORAGE_KEY),
-        ),
-  );
+  const [depthCalibration, setDepthCalibration] = useState<PersistedDepthCalibration | null>(readDepthCalibration);
+  useEffect(() => subscribeKeyboardLayout(() => setDepthCalibration(readDepthCalibration())), []);
 
   const handleLandmarks = useCallback(
     (observations: readonly HandObservation[]) => {
@@ -75,13 +80,19 @@ export default function CVOverlayCoordinator({
     [enabled, producer],
   );
   const observeCalibration = useCallback((saved: unknown, camera: CameraSignature | null, corners: Point[] | null) => {
-    return session.observeCalibration(saved, camera, corners);
+    const valid = session.observeCalibration(saved, camera, corners);
+    if (valid) setDepthCalibration(current => {
+      const next = readDepthCalibration();
+      return JSON.stringify(current) === JSON.stringify(next) ? current : next;
+    });
+    return valid;
   }, [session]);
   const trackingFailed = useCallback(() => session.trackingFailed(), [session]);
 
   return (
     <>
       <MarkerTrackingOverlay
+        layout={layout}
         videoRef={videoRef}
         fingertips={fingertips}
         hands={hands}

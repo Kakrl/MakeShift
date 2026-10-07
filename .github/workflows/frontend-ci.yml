@@ -80,6 +80,9 @@ jobs:
       - name: Deployment smoke test
         run: npm run test:deployment
 
+      - name: Keyboard layout workflow
+        run: npm run test:keyboard-layout-browser
+
       - name: Browser audio smoke test
         env:
           AUDIO_BROWSER_CHANNEL: chromium
