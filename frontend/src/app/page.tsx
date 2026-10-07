@@ -21,6 +21,7 @@ import { loadCalibration } from "../cv/calibration";
 import { connectPianoConsumers } from "../events/pianoConsumers";
 import type { RecordingsLibraryHandle } from "./midi/RecordingsLibraryPanel";
 import { readStored, writeStored } from "../lib/storage";
+import { isDevMode } from "../debugFlags";
 
 const RecordingsLibrary = dynamic(
   () => import("./midi/RecordingsLibraryPanel"),
@@ -158,6 +159,7 @@ export default function Home() {
   const { stream, cameraReady } = useCamera();
   // Drives the calibration prompt; live readiness stays with the session.
   const [isCalibrated, setIsCalibrated] = useState(false);
+  const [devMode, setDevMode] = useState(false);
 
   useEffect(() => {
     if (stream && videoRef.current) videoRef.current.srcObject = stream;
@@ -171,9 +173,11 @@ export default function Home() {
       setTempo(saved.tempo);
       setMetronome(saved.metronome);
       setSettingsLoaded(true);
-      setIsCalibrated(loadCalibration() !== null);
+      const dev = isDevMode();
+      setDevMode(dev);
+      setIsCalibrated(dev || loadCalibration() !== null);
       // Show welcome modal only on the very first visit
-      try {
+      if (!dev) try {
         if (!localStorage.getItem("hasVisited")) {
           setShowWelcome(true);
           localStorage.setItem("hasVisited", "true");
@@ -497,6 +501,7 @@ export default function Home() {
             activePitches={activePitches}
           />
           <CameraStatusOverlay />
+          {devMode && <p className="absolute top-2 left-2 z-20 bg-surface px-2 text-ink text-[12px] font-sans">Dev mode: calibration skipped</p>}
 
           {/* "Click Calibration to Begin" overlay */}
           {!isCalibrated && cameraReady && (

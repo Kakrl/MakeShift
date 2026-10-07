@@ -402,3 +402,17 @@ it("accepts marker detector jitter beyond the old 500 ms slack with fresh hands"
   expect(gate.status.canStart).toBe(false);
   expect(audio.releaseAll).toHaveBeenCalledTimes(1);
 });
+
+it("dev mode accepts live marker corners without saved calibration and still requires tracking", async () => {
+  const saved = calibration();
+  gate.observeUncalibratedSheet(saved.camera, null);
+  gate.observeTracking();
+  expect(gate.status.canStart).toBe(false);
+  expect(gate.observeUncalibratedSheet(saved.camera, saved.corners)).toBe(true);
+  expect(gate.status.canStart).toBe(true);
+  now += TRACKING_TIMEOUT_MS;
+  expect(gate.status.canStart).toBe(false);
+  gate.observeTracking();
+  expect(await gate.prepare()).toBe(true);
+  expect(gate.play()).not.toBeNull();
+});
