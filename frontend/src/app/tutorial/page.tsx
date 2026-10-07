@@ -35,7 +35,8 @@ export default function Tutorial() {
     {
       step: "5",
       title: "Record your song",
-      body: "Press Record and play after the count-in. Press Stop when you're done, then Download MIDI next to your take.",
+      // Covers start, pause/resume, stop and export (RVTM 6.3.1 to 6.3.3).
+      body: "Press Record and play after the count-in. Press Pause for a break, then Resume to keep going. Press Stop when you're done, then Download MIDI next to your take.",
     },
   ];
 
