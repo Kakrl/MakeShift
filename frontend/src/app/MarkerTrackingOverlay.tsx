@@ -5,7 +5,7 @@ import { useCamera } from "./CameraContext";
 import { cameraSignature, loadCalibration, markerCorners } from "../cv/calibration";
 import {
   getWhiteKeyPolygons,
-  PIANO_CORNERS,
+  getPianoCorners,
   pressWhiteKey,
   releaseWhiteKey,
 } from "../cv/keyboardGeometry";
@@ -45,6 +45,7 @@ import {
 import type { MarkerDetectionResult } from "../cv/types";
 import type { Point } from "../cv/types";
 import { keyIndexToMidi } from "../cv/noteMap";
+import { DEFAULT_LAYOUT, sameLayout, type KeyboardLayout } from "../cv/keyboardLayout";
 import {
   recordMarkerDetection,
   pipelineMetrics,
@@ -127,7 +128,9 @@ export default function MarkerTrackingOverlay({
   activePitches,
   showVisualDebug = false,
   debugShowSheetWithoutCalibration = false,
+  layout = DEFAULT_LAYOUT,
 }: {
+  layout?: KeyboardLayout;
   videoRef: React.RefObject<HTMLVideoElement | null>;
   fingertips: readonly Fingertip[];
   hands?: readonly HandObservation[];
@@ -499,7 +502,8 @@ export default function MarkerTrackingOverlay({
     // an actual camera-session change provides stronger evidence.
     const videoTrackLive =
       stream?.getVideoTracks()[0]?.readyState === "live";
-    if (cameraReady && stream && videoTrackLive && camera && !corners) {
+    if (cameraReady && stream && videoTrackLive && camera && !corners &&
+        saved && sameLayout(saved.layout, layout)) {
       const geometry = markerGeometryPolicyRef.current.observe(null);
       if (geometry) {
         homographyRef.current = geometry.homography;
@@ -524,10 +528,10 @@ export default function MarkerTrackingOverlay({
         homography = computeHomography(PAGE_CORNERS, markerPoints);
       }
       if (homography) {
-        const piano = PIANO_CORNERS.map((corner) =>
+        const piano = getPianoCorners(layout).map((corner) =>
           projectPoint(homography!, corner),
         );
-        const keys = getWhiteKeyPolygons().map((key) =>
+        const keys = getWhiteKeyPolygons(layout).map((key) =>
           key.map((corner) => projectPoint(homography!, corner)),
         );
         if (
@@ -552,6 +556,10 @@ export default function MarkerTrackingOverlay({
       displayWhiteKeysRef.current = projectedWhiteKeys;
     }
     if (!valid) {
+      if (!debugShowSheetWithoutCalibration) {
+        displayPianoCornersRef.current = null;
+        displayWhiteKeysRef.current = null;
+      }
       if (previousKeysRef.current.size) onKeyTransitions?.([], [...previousKeysRef.current]);
       previousKeysRef.current = new Set();
       if (
@@ -595,7 +603,7 @@ export default function MarkerTrackingOverlay({
     homographyRef.current = geometry.homography;
     projectedPianoCornersRef.current = geometry.pianoCorners;
     projectedWhiteKeysRef.current = geometry.whiteKeys;
-  }, [markerDetection, stream, cameraReady, videoRef, onCalibrationObservation, onKeyTransitions, debugShowSheetWithoutCalibration]);
+  }, [markerDetection, stream, cameraReady, videoRef, onCalibrationObservation, onKeyTransitions, debugShowSheetWithoutCalibration, layout]);
 
   useEffect(() => {
     const inverseHomography = homographyRef.current
@@ -751,7 +759,7 @@ export default function MarkerTrackingOverlay({
       const collidedKeys = new Set(highlightedKeyIndexes);
 
       projectedWhiteKeys.forEach((key, index) => {
-        const pitch = keyIndexToMidi(index);
+        const pitch = keyIndexToMidi(index, layout);
         const isPlaying = pitch !== null && activePitches.has(pitch);
         const isPressed = collidedKeys.has(index) || isPlaying;
         context.strokeStyle = isPressed ? danger : ink;
@@ -849,7 +857,8 @@ export default function MarkerTrackingOverlay({
     cameraReady,
     stream,
     trackingEnabled,
-    activePitches
+    activePitches,
+    layout
   ]);
 
   return (

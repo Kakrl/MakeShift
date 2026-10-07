@@ -35,7 +35,7 @@ export default function Tutorial() {
     {
       step: "5",
       title: "Record your song",
-      body: "Press Record and play after the count-in. Press Stop when you're done, then download it from Recordings.",
+      body: "Press Record and play after the count-in. Press Stop when you're done, then Download MIDI next to your take.",
     },
   ];
 

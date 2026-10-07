@@ -1,9 +1,11 @@
-# One-octave browser piano integration
+# Browser piano integration
 
 Part of [#28](https://github.com/Kakrl/MakeShift/issues/28), built on #24.
-The supported sheet has eight white keys, MIDI 48, 50, 52, 53, 55, 57, 59, 60
-(C3–C4 in standard MIDI notation). Calibration must match the existing fixed
-layout. Black keys, transposition and expanded layouts remain #25/#36.
+The default sheet has eight white keys, MIDI 48–60 (C3–C4). Issue #36 adds
+one/two/three-octave white-key layouts, with 8/15/22 keys and a configurable
+starting C. The [printed-sheet contract](piano_sheet.md) defines physical
+dimensions, overlap, starting-note bounds and paper-fit override. Calibration
+must match all selected settings. Black-key contact/pitch mapping remains #25.
 
 ## Playing the current preview
 
@@ -28,7 +30,7 @@ preview as completed physical piano detection.
 `createKeyEventProducer` calls the named `LiveSession.noteOn`/`noteOff` methods
 with observation timestamps; LiveSession owns envelopes and sequencing. It preserves
 input velocity, maps supported key indexes, suppresses held duplicates and allocates fresh press identities
-on repress. Each producer captures its session ID so an old callback cannot
+on repress. Each producer captures its session ID and layout so an old callback cannot
 adopt a restarted session. Invalid velocity fails closed through the contract.
 
 `LiveSession.receive` gates and validates events, then sends audio synchronously.

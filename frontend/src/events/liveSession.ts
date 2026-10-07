@@ -7,6 +7,8 @@ import type { Point } from "../cv/types";
 import type { BrowserAudio } from "../app/audio/audioEngine";
 import { createAudioSink } from "./audioSession";
 import { NoteSession, type DispatchResult, type Delivery } from "./noteSession";
+import { DEFAULT_LAYOUT, sameLayout, usableLayout, type KeyboardLayout } from "../cv/keyboardLayout";
+import { loadKeyboardLayout, subscribeKeyboardLayout } from "../lib/keyboardSettings";
 
 export type LiveState =
   | "stopped"
@@ -36,6 +38,18 @@ export class LiveSession {
   private listeners = new Set<() => void>();
   private notes: NoteSession;
   private hidden = false;
+  private configuredLayout: Readonly<KeyboardLayout> = DEFAULT_LAYOUT;
+
+  get layout() { return this.configuredLayout; }
+  setLayout(layout: KeyboardLayout) {
+    if (sameLayout(this.configuredLayout, layout)) return;
+    this.configuredLayout = Object.freeze({ ...layout });
+    this.invalidateLayout();
+  }
+  private invalidateLayout() {
+    this.calibrationAt = -Infinity;
+    this.interrupt("Keyboard settings changed. Calibrate again, then enable audio.");
+  }
 
   constructor(
     private audio: BrowserAudio,
@@ -46,6 +60,12 @@ export class LiveSession {
 
   /** Attach in an effect; construction has no browser resources or subscriptions. */
   attach() {
+    this.setLayout(loadKeyboardLayout());
+    const unsubscribeLayout = subscribeKeyboardLayout(() => {
+      this.setLayout(loadKeyboardLayout());
+      // Storage failure or a remote calibration removal also fails closed.
+      this.invalidateLayout();
+    });
     const unsubscribe = this.audio.subscribeInvalidation(() => {
       // initialize() resets its transport before reporting ready.
       if (this.state === "playing" || this.state === "ready")
@@ -55,6 +75,7 @@ export class LiveSession {
       this.stop();
       clearTimeout(this.timer);
       unsubscribe();
+      unsubscribeLayout();
     };
   }
   subscribe(listener: () => void) {
@@ -110,7 +131,8 @@ export class LiveSession {
       !valid ||
       !camera ||
       !corners ||
-      !compatibleCalibration(valid, camera, corners)
+      !usableLayout(this.layout) ||
+      !compatibleCalibration(valid, camera, corners, this.layout)
     ) {
       this.calibrationAt = -Infinity;
       this.interrupt(

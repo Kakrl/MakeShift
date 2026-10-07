@@ -9,6 +9,7 @@ const { setTempo, addEvent, dataUri } = vi.hoisted(() => ({
 vi.mock("midi-writer-js", () => ({
   default: {
     Track: class {
+      buildData = vi.fn();
       setTempo = setTempo;
       addEvent = addEvent;
     },

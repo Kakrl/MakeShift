@@ -36,6 +36,7 @@ and playback behavior.
 
 ## Testing and Documentation
 
+- [Print and assemble the actual-size piano sheets](docs/piano_sheet.md)
 - [Testing guide, known defects, and RCA log](tests/README.md)
 - [Verification Test Inventory](tests/verification_test_inventory.md)
 - [Development process](docs/dev_process.md)

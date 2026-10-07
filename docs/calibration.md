@@ -5,6 +5,11 @@ markers and capturing complete hand landmarks in both guided phases. A timer
 schedules a capture; it cannot complete a phase. Failed detection offers retry.
 The legacy `isCalibrated` flag is ignored, and unloading preserves valid data.
 
+Use the [actual-size starter PDF](piano_sheet.md) for the current one-octave
+layout; add extension copies for two or three octaves. Recalibrate when replacing
+the print. Select the playable octave count, starting C and actual assembled
+paper count in step 1. See the [layout contract](piano_sheet.md#marker-and-application-compatibility).
+
 ## Version 1 contract
 
 `frontend/src/cv/calibration.ts` owns validation, storage and compatibility.
@@ -19,11 +24,15 @@ The result contains:
   the minimum cross-product threshold of 0.001 times frame area at each corner.
 - Camera device ID, decoded width/height and facing mode. Missing device identity
   fails closed; a camera/browser that does not expose it cannot reuse calibration.
-- Layout: octave count, lowest MIDI integer, white-key count. The schema accepts
-  one to three octaves and bounded MIDI ranges; the current consumer accepts only
-  its implemented eight-white-key layout, MIDI 48–60 (C3–C4). Earlier UI options
-  were disconnected from geometry and pitch. #36 owns additional layouts and
-  paper-fit behavior; #25 owns pitch mapping. Requirements are not reduced.
+- Layout: 1–3 octaves, leftmost C MIDI integer, and 7 * octaves + 1 white keys.
+  C roots are multiples of 12 with the final C at or below MIDI 127: C-1–C8
+  for one octave, C-1–C7 for two, C-1–C6 for three. Optional `paperOctaves`
+  (1–3) and `paperFitOverride` record paper coverage and explicit override.
+  Legacy records without paper fields imply paper matching the selected range.
+  The shared `keyboardLayout.ts` contract drives validation, geometry and mapping;
+  `makeshift:keyboard-layout:v1` stores the selected configuration. A range
+  exceeding declared paper is usable only with an explicit override, which
+  extends geometry beyond the paper at the same physical key pitch.
 - Contact input revision `landmark-reference-v1`, with one or two complete
   21-landmark hover and rest samples. x/y are normalized frame coordinates;
   z is MediaPipe relative depth, not millimeters or distance from the paper.
@@ -74,6 +83,18 @@ The home page links to calibration for recovery. A successful new capture
 replaces corrupt data. Write failure keeps the completion page open, reports
 that browser storage must be enabled, and offers retry through Start Playing.
 The completion action checks the live sheet and camera again before saving.
+The fifth depth-position capture now creates the primary calibration result
+using that capture's complete rest-hand landmarks plus the earlier hover capture.
+If a depth capture throws, including a missing marker at the final sheet check,
+the collector and position reset to the first depth capture. Hover is retained,
+so users can retry all five depth positions without restarting calibration.
+It retains the fitted depth model through the completion screen. Start Playing
+saves the depth model and validated primary record before navigating, with depth
+rollback if the primary write fails. It does not write a legacy completion flag.
+Local/other-tab configuration changes cancel pending captures, clear both saved
+records and retire playing sessions synchronously; old producers cannot adopt a
+new layout or session. A missed marker scan may retain geometry only while its
+saved configuration still matches.
 No silent in-memory fallback claims that a result was saved.
 
 ## Verification limits

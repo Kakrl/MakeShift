@@ -13,6 +13,7 @@ import {
   createRecorder,
   type Recorder,
   type Recording,
+  type RecordingState,
 } from "./midi/midiUtils";
 import { trackAudioContext, closeTrackedAudioContext } from "../diagnostics/performanceMetrics";
 import { browserAudio } from "./audio/audioEngine";
@@ -255,8 +256,11 @@ export default function Home() {
   //   isRecording      → actively recording (or paused)
   //   isPaused         → recording paused mid-session
   //   hasRecordings → stop pressed; MIDI controls visible
-  const [isRecording, setIsRecording] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
+  // The recorder owns capture state; this React snapshot triggers UI updates.
+  // Reading getState() alone cannot rerender when the mutable recorder changes.
+  const [recordingState, setRecordingState] = useState<RecordingState>(() => recorder.getState());
+  const isRecording = recordingState !== "stopped";
+  const isPaused = recordingState === "paused";
   const [showRecordingComplete, setShowRecordingComplete] = useState(false);
 
   // ── Export / delete ──────────────────────────────────────────────────────
@@ -324,8 +328,6 @@ export default function Home() {
           return;
         }
         setCountInBeat(null);
-        setIsRecording(true);
-        setIsPaused(false);
 
         session.flushNotes();
         // Resume keeps the existing take and excludes the count-in time.
@@ -335,6 +337,7 @@ export default function Home() {
           recorder.startRecording(tempo);
         }
         consumersRef.current?.captureHeld();
+        setRecordingState(recorder.getState());
         countInActionRef.current = null;
       } else {
         setCountInBeat((b) => (b !== null ? b + 1 : null));
@@ -365,8 +368,8 @@ export default function Home() {
         session.flushNotes();
         const take = recorder.stopRecording();
         if (take) completeTake(take);
-        setIsRecording(false);
-        setIsPaused(false);
+        setRecordingState(recorder.getState());
+        setShowRecordingComplete(take !== null);
       }
     });
     const visibility = () => session.setHidden(document.hidden);
@@ -397,7 +400,7 @@ export default function Home() {
     if (isRecording && !isPaused) {
       session.flushNotes();
       recorder.pauseRecording();
-      setIsPaused(true);
+      setRecordingState(recorder.getState());
       return;
     }
     if (!canPlay || !libraryLoaded) return;
@@ -411,8 +414,7 @@ export default function Home() {
       return;
     }
     // Start fresh, clear previous session and begin count-in
-    setIsRecording(false);
-    setIsPaused(false);
+    setRecordingState(recorder.getState());
     setShowRecordingComplete(false);
     countInActionRef.current = "start";
     setCountInBeat(1);
@@ -428,8 +430,7 @@ export default function Home() {
     if (!isRecording) return;
     const recording = recorder.stopRecording();
     if (recording) completeTake(recording);
-    setIsRecording(false);
-    setIsPaused(false);
+    setRecordingState(recorder.getState());
     setShowRecordingComplete(recording !== null);
   };
 
@@ -464,7 +465,7 @@ export default function Home() {
         </p>
       </PageTopBar>
       <div aria-live="polite" className="sr-only">
-        {isRecording ? "Recording started" : showRecordingComplete ? "Recording complete" : ""}
+        {countInBeat !== null ? (isPaused ? "Count-in to resume recording" : "Count-in to start recording") : isPaused ? "Recording paused" : isRecording ? "Recording started" : showRecordingComplete ? "Recording complete" : ""}
       </div>
 
       {/* ── Welcome Modal (first visit) ─────────────────────────────────────── */}

@@ -44,6 +44,25 @@ not prerequisites for playing an in-memory recording. See the
 [RVTM mapping](rvtm_browser_addendum.md#recording-playback-extension-130) and
 [transport contract](note_events.md#recording-playback-timeline-130).
 
+## Octave layouts and printed sheet (#36)
+
+Requirements 1.2 and 1.3 are delivered for the existing white-key contact
+pipeline: 1–3 octaves (8/15/22 white keys), with the leftmost printed C assigned
+to a user-selected C octave. Starting choices are bounded by MIDI 0–127.
+The shared layout controls geometry, calibration compatibility, audio/MIDI
+pitch and highlights. Chromatic black-key contact mapping remains #25.
+
+The actual-size starter/extension PDFs preserve marker IDs 0–3 and use a
+23.5 mm white-key pitch. Paper coverage is explicitly declared in calibration;
+the same four IDs cannot measure millimeters or identify page count. An
+undersized declared assembly blocks calibration until an explicit override,
+which preserves key pitch and extends the selected keyboard beyond paper.
+Every settings change clears saved hand/marker calibration and releases notes.
+See [print/layout instructions](piano_sheet.md) and the
+[verification mapping](rvtm_browser_addendum.md#octave-layouts-36).
+Physical printing, webcam contact quality and audibility remain separate
+hardware verification, not claims established by software fixtures.
+
 **Previous SDP Work**
 
 [Initial SDP](https://docs.google.com/document/d/1dI5X3cngPTwBOdPjmCn8FGk9viVCrHLxQcX2h_NOIWU/edit?usp=sharing)
