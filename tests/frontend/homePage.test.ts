@@ -244,6 +244,41 @@ describe("home page", () => {
     expect(push).toHaveBeenCalledWith("/calibration");
   });
 
+  it("moves focus into the welcome dialog, keeps Tab inside, and closes on Escape", () => {
+    renderHome();
+    const dialog = screen.getByRole("dialog", { name: "Welcome to MakeShift" });
+    expect(document.activeElement).toBe(dialog);
+
+    const first = screen.getByText("Read Tutorial");
+    const last = screen.getByText("Skip for now");
+    last.focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("returns focus to the Calibration tab when the calibration intro closes", () => {
+    localStorage.setItem("hasVisited", "true");
+    renderHome();
+    const tab = screen.getByRole("button", { name: "Calibration" });
+    tab.focus();
+    fireEvent.click(tab);
+    const dialog = screen.getByRole("dialog", { name: "Before You Begin: Calibration" });
+    expect(document.activeElement).toBe(dialog);
+    // Tab from the dialog itself lands on its first control, not the page behind.
+    document.body.focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(tab);
+  });
+
   it("prompts for calibration over a ready, uncalibrated camera", () => {
     localStorage.setItem("hasVisited", "true");
     renderHome();

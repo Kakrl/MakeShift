@@ -13,7 +13,9 @@ const TABS: { page: NavPage; href: string; label: string; active: string }[] = [
 // the 267px right sidebar with the piano-key decoration.
 const TAB_CLASS =
   "flex-1 lg:flex-none border border-black h-12 lg:h-[72px] flex items-center justify-center lg:justify-end px-2 lg:pr-[19px] lg:pl-[100px] relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] " +
-  "not-first:-ml-px lg:not-first:ml-0 lg:not-first:-mt-px first:rounded-bl-[8px] last:rounded-br-[8px] lg:first:rounded-bl-none lg:first:rounded-tr-[8px]";
+  "not-first:-ml-px lg:not-first:ml-0 lg:not-first:-mt-px first:rounded-bl-[8px] last:rounded-br-[8px] lg:first:rounded-bl-none lg:first:rounded-tr-[8px] " +
+  // Keyboard focus: the shared ring, lifted above the black-key bars so it stays whole.
+  "focus-visible:outline-none focus-visible:z-20 focus-visible:shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07),var(--halo)]";
 
 export default function SideNav({
   active,

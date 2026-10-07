@@ -22,6 +22,7 @@ import { connectPianoConsumers } from "../events/pianoConsumers";
 import type { RecordingsLibraryHandle } from "./midi/RecordingsLibraryPanel";
 import { readStored, writeStored } from "../lib/storage";
 import { rainbow } from "./rainbow";
+import { useDialogFocus } from "./useDialogFocus";
 
 const RecordingsLibrary = dynamic(
   () => import("./midi/RecordingsLibraryPanel"),
@@ -244,6 +245,10 @@ export default function Home() {
   // ── Welcome modal (first visit only) ────────────────────────────────────
   const [showWelcome, setShowWelcome] = useState(false);
   const [showCalibrationIntro, setShowCalibrationIntro] = useState(false);
+  const welcomeRef = useRef<HTMLDivElement>(null);
+  const calibrationIntroRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(welcomeRef, showWelcome, () => setShowWelcome(false));
+  useDialogFocus(calibrationIntroRef, showCalibrationIntro, () => setShowCalibrationIntro(false));
 
   // ── Recording state machine ──────────────────────────────────────────────
   //   countInBeat      → 1 … beatsPerMeasure (one measure count-in), then recording
@@ -465,7 +470,7 @@ export default function Home() {
       {/* ── Welcome Modal (first visit) ─────────────────────────────────────── */}
       {showWelcome && (
         <div className="ms-backdrop fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div role="dialog" aria-modal="true" aria-labelledby="welcome-title" className="ms-dialog w-[540px] max-w-full max-h-[90dvh] overflow-y-auto">
+          <div ref={welcomeRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="welcome-title" className="ms-dialog w-[540px] max-w-full max-h-[90dvh] overflow-y-auto focus:outline-none">
             <div className="px-6 sm:px-9 pt-8 sm:pt-9 pb-6 sm:pb-8">
               <KeysIllustration />
               <h2 id="welcome-title" className="mt-5 mb-2 font-display text-[26px] sm:text-[32px] font-bold leading-tight tracking-tight text-ink">
@@ -524,10 +529,12 @@ export default function Home() {
           onClick={() => setShowCalibrationIntro(false)}
         >
           <div
+            ref={calibrationIntroRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-labelledby="calibration-intro-title"
-            className="ms-dialog w-[520px] max-w-full max-h-[90dvh] overflow-y-auto"
+            className="ms-dialog w-[520px] max-w-full max-h-[90dvh] overflow-y-auto focus:outline-none"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-6 sm:px-8 pt-8 pb-6">

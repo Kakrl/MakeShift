@@ -41,6 +41,8 @@
   --color-accent-strong: #2445b8;
   --color-accent-light: #9db4ff;
   --color-accent-soft: #dde5fb;
+  /* Keyboard focus ring; must keep 3:1 against every surface it sits on. */
+  --color-focus: #2f55d4;
 
   /* Rainbow, warm and a little muted (toy-box primaries). Every color is
      deep enough to carry white text, except bright yellow, which is only for
@@ -80,7 +82,10 @@
   /* Soft lift instead of a solid ledge; pressing sinks the key into its shade. */
   --key-ledge: var(--shadow-1);
   --key-pressed: inset 0 1px 3px color-mix(in srgb, var(--color-ink) 16%, transparent);
-  --halo: 0 0 0 3px color-mix(in srgb, var(--color-accent) 24%, transparent);
+  /* Focus ring: a white gap, then a solid ring. The ring keeps 3:1 against
+     the white page and wells; the gap keeps it visible on black keys, colored
+     fills and the dark camera. Appended to a control's own shadow stack. */
+  --halo: 0 0 0 2px var(--color-white), 0 0 0 4px var(--color-focus);
 
   /* Quiet-depth stack for everything that is not a key: hairline rings and
      faint ink-tinted shadows instead of borders, wells pressed into the page. */

@@ -47,6 +47,10 @@ const checks = [
   { name: "Green label on dark surface", foreground: "green-light", background: "surface-dark", minimum: 4.5 },
   { name: "Red label on dark surface", foreground: "red-light", background: "surface-dark", minimum: 4.5 },
   { name: "Metronome switch on white", foreground: "green", background: "white", minimum: 3 },
+  { name: "Focus ring on page", foreground: "focus", background: "surface", minimum: 3 },
+  { name: "Focus ring on pressed well", foreground: "focus", background: "well", minimum: 3 },
+  { name: "Focus ring on its white gap", foreground: "focus", background: "white", minimum: 3 },
+  { name: "Focus ring gap on dark camera", foreground: "white", background: "surface-dark", minimum: 3 },
 ];
 
 for (const token of checks.flatMap(({ foreground, background }) => [foreground, background])) {

@@ -1,19 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { rainbow } from "../rainbow";
+import { useDialogFocus } from "../useDialogFocus";
 
 export default function Tutorial() {
   const router = useRouter();
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") router.back();
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [router]);
+  // The tutorial is always a modal: focus moves in, Tab stays inside, Escape goes back.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialogRef, true, () => router.back());
 
   const steps = [
     {
@@ -50,10 +46,12 @@ export default function Tutorial() {
     >
       {/* Modal card */}
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="tutorial-title"
-        className="ms-dialog relative w-full max-w-[740px] overflow-hidden flex flex-col"
+        className="ms-dialog relative w-full max-w-[740px] overflow-hidden flex flex-col focus:outline-none"
         style={{ maxHeight: "88dvh" }}
         onClick={(e) => e.stopPropagation()}
       >
