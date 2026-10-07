@@ -61,7 +61,7 @@ it separates existing behavior from planned work and links implementation issues
 | `tests/automation/` | Repository-process RCA tests |
 | `tests/manual/` | Manual test template and completed manual test reports |
 | `docs/` | Architecture, browser RVTM addendum, process, SDP, V&V plan, design, subsystem notes |
-| `output/pdf/` | Actual-size printable starter and right-marker extension piano sheets; generator in `docs/generate_piano_sheets.py` |
+| `docs/piano-sheet-*.pdf` | Actual-size printable starter and right-marker extension piano sheets; generator in `docs/generate_piano_sheets.py` |
 | `.github/workflows/` | CI: tests, linting, frontend checks, RCA validation/publication |
 | `.github/scripts/` | Trusted RCA validation and comment automation |
 | `.github/pull_request_template.md` | PR description and RCA authoring instructions |

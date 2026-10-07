@@ -1,7 +1,7 @@
 # Printable piano sheets (#36)
 
-- [Starter sheet: four markers](../output/pdf/piano-sheet-starter.pdf)
-- [Extension sheet: right markers only](../output/pdf/piano-sheet-extension.pdf)
+- [Starter sheet: four markers](piano-sheet-starter.pdf)
+- [Extension sheet: right markers only](piano-sheet-extension.pdf)
 
 Both vector PDFs contain eight white keys, C through the next C, and five black
 keys on one US Letter landscape page (279.4 x 215.9 mm). Print in landscape
@@ -82,7 +82,7 @@ python docs/generate_piano_sheets.py
 ```
 
 [The source](generate_piano_sheets.py) writes deterministic, single-page PDFs
-to `output/pdf/`. Marker payloads use canonical OpenCV dictionary bytes drawn
+to `docs/`. Marker payloads use canonical OpenCV dictionary bytes drawn
 as vector cells. `Piano Sheet.png` remains a legacy reference; use the PDFs for
 actual-size printing. Generation needs no marker downloads or network access.
 

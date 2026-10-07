@@ -34,7 +34,7 @@ MARKER_SIZE = 12.0
 # https://github.com/opencv/opencv/blob/4.x/modules/objdetect/src/aruco/
 # predefined_dictionaries.hpp (DICT_4X4_1000_BYTES, shared first 50 entries).
 MARKER_BYTES = ((181, 50), (15, 154), (51, 45), (153, 70))
-OUTPUT = Path(__file__).resolve().parents[1] / "output" / "pdf"
+OUTPUT = Path(__file__).resolve().parent
 
 
 def rectangle(pdf, x, y, width, height, fill=False):

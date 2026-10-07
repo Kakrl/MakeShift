@@ -43,13 +43,14 @@ MakeShift/
 │   ├── piano_sheet.md               # printable sheet and ArUco marker IDs
 │   ├── generate_piano_sheets.py     # deterministic vector PDF generator
 │   ├── piano_sheet_requirements.txt # pinned generator dependency
+│   ├── piano-sheet-starter.pdf     # actual-size four-marker starter
+│   ├── piano-sheet-extension.pdf   # actual-size right-marker extension
 │   ├── Piano Sheet.png
 │   ├── sdp.md
 │   ├── deployment.md                # Vercel hosting, browser support, permissions
 │   ├── supabase.md                  # recordings database, secrets, migrations
 │   ├── Design Document.pdf
 │   └── Final Verification and Validation Plan.pdf
-├── output/pdf/                     # actual-size starter and extension piano sheets
 ├── frontend/
 │   ├── public/
 │   │   ├── audio/                   # piano-worklet.js and shared synth.js

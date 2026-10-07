@@ -38,7 +38,7 @@ export default function Tutorial() {
     {
       step: "5",
       title: "Record and export",
-      body: "Press Play to begin recording after the count-in. Pause ends recorded notes and leaves out the break. Resume continues the same take after another count-in; keys still held then begin new recorded notes, including keys first pressed during the pause. Notes released before the count-in finishes are omitted. Press Stop, then Export .MIDI Recording in the sidebar to save the file. Stop during a resume count-in also keeps your take.",
+      body: "Press Record to begin recording after the count-in. Pause ends recorded notes and leaves out the break. Resume continues the same take after another count-in; keys still held then begin new recorded notes, including keys first pressed during the pause. Notes released before the count-in finishes are omitted. Press Stop, then Download MIDI beside the completed take to save the file. Stop during a resume count-in also keeps your take.",
     },
   ];
 

@@ -274,6 +274,22 @@ it.each([2, 3])("uses %i-octave live geometry, shifted notes and feedback after 
   expect(fixtures.highlight).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), expect.anything());
 });
 
+it("announces capture state through pause, resume count-in and completion", async () => {
+  const status = () => host.querySelector('[aria-live="polite"]')?.textContent;
+  await click(button("Start recording"));
+  expect(status()).toBe("Count-in to start recording");
+  await countIn();
+  expect(status()).toBe("Recording started");
+  await click(button("Pause recording"));
+  expect(status()).toBe("Recording paused");
+  await click(button("Resume recording"));
+  expect(status()).toBe("Count-in to resume recording");
+  await countIn();
+  expect(status()).toBe("Recording started");
+  await click(button("Stop recording"));
+  expect(status()).toBe("Recording complete");
+});
+
 it("uses the real page/coordinator/marker transitions to capture held keys after resume", async () => {
   await start();
   await keys(115); // First key, via real geometry and transitions.
