@@ -320,3 +320,32 @@ it("discards in-progress hand captures when another tab changes configuration", 
   await click("Next Step");
   expect(find("Start")).toBeDefined();
 });
+
+it("restarts depth captures after final sheet detection fails and completes on retry", async () => {
+  await paper();
+  await click("Check paper");
+  await click("Next Step");
+  await capture();
+  await click("Next Step");
+  for (const label of ["top-left corner", "top-right corner", "bottom-left corner", "bottom-right corner"]) {
+    fixture.depthCapture++;
+    await click(`Capture ${label} position`);
+  }
+  fixture.markers = false;
+  fixture.depthCapture++;
+  await click("Capture center position");
+  expect(find("Capture top-left corner position")).toBeDefined();
+  expect(find("Next Step")).toBeUndefined();
+  expect(loadCalibration()).toBeNull();
+  expect(fixture.push).not.toHaveBeenCalled();
+
+  fixture.markers = true;
+  fixture.depthCapture = 0;
+  await depth();
+  expect(find("Next Step")).toBeDefined();
+  await click("Next Step");
+  await click("Start Playing");
+  expect(loadCalibration()?.contact.rest[0]).toHaveLength(21);
+  expect(parsePersistedDepthCalibration(localStorage.getItem("depthCalibrationLines"))).not.toBeNull();
+  expect(fixture.push).toHaveBeenCalledExactlyOnceWith("/");
+});

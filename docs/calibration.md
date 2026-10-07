@@ -85,6 +85,9 @@ that browser storage must be enabled, and offers retry through Start Playing.
 The completion action checks the live sheet and camera again before saving.
 The fifth depth-position capture now creates the primary calibration result
 using that capture's complete rest-hand landmarks plus the earlier hover capture.
+If a depth capture throws, including a missing marker at the final sheet check,
+the collector and position reset to the first depth capture. Hover is retained,
+so users can retry all five depth positions without restarting calibration.
 It retains the fitted depth model through the completion screen. Start Playing
 saves the depth model and validated primary record before navigating, with depth
 rollback if the primary write fails. It does not write a legacy completion flag.

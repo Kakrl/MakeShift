@@ -440,8 +440,11 @@ export default function Calibration() {
         setDepthCaptureMessage(`${position} position captured.`);
       }
     } catch (error) {
-      if (generation === generationRef.current)
+      if (generation === generationRef.current) {
+        setDepthPositionIndex(0);
+        depthCollectorRef.current = new DepthCalibrationCollector();
         setDepthCaptureMessage(error instanceof Error ? error.message : "Capture failed. Retry.");
+      }
     } finally {
       if (generation === generationRef.current) setDepthCaptureBusy(false);
     }
