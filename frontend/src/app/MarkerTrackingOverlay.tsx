@@ -943,7 +943,7 @@ export default function MarkerTrackingOverlay({
                   candidate.
                 </div>
                 <div className="mt-1 font-bold">
-                  Contour area: {shadowPreviewDebug?.shadowContourArea ?? "—"}{" "}
+                  Contour area: {shadowPreviewDebug?.shadowContourArea ?? "n/a"}{" "}
                   pixels
                 </div>
                 <div className="font-bold">
@@ -959,10 +959,10 @@ export default function MarkerTrackingOverlay({
                     : (shadowPreviewDebug?.state ?? "unavailable")}
                 </div>
                 <div>
-                  Peak: {shadowPreviewDebug?.shadowPeakArea ?? "—"} pixels ·
+                  Peak: {shadowPreviewDebug?.shadowPeakArea ?? "n/a"} pixels ·
                   Ratio:{" "}
                   {shadowPreviewDebug?.shadowAreaRatio == null
-                    ? "—"
+                    ? "n/a"
                     : `${(shadowPreviewDebug.shadowAreaRatio * 100).toFixed(1)}%`}
                 </div>
                 <div>
@@ -1023,8 +1023,8 @@ export default function MarkerTrackingOverlay({
                   </div>
                   {finger.shadowStrength === null
                     ? ""
-                    : ` (area ${finger.shadowContourArea ?? "—"} px, dark ${((finger.shadowDarkArea ?? 0) * 100).toFixed(0)}%, Δ${
-                        finger.shadowLumaChange?.toFixed(1) ?? "—"
+                    : ` (area ${finger.shadowContourArea ?? "n/a"} px, dark ${((finger.shadowDarkArea ?? 0) * 100).toFixed(0)}%, Δ${
+                        finger.shadowLumaChange?.toFixed(1) ?? "n/a"
                       })`}
                 </div>
               ))

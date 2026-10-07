@@ -105,6 +105,11 @@ vi.stubGlobal("localStorage", {
 
 const { default: Home } = await import("../../frontend/src/app/page");
 
+// Playback settings unlock only once a calibration is saved.
+function saveCalibration() {
+  localStorage.setItem(CALIBRATION_KEY, JSON.stringify(validCalibration()));
+}
+
 function renderHome() {
   render(createElement(Home));
   // The page reads localStorage in a zero-delay timeout after mount.
@@ -151,7 +156,23 @@ describe("home page", () => {
     expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
   });
 
+  it("keeps playback settings unavailable until a calibration is saved", () => {
+    renderHome();
+    expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Time Signature") as HTMLSelectElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Toggle metronome") as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByLabelText("Toggle metronome"));
+    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("true");
+    cleanup();
+    saveCalibration();
+    renderHome();
+    expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).disabled).toBe(false);
+    expect((screen.getByLabelText("Time Signature") as HTMLSelectElement).disabled).toBe(false);
+    expect((screen.getByLabelText("Toggle metronome") as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it("persists edited tempo and metronome across a remount", () => {
+    saveCalibration();
     renderHome();
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("120");
     expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("true");
@@ -184,8 +205,14 @@ describe("home page", () => {
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe(String(tempo));
   });
 
-  it("clamps input and keeps controls usable when storage fails", () => {
-    vi.spyOn(window.localStorage, "getItem").mockImplementation(() => { throw new Error("blocked"); });
+  it("clamps input and keeps controls usable when settings storage fails", () => {
+    // Calibration still loads; only the playback settings storage fails.
+    saveCalibration();
+    const read = window.localStorage.getItem.bind(window.localStorage);
+    vi.spyOn(window.localStorage, "getItem").mockImplementation((key: string) => {
+      if (key === CALIBRATION_KEY) return read(key);
+      throw new Error("blocked");
+    });
     vi.spyOn(window.localStorage, "setItem").mockImplementation(() => { throw new DOMException("full", "QuotaExceededError"); });
     renderHome();
     const input = screen.getByLabelText("Set Tempo") as HTMLInputElement;
@@ -217,10 +244,59 @@ describe("home page", () => {
     expect(push).toHaveBeenCalledWith("/calibration");
   });
 
+  it("moves focus into the welcome dialog, keeps Tab inside, and closes on Escape", () => {
+    renderHome();
+    const dialog = screen.getByRole("dialog", { name: "Welcome to MakeShift" });
+    expect(document.activeElement).toBe(dialog);
+
+    const first = screen.getByText("Read Tutorial");
+    const last = screen.getByText("Skip for now");
+    last.focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("returns focus to the Calibration tab when the calibration intro closes", () => {
+    localStorage.setItem("hasVisited", "true");
+    renderHome();
+    const tab = screen.getByRole("button", { name: "Calibration" });
+    tab.focus();
+    fireEvent.click(tab);
+    const dialog = screen.getByRole("dialog", { name: "Before You Begin: Calibration" });
+    expect(document.activeElement).toBe(dialog);
+    // Tab from the dialog itself lands on its first control, not the page behind.
+    document.body.focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(tab);
+  });
+
   it("prompts for calibration over a ready, uncalibrated camera", () => {
     localStorage.setItem("hasVisited", "true");
     renderHome();
-    expect(screen.getByText(/to Begin/)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Calibrate first!" })).toBeTruthy();
+    // Locked recording only shakes; the camera card starts calibration.
+    fireEvent.click(screen.getByRole("button", { name: "Calibrate first to record" }));
+    expect(screen.queryByText("Before You Begin: Calibration")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Start calibration" }));
+    expect(screen.getByText("Before You Begin: Calibration")).toBeTruthy();
+  });
+
+  it("hides the calibrate-first prompts once a calibration is saved", () => {
+    localStorage.setItem("hasVisited", "true");
+    saveCalibration();
+    renderHome();
+    expect(screen.queryByRole("heading", { name: "Calibrate first!" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Calibrate first to record" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Calibrate first to set tempo and metronome" })).toBeNull();
   });
 
   it("shows camera error feedback", () => {
