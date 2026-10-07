@@ -1,6 +1,6 @@
 "use client";
 
-import { DEBUG_FLAGS } from "../debugFlags";
+import { DEBUG_FLAGS, isDevMode } from "../debugFlags";
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState, type RefObject } from "react";
@@ -79,14 +79,17 @@ export default function CVOverlayCoordinator({
     },
     [enabled, producer],
   );
+  const [devMode] = useState(isDevMode);
   const observeCalibration = useCallback((saved: unknown, camera: CameraSignature | null, corners: Point[] | null) => {
-    const valid = session.observeCalibration(saved, camera, corners);
+    const valid = devMode
+      ? session.observeUncalibratedSheet(camera, corners)
+      : session.observeCalibration(saved, camera, corners);
     if (valid) setDepthCalibration(current => {
       const next = readDepthCalibration();
       return JSON.stringify(current) === JSON.stringify(next) ? current : next;
     });
     return valid;
-  }, [session]);
+  }, [session, devMode]);
   const trackingFailed = useCallback(() => session.trackingFailed(), [session]);
 
   return (
