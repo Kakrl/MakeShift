@@ -104,6 +104,13 @@ camera/marker geometry, rendering, and note dispatch through controller
 callbacks. Expensive segmentation remains in the worker; this refactor does
 not move hand inference into a worker or establish verified accuracy/latency.
 
+The contact controller also owns bounded per-finger motion estimators. Recent
+wrist-relative, palm-normalized landmark speed determines note-on velocity;
+velocity is latched at contact onset and forwarded unchanged to the shared
+musical event producer. Invalid/lost sources and session reset clear history.
+This is a motion heuristic, not a force measurement or contact classifier;
+see [mapping and limits](piano_integration.md#finger-speed-velocity).
+
 ## Event and clock contract
 
 The implemented [shared event contract](note_events.md) (#86) defines versioned
@@ -112,9 +119,14 @@ monotonic observation time, ordered sequence, session identity and press identit
 `NoteSession` validates message data, dispatches audio before deferred observers,
 and retires sessions on loss, invalid input or overload. Its BrowserAudio adapter
 propagates audio interruption to all consumers. Coordinates remain CV inputs.
-The one-octave integration shares accepted events with MIDI and feedback after audio;
+The configured white-key integration shares accepted events with MIDI and feedback after audio;
 readiness is delivered by #24. Contact detection (#34/#29), worker delivery (#37)
 and physical verification (#30/#39) remain pending. See [integration scope](piano_integration.md).
+
+Live hand observations invoke the overlay's contact-frame handler before React
+updates its drawing snapshot. Musical transitions therefore do not depend on
+a React commit; synchronous audio still precedes deferred MIDI and feedback.
+Hand inference and contact evaluation remain on the main thread (#37).
 
 Specify ordering, malformed/duplicate events, repeated pitches and same-key
 multi-finger policy. Match releases to presses; a late release for a stolen
