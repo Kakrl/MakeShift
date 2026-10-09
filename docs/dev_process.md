@@ -82,6 +82,7 @@ MakeShift/
 │   │   │   ├── liveContactPipeline.ts # controller: eligibility, shadow worker/history, releases
 │   │   │   ├── combinedContact.ts    # contact state/gate types and timing constants
 │   │   │   ├── finger.ts             # per-finger state owner and checkState entry point
+│   │   │   ├── fingerVelocity.ts     # bounded palm-normalized speed and onset velocity
 │   │   │   ├── shadowHeuristics.ts   # prototype RGB k-means dark-region segmentation
 │   │   │   └── shadowWorker.ts       # bounded background shadow segmentation
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
@@ -117,6 +118,7 @@ MakeShift/
 │   │   ├── homePage.test.ts
 │   │   ├── supabaseHealth.test.ts    # /api/health database check
 │   │   ├── pianoIntegration.test.ts # deterministic note-to-audio/MIDI/feedback
+│   │   ├── fingerVelocity.test.ts   # motion estimator, lifecycle and DSP response
 │   │   ├── liveSession.test.ts       # readiness transitions and stale-input safety
 │   │   ├── noteEvents.test.ts        # shared events, lifecycle, clocks and MessagePort
 │   │   ├── playbackTimeline.test.ts # recording playback clock and lifecycle

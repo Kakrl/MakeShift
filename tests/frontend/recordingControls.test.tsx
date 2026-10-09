@@ -250,6 +250,75 @@ async function start() {
   expect(button("Pause recording").disabled).toBe(false);
 }
 
+it("dispatches a chord and release/repress before React commits the landmark snapshot", async () => {
+  await start();
+  const landmarks: NormalizedLandmark[] = Array.from({ length: 21 }, () => ({ x: -10, y: -10 }));
+  landmarks[4] = { x: 0.115, y: 0.5 };
+  landmarks[8] = { x: 0.325, y: 0.5 };
+  const chord: HandObservation[] = [{ landmarks, handedness: "Right" }];
+  vi.mocked(browserAudio.noteOn).mockClear();
+  vi.mocked(browserAudio.noteOff).mockClear();
+  await act(async () => {
+    fixtures.landmarks?.(chord);
+    fixtures.landmarks?.(chord);
+    expect(browserAudio.noteOn).toHaveBeenCalledTimes(2);
+    expect(browserAudio.noteOn).toHaveBeenNthCalledWith(1, 48, 0.2);
+    expect(browserAudio.noteOn).toHaveBeenNthCalledWith(2, 52, 0.2);
+    fixtures.landmarks?.(chord);
+    expect(browserAudio.noteOn).toHaveBeenCalledTimes(2);
+    now += 40;
+    fixtures.landmarks?.([]);
+    expect(browserAudio.noteOff).toHaveBeenCalledTimes(2);
+    fixtures.landmarks?.(chord);
+    fixtures.landmarks?.(chord);
+    expect(browserAudio.noteOn).toHaveBeenCalledTimes(4);
+  });
+  await advance(60);
+  await click(button("Stop recording"));
+  expect(fixtures.takes.at(-1)!.notes).toEqual([
+    { pitch: "C3", velocity: 20, startMs: 0, durationMs: 40 },
+    { pitch: "E3", velocity: 20, startMs: 0, durationMs: 40 },
+    { pitch: "C3", velocity: 20, startMs: 40, durationMs: 60 },
+    { pitch: "E3", velocity: 20, startMs: 40, durationMs: 60 },
+  ]);
+});
+
+it.each([false, true])("sends estimated velocities to audio/MIDI and retains them while held (same key: %s)", async (sameKey) => {
+  await start();
+  const landmarks: NormalizedLandmark[] = Array.from({ length: 21 }, () => ({ x: -10, y: -10, z: 0 }));
+  landmarks[0] = { x: 0.5, y: 0.8, z: 0 };
+  landmarks[9] = { x: 0.5, y: 0.6, z: 0 };
+  landmarks[4] = { x: 0.115, y: 0.5, z: 0 };
+  landmarks[8] = { x: sameKey ? 0.115 : 0.325, y: 0.5, z: 0 };
+  const observe = (slowZ: number, fastZ: number) => {
+    const next = [...landmarks];
+    next[4] = { ...landmarks[4], z: slowZ };
+    next[8] = { ...landmarks[8], z: fastZ };
+    fixtures.landmarks?.([{ landmarks: next, handedness: "Right" }]);
+  };
+  vi.mocked(browserAudio.noteOn).mockClear();
+  await act(async () => {
+    observe(0, 0);
+    now += 20;
+    observe(-0.008, -0.032);
+    expect(browserAudio.noteOn).toHaveBeenCalledTimes(sameKey ? 1 : 2);
+    expect(vi.mocked(browserAudio.noteOn).mock.calls[0][1]).toBeCloseTo(sameKey ? 1 : 0.36);
+    if (!sameKey) expect(vi.mocked(browserAudio.noteOn).mock.calls[1][1]).toBeCloseTo(1);
+    now += 20;
+    observe(-0.1, -0.1);
+    expect(browserAudio.noteOn).toHaveBeenCalledTimes(sameKey ? 1 : 2);
+    now += 20;
+    fixtures.landmarks?.([]);
+  });
+  await click(button("Stop recording"));
+  expect(fixtures.takes.at(-1)!.notes).toEqual(sameKey ? [
+    { pitch: "C3", velocity: 100, startMs: 20, durationMs: 40 },
+  ] : [
+    { pitch: "C3", velocity: 36, startMs: 20, durationMs: 40 },
+    { pitch: "E3", velocity: 100, startMs: 20, durationMs: 40 },
+  ]);
+});
+
 it.each([2, 3])("uses %i-octave live geometry, shifted notes and feedback after recalibration", async (octaves) => {
   await start();
   await keys(115);
@@ -270,7 +339,7 @@ it.each([2, 3])("uses %i-octave live geometry, shifted notes and feedback after 
   const last = getWhiteKeyPolygons(layout).at(-1)!;
   const x = 100 + (last[0].x + last[1].x) / 2 * 800;
   await keys(x);
-  expect(browserAudio.noteOn).toHaveBeenLastCalledWith(60 + 12 * octaves, 0.8);
+  expect(browserAudio.noteOn).toHaveBeenLastCalledWith(60 + 12 * octaves, 0.2);
   expect(fixtures.highlight).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), expect.anything());
 });
 
@@ -467,7 +536,7 @@ it("records a same-turn press before Stop drains deferred consumers", async () =
   await start();
   await keys(115);
   await click(button("Stop recording"));
-  expect(fixtures.takes.at(-1)!.notes).toMatchObject([{ pitch: "C3", velocity: 80, durationMs: 0 }]);
+  expect(fixtures.takes.at(-1)!.notes).toMatchObject([{ pitch: "C3", velocity: 20, durationMs: 0 }]);
 });
 
 it("checks markers immediately and then only every ten seconds", async () => {
