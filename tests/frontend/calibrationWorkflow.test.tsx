@@ -34,22 +34,28 @@ vi.mock("../../frontend/src/app/lighting", () => ({
   LIGHTING_MESSAGES: { ok: "OK" },
   readFrameBrightness: () => ({ brightness: 0.5, verdict: "ok" }),
 }));
-vi.mock("../../frontend/src/app/useHandLandmarker", () => ({
-  useHandLandmarker: () => ({
-    status: "ready",
-    reload: vi.fn(),
-    detect: () => {
-      const scale = 0.005 + fixture.depthCapture * 0.005;
-      return {
-        handednesses: [[{ categoryName: "Right" }]],
-        landmarks: fixture.hands ? [Array.from({ length: 21 }, (_, index) => ({
-          x: 0.2 + index * scale, y: 0.3 + fixture.depthCapture * 0.05,
-          z: -0.01 - fixture.depthCapture * 0.015,
-        }))] : [],
-      };
-    },
-  }),
-}));
+vi.mock("../../frontend/src/app/useHandLandmarker", async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import("../../frontend/src/app/useHandLandmarker")
+  >();
+  return {
+    ...actual,
+    useHandLandmarker: () => ({
+      status: "ready",
+      reload: vi.fn(),
+      detect: () => {
+        const scale = 0.005 + fixture.depthCapture * 0.005;
+        return {
+          handednesses: [[{ categoryName: "Right" }]],
+          landmarks: fixture.hands ? [Array.from({ length: 21 }, (_, index) => ({
+            x: 0.2 + index * scale, y: 0.3 + fixture.depthCapture * 0.05,
+            z: -0.01 - fixture.depthCapture * 0.015,
+          }))] : [],
+        };
+      },
+    }),
+  };
+});
 vi.mock("../../frontend/src/cv/markerDetector", () => ({
   MarkerDetector: {
     create: async () => ({
