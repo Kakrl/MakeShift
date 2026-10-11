@@ -37,13 +37,16 @@ const SHADOW_INTERVAL_MS = 10;
 export interface ContactTechniques {
   knuckles: boolean;
   shadows: boolean;
+  /** Requires both knuckles and shadows; off when omitted by older configs. */
+  zMotion?: boolean;
 }
 
 // Change these independently to debug either technique. Key overlap is required.
 // Both false isolates key overlap for debugging, without knuckles or shadows.
 export const CONTACT_TECHNIQUES: Readonly<ContactTechniques> = {
-  knuckles: false,
-  shadows: false,
+  knuckles: true,
+  shadows: true,
+  zMotion: false,
 };
 
 export interface ContactPipelineFrame {
@@ -244,6 +247,7 @@ export class LiveContactPipeline {
       const canEvaluateZMotion = Boolean(
         this.techniques.knuckles &&
           this.techniques.shadows &&
+          this.techniques.zMotion &&
           frame.calibration &&
           keyOverlap &&
           knuckleEligible &&
@@ -272,7 +276,8 @@ export class LiveContactPipeline {
         if (!prediction.boundaryCrossed)
           this.zPredictionLatched.delete(fingertip.id);
         zMotionPredicted = Boolean(
-          this.techniques.shadows &&
+          this.techniques.zMotion &&
+            this.techniques.shadows &&
             prediction.predicted &&
             !this.zPredictionLatched.has(fingertip.id),
         );

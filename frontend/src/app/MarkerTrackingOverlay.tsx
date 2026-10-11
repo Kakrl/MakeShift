@@ -923,7 +923,8 @@ export default function MarkerTrackingOverlay({
             <div className="mb-1 font-bold">Finger debug</div>
             <div className="mb-2">
               Techniques: knuckles {CONTACT_TECHNIQUES.knuckles ? "on" : "off"}{" "}
-              · shadows {CONTACT_TECHNIQUES.shadows ? "on" : "off"}
+              · shadows {CONTACT_TECHNIQUES.shadows ? "on" : "off"}{" "}
+              · z motion {CONTACT_TECHNIQUES.zMotion ? "on" : "off"}
             </div>
             {CONTACT_TECHNIQUES.shadows && (
               <div className="mb-3 border-b border-white/20 pb-2">

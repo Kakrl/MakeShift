@@ -6,8 +6,12 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import SideNav from "../SideNav";
 import { useRouter } from "next/navigation";
+import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
+import type { HandObservation } from "../../cv/collision";
 import { useCamera } from "../CameraContext";
 import CameraStatusOverlay from "../CameraStatusOverlay";
+import HandTrackingOverlay from "../cv/HandTrackingOverlay";
+import { drawHandLandmarks } from "../cv/handLandmarkDrawing";
 import { useHandLandmarker } from "../useHandLandmarker";
 import DepthCalibrationCapture from "./DepthCalibrationCapture";
 import {
@@ -134,6 +138,10 @@ export default function Calibration() {
 
   const [corners, setCorners] = useState<Point[] | null>(null);
   const hoverRef = useRef<LandmarkSample[][] | null>(null);
+  const liveHandSamplesRef = useRef<{
+    capturedAtMs: number;
+    hands: LandmarkSample[][];
+  } | null>(null);
   const resultRef = useRef<CalibrationResult | null>(null);
   const detectorRef = useRef<MarkerDetector | null>(null);
   const generationRef = useRef(0);
@@ -149,6 +157,20 @@ export default function Calibration() {
   const depthModelRef = useRef<DepthCalibrationModel | null>(null);
   const { status: landmarkerStatus, detect, reload: reloadLandmarker } =
     useHandLandmarker();
+
+  const handleLiveLandmarks = useCallback(
+    (hands: readonly HandObservation[]) => {
+      const samples = hands.map(({ landmarks }) =>
+        landmarks.map(({ x, y, z }) => ({ x, y, z })),
+      );
+      if (validSamples(samples)) {
+        liveHandSamplesRef.current = {
+          capturedAtMs: performance.now(),
+          hands: structuredClone(samples),
+        };
+      }
+    },
+  );
 
   useEffect(() => {
     const video = videoRef.current;
@@ -573,12 +595,33 @@ export default function Calibration() {
     }
     let cancelled = false;
     const generation = generationRef.current;
+    const liveHandSamples = liveHandSamplesRef.current;
+    if (
+      step === 4 &&
+      (!liveHandSamples ||
+        performance.now() - liveHandSamples.capturedAtMs > 500 ||
+        !validSamples(liveHandSamples.hands))
+    ) {
+      setCaptureError(
+        "No complete hand landmarks are available yet. Keep your hand in view and retry.",
+      );
+      setCountdown(null);
+      return;
+    }
     const observed = (() => { try { return readSheet(); } catch { return null; } })();
     capture().then(image => {
       if (cancelled || generation !== generationRef.current) return;
       if (!image || !observed || !corners) throw new Error("Camera or sheet unavailable. Return to Align your paper.");
-      const landmarks = detect(image)?.landmarks;
-      if (!validSamples(landmarks)) throw new Error("Show one or two complete hands, then retry.");
+      const detectedLandmarks =
+        step === 4 ? liveHandSamples?.hands : detect(image)?.landmarks;
+      const landmarks: LandmarkSample[][] | null = validSamples(detectedLandmarks)
+        ? detectedLandmarks
+        : null;
+      if (!landmarks) {
+        throw new Error(
+          "Keep at least one complete hand inside the camera frame, then retry.",
+        );
+      }
       if (corners.some((p, i) => Math.hypot(p.x - observed.corners[i].x, p.y - observed.corners[i].y) >
         Math.hypot(observed.camera.width, observed.camera.height) * 0.01)) {
         throw new Error("The sheet moved. Return to Align your paper.");
@@ -593,6 +636,16 @@ export default function Calibration() {
         if (!result) throw new Error("Capture the hover step again before placing your hands.");
         resultRef.current = result;
         setStep5Success(true);
+      }
+      const capturedCanvas = canvasRef.current;
+      const capturedContext = capturedCanvas?.getContext("2d");
+      if (capturedCanvas && capturedContext) {
+        drawHandLandmarks(
+          capturedContext,
+          landmarks as NormalizedLandmark[][],
+          capturedCanvas.width,
+          capturedCanvas.height,
+        );
       }
       setShowingImage(true);
     }).catch(error => {
@@ -613,6 +666,7 @@ export default function Calibration() {
     setFingersShown(false);
     setStep5Success(false);
     setCaptureError(null);
+    liveHandSamplesRef.current = null;
   };
 
   const handleComplete = () => {
@@ -1008,6 +1062,14 @@ export default function Calibration() {
                   : "none",
             }}
           />
+          {step >= 2 && step <= TOTAL_STEPS && !showingImage && (
+            <HandTrackingOverlay
+              videoRef={videoRef}
+              onLandmarks={handleLiveLandmarks}
+              showVisualDebug
+              showStatus={false}
+            />
+          )}
           {renderCountdown()}
           {cameraReady && renderCameraOverlay()}
           <CameraStatusOverlay />

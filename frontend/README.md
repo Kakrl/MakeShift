@@ -39,6 +39,7 @@ To isolate a technique, edit `CONTACT_TECHNIQUES` near the top of
 export const CONTACT_TECHNIQUES: Readonly<ContactTechniques> = {
   knuckles: true,
   shadows: true,
+  zMotion: false,
 };
 ```
 
@@ -48,6 +49,10 @@ export const CONTACT_TECHNIQUES: Readonly<ContactTechniques> = {
 | `false` | `true` | Key overlap and fresh shadow confirmation; no knuckle calibration needed |
 | `true` | `false` | Key overlap and calibrated knuckle eligibility; no shadow worker or pixel capture |
 | `false` | `false` | Key-overlap-only debugging; no knuckle calibration or shadow processing |
+
+Set `zMotion: true` to predict note-on from the calibrated z boundary and
+downward z movement. Z motion requires both `knuckles` and `shadows` enabled;
+shadows confirm the predicted press. The default keeps z motion disabled.
 
 Knuckle-only mode releases when eligibility is lost. Overlap-only mode releases
 when key overlap is lost. Both release when landmark frames are over 150 ms old.
