@@ -354,8 +354,6 @@ export default function Calibration() {
         Right: new DepthCalibrationCollector("Right"),
         Left: new DepthCalibrationCollector("Left"),
       };
-    } else if (step === 5 || step === 6) {
-      depthCollectorsRef.current.Left = new DepthCalibrationCollector("Left");
     }
     setShowHelpModal(false);
     setPaperError(false);
@@ -367,14 +365,26 @@ export default function Calibration() {
 
   function goToAdjacentStep(delta: -1 | 1) {
     generationRef.current++;
-    if (delta === -1) { resultRef.current = null; hoverRef.current = null; }
-    resetInteractiveStepState(
-      !(
-        (delta === 1 && (step === 5 || step === 6)) ||
-        (delta === -1 && step === 6)
-      ),
-    );
-    setStep((s) => s + delta);
+    if (delta === -1 && step <= 5) {
+      resultRef.current = null;
+      hoverRef.current = null;
+    }
+    resetInteractiveStepState(false);
+    const targetStep = step + delta;
+    if (targetStep === 5 || targetStep === 6) {
+      const hand: CalibrationHand = targetStep === 5 ? "Right" : "Left";
+      const collector = depthCollectorsRef.current[hand];
+      const nextPosition = DEPTH_CALIBRATION_POSITIONS.findIndex(
+        (position) => collector.getSampleCount(position) === 0,
+      );
+      setDepthPositionIndex(
+        nextPosition < 0
+          ? DEPTH_CALIBRATION_POSITIONS.length - 1
+          : nextPosition,
+      );
+      setStep5Success(Boolean(depthModelsRef.current[hand]));
+    }
+    setStep(targetStep);
   }
 
   function changeLayout(patch: Partial<KeyboardLayout>) {
@@ -551,8 +561,7 @@ export default function Calibration() {
           setDepthCaptureMessage(
             "The depth values did not change enough between positions. Try again.",
           );
-          setDepthPositionIndex(0);
-          depthCollectorsRef.current[hand] = new DepthCalibrationCollector(hand);
+          setDepthPositionIndex(DEPTH_CALIBRATION_POSITIONS.length - 1);
           return;
         }
         const currentCamera = cameraSignature(stream, videoRef.current);
@@ -589,8 +598,9 @@ export default function Calibration() {
       }
     } catch (error) {
       if (generation === generationRef.current) {
-        setDepthPositionIndex(0);
-        depthCollectorsRef.current[step === 5 ? "Right" : "Left"] = new DepthCalibrationCollector(step === 5 ? "Right" : "Left");
+        if (collector.isComplete()) {
+          setDepthPositionIndex(DEPTH_CALIBRATION_POSITIONS.length - 1);
+        }
         setDepthCaptureMessage(error instanceof Error ? error.message : "Capture failed. Retry.");
       }
     } finally {
