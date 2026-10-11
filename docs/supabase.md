@@ -12,6 +12,7 @@ Supabase, using a secret key that bypasses row level security.
 | Secrets | Infisical project `makeshift`, environments `dev` and `prod` |
 | Hosting | Vercel project `make-shift`, env vars synced from Infisical |
 | Server access | [`frontend/src/server/supabase.ts`](../frontend/src/server/supabase.ts) |
+| API contract | [`frontend/src/lib/recordings.ts`](../frontend/src/lib/recordings.ts): request/response types and upload validation shared by routes and client |
 | Health check | `GET /api/health`: `200 {"database":{"status":"ok"}}` when connected |
 
 ## `recordings` table

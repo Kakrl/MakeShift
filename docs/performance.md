@@ -107,8 +107,10 @@ threshold: short trials are evidence, not a claim that overhead is negligible.
 The synthetic camera has no printed keyboard or calibrated contact, so live
 collision/event timings can remain unavailable. Hardware latency, intentional
 presses, worker transfer, long-session memory growth, physical camera unplug,
-and other browsers require separate profiling. Use the physical harness in
-#30 and labeled accuracy verification in #39 for those requirements.
+and other browsers require separate profiling. Use the [software estimator](latency_estimation.md) in #30 for modeled
+latency and sensitivity, and labeled accuracy verification in #39. Physical
+latency measurement is separate product-verification scope; #30 delivers the
+reproducible simulation and software estimate without physical capture.
 
 ## Verification and delivery
 

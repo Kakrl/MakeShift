@@ -8,6 +8,7 @@ import {
   type FingerContactGate,
 } from "./combinedContact";
 import { Finger } from "./finger";
+import { FingerVelocity } from "./fingerVelocity";
 import {
   checkKeyOverlap,
   checkKnuckleEligibility,
@@ -73,6 +74,8 @@ export class LiveContactPipeline {
   readonly fingers = new Map<string, Finger>();
   readonly gates = new Map<string, FingerContactGate>();
   readonly contacts = new Map<string, FingerContactEvaluation>();
+  readonly pressVelocities = new Map<string, number>();
+  private readonly motion = new Map<string, FingerVelocity>();
   readonly observations = new Map<string, ShadowObservation>();
   readonly shadowContacts = new Map<string, ShadowContactEvaluation>();
   private readonly measurements = new Map<string, ShadowMeasurement>();
@@ -119,6 +122,8 @@ export class LiveContactPipeline {
           this.zHistories.clear();
           this.zPredictionLatched.clear();
           this.contacts.clear();
+          this.pressVelocities.clear();
+          this.motion.clear();
           this.callbacks.onContactsChanged();
           this.callbacks.onError(
             event.message || "Worker failed without an error message",
@@ -143,7 +148,7 @@ export class LiveContactPipeline {
         const next = finger.checkState(gate, now, undefined, {
           shadowsEnabled: this.techniques.shadows,
         });
-        this.contacts.set(id, next);
+        this.setContact(id, next, now);
         changed ||= next.state !== previous.state;
       }
       if (changed) this.callbacks.onContactsChanged(true);
@@ -153,6 +158,8 @@ export class LiveContactPipeline {
   reset() {
     for (const finger of this.fingers.values()) finger.reset();
     this.fingers.clear();
+    this.motion.clear();
+    this.pressVelocities.clear();
     this.contacts.clear();
     this.gates.clear();
     this.measurements.clear();
@@ -190,6 +197,11 @@ export class LiveContactPipeline {
       const previousGate = this.gates.get(fingertip.id);
       const sourceIdentity = `${hand.handedness}:${frame.video?.videoWidth}:${frame.video?.videoHeight}`;
       const sameSource = previousGate?.sourceIdentity === sourceIdentity;
+      const motion = this.motion.get(fingertip.id) ?? new FingerVelocity();
+      this.motion.set(fingertip.id, motion);
+      motion.observe(hand, fingertip.landmarkIndex,
+        frame.video?.videoWidth ?? 0, frame.video?.videoHeight ?? 0,
+        now, sourceIdentity);
       let distance: number | null = null;
       if (this.techniques.knuckles) {
         if (!knuckleDistances.has(fingertip.handIndex))
@@ -324,7 +336,7 @@ export class LiveContactPipeline {
           zMotionPredicted,
         },
       );
-      this.contacts.set(fingertip.id, contact);
+      this.setContact(fingertip.id, contact, now);
 
     }
 
@@ -337,6 +349,8 @@ export class LiveContactPipeline {
       this.fingers,
       this.zHistories,
       this.zPredictionLatched,
+      this.motion,
+      this.pressVelocities,
     ]) {
       for (const id of map.keys()) if (!activeIds.has(id)) map.delete(id);
     }
@@ -464,12 +478,13 @@ export class LiveContactPipeline {
       const finger = this.fingers.get(id);
       if (!finger) continue;
       finger.contact = this.contacts.get(id) ?? null;
-      this.contacts.set(
+      this.setContact(
         id,
         finger.checkState(gate, now, {
           state: contact.state,
           frameAtMs: data.frameAtMs,
         }),
+        now,
       );
       accepted.push(result);
     }
@@ -483,5 +498,12 @@ export class LiveContactPipeline {
         );
       }
     }
+  }
+
+  private setContact(id: string, contact: FingerContactEvaluation, at: number) {
+    if (contact.active && !this.contacts.get(id)?.active)
+      this.pressVelocities.set(id, this.motion.get(id)!.takeVelocity(at));
+    else if (!contact.active) this.pressVelocities.delete(id);
+    this.contacts.set(id, contact);
   }
 }

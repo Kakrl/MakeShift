@@ -31,26 +31,29 @@ export default function DepthCalibrationCapture({
   const positionLabel = POSITION_LABELS[position];
 
   return (
-    <div className="flex flex-col gap-3 rounded-[8px] border border-control-border bg-white p-4">
-      <p className="text-[18px] text-black font-sans">
-        Place your right hand at the {positionLabel} of the sheet.
-      </p>
-      <p className="text-[14px] text-ink-muted font-sans" aria-live="polite">
-        {rightHandDetected === true
-          ? "Hold still, then capture this position."
-          : "Place your right hand at this position, then capture."}
-      </p>
+    <div className="flex w-full flex-col gap-2">
       <button
         type="button"
         onClick={onCapture}
         disabled={disabled || rightHandDetected === false}
-        className="self-start rounded-[8px] border-[1.5px] border-black bg-surface px-5 py-2 text-[18px] text-black font-sans transition-[background-color,transform] hover:bg-black/5 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
+        className="ms-key ms-key-primary w-full px-4 text-[15px]"
       >
         Capture {positionLabel} position
       </button>
-      <p className="text-[13px] text-ink-muted font-sans">
-        Captured: {sampleCount}
-      </p>
+      <div className="flex flex-col">
+        <p className="text-[15px] text-ink">
+          Right hand on the {positionLabel}.
+        </p>
+        <p className="text-[13px] text-ink-muted" aria-live="polite">
+          <span>
+            {rightHandDetected === true
+              ? "Hold still, then capture."
+              : "Then press Capture."}
+            {" · "}
+          </span>
+          <span className="tabular-nums">Captured: {sampleCount}</span>
+        </p>
+      </div>
     </div>
   );
 }

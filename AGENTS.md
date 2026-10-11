@@ -43,13 +43,13 @@ it separates existing behavior from planned work and links implementation issues
 
 | Path | Contents |
 | :--- | :--- |
-| `frontend/` | Next.js web client: camera, calibration, CV overlays, MIDI utils |
+| `frontend/` | Next.js web client: camera, calibration, CV overlays, MIDI utils and local library operations |
 | `frontend/public/audio/` | Static AudioWorklet and shared fixed-voice DSP |
 | `frontend/src/app/audio/` | Browser audio owner and user-triggered sound check |
 | `frontend/src/diagnostics/` | Shared bounded metrics and explicit camera-video registry |
 | `frontend/src/events/` | Shared browser note schema, clocks, session dispatch and audio adapter |
 | `frontend/src/cv/` | ArUco marker detection, homography, keyboard geometry, prototype shadow worker and combined per-finger contact state |
-| `frontend/src/lib/` | Shared browser utilities, including versioned `localStorage` access |
+| `frontend/src/lib/` | Shared utilities: versioned `localStorage` access and the recordings API types/validation used by client and server |
 | `frontend/src/app/api/` | Server routes; `/api/health` checks the recordings database |
 | `frontend/src/server/` | Server-only Supabase access (never import from client code) |
 | `supabase/` | Supabase CLI config and SQL migrations for shared recordings |
@@ -61,6 +61,7 @@ it separates existing behavior from planned work and links implementation issues
 | `tests/automation/` | Repository-process RCA tests |
 | `tests/manual/` | Manual test template and completed manual test reports |
 | `docs/` | Architecture, browser RVTM addendum, process, SDP, V&V plan, design, subsystem notes |
+| `docs/piano-sheet-*.pdf` | Actual-size printable starter and right-marker extension piano sheets; generator in `docs/generate_piano_sheets.py` |
 | `.github/workflows/` | CI: tests, linting, frontend checks, RCA validation/publication |
 | `.github/scripts/` | Trusted RCA validation and comment automation |
 | `.github/pull_request_template.md` | PR description and RCA authoring instructions |
@@ -83,7 +84,7 @@ it separates existing behavior from planned work and links implementation issues
 | Area touched | Commands (from repo root unless noted) |
 | :--- | :--- |
 | Frontend | `cd frontend && npm run lint && npx tsc --noEmit && npx vitest run && npm run test:contrast && npm run build` |
-| Frontend browser | With `npm start` running: `npm run test:deployment` and `AUDIO_BROWSER_CHANNEL=chromium npm run test:audio-browser` (`npx playwright install chromium` once) |
+| Frontend browser | With `npm start` running: `npm run test:deployment`, `npm run test:keyboard-layout-browser` and `AUDIO_BROWSER_CHANNEL=chromium npm run test:audio-browser` (`npx playwright install chromium` once) |
 | Database | `npx supabase db push --linked` for new migrations; see `docs/supabase.md` |
 | Python | `python -m ruff check backend/src tests`, `python -m mypy backend/src --check-untyped-defs`, `python -m pytest` |
 | C++ | `cmake -B build -S backend && cmake --build build --config Release && ctest --test-dir build -C Release --output-on-failure` |

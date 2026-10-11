@@ -23,6 +23,17 @@ Implementation belongs to #28, #34, #35, #37, #86–#89 and related issues liste
 in the architecture. #85 changes documentation only. External SDP/V&V links
 below remain historical planning sources; this update does not edit them.
 
+## Latency estimation delivery (issue #30)
+
+Issue #30 now delivers software-based latency estimation and sensitivity
+analysis, using camera FPS, measured software stages and explicit assumptions
+for unmeasured camera/CV/audio delays. No contact sensor, physical recording or
+manual test is required for that deliverable. See [the estimator procedure](latency_estimation.md).
+Estimator verification maps to 2.3.7; physical compliance test 2.3.1 remains
+a separate product-verification activity. The simulation supplies documented
+scenario results and regression expectations; the physical requirement and
+detection-accuracy requirement retain their own evidence criteria.
+
 ## Recording playback extension (issue #130)
 
 PB-1 adds a browser-local playback timeline over the existing `Recording` model:
@@ -32,6 +43,25 @@ and audio interruption. It supplies the transport for later piano-tiles views
 not prerequisites for playing an in-memory recording. See the
 [RVTM mapping](rvtm_browser_addendum.md#recording-playback-extension-130) and
 [transport contract](note_events.md#recording-playback-timeline-130).
+
+## Octave layouts and printed sheet (#36)
+
+Requirements 1.2 and 1.3 are delivered for the existing white-key contact
+pipeline: 1–3 octaves (8/15/22 white keys), with the leftmost printed C assigned
+to a user-selected C octave. Starting choices are bounded by MIDI 0–127.
+The shared layout controls geometry, calibration compatibility, audio/MIDI
+pitch and highlights. Chromatic black-key contact mapping remains #25.
+
+The actual-size starter/extension PDFs preserve marker IDs 0–3 and use a
+23.5 mm white-key pitch. Paper coverage is explicitly declared in calibration;
+the same four IDs cannot measure millimeters or identify page count. An
+undersized declared assembly blocks calibration until an explicit override,
+which preserves key pitch and extends the selected keyboard beyond paper.
+Every settings change clears saved hand/marker calibration and releases notes.
+See [print/layout instructions](piano_sheet.md) and the
+[verification mapping](rvtm_browser_addendum.md#octave-layouts-36).
+Physical printing, webcam contact quality and audibility remain separate
+hardware verification, not claims established by software fixtures.
 
 **Previous SDP Work**
 

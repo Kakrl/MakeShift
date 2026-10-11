@@ -1,4 +1,5 @@
 import { browserAudio, type BrowserAudio } from "../audio/audioEngine";
+import { pitchToMidi } from "../../cv/noteMap";
 import type { Recording } from "./midiUtils";
 
 type AudioToken = NonNullable<ReturnType<BrowserAudio["noteOn"]>>;
@@ -17,24 +18,8 @@ type Note = { pitch: number; velocity: number; start: number; end: number };
 type Boundary = { time: number; index: number; on: boolean };
 
 function pitchNumber(pitch: string): number {
-  const match = /^([A-G])([#b]?)(-?\d+)$/.exec(pitch);
-  if (!match) throw new RangeError(`Invalid pitch: ${pitch}`);
-  const semitones: Record<string, number> = {
-    C: 0,
-    D: 2,
-    E: 4,
-    F: 5,
-    G: 7,
-    A: 9,
-    B: 11,
-  };
-  const semitone = semitones[match[1]];
-  const value =
-    (Number(match[3]) + 1) * 12 +
-    semitone +
-    (match[2] === "#" ? 1 : match[2] === "b" ? -1 : 0);
-  if (!Number.isInteger(value) || value < 0 || value > 127)
-    throw new RangeError(`Pitch outside MIDI range: ${pitch}`);
+  const value = pitchToMidi(pitch);
+  if (value === null) throw new RangeError(`Invalid pitch: ${pitch}`);
   return value;
 }
 

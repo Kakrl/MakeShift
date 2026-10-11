@@ -92,9 +92,11 @@ vi.mock("../../frontend/src/cv/markerDetector", () => ({
   },
 }));
 vi.mock("next/dynamic", async () => {
+  const { default: LibraryPanel } = await import("../../frontend/src/app/midi/RecordingsLibraryPanel");
   return {
     default: (loader: () => unknown) => {
       const source = loader.toString();
+      if (source.includes("RecordingsLibraryPanel")) return LibraryPanel;
       if (source.includes("CVOverlayCoordinator")) {
         return function CoordinatorFixture(props: ComponentProps<typeof Coordinator>) {
           return createElement(Coordinator, props);
@@ -119,6 +121,8 @@ import { browserAudio } from "../../frontend/src/app/audio/audioEngine";
 import Home from "../../frontend/src/app/page";
 import Coordinator from "../../frontend/src/app/CVOverlayCoordinator";
 import Marker from "../../frontend/src/app/MarkerTrackingOverlay";
+import { saveKeyboardLayout } from "../../frontend/src/lib/keyboardSettings";
+import { getWhiteKeyPolygons } from "../../frontend/src/cv/keyboardGeometry";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -246,6 +250,115 @@ async function start() {
   expect(button("Pause recording").disabled).toBe(false);
 }
 
+it("dispatches a chord and release/repress before React commits the landmark snapshot", async () => {
+  await start();
+  const landmarks: NormalizedLandmark[] = Array.from({ length: 21 }, () => ({ x: -10, y: -10 }));
+  landmarks[4] = { x: 0.115, y: 0.5 };
+  landmarks[8] = { x: 0.325, y: 0.5 };
+  const chord: HandObservation[] = [{ landmarks, handedness: "Right" }];
+  vi.mocked(browserAudio.noteOn).mockClear();
+  vi.mocked(browserAudio.noteOff).mockClear();
+  await act(async () => {
+    fixtures.landmarks?.(chord);
+    fixtures.landmarks?.(chord);
+    expect(browserAudio.noteOn).toHaveBeenCalledTimes(2);
+    expect(browserAudio.noteOn).toHaveBeenNthCalledWith(1, 48, 0.2);
+    expect(browserAudio.noteOn).toHaveBeenNthCalledWith(2, 52, 0.2);
+    fixtures.landmarks?.(chord);
+    expect(browserAudio.noteOn).toHaveBeenCalledTimes(2);
+    now += 40;
+    fixtures.landmarks?.([]);
+    expect(browserAudio.noteOff).toHaveBeenCalledTimes(2);
+    fixtures.landmarks?.(chord);
+    fixtures.landmarks?.(chord);
+    expect(browserAudio.noteOn).toHaveBeenCalledTimes(4);
+  });
+  await advance(60);
+  await click(button("Stop recording"));
+  expect(fixtures.takes.at(-1)!.notes).toEqual([
+    { pitch: "C3", velocity: 20, startMs: 0, durationMs: 40 },
+    { pitch: "E3", velocity: 20, startMs: 0, durationMs: 40 },
+    { pitch: "C3", velocity: 20, startMs: 40, durationMs: 60 },
+    { pitch: "E3", velocity: 20, startMs: 40, durationMs: 60 },
+  ]);
+});
+
+it.each([false, true])("sends estimated velocities to audio/MIDI and retains them while held (same key: %s)", async (sameKey) => {
+  await start();
+  const landmarks: NormalizedLandmark[] = Array.from({ length: 21 }, () => ({ x: -10, y: -10, z: 0 }));
+  landmarks[0] = { x: 0.5, y: 0.8, z: 0 };
+  landmarks[9] = { x: 0.5, y: 0.6, z: 0 };
+  landmarks[4] = { x: 0.115, y: 0.5, z: 0 };
+  landmarks[8] = { x: sameKey ? 0.115 : 0.325, y: 0.5, z: 0 };
+  const observe = (slowZ: number, fastZ: number) => {
+    const next = [...landmarks];
+    next[4] = { ...landmarks[4], z: slowZ };
+    next[8] = { ...landmarks[8], z: fastZ };
+    fixtures.landmarks?.([{ landmarks: next, handedness: "Right" }]);
+  };
+  vi.mocked(browserAudio.noteOn).mockClear();
+  await act(async () => {
+    observe(0, 0);
+    now += 20;
+    observe(-0.008, -0.032);
+    expect(browserAudio.noteOn).toHaveBeenCalledTimes(sameKey ? 1 : 2);
+    expect(vi.mocked(browserAudio.noteOn).mock.calls[0][1]).toBeCloseTo(sameKey ? 1 : 0.36);
+    if (!sameKey) expect(vi.mocked(browserAudio.noteOn).mock.calls[1][1]).toBeCloseTo(1);
+    now += 20;
+    observe(-0.1, -0.1);
+    expect(browserAudio.noteOn).toHaveBeenCalledTimes(sameKey ? 1 : 2);
+    now += 20;
+    fixtures.landmarks?.([]);
+  });
+  await click(button("Stop recording"));
+  expect(fixtures.takes.at(-1)!.notes).toEqual(sameKey ? [
+    { pitch: "C3", velocity: 100, startMs: 20, durationMs: 40 },
+  ] : [
+    { pitch: "C3", velocity: 36, startMs: 20, durationMs: 40 },
+    { pitch: "E3", velocity: 100, startMs: 20, durationMs: 40 },
+  ]);
+});
+
+it.each([2, 3])("uses %i-octave live geometry, shifted notes and feedback after recalibration", async (octaves) => {
+  await start();
+  await keys(115);
+  await advance(100);
+  const oldCalibration = JSON.parse(localStorage.getItem("makeshift.calibration.v1")!);
+  const layout = { octaves, startingMidi: 60, whiteKeys: octaves * 7 + 1, paperOctaves: octaves };
+  await act(async () => {
+    expect(saveKeyboardLayout(layout).ok).toBe(true);
+    // Release happens in the store callback before any new marker scan.
+    expect(browserAudio.releaseAll).toHaveBeenCalled();
+  });
+  expect(fixtures.takes.at(-1)?.notes[0]).toMatchObject({ pitch: "C3", durationMs: 100 });
+  const enable = [...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!;
+  expect(enable.disabled).toBe(true);
+  localStorage.setItem("makeshift.calibration.v1", JSON.stringify({ ...oldCalibration, layout }));
+  await advance(10_000);
+  await click(enable);
+  const last = getWhiteKeyPolygons(layout).at(-1)!;
+  const x = 100 + (last[0].x + last[1].x) / 2 * 800;
+  await keys(x);
+  expect(browserAudio.noteOn).toHaveBeenLastCalledWith(60 + 12 * octaves, 0.2);
+  expect(fixtures.highlight).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), expect.anything());
+});
+
+it("announces capture state through pause, resume count-in and completion", async () => {
+  const status = () => host.querySelector('[aria-live="polite"]')?.textContent;
+  await click(button("Start recording"));
+  expect(status()).toBe("Count-in to start recording");
+  await countIn();
+  expect(status()).toBe("Recording started");
+  await click(button("Pause recording"));
+  expect(status()).toBe("Recording paused");
+  await click(button("Resume recording"));
+  expect(status()).toBe("Count-in to resume recording");
+  await countIn();
+  expect(status()).toBe("Recording started");
+  await click(button("Stop recording"));
+  expect(status()).toBe("Recording complete");
+});
+
 it("uses the real page/coordinator/marker transitions to capture held keys after resume", async () => {
   await start();
   await keys(115); // First key, via real geometry and transitions.
@@ -266,7 +379,7 @@ it("uses the real page/coordinator/marker transitions to capture held keys after
   expect(notes[1]).toMatchObject({ pitch: notes[0].pitch, startMs: 500, durationMs: 250 });
   expect(notes[2]).toMatchObject({ startMs: 500, durationMs: 250 });
   expect(notes[2].pitch).not.toBe(notes[0].pitch);
-  expect(host.textContent).toContain("Export .MIDI Recording");
+  expect(host.textContent).toContain("Download MIDI");
   expect(button("Start recording").disabled).toBe(false);
 });
 
@@ -318,7 +431,7 @@ it("cancels an initial count-in without making a take", async () => {
   await click(button("Stop recording"));
   await countIn();
   expect(fixtures.takes).toEqual([]);
-  expect(host.textContent).not.toContain("Export .MIDI Recording");
+  expect(host.textContent).not.toContain("Download MIDI");
   expect(button("Start recording").disabled).toBe(false);
 });
 
@@ -423,7 +536,7 @@ it("records a same-turn press before Stop drains deferred consumers", async () =
   await start();
   await keys(115);
   await click(button("Stop recording"));
-  expect(fixtures.takes.at(-1)!.notes).toMatchObject([{ pitch: "C3", velocity: 80, durationMs: 0 }]);
+  expect(fixtures.takes.at(-1)!.notes).toMatchObject([{ pitch: "C3", velocity: 20, durationMs: 0 }]);
 });
 
 it("checks markers immediately and then only every ten seconds", async () => {

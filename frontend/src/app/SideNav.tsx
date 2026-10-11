@@ -2,17 +2,20 @@ import Link from "next/link";
 
 type NavPage = "calibration" | "tutorial" | "about";
 
-const TABS: { page: NavPage; href: string; label: string }[] = [
-  { page: "calibration", href: "/calibration", label: "Calibration" },
-  { page: "tutorial", href: "/tutorial", label: "Tutorial" },
-  { page: "about", href: "/about", label: "About" },
+// Each page has its own color; the held-down tab shows it.
+const TABS: { page: NavPage; href: string; label: string; active: string }[] = [
+  { page: "calibration", href: "/calibration", label: "Calibration", active: "bg-green-soft" },
+  { page: "tutorial", href: "/tutorial", label: "Tutorial", active: "bg-yellow-soft" },
+  { page: "about", href: "/about", label: "About", active: "bg-blue-soft" },
 ];
 
 // Below lg the tabs sit in a row under the camera; from lg up they stack in
 // the 267px right sidebar with the piano-key decoration.
 const TAB_CLASS =
   "flex-1 lg:flex-none border border-black h-12 lg:h-[72px] flex items-center justify-center lg:justify-end px-2 lg:pr-[19px] lg:pl-[100px] relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] " +
-  "not-first:-ml-px lg:not-first:ml-0 lg:not-first:-mt-px first:rounded-bl-[8px] last:rounded-br-[8px] lg:first:rounded-bl-none lg:first:rounded-tr-[8px]";
+  "not-first:-ml-px lg:not-first:ml-0 lg:not-first:-mt-px first:rounded-bl-[8px] last:rounded-br-[8px] lg:first:rounded-bl-none lg:first:rounded-tr-[8px] " +
+  // Keyboard focus: the shared ring, lifted above the black-key bars so it stays whole.
+  "focus-visible:outline-none focus-visible:z-20 focus-visible:shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07),var(--halo)]";
 
 export default function SideNav({
   active,
@@ -34,13 +37,13 @@ export default function SideNav({
 
       {/* Nav tabs */}
       <nav aria-label="Main" className="flex flex-row lg:flex-col">
-        {TABS.map(({ page, href, label }) => {
+        {TABS.map(({ page, href, label, active: activeColor }) => {
           const text = (
             <span className="text-[17px] lg:text-[20px] text-black font-sans whitespace-nowrap">{label}</span>
           );
           if (page === active) {
             return (
-              <div key={page} aria-current="page" className={`${TAB_CLASS} bg-accent-soft`}>
+              <div key={page} aria-current="page" className={`${TAB_CLASS} ${activeColor}`}>
                 {text}
               </div>
             );

@@ -1,0 +1,271 @@
+{
+  "schema_version": 2,
+  "kind": "latency-estimate",
+  "scope": "Software/model estimate under supplied assumptions",
+  "estimate_status": "ESTIMATED",
+  "mode": "paired-durations",
+  "config": {
+    "schema_version": 1,
+    "phase": "warm",
+    "metadata": {
+      "commit": "synthetic-example",
+      "browser": "synthetic-example",
+      "hardware": "synthetic-example",
+      "camera_resolution": "synthetic-example",
+      "output_device": "synthetic-example",
+      "output_route": "wired",
+      "settings": "Simulation baseline: 30 FPS, disjoint modeled inference/contact durations, wired output; all allowance values are scenario assumptions",
+      "accuracy_evidence": "Accuracy is outside this timing simulation; failed attempts are retained if supplied"
+    },
+    "camera_fps": 30,
+    "fps_sensitivity": [
+      15,
+      30,
+      60
+    ],
+    "frame_wait_model": "uniform-random-phase",
+    "frame_wait_rationale": "Illustrative random arrival independent of nominal camera frames; excludes exposure and buffering",
+    "diagnostic_stages": [
+      "inference",
+      "detection"
+    ],
+    "nonoverlap_rationale": "Synthetic disjoint inference and contact-processing durations; real runs must establish boundaries before adding stages",
+    "software_coverage": "Synthetic per-attempt inference and synchronous detection; allowance covers asynchronous contact history and omitted dispatch work",
+    "allowances": {
+      "camera_capture": {
+        "low_ms": 4,
+        "mean_ms": 8,
+        "high_ms": 16,
+        "rationale": "Scenario assumption: 8 ms exposure/buffering/delivery beyond frame phase, swept over 4-16 ms; chosen for sensitivity, not fitted hardware data"
+      },
+      "contact_gating": {
+        "low_ms": 2,
+        "mean_ms": 5,
+        "high_ms": 10,
+        "rationale": "Scenario assumption: 5 ms asynchronous contact/scheduling/dispatch work, swept over 2-10 ms; longer temporal gates require a separate scenario"
+      },
+      "audio_output": {
+        "low_ms": 3,
+        "mean_ms": 6,
+        "high_ms": 12,
+        "rationale": "Scenario assumption: 6 ms wired worklet/envelope/device output allowance, swept over 3-12 ms; excludes Bluetooth scenario"
+      }
+    }
+  },
+  "input_source": {
+    "schema_version": 1,
+    "provenance": "Synthetic simulation durations, not captured CV timings",
+    "clock_convention": "simulated disjoint durations in milliseconds",
+    "attempts": [
+      {
+        "status": "ok",
+        "durations_ms": {
+          "inference": 6,
+          "detection": 1
+        }
+      },
+      {
+        "status": "ok",
+        "durations_ms": {
+          "inference": 8,
+          "detection": 2
+        }
+      },
+      {
+        "status": "ok",
+        "durations_ms": {
+          "inference": 10,
+          "detection": 2
+        }
+      },
+      {
+        "status": "ok",
+        "durations_ms": {
+          "inference": 12,
+          "detection": 2
+        }
+      },
+      {
+        "status": "ok",
+        "durations_ms": {
+          "inference": 14,
+          "detection": 3
+        }
+      }
+    ]
+  },
+  "component_classification": {
+    "selected_software_stages": "input durations; provenance retained",
+    "frame_alignment_wait": "modeled uniform random phase",
+    "allowances": "assumed or explicitly unknown"
+  },
+  "unknown_components": [],
+  "software_mean_ms": 12.0,
+  "input_paired_distribution": {
+    "count": 5,
+    "mean_ms": 12.0,
+    "p50_ms": 12,
+    "p95_ms": 17,
+    "sample_max_ms": 17,
+    "fraction_at_or_over_50_ms": 0.0
+  },
+  "attempt_count": 5,
+  "failures": [],
+  "invalid_attempts": [],
+  "scenarios": [
+    {
+      "camera_fps": 30,
+      "allowance_scenario": "low",
+      "modeled_frame_wait_mean_ms": 16.666666666666668,
+      "assumed_allowance_total_ms": 9,
+      "mean_ms": 37.66666666666667,
+      "modeled_distribution": {
+        "count": 500,
+        "mean_ms": 37.666666666666664,
+        "p50_ms": 37.5,
+        "p95_ms": 53.83333333333333,
+        "sample_max_ms": 59.166666666666664,
+        "fraction_at_or_over_50_ms": 0.134
+      },
+      "mean_at_or_over_50_ms": false
+    },
+    {
+      "camera_fps": 30,
+      "allowance_scenario": "central",
+      "modeled_frame_wait_mean_ms": 16.666666666666668,
+      "assumed_allowance_total_ms": 19,
+      "mean_ms": 47.66666666666667,
+      "modeled_distribution": {
+        "count": 500,
+        "mean_ms": 47.666666666666664,
+        "p50_ms": 47.5,
+        "p95_ms": 63.83333333333333,
+        "sample_max_ms": 69.16666666666666,
+        "fraction_at_or_over_50_ms": 0.43
+      },
+      "mean_at_or_over_50_ms": false
+    },
+    {
+      "camera_fps": 30,
+      "allowance_scenario": "high",
+      "modeled_frame_wait_mean_ms": 16.666666666666668,
+      "assumed_allowance_total_ms": 38,
+      "mean_ms": 66.66666666666667,
+      "modeled_distribution": {
+        "count": 500,
+        "mean_ms": 66.66666666666667,
+        "p50_ms": 66.5,
+        "p95_ms": 82.83333333333333,
+        "sample_max_ms": 88.16666666666666,
+        "fraction_at_or_over_50_ms": 0.958
+      },
+      "mean_at_or_over_50_ms": true
+    },
+    {
+      "camera_fps": 15,
+      "allowance_scenario": "low",
+      "modeled_frame_wait_mean_ms": 33.333333333333336,
+      "assumed_allowance_total_ms": 9,
+      "mean_ms": 54.333333333333336,
+      "modeled_distribution": {
+        "count": 500,
+        "mean_ms": 54.333333333333336,
+        "p50_ms": 54.33333333333333,
+        "p95_ms": 84.66666666666666,
+        "sample_max_ms": 92.33333333333333,
+        "fraction_at_or_over_50_ms": 0.568
+      },
+      "mean_at_or_over_50_ms": true
+    },
+    {
+      "camera_fps": 15,
+      "allowance_scenario": "central",
+      "modeled_frame_wait_mean_ms": 33.333333333333336,
+      "assumed_allowance_total_ms": 19,
+      "mean_ms": 64.33333333333334,
+      "modeled_distribution": {
+        "count": 500,
+        "mean_ms": 64.33333333333334,
+        "p50_ms": 64.33333333333333,
+        "p95_ms": 94.66666666666666,
+        "sample_max_ms": 102.33333333333333,
+        "fraction_at_or_over_50_ms": 0.718
+      },
+      "mean_at_or_over_50_ms": true
+    },
+    {
+      "camera_fps": 15,
+      "allowance_scenario": "high",
+      "modeled_frame_wait_mean_ms": 33.333333333333336,
+      "assumed_allowance_total_ms": 38,
+      "mean_ms": 83.33333333333334,
+      "modeled_distribution": {
+        "count": 500,
+        "mean_ms": 83.33333333333333,
+        "p50_ms": 83.33333333333333,
+        "p95_ms": 113.66666666666666,
+        "sample_max_ms": 121.33333333333333,
+        "fraction_at_or_over_50_ms": 0.98
+      },
+      "mean_at_or_over_50_ms": true
+    },
+    {
+      "camera_fps": 60,
+      "allowance_scenario": "low",
+      "modeled_frame_wait_mean_ms": 8.333333333333334,
+      "assumed_allowance_total_ms": 9,
+      "mean_ms": 29.333333333333336,
+      "modeled_distribution": {
+        "count": 500,
+        "mean_ms": 29.333333333333332,
+        "p50_ms": 29.25,
+        "p95_ms": 39.08333333333333,
+        "sample_max_ms": 42.58333333333333,
+        "fraction_at_or_over_50_ms": 0.0
+      },
+      "mean_at_or_over_50_ms": false
+    },
+    {
+      "camera_fps": 60,
+      "allowance_scenario": "central",
+      "modeled_frame_wait_mean_ms": 8.333333333333334,
+      "assumed_allowance_total_ms": 19,
+      "mean_ms": 39.333333333333336,
+      "modeled_distribution": {
+        "count": 500,
+        "mean_ms": 39.333333333333336,
+        "p50_ms": 39.25,
+        "p95_ms": 49.08333333333333,
+        "sample_max_ms": 52.58333333333333,
+        "fraction_at_or_over_50_ms": 0.032
+      },
+      "mean_at_or_over_50_ms": false
+    },
+    {
+      "camera_fps": 60,
+      "allowance_scenario": "high",
+      "modeled_frame_wait_mean_ms": 8.333333333333334,
+      "assumed_allowance_total_ms": 38,
+      "mean_ms": 58.333333333333336,
+      "modeled_distribution": {
+        "count": 500,
+        "mean_ms": 58.333333333333336,
+        "p50_ms": 58.25,
+        "p95_ms": 68.08333333333333,
+        "sample_max_ms": 71.58333333333333,
+        "fraction_at_or_over_50_ms": 0.916
+      },
+      "mean_at_or_over_50_ms": true
+    }
+  ],
+  "limitations": [
+    "Results describe the supplied software/simulation scenario.",
+    "Allowances are assumptions; scenarios are not confidence bounds.",
+    "Uniform frame phase assumes random independent arrival.",
+    "Modeled sample maximum is not a physical worst-case bound.",
+    "Aggregate stage quantiles are retained but never added.",
+    "Paired distributions exclude listed failed/invalid attempts.",
+    "Software coverage and nonoverlap require justification."
+  ],
+  "source_sha256": "1b68173ca361e8a9dfd29532f1035dd284d1abcc405137b8071c81bfd3f3002e"
+}

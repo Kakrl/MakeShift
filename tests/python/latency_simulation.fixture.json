@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "provenance": "Synthetic simulation durations, not captured CV timings",
+  "clock_convention": "simulated disjoint durations in milliseconds",
+  "attempts": [
+    {
+      "status": "ok",
+      "durations_ms": {
+        "inference": 6,
+        "detection": 1
+      }
+    },
+    {
+      "status": "ok",
+      "durations_ms": {
+        "inference": 8,
+        "detection": 2
+      }
+    },
+    {
+      "status": "ok",
+      "durations_ms": {
+        "inference": 10,
+        "detection": 2
+      }
+    },
+    {
+      "status": "ok",
+      "durations_ms": {
+        "inference": 12,
+        "detection": 2
+      }
+    },
+    {
+      "status": "ok",
+      "durations_ms": {
+        "inference": 14,
+        "detection": 3
+      }
+    }
+  ]
+}

@@ -6,6 +6,8 @@ import { createRecorder } from "../../frontend/src/app/midi/midiUtils";
 import type { BrowserAudio } from "../../frontend/src/app/audio/audioEngine";
 import { CURRENT_LAYOUT, SHEET_ID } from "../../frontend/src/cv/calibration";
 import { Synth } from "../../frontend/public/audio/synth.js";
+import { startingNotes, type KeyboardLayout } from "../../frontend/src/cv/keyboardLayout";
+import { midiToPitch } from "../../frontend/src/cv/noteMap";
 
 let now: number;
 let gate: LiveSession;
@@ -17,18 +19,50 @@ let audio: { noteOn: ReturnType<typeof vi.fn>; noteOff: ReturnType<typeof vi.fn>
 let detach: () => void;
 let disconnect: ReturnType<typeof connectPianoConsumers>;
 
-function observe() {
+function observe(layout: KeyboardLayout = CURRENT_LAYOUT) {
   const camera = { deviceId: "fixture", width: 1000, height: 1000, facingMode: "" };
   const corners = [{ x: 100, y: 100 }, { x: 900, y: 100 }, { x: 900, y: 900 }, { x: 100, y: 900 }];
   gate.observeCalibration({
     version: 1, coordinates: "unmirrored-frame-pixels/marker-unit-square",
-    sheet: SHEET_ID, camera, corners, layout: CURRENT_LAYOUT,
+    sheet: SHEET_ID, camera, corners, layout,
     contact: { model: "landmark-reference-v1",
       hover: [Array(21).fill({ x: 0.5, y: 0.4, z: 0 })],
       rest: [Array(21).fill({ x: 0.5, y: 0.5, z: 0 })] },
   }, camera, corners);
   gate.observeTracking();
 }
+
+it.each([1, 2, 3].flatMap(octaves => startingNotes(octaves).map(startingMidi => ({
+  octaves, startingMidi, whiteKeys: 7 * octaves + 1,
+}))))("renders and records every white key for $octaves octaves starting at MIDI $startingMidi", async (layout) => {
+  gate.stop();
+  gate.setLayout(layout);
+  observe(layout);
+  expect(await gate.prepare()).toBe(true);
+  producer = createKeyEventProducer(gate, gate.play()!);
+  for (let keyIndex = 0; keyIndex < layout.whiteKeys; keyIndex++) {
+    gate.observeTracking();
+    const expected = layout.startingMidi + Math.floor(keyIndex / 7) * 12 + [0, 2, 4, 5, 7, 9, 11][keyIndex % 7];
+    producer([{ keyIndex, velocity: 0.4 }], [], now);
+    expect(audio.noteOn).toHaveBeenLastCalledWith(expected, 0.4);
+    gate.flushNotes();
+    expect([...pitches]).toEqual([expected]);
+    const output = new Float32Array(96000);
+    synth.render(output);
+    let crossings = 0;
+    for (let index = 48000; index < output.length - 1; index++)
+      if (output[index] <= 0 && output[index + 1] > 0) crossings++;
+    expect(Math.abs(crossings - 440 * 2 ** ((expected - 69) / 12))).toBeLessThan(1.1);
+    now += 10;
+    producer([], [keyIndex], now);
+    gate.flushNotes();
+    expect(pitches.size).toBe(0);
+    synth.render(new Float32Array(4800));
+  }
+  const take = finish();
+  expect(take.notes.map(n => n.pitch)).toEqual(Array.from({ length: layout.whiteKeys }, (_, keyIndex) =>
+    midiToPitch(layout.startingMidi + Math.floor(keyIndex / 7) * 12 + [0, 2, 4, 5, 7, 9, 11][keyIndex % 7])));
+});
 async function start() {
   observe();
   expect(await gate.prepare()).toBe(true);
