@@ -25,6 +25,7 @@ import {
 } from "../cv/liveContactPipeline";
 import {
   getKnuckleBoundaryY,
+  getHandDepthCalibration,
   getKnuckleDistance,
   DEPTH_FINGERS,
 } from "../cv/depthCalibration";
@@ -813,8 +814,13 @@ export default function MarkerTrackingOverlay({
             );
             if (fingerIndex < 0) return;
             const finger = DEPTH_FINGERS[fingerIndex];
+            const handCalibration =
+              hand.handedness === "Right" || hand.handedness === "Left"
+                ? getHandDepthCalibration(depthCalibration, hand.handedness)
+                : null;
+            if (!handCalibration) return;
             const boundaryY = getKnuckleBoundaryY(
-              depthCalibration,
+              handCalibration,
               finger,
               knuckleDistance,
               true,
@@ -829,7 +835,7 @@ export default function MarkerTrackingOverlay({
                 : 0);
             const screenY = eligibilityY * videoRef.current!.videoHeight;
             const calibrationDistances = Object.values(
-              depthCalibration.knuckleDistances,
+              handCalibration.knuckleDistances,
             );
             const outsideRange =
               knuckleDistance < Math.min(...calibrationDistances) ||
@@ -1003,24 +1009,24 @@ export default function MarkerTrackingOverlay({
               {markerDetection?.missingIds.length === 0 ? "ready" : "waiting"}
               <br />
               knuckle TL=
-              {depthCalibration
-                ? depthCalibration.knuckleDistances["top-left"].toFixed(5)
+              {depthCalibration?.hands.Right
+                ? depthCalibration.hands.Right.knuckleDistances["top-left"].toFixed(5)
                 : "n/a"}{" "}
               TR=
-              {depthCalibration
-                ? depthCalibration.knuckleDistances["top-right"].toFixed(5)
+              {depthCalibration?.hands.Right
+                ? depthCalibration.hands.Right.knuckleDistances["top-right"].toFixed(5)
                 : "n/a"}{" "}
               BL=
-              {depthCalibration
-                ? depthCalibration.knuckleDistances["bottom-left"].toFixed(5)
+              {depthCalibration?.hands.Right
+                ? depthCalibration.hands.Right.knuckleDistances["bottom-left"].toFixed(5)
                 : "n/a"}{" "}
               BR=
-              {depthCalibration
-                ? depthCalibration.knuckleDistances["bottom-right"].toFixed(5)
+              {depthCalibration?.hands.Right
+                ? depthCalibration.hands.Right.knuckleDistances["bottom-right"].toFixed(5)
                 : "n/a"}{" "}
               C=
-              {depthCalibration
-                ? depthCalibration.knuckleDistances.center.toFixed(5)
+              {depthCalibration?.hands.Right
+                ? depthCalibration.hands.Right.knuckleDistances.center.toFixed(5)
                 : "n/a"}{" "}
               current={fingerDebug[0]?.knuckleDistance?.toFixed(5) ?? "n/a"}
             </div>

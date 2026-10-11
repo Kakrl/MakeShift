@@ -1,7 +1,9 @@
 import { getKeyCollisions, type Fingertip } from "./collision";
 import {
   getKnuckleBoundaryY,
+  getHandDepthCalibration,
   type DepthFinger,
+  type PersistedDepthHandCalibration,
   type PersistedDepthCalibration,
 } from "./depthCalibration";
 import {
@@ -17,7 +19,7 @@ export const KNUCKLE_ELIGIBILITY_HYSTERESIS_Y = 0.012;
 
 interface KnuckleEligibilityInput {
   finger: DepthFinger;
-  calibration: PersistedDepthCalibration | null;
+  calibration: PersistedDepthHandCalibration | null;
   knuckleDistance: number | null;
   fingertipScreenY: number | null;
   previouslyEligible: boolean;

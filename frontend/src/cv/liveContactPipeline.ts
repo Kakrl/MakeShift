@@ -16,6 +16,7 @@ import {
 } from "./contactPipeline";
 import {
   DEPTH_FINGERS,
+  getHandDepthCalibration,
   getKnuckleDistance,
   type PersistedDepthCalibration,
 } from "./depthCalibration";
@@ -189,6 +190,10 @@ export class LiveContactPipeline {
         frame.video?.videoWidth ?? 0, frame.video?.videoHeight ?? 0,
         now, sourceIdentity);
       let distance: number | null = null;
+      const handCalibration =
+        hand.handedness === "Right" || hand.handedness === "Left"
+          ? getHandDepthCalibration(frame.calibration, hand.handedness)
+          : null;
       if (this.techniques.knuckles) {
         if (!knuckleDistances.has(fingertip.handIndex))
           knuckleDistances.set(
@@ -207,7 +212,7 @@ export class LiveContactPipeline {
         frame.video.readyState >= 2 &&
         hand.landmarks[fingertip.landmarkIndex] &&
         (!this.techniques.knuckles ||
-          (frame.calibration && distance !== null && screenY !== null)) &&
+          (handCalibration && distance !== null && screenY !== null)) &&
         (!this.techniques.shadows || this.worker),
       );
 
@@ -221,7 +226,7 @@ export class LiveContactPipeline {
         keyOverlap &&
         (!this.techniques.knuckles ||
           checkKnuckleEligibility({
-            calibration: frame.calibration,
+            calibration: handCalibration,
             finger: DEPTH_FINGERS[fingerIndex],
             knuckleDistance: distance,
             fingertipScreenY: screenY,

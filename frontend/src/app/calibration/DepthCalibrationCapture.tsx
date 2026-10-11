@@ -2,12 +2,13 @@
 
 import type {
   DepthCalibrationPosition,
+  CalibrationHand,
 } from "../../cv/depthCalibration";
 
 interface DepthCalibrationCaptureProps {
   position: DepthCalibrationPosition;
+  hand: CalibrationHand;
   sampleCount: number;
-  rightHandDetected?: boolean;
   disabled?: boolean;
   onCapture: () => void;
 }
@@ -20,11 +21,11 @@ const POSITION_LABELS: Record<DepthCalibrationPosition, string> = {
   center: "center",
 };
 
-/** Button-driven UI for collecting one right-hand depth position. */
+/** Button-driven UI for collecting one hand's depth position. */
 export default function DepthCalibrationCapture({
   position,
+  hand,
   sampleCount,
-  rightHandDetected,
   disabled = false,
   onCapture,
 }: DepthCalibrationCaptureProps) {
@@ -35,20 +36,18 @@ export default function DepthCalibrationCapture({
       <button
         type="button"
         onClick={onCapture}
-        disabled={disabled || rightHandDetected === false}
+        disabled={disabled}
         className="ms-key ms-key-primary w-full px-4 text-[15px]"
       >
         Capture {positionLabel} position
       </button>
       <div className="flex flex-col">
         <p className="text-[15px] text-ink">
-          Right hand on the {positionLabel}.
+          {hand} hand on the {positionLabel}.
         </p>
         <p className="text-[13px] text-ink-muted" aria-live="polite">
           <span>
-            {rightHandDetected === true
-              ? "Hold still, then capture."
-              : "Then press Capture."}
+            Hold still, then press Capture.
             {" · "}
           </span>
           <span className="tabular-nums">Captured: {sampleCount}</span>
