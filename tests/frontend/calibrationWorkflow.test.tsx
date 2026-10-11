@@ -34,28 +34,22 @@ vi.mock("../../frontend/src/app/lighting", () => ({
   LIGHTING_MESSAGES: { ok: "OK" },
   readFrameBrightness: () => ({ brightness: 0.5, verdict: "ok" }),
 }));
-vi.mock("../../frontend/src/app/useHandLandmarker", async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import("../../frontend/src/app/useHandLandmarker")
-  >();
-  return {
-    ...actual,
-    useHandLandmarker: () => ({
-      status: "ready",
-      reload: vi.fn(),
-      detect: () => {
-        const scale = 0.005 + fixture.depthCapture * 0.005;
-        return {
-          handednesses: [[{ categoryName: "Right" }]],
-          landmarks: fixture.hands ? [Array.from({ length: 21 }, (_, index) => ({
-            x: 0.2 + index * scale, y: 0.3 + fixture.depthCapture * 0.05,
-            z: -0.01 - fixture.depthCapture * 0.015,
-          }))] : [],
-        };
-      },
-    }),
-  };
-});
+vi.mock("../../frontend/src/app/useHandLandmarker", () => ({
+  useHandLandmarker: () => ({
+    status: "ready",
+    reload: vi.fn(),
+    detect: () => {
+      const scale = 0.005 + fixture.depthCapture * 0.005;
+      return {
+        handednesses: [[{ categoryName: "Right" }]],
+        landmarks: fixture.hands ? [Array.from({ length: 21 }, (_, index) => ({
+          x: 0.2 + index * scale, y: 0.3 + fixture.depthCapture * 0.05,
+          z: -0.01 - fixture.depthCapture * 0.015,
+        }))] : [],
+      };
+    },
+  }),
+}));
 vi.mock("../../frontend/src/cv/markerDetector", () => ({
   MarkerDetector: {
     create: async () => ({
@@ -166,15 +160,9 @@ async function paper() {
   await tick(0);
   await click("Next Step");
 }
-async function capture() {
-  await click("Start");
-  for (let i = 0; i < 3; i++) await tick(1000);
-}
 async function complete() {
   await paper();
   await click("Check paper");
-  await click("Next Step");
-  await capture();
   await click("Next Step");
   await depth();
   await click("Next Step");
@@ -195,14 +183,18 @@ it("blocks paper acceptance without markers and recovers with real geometry", as
   await click("Check paper");
   expect(find("Next Step")).toBeDefined();
 });
-it("does not treat elapsed time or missing hands as calibration success", async () => {
+it("requires detected hands before advancing through depth calibration", async () => {
   await paper();
   await click("Check paper");
   await click("Next Step");
+  expect(host.textContent).toContain("Step 4: Touch the corners and middle");
   fixture.hands = false;
-  await capture();
+  await click("Capture top-left corner position");
   expect(find("Next Step")).toBeUndefined();
   expect(loadCalibration()).toBeNull();
+  fixture.hands = true;
+  await depth();
+  expect(find("Next Step")).toBeDefined();
 });
 it("captures both phases and persists a validated result only on completion", async () => {
   await complete();
@@ -213,15 +205,14 @@ it("captures both phases and persists a validated result only on completion", as
   expect(fixture.push).toHaveBeenCalledExactlyOnceWith("/");
   expect(localStorage.getItem("isCalibrated")).toBeNull();
 });
-it("requires a real rest capture after hover", async () => {
+it("requires a real hand capture at each depth position", async () => {
   await paper();
   await click("Check paper");
-  await click("Next Step");
-  await capture();
   await click("Next Step");
   fixture.hands = false;
   await click("Capture top-left corner position");
   expect(find("Next Step")).toBeUndefined();
+  expect(find("Capture top-left corner position")).toBeDefined();
   expect(loadCalibration()).toBeNull();
 });
 it("shows storage recovery and does not navigate on a write failure", async () => {
@@ -310,11 +301,11 @@ it("restores the companion depth model if the primary calibration write fails", 
   expect(host.textContent).toContain("Enable browser storage");
 });
 
-it("discards in-progress hand captures when another tab changes configuration", async () => {
+it("discards in-progress depth captures when another tab changes configuration", async () => {
   await paper();
   await click("Check paper");
   await click("Next Step");
-  await capture();
+  await click("Capture top-left corner position");
   await act(async () => {
     localStorage.setItem("makeshift:keyboard-layout:v1", JSON.stringify({ octaves: 2, startingMidi: 60, whiteKeys: 15 }));
     window.dispatchEvent(new dom.window.StorageEvent("storage", { key: "makeshift:keyboard-layout:v1" }));
@@ -324,14 +315,12 @@ it("discards in-progress hand captures when another tab changes configuration", 
   expect(loadCalibration()).toBeNull();
   await paper();
   await click("Next Step");
-  expect(find("Start")).toBeDefined();
+  expect(find("Capture top-left corner position")).toBeDefined();
 });
 
 it("restarts depth captures after final sheet detection fails and completes on retry", async () => {
   await paper();
   await click("Check paper");
-  await click("Next Step");
-  await capture();
   await click("Next Step");
   for (const label of ["top-left corner", "top-right corner", "bottom-left corner", "bottom-right corner"]) {
     fixture.depthCapture++;

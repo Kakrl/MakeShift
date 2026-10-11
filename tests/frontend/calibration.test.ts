@@ -97,7 +97,7 @@ describe("versioned calibration", () => {
       markerCorners({ observations, missingIds: [] }, value.camera),
     ).toBeNull();
   });
-  it("requires complete finite hover/rest samples and valid MIDI layout", () => {
+  it("requires finite rest samples and accepts optional legacy hover", () => {
     for (const samples of [
       [],
       [[{ x: 0, y: 0, z: 0 }]],
@@ -105,9 +105,15 @@ describe("versioned calibration", () => {
     ])
       expect(validSamples(samples)).toBe(false);
     const value = calibrationFixture();
+    const rest = value.contact.rest;
     value.contact.rest = [];
     expect(validateCalibration(value)).toBeNull();
-    value.contact.rest = value.contact.hover;
+    value.contact.rest = rest;
+    delete value.contact.hover;
+    expect(validateCalibration(value)).not.toBeNull();
+    value.contact.hover = [];
+    expect(validateCalibration(value)).toBeNull();
+    delete value.contact.hover;
     value.layout.startingMidi = 120;
     expect(validateCalibration(value)).toBeNull();
   });

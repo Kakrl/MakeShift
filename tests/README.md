@@ -1,5 +1,17 @@
 # MakeShift Testing
 
+## Four-step calibration workflow
+
+Local macOS execution on 2026-10-11, Node 24.2.0, Vitest 4.1.11:
+
+- All 481 tests across 23 files passed; all 15 calibration workflow tests passed.
+- Frontend lint, TypeScript, all 37 contrast pairs and production build passed.
+- The workflow goes from paper alignment directly to five depth captures.
+  Every depth position still requires a detected right hand, and the final
+  capture supplies the required rest landmarks. Legacy hover samples remain
+  accepted but are optional and are not written by new calibration captures.
+- Real camera/printed-sheet verification remains unverified.
+
 ## Finger-speed velocity verification (issue #28)
 
 Local Windows execution on 2026-10-07, Node 22.20.0, Vitest 4.1.11,
@@ -103,9 +115,10 @@ Local Windows 11 Home 10.0.26200, Node 22.20.0, Vitest 4.1.11 execution on
 - `keyboardLayout.test.ts`: physical 23.5 mm key pitch, 8/15/22 hit regions,
   overlap/marker proportions, all MIDI bounds, invalid inputs and unchanged
   full range under explicit paper-fit override. These are synthetic points.
-- `calibrationWorkflow.test.tsx`: 14 passing cases follow the actual five depth
-  buttons; complete hover/rest landmarks and both records are saved before
-  navigation. Missing hands/markers and storage failures block completion.
+- `calibrationWorkflow.test.tsx`: 15 passing cases cover the four-step flow
+  and its five depth buttons; complete rest landmarks and both records are
+  saved before navigation. Missing hands/markers and storage failures block
+  completion. There is no separate hover capture step.
   One/two/three-octave selection, starting-C bounds, override and invalidation
   are covered. The old five `it.fails` cases are restored as normal regressions.
 - Live-session/real-overlay fixtures verify immediate held-note release,
@@ -652,7 +665,7 @@ defect report is filed.
 | D3 | Medium | CI | The Vitest suite (4.1.3-4.1.7, 4.2.3) is not run in CI. `frontend-ci.yml` runs lint, type check, contrast, and build, but not `vitest run`, so MIDI regressions merge undetected | `.github/workflows/frontend-ci.yml` | [#152](https://github.com/Kakrl/MakeShift/issues/152) | Fixed in [#158](https://github.com/Kakrl/MakeShift/pull/158) |
 | D4 | Medium | CI | The C++ test path filter `'CMakeLists.txt'` only matches a root-level file. A PR that only changes `backend/CMakeLists.txt` skips the C++ build and tests. It should be `'**/CMakeLists.txt'` | `.github/workflows/testing.yml:29` | | Open |
 | D5 | Medium | Tests | `AudioEngineTest.StreamStartsAndStops` and `MultipleStartStopCycles` `return` early when there is no audio device, so on CI they report PASS without testing anything. Use `GTEST_SKIP()` so the skip shows in results | `tests/audio/test_audio.cpp:24-27`, `:35-38` | | Open |
-| D6 | Medium | Calibration | Versioned geometry/camera/layout and hover/rest inputs replace the boolean; live compatibility gates reuse. Manual calibration checklist passed (Carl Xu, user-reported 2026-09-28). | `frontend/src/cv/calibration.ts`, `frontend/src/app/calibration/page.tsx` | [#87](https://github.com/Kakrl/MakeShift/issues/87) | Manual verification passed (user-reported); review/merge pending |
+| D6 | Medium | Calibration | Versioned geometry/camera/layout and rest inputs replace the boolean; live compatibility gates reuse. Manual calibration checklist passed (Carl Xu, user-reported 2026-09-28). | `frontend/src/cv/calibration.ts`, `frontend/src/app/calibration/page.tsx` | [#87](https://github.com/Kakrl/MakeShift/issues/87) | Manual verification passed (user-reported); review/merge pending |
 | D7 | Medium | CV / performance | Remaining automatic CV telemetry and detector debug logging at #140 base; older per-frame logs were already removed upstream. #38 replaces telemetry with opt-in bounded reports and removes debug logging. | `frontend/src/diagnostics/performanceMetrics.ts`, `frontend/src/cv/markerDetector.ts`; [diagnostics](../docs/performance.md) | [#149](https://github.com/Kakrl/MakeShift/issues/149) | Fixed on feature/38-pipeline-metrics; verified locally, merge pending |
 | D8 | Medium | Audio | Calling `AudioEngine::startStream()` twice overwrites `stream` without closing it, which leaks the first PortAudio stream. `Pa_GetDeviceInfo` is dereferenced without a null check | `backend/src/audio/AudioEngine.cpp:89-119` | | Open |
 | D9 | Medium | Audio / Python | Importing `backend.src.audio` builds an `AudioEngine` and calls `Pa_Initialize()` as a side effect. Any import (including from pytest) touches audio hardware and fails if the extension is not built. The example in `docs/audio_events.md` creates a second engine | `backend/src/audio/__init__.py:3-5` | | Open |
@@ -667,7 +680,7 @@ defect report is filed.
 | D18 | High | MIDI / UI | Runtime path alias points midi-writer-js at a declarations-only file, so final Export throws on undefined Track and produces no download (Req 4.2) | `frontend/tsconfig.json` | [#140](https://github.com/Kakrl/MakeShift/issues/140) | Fix verified locally in [#141](https://github.com/Kakrl/MakeShift/pull/141); review/merge pending |
 | D19 | Medium | CI | The `Vercel preview` workflow fails on every fork PR: `actions/checkout` refuses fork code in `pull_request_target` unless the step sets `allow-unsafe-pr-checkout: true`, so labeling `preview-link` never deploys | `.github/workflows/preview.yml:33-39` | [#160](https://github.com/Kakrl/MakeShift/issues/160) | Open |
 | D20 | High | UI | (Req 3.1, 3.2, 4.2, 6.2) Merge `30706c4` (PR #98) resolved `page.tsx` by keeping the branch's older JSX, dropping the welcome and Calibration intro modals, count-in overlay, Recording Complete banner, Delete confirmation, calibration prompt, `CameraStatusOverlay`, and the aria-live region. The home Calibration tab and Delete button did nothing. ESLint flagged the orphaned state only as warnings | `frontend/src/app/page.tsx` | [#112](https://github.com/Kakrl/MakeShift/issues/112) | Fixed in [#113](https://github.com/Kakrl/MakeShift/pull/113) |
-| D22 | Medium | Calibration | Final depth sheet-check exception removed capture/Next controls. Reset collector/index on exception and retain hover for retry. | `frontend/src/app/calibration/page.tsx` | [#178](https://github.com/Kakrl/MakeShift/issues/178) | Fixed in PR #177; local 6.2.3 regression passed; CI/merge pending |
+| D22 | Medium | Calibration | Final depth sheet-check exception removed capture/Next controls. Reset collector/index on exception so all five depth positions can be retried. | `frontend/src/app/calibration/page.tsx` | [#178](https://github.com/Kakrl/MakeShift/issues/178) | Fixed in PR #177; local 6.2.3 regression passed; CI/merge pending |
 | D21 | High | Calibration | (Req 6.2, 1.1, 2.1) #148 replaced the reachable result capture with depth buttons and navigated before validation/save. Final depth capture now creates the primary result; completion retains its model and saves both records before navigation. 6.2.3's expected failures are restored as passing regressions. | `frontend/src/app/calibration/page.tsx` | [#162](https://github.com/Kakrl/MakeShift/issues/162) | Fix verified locally 2026-10-06; review/merge and physical check pending |
 
 ## Root Cause Analysis Log
