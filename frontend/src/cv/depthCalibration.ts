@@ -245,9 +245,10 @@ function fitLine(
     (sum, sample) => sum + (getDepth(sample) - meanDepth) ** 2,
     0,
   );
-  if (denominator === 0) return null;
-
-  const slope = numerator / denominator;
+  // Identical or nearly identical depth readings still form a usable flat
+  // boundary. Rejecting them here forced the entire five-position capture to
+  // restart even when the player had completed every position correctly.
+  const slope = denominator > 1e-12 ? numerator / denominator : 0;
   const intercept = meanY - slope * meanDepth;
   return {
     slope,

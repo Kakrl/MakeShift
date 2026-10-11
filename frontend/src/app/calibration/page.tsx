@@ -39,7 +39,7 @@ import {
 } from "../lighting";
 
 import { cameraSignature, markerCorners, compatibleCalibration, validateCalibration, saveCalibration, MARKER_ACQUIRE_INTERVAL_MS, MARKER_CHECK_INTERVAL_MS,
-  validSamples, SHEET_ID, type CalibrationResult, type LandmarkSample } from "../../cv/calibration";
+  validSamples, SHEET_ID, type CalibrationResult, type CameraSignature, type LandmarkSample } from "../../cv/calibration";
 const TOTAL_STEPS = 6;
 
 const PAGE_CORNERS: [Point, Point, Point, Point] = [
@@ -90,6 +90,52 @@ const STEP_NAMES = [
   "Right",
   "Left",
 ];
+
+function getCalibrationSettingsError(
+  captured: { camera: CameraSignature; layout: KeyboardLayout } | null,
+  camera: CameraSignature,
+  layout: KeyboardLayout,
+): string | null {
+  if (!captured) {
+    return "Camera and keyboard settings were not recorded at the paper step. Go back to Check paper and try again.";
+  }
+
+  const cameraChanges: string[] = [];
+  if (captured.camera.deviceId !== camera.deviceId)
+    cameraChanges.push("camera device changed");
+  if (captured.camera.width !== camera.width || captured.camera.height !== camera.height)
+    cameraChanges.push(
+      `camera resolution changed (${captured.camera.width}×${captured.camera.height} to ${camera.width}×${camera.height})`,
+    );
+  if (captured.camera.facingMode !== camera.facingMode)
+    cameraChanges.push("camera facing mode changed");
+  if (cameraChanges.length > 0) {
+    return `Camera settings changed during calibration: ${cameraChanges.join(", ")}.`;
+  }
+
+  const layoutChanges: string[] = [];
+  if (captured.layout.octaves !== layout.octaves)
+    layoutChanges.push(`playable octaves ${captured.layout.octaves} → ${layout.octaves}`);
+  if (captured.layout.startingMidi !== layout.startingMidi)
+    layoutChanges.push(
+      `starting note ${midiToPitch(captured.layout.startingMidi)} → ${midiToPitch(layout.startingMidi)}`,
+    );
+  if (captured.layout.whiteKeys !== layout.whiteKeys)
+    layoutChanges.push(`key count ${captured.layout.whiteKeys} → ${layout.whiteKeys}`);
+  if (paperOctaves(captured.layout) !== paperOctaves(layout))
+    layoutChanges.push(
+      `paper octave setting ${paperOctaves(captured.layout)} → ${paperOctaves(layout)}`,
+    );
+  if (!!captured.layout.paperFitOverride !== !!layout.paperFitOverride)
+    layoutChanges.push("paper fit override changed");
+  if (layoutChanges.length > 0) {
+    return `Keyboard settings changed during calibration: ${layoutChanges.join(", ")}.`;
+  }
+  if (!usableLayout(layout)) {
+    return "Keyboard settings are invalid or the selected range does not fit the paper.";
+  }
+  return null;
+}
 
 /** Labeled stepper above the camera. Each step has its own rainbow color;
  * done steps are checked and each line segment fills solid in its step's color. */
@@ -188,6 +234,10 @@ export default function Calibration() {
   const [lighting, setLighting] = useState<LightingReading | null>(null);
 
   const [corners, setCorners] = useState<Point[] | null>(null);
+  const calibrationSettingsRef = useRef<{
+    camera: CameraSignature;
+    layout: KeyboardLayout;
+  } | null>(null);
   const hoverRef = useRef<LandmarkSample[][] | null>(null);
   const resultRef = useRef<CalibrationResult | null>(null);
   const detectorRef = useRef<MarkerDetector | null>(null);
@@ -217,6 +267,7 @@ export default function Calibration() {
     generationRef.current++;
     hoverRef.current = null;
     resultRef.current = null;
+    calibrationSettingsRef.current = null;
     depthModelsRef.current = {};
     depthCollectorsRef.current = {
       Right: new DepthCalibrationCollector("Right"),
@@ -331,6 +382,7 @@ export default function Calibration() {
       paperFitOverride: false, ...patch, octaves, startingMidi, whiteKeys: octaves * 7 + 1 });
     generationRef.current++;
     resultRef.current = null;
+    calibrationSettingsRef.current = null;
     hoverRef.current = null;
     setCorners(null);
     setSheetGeometry(null);
@@ -384,10 +436,15 @@ export default function Calibration() {
   function checkPaper() {
     try {
       const observed = readSheet();
+      calibrationSettingsRef.current = {
+        camera: observed.camera,
+        layout: { ...layout },
+      };
       setCorners(observed.corners);
       setSheetDetected(true);
       setPaperError(false); setCaptureError(null);
     } catch (error) {
+      calibrationSettingsRef.current = null;
       setCorners(null); setPaperError(true); setSheetDetected(false);
       setCaptureError(error instanceof Error ? error.message : "Unable to detect the sheet.");
     }
@@ -496,6 +553,15 @@ export default function Calibration() {
           return;
         }
         const observed = readSheet();
+        const settingsError = getCalibrationSettingsError(
+          calibrationSettingsRef.current,
+          observed.camera,
+          layout,
+        );
+        if (settingsError) {
+          setDepthCaptureMessage(settingsError);
+          return;
+        }
         const calibrated = validateCalibration({ version: 1,
           coordinates: "unmirrored-frame-pixels/marker-unit-square",
           sheet: SHEET_ID, camera: observed.camera, layout, corners,
@@ -744,6 +810,12 @@ export default function Calibration() {
   const handleComplete = () => {
     try {
       const observed = readSheet();
+      const settingsError = getCalibrationSettingsError(
+        calibrationSettingsRef.current,
+        observed.camera,
+        layout,
+      );
+      if (settingsError) throw new Error(settingsError);
       const result = resultRef.current;
       const models = depthModelsRef.current;
       if (!result || !models.Right || !models.Left || !compatibleCalibration(result, observed.camera, observed.corners, layout)) {
