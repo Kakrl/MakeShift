@@ -369,7 +369,10 @@ export default function Calibration() {
     generationRef.current++;
     if (delta === -1) { resultRef.current = null; hoverRef.current = null; }
     resetInteractiveStepState(
-      !((delta === 1 && step === 5) || (delta === -1 && step === 6)),
+      !(
+        (delta === 1 && (step === 5 || step === 6)) ||
+        (delta === -1 && step === 6)
+      ),
     );
     setStep((s) => s + delta);
   }
@@ -593,13 +596,14 @@ export default function Calibration() {
     } finally {
       if (generation === generationRef.current) setDepthCaptureBusy(false);
     }
-  // readSheet checks the current detector/camera refs at each real capture.
+  // The final depth capture reuses the settings snapshot recorded in step 3.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [capture, depthCaptureBusy, depthPositionIndex, detect, corners, layout, stream, step]);
 
   useEffect(() => {
     if (step !== 3 || !cameraReady || !frameReady) return;
 
+    calibrationSettingsRef.current = null;
     setSheetDetected(false);
     setMarkerDetection(null);
     setSheetGeometry(null);
@@ -657,6 +661,12 @@ export default function Calibration() {
                   ? markerCorners(detection, camera)
                   : null;
                 if (observedCorners) {
+                  if (!calibrationSettingsRef.current && camera) {
+                    calibrationSettingsRef.current = {
+                      camera,
+                      layout: { ...layout },
+                    };
+                  }
                   setCorners(observedCorners);
                   setSheetDetected(true);
                   setSheetGeometry({
