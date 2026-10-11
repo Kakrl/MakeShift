@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCamera } from "./CameraContext";
-import { cameraSignature, loadCalibration, markerCorners } from "../cv/calibration";
+import {
+  cameraSignature,
+  loadCalibration,
+  markerCorners,
+} from "../cv/calibration";
 import {
   getWhiteKeyPolygons,
   getPianoCorners,
@@ -47,7 +51,7 @@ import {
 import type { MarkerDetectionResult } from "../cv/types";
 import type { Point } from "../cv/types";
 import { keyIndexToMidi } from "../cv/noteMap";
-import { DEFAULT_LAYOUT, sameLayout, type KeyboardLayout } from "../cv/keyboardLayout";
+import { DEFAULT_LAYOUT, type KeyboardLayout } from "../cv/keyboardLayout";
 import {
   recordMarkerDetection,
   pipelineMetrics,
@@ -511,21 +515,10 @@ export default function MarkerTrackingOverlay({
     const corners = camera && markerDetection ? markerCorners(markerDetection, camera) : null;
     const saved = loadCalibration();
 
-    // A missed/failed marker scan is not proof that the paper moved. Keep the
-    // last good projection and calibration freshness until a complete scan or
-    // an actual camera-session change provides stronger evidence.
-    const videoTrackLive =
-      stream?.getVideoTracks()[0]?.readyState === "live";
-    if (cameraReady && stream && videoTrackLive && camera && !corners &&
-        saved && sameLayout(saved.layout, layout)) {
-      const geometry = markerGeometryPolicyRef.current.observe(null);
-      if (geometry) {
-        homographyRef.current = geometry.homography;
-        projectedPianoCornersRef.current = geometry.pianoCorners;
-        projectedWhiteKeysRef.current = geometry.whiteKeys;
-      }
-      return;
-    }
+    // A failed marker scan must leave the last successful marker projection
+    // and key state untouched. Only a complete marker result can update the
+    // calibration observation below.
+    if (!corners) return;
 
     let homography: Homography | null = null;
     let projectedPianoCorners: Point[] | null = null;
@@ -561,6 +554,7 @@ export default function MarkerTrackingOverlay({
     }
 
     const valid = onCalibrationObservation(saved, camera, corners);
+    if (!valid && !debugShowSheetWithoutCalibration) return;
     if (
       (valid || debugShowSheetWithoutCalibration) &&
       projectedPianoCorners &&
@@ -568,44 +562,6 @@ export default function MarkerTrackingOverlay({
     ) {
       displayPianoCornersRef.current = projectedPianoCorners;
       displayWhiteKeysRef.current = projectedWhiteKeys;
-    }
-    if (!valid) {
-      if (!debugShowSheetWithoutCalibration) {
-        displayPianoCornersRef.current = null;
-        displayWhiteKeysRef.current = null;
-      }
-      if (previousKeysRef.current.size) onKeyTransitions?.([], [...previousKeysRef.current]);
-      previousKeysRef.current = new Set();
-      if (
-        debugShowSheetWithoutCalibration &&
-        homography &&
-        projectedPianoCorners &&
-        projectedWhiteKeys
-      ) {
-        // The debug switch enables marker-derived overlap visualization only;
-        // session readiness still gates note dispatch in syncContactKeys.
-        const geometry = markerGeometryPolicyRef.current.observe({
-          homography,
-          pianoCorners: projectedPianoCorners,
-          whiteKeys: projectedWhiteKeys,
-        })!;
-        homographyRef.current = geometry.homography;
-        projectedPianoCornersRef.current = geometry.pianoCorners;
-        projectedWhiteKeysRef.current = geometry.whiteKeys;
-      } else {
-        if (homography && projectedPianoCorners && projectedWhiteKeys) {
-          markerGeometryPolicyRef.current.observe({
-            homography,
-            pianoCorners: projectedPianoCorners,
-            whiteKeys: projectedWhiteKeys,
-          });
-        }
-        markerGeometryPolicyRef.current.clearGeometry();
-        homographyRef.current = null;
-        projectedPianoCornersRef.current = null;
-        projectedWhiteKeysRef.current = null;
-      }
-      return;
     }
     if (!homography || !projectedPianoCorners || !projectedWhiteKeys) return;
 
