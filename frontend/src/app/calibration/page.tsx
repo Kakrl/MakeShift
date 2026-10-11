@@ -1127,11 +1127,11 @@ export default function Calibration() {
       <div className="flex flex-col lg:flex-row pl-(--gutter-l) pr-(--gutter-r)">
         {/* Camera */}
         <div className="ms-stage w-full lg:w-auto lg:flex-1 lg:self-start aspect-video bg-surface-dark relative overflow-hidden">
-          <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" style={{ display: showingImage ? "none" : "block" }} />
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover" style={{ display: showingImage ? "block" : "none" }} />
+          <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" style={{ display: showingImage ? "none" : "block" }} />
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" style={{ display: showingImage ? "block" : "none" }} />
           <canvas
             ref={sheetOverlayCanvasRef}
-            className="absolute inset-0 z-10 h-full w-full object-cover pointer-events-none"
+            className="absolute inset-0 z-10 h-full w-full object-cover scale-x-[-1] pointer-events-none"
             style={{
               display:
                 step >= 3 && step <= TOTAL_STEPS && !showingImage

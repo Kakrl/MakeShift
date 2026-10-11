@@ -584,7 +584,7 @@ export default function Home() {
             autoPlay
             playsInline
             muted
-            className="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
           />
           <CVOverlayCoordinator
             session={session}
