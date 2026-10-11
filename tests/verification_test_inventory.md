@@ -354,3 +354,12 @@ CI runs these through `frontend-ci.yml`.
 | REC-01 | Unit | Issue #117 acceptance criteria | Valid uploads pass with trimmed text and unknown fields dropped; every boundary value accepted; title/author/device length counted in code points like Postgres `char_length` ([source](frontend/recordingsSchema.test.ts)) | Harry Deng | Vitest | Yes | Implemented | Yes (`frontend-ci.yml`) | Local run passed 2026-10-03 (46 tests across REC-01 to REC-03); Actions pending |
 | REC-02 | Unit | Issue #117 acceptance criteria | Each out-of-range field rejected with a field-named issue: text lengths and types, non-integer or out-of-range BPM, empty or oversized note lists, malformed or out-of-range pitch, velocity outside integer 1-100, negative/non-finite timing and notes past the duration cap; only the first bad note reported; non-object bodies rejected ([source](frontend/recordingsSchema.test.ts)) | Harry Deng | Vitest | Yes | Implemented | Yes (`frontend-ci.yml`) | Local run passed 2026-10-03; Actions pending |
 | REC-03 | Unit | Issue #117 acceptance criteria | `recordingDurationMs` uses the latest note end; shared `pitchToMidi` parses sharps, flats and octave -1 to 9 and rejects malformed or out-of-range names ([source](frontend/recordingsSchema.test.ts)) | Harry Deng | Vitest | Yes | Implemented | Yes (`frontend-ci.yml`) | Local run passed 2026-10-03; Actions pending |
+
+| PROFILE-01 | Unit / storage integration | #125 | Stable ID across reloads and name changes; shared Unicode name limits, invalid data recovery, unavailable/quota failure and saved-state preservation ([source](frontend/deviceProfile.test.ts)) | Harry Deng | Vitest | Yes | Implemented; injected storage | Yes (frontend-ci.yml invokes Vitest) | [Local verification](README.md#device-profile-verification-issue-125-2026-10-10) passed 2026-10-10; Actions pending |
+
+| PROFILE-02 | Browser integration | #125 | Real home sidebar creation, trim, saved-name reload, rename and stable ID | Jadden Picardal | Playwright / Chromium | Manual runner | Executed locally; browser restart and other browsers pending | No | [Execution record](README.md#device-profile-verification-issue-125-2026-10-10) passed 2026-10-10; Actions pending |
+
+Profile integration follow-up (#125): existing home-page and recording-control
+fixtures load the real profile panel alongside CV/library components. Behavior
+and case counts in their existing rows remain unchanged; all passed locally
+2026-10-10 (488 total tests), Actions evidence pending.
