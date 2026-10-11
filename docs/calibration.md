@@ -82,16 +82,18 @@ Invalid/unsupported data is never migrated from a boolean or used as readiness.
 The home page links to calibration for recovery. A successful new capture
 replaces corrupt data. Write failure keeps the completion page open, reports
 that browser storage must be enabled, and offers retry through Start Playing.
-The completion action checks the live sheet and camera again before saving.
+The paper step checks all four markers and records their corners. Later hand
+captures and the completion action reuse those corners; they recheck camera and
+keyboard settings but do not run marker detection again.
 Depth calibration has separate right- and left-hand steps, each collecting the
 five positions. The primary calibration result is finalized with the last
-left-hand capture. If a depth capture throws, including a missing marker at the
-final sheet check, that hand's collector and position reset to its first depth
-capture; the completed other-hand model is retained. Start Playing saves both
-depth models and the validated primary record before navigating, with depth
-rollback if the primary write fails. Version 1 right-only depth data remains
-usable for the right hand while the left calibration is absent; it is never
-used as a left-hand substitute. It does not write a legacy completion flag.
+left-hand capture. A settings mismatch shows which camera or keyboard setting
+changed and retains the captured hand samples. Other capture exceptions reset
+that hand's collector and position. Start Playing saves both depth models and
+the validated primary record before navigating, with depth rollback if the
+primary write fails. Version 1 right-only depth data remains usable for the
+right hand while the left calibration is absent; it is never used as a
+left-hand substitute. It does not write a legacy completion flag.
 Local/other-tab configuration changes cancel pending captures, clear both saved
 records and retire playing sessions synchronously; old producers cannot adopt a
 new layout or session. A missed marker scan may retain geometry only while its

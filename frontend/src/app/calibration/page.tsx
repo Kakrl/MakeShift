@@ -552,10 +552,16 @@ export default function Calibration() {
           depthCollectorsRef.current[hand] = new DepthCalibrationCollector(hand);
           return;
         }
-        const observed = readSheet();
+        const currentCamera = cameraSignature(stream, videoRef.current);
+        if (!currentCamera) {
+          setDepthCaptureMessage(
+            "Camera settings are unavailable. Check the camera connection and try again.",
+          );
+          return;
+        }
         const settingsError = getCalibrationSettingsError(
           calibrationSettingsRef.current,
-          observed.camera,
+          currentCamera,
           layout,
         );
         if (settingsError) {
@@ -564,13 +570,11 @@ export default function Calibration() {
         }
         const calibrated = validateCalibration({ version: 1,
           coordinates: "unmirrored-frame-pixels/marker-unit-square",
-          sheet: SHEET_ID, camera: observed.camera, layout, corners,
+          sheet: SHEET_ID, camera: currentCamera, layout, corners,
           contact: { model: "landmark-reference-v1", hover: hoverRef.current,
             rest: result.landmarks } });
-        if (!calibrated || !compatibleCalibration(calibrated, observed.camera, observed.corners, layout)) {
-          setDepthCaptureMessage("Sheet or settings changed. Return to Align your paper and capture again.");
-          setDepthPositionIndex(0);
-          depthCollectorsRef.current[hand] = new DepthCalibrationCollector(hand);
+        if (!calibrated || !compatibleCalibration(calibrated, currentCamera, corners ?? [], layout)) {
+          setDepthCaptureMessage("Calibration references are invalid. Review the earlier calibration steps and try again.");
           return;
         }
         depthModelsRef.current[hand] = model;
@@ -772,16 +776,11 @@ export default function Calibration() {
     }
     let cancelled = false;
     const generation = generationRef.current;
-    const observed = (() => { try { return readSheet(); } catch { return null; } })();
     capture().then(image => {
       if (cancelled || generation !== generationRef.current) return;
-      if (!image || !observed || !corners) throw new Error("Camera or sheet unavailable. Return to Align your paper.");
+      if (!image || !corners) throw new Error("Camera or earlier paper check unavailable. Return to the paper step.");
       const landmarks = detect(image)?.landmarks;
       if (!validSamples(landmarks)) throw new Error("Show one or two complete hands, then retry.");
-      if (corners.some((p, i) => Math.hypot(p.x - observed.corners[i].x, p.y - observed.corners[i].y) >
-        Math.hypot(observed.camera.width, observed.camera.height) * 0.01)) {
-        throw new Error("The sheet moved. Return to Align your paper.");
-      }
       if (step === 4) {
         hoverRef.current = structuredClone(landmarks);
         setFingersShown(true);
@@ -809,16 +808,19 @@ export default function Calibration() {
 
   const handleComplete = () => {
     try {
-      const observed = readSheet();
+      const currentCamera = cameraSignature(stream, videoRef.current);
+      if (!currentCamera) {
+        throw new Error("Camera settings are unavailable. Check the camera connection and retry.");
+      }
       const settingsError = getCalibrationSettingsError(
         calibrationSettingsRef.current,
-        observed.camera,
+        currentCamera,
         layout,
       );
       if (settingsError) throw new Error(settingsError);
       const result = resultRef.current;
       const models = depthModelsRef.current;
-      if (!result || !models.Right || !models.Left || !compatibleCalibration(result, observed.camera, observed.corners, layout)) {
+      if (!result || !models.Right || !models.Left || !compatibleCalibration(result, currentCamera, result.corners, layout)) {
         throw new Error("Calibration changed. Return to calibration and capture again.");
       }
       const previousDepth = localStorage.getItem(DEPTH_CALIBRATION_STORAGE_KEY);
