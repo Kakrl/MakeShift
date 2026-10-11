@@ -1,10 +1,8 @@
 import { getKeyCollisions, type Fingertip } from "./collision";
 import {
   getKnuckleBoundaryY,
-  getHandDepthCalibration,
   type DepthFinger,
   type PersistedDepthHandCalibration,
-  type PersistedDepthCalibration,
 } from "./depthCalibration";
 import {
   evaluateShadowContact,

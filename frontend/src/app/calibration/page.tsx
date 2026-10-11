@@ -607,7 +607,6 @@ export default function Calibration() {
       if (generation === generationRef.current) setDepthCaptureBusy(false);
     }
   // The final depth capture reuses the settings snapshot recorded in step 3.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [capture, depthCaptureBusy, depthPositionIndex, detect, corners, layout, stream, step]);
 
   useEffect(() => {
