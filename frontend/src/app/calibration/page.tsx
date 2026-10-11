@@ -217,6 +217,7 @@ export default function Calibration() {
         };
       }
     },
+    [],
   );
   useEffect(() => subscribeKeyboardLayout(() => {
     // Covers both local controls and another tab changing settings mid-capture.
