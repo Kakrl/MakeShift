@@ -17,16 +17,16 @@
     },
     "landmarkCoordinateConvention": "MediaPipe normalized x/y and relative z; landmark list index is the MediaPipe hand landmark index",
     "depthCaptures": [
-      { "position": "top-left", "hand": "Right", "frame": null, "landmarks": [] },
-      { "position": "top-right", "hand": "Right", "frame": null, "landmarks": [] },
-      { "position": "bottom-left", "hand": "Right", "frame": null, "landmarks": [] },
-      { "position": "bottom-right", "hand": "Right", "frame": null, "landmarks": [] },
-      { "position": "center", "hand": "Right", "frame": null, "landmarks": [] },
-      { "position": "top-left", "hand": "Left", "frame": null, "landmarks": [] },
-      { "position": "top-right", "hand": "Left", "frame": null, "landmarks": [] },
-      { "position": "bottom-left", "hand": "Left", "frame": null, "landmarks": [] },
-      { "position": "bottom-right", "hand": "Left", "frame": null, "landmarks": [] },
-      { "position": "center", "hand": "Left", "frame": null, "landmarks": [] }
+      { "position": "top-left", "hand": "Right", "landmarks": [] },
+      { "position": "top-right", "hand": "Right", "landmarks": [] },
+      { "position": "bottom-left", "hand": "Right", "landmarks": [] },
+      { "position": "bottom-right", "hand": "Right", "landmarks": [] },
+      { "position": "center", "hand": "Right", "landmarks": [] },
+      { "position": "top-left", "hand": "Left", "landmarks": [] },
+      { "position": "top-right", "hand": "Left", "landmarks": [] },
+      { "position": "bottom-left", "hand": "Left", "landmarks": [] },
+      { "position": "bottom-right", "hand": "Left", "landmarks": [] },
+      { "position": "center", "hand": "Left", "landmarks": [] }
     ]
   },
   "events": [
