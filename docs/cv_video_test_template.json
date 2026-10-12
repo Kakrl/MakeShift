@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "video": "example-01.mp4",
+  "timebase": "video-frame",
+  "annotation": {
+    "pressDefinition": "first video frame showing fingertip contact with the key",
+    "releaseDefinition": "first video frame after fingertip contact ends",
+    "fullyLabeledRange": {
+      "startFrame": 0,
+      "endFrame": 900
+    }
+  },
+  "calibration": {
+    "keyboard": {
+      "layoutId": "starter-one-octave",
+      "startingMidiNote": 60
+    },
+    "landmarkCoordinateConvention": "MediaPipe normalized x/y and relative z; landmark list index is the MediaPipe hand landmark index",
+    "depthCaptures": [
+      { "position": "top-left", "hand": "Right", "frame": null, "landmarks": [] },
+      { "position": "top-right", "hand": "Right", "frame": null, "landmarks": [] },
+      { "position": "bottom-left", "hand": "Right", "frame": null, "landmarks": [] },
+      { "position": "bottom-right", "hand": "Right", "frame": null, "landmarks": [] },
+      { "position": "center", "hand": "Right", "frame": null, "landmarks": [] },
+      { "position": "top-left", "hand": "Left", "frame": null, "landmarks": [] },
+      { "position": "top-right", "hand": "Left", "frame": null, "landmarks": [] },
+      { "position": "bottom-left", "hand": "Left", "frame": null, "landmarks": [] },
+      { "position": "bottom-right", "hand": "Left", "frame": null, "landmarks": [] },
+      { "position": "center", "hand": "Left", "frame": null, "landmarks": [] }
+    ]
+  },
+  "events": [
+    {
+      "id": "event-001",
+      "hand": "Right",
+      "finger": "index",
+      "keyIndex": 4,
+      "midiNote": 64,
+      "press": { "frame": 240, "earliestFrame": 240, "latestFrame": 240 },
+      "release": { "frame": 276, "earliestFrame": 276, "latestFrame": 276 }
+    }
+  ],
+  "notes": []
+}

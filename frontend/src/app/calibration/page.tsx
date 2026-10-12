@@ -25,6 +25,7 @@ import { getWhiteKeyPolygons, getPianoCorners } from "../../cv/keyboardGeometry"
 import { paperFits, paperOctaves, startingNotes, usableLayout, type KeyboardLayout } from "../../cv/keyboardLayout";
 import { saveKeyboardLayout, subscribeKeyboardLayout } from "../../lib/keyboardSettings";
 import { useKeyboardLayout } from "../useKeyboardLayout";
+import { DEBUG_FLAGS } from "../../debugFlags";
 import { midiToPitch } from "../../cv/noteMap";
 import { computeHomography, projectPoint } from "../../cv/homography";
 import type { Homography } from "../../cv/homography";
@@ -730,6 +731,15 @@ export default function Calibration() {
           else localStorage.setItem(DEPTH_CALIBRATION_STORAGE_KEY, previousDepth);
         } catch { /* A blocked storage area remains unusable. */ }
         throw new Error("Could not save calibration. Enable browser storage and retry.");
+      }
+      if (DEBUG_FLAGS.landmarkersTestGather) {
+        console.info(
+          "MakeShift raw depth calibration landmarks (copy this JSON):",
+          JSON.stringify({
+            schemaVersion: 1,
+            depthCaptures: depthCollectorRef.current.getRawLandmarkCaptures(),
+          }, null, 2),
+        );
       }
       router.push("/");
     } catch (error) { setCaptureError(error instanceof Error ? error.message : "Please retry calibration."); }

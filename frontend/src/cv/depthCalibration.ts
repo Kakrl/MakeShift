@@ -38,6 +38,7 @@ export interface DepthLandmark {
 
 export interface DepthObservation {
   handedness: "Right" | "Left" | "Unknown";
+  landmarks: readonly DepthLandmark[];
   sheetY: number;
   knuckleDistance: number;
   fingertipSheetYs: readonly number[];
@@ -138,6 +139,13 @@ export function makeDepthObservation(
   fingertipSheetYs: readonly number[],
 ): DepthObservation | null {
   if (handedness !== "Right" || !isFiniteNumber(sheetY)) return null;
+  if (
+    landmarks.length !== 21 ||
+    landmarks.some(({ x, y, z }) =>
+      !isFiniteNumber(x) || !isFiniteNumber(y) ||
+      z === undefined || !isFiniteNumber(z),
+    )
+  ) return null;
 
   const knuckleDistance = getKnuckleDistance(landmarks);
   const fingertipZs = getFingertipZs(landmarks);
@@ -146,6 +154,7 @@ export function makeDepthObservation(
 
   return {
     handedness,
+    landmarks: landmarks.map(({ x, y, z }) => ({ x, y, z })),
     sheetY,
     knuckleDistance,
     fingertipSheetYs: [...fingertipSheetYs],
@@ -252,6 +261,7 @@ function summarizeSamples(
   return {
     position,
     handedness: "Right",
+    landmarks: samples[0].landmarks,
     sheetY: median(samples.map((sample) => sample.sheetY)),
     knuckleDistance: median(samples.map((sample) => sample.knuckleDistance)),
     fingertipSheetYs: DEPTH_FINGERS.map((_, index) =>
@@ -314,6 +324,16 @@ export class DepthCalibrationCollector {
 
   getSampleCount(position: DepthCalibrationPosition): number {
     return this.samples.get(position)?.length ?? 0;
+  }
+
+  getRawLandmarkCaptures() {
+    return DEPTH_CALIBRATION_POSITIONS.flatMap((position) =>
+      (this.samples.get(position) ?? []).map((sample) => ({
+        position,
+        hand: sample.handedness,
+        landmarks: sample.landmarks.map(({ x, y, z }) => ({ x, y, z })),
+      })),
+    );
   }
 
   isComplete(): boolean {

@@ -4,4 +4,6 @@ export const DEBUG_FLAGS = {
   // Preserve main's current CV debugging behavior until its owner changes it.
   visualDebug: true,
   showSheetWithoutCalibration: true,
+  // Set true to print calibration hand landmarks in the browser console.
+  landmarkersTestGather: false,
 } as const;
