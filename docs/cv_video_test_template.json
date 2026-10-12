@@ -1,13 +1,14 @@
 {
   "schemaVersion": 1,
   "video": "example-01.mp4",
+  "framesPerSecond": 30,
   "timebase": "video-frame",
   "annotation": {
     "pressDefinition": "first video frame showing fingertip contact with the key",
     "releaseDefinition": "first video frame after fingertip contact ends",
     "fullyLabeledRange": {
       "startFrame": 0,
-      "endFrame": 900
+      "endFrame": 899
     }
   },
   "calibration": {

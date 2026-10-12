@@ -85,6 +85,7 @@ export class LiveContactPipeline {
   constructor(
     private readonly callbacks: PipelineCallbacks,
     techniques: ContactTechniques = CONTACT_TECHNIQUES,
+    private readonly now: () => number = () => performance.now(),
   ) {
     this.techniques = { ...techniques };
   }
@@ -125,7 +126,7 @@ export class LiveContactPipeline {
     // Releases and stale-contact handling never wait for the worker or React.
     this.timer = setInterval(() => {
       if (this.disposed) return;
-      const now = performance.now();
+      const now = this.now();
       let changed = false;
       for (const [id, previous] of this.contacts) {
         const gate = this.gates.get(id);
@@ -168,7 +169,7 @@ export class LiveContactPipeline {
   /** Main pipeline: overlap -> knuckles -> asynchronous shadow check. */
   processFrame(frame: ContactPipelineFrame): boolean {
     if (this.disposed) return false;
-    const now = performance.now();
+    const now = this.now();
     this.previewFingerId = frame.previewFingerId;
     const activeIds = new Set<string>();
     const knuckleDistances = new Map<number, number | null>();

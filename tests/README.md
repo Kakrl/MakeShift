@@ -239,6 +239,8 @@ tests/
 │   ├── performanceMetrics.browser.mjs # profiles and paired overhead
 │   ├── fingerState.test.ts           # per-finger contact state transitions
 │   ├── fingerVelocity.test.ts        # normalized speed, onset latch and DSP response
+│   ├── cvVideoEvaluation.test.ts     # sidecar, calibration, matching and replay core
+│   ├── cvVideoReplay.browser.mjs     # Playwright clip replay through production CV
 │   ├── browserAudio.test.ts      # production DSP offline rendering
 │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   ├── browserAudio.browser.mjs  # production browser graph check
@@ -283,11 +285,38 @@ No test implementation requires an exception to this layout.
 | Frontend unit (Vitest) | `cd frontend && npx vitest run` | `npm ci` in `frontend/` |
 | Browser audio smoke | `cd frontend && npm run test:audio-browser` | Production server on `MAKE_SHIFT_URL` (default `http://127.0.0.1:3000`); `AUDIO_BROWSER_CHANNEL=chromium` for Playwright Chromium (default `msedge`) |
 | Deployment smoke | `cd frontend && npm run test:deployment` | Production server or Vercel URL in `MAKE_SHIFT_URL`; `npx playwright install chromium`; network for jsDelivr WASM; `EXPECT_DATABASE=ok` requires Supabase secrets (`infisical run`) |
+| CV video replay | `cd frontend && CV_VIDEO_FILE=/path/clip.mp4 CV_SIDECAR_FILE=/path/clip.json npm run test:cv-video` | Production server, Playwright Chromium or `CV_BROWSER_CHANNEL=chrome`, sidecar calibration landmarks and `framesPerSecond`; optional `CV_RESULT_FILE` |
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
 | MIDI production download | `cd frontend && npm run test:midi-browser` | Running production server; Playwright and Edge; optional MAKE_SHIFT_URL / MIDI_BROWSER_CHANNEL |
 | Pipeline profiling | `cd frontend && npm run test:performance-browser` | Production server on port 3100, Playwright + Edge; synthetic camera; local only |
 | Camera feed layout | `cd frontend && npm run test:layout-browser` | Running production server; Playwright bundled Chromium; optional MAKE_SHIFT_URL / LAYOUT_BROWSER_CHANNEL |
 | RCA automation | `node --test tests/automation/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
+
+### CV video replay (#39)
+
+See the [quick guide](../docs/cv_video_tests.md) for preparing a clip/sidecar
+pair and running the browser replay.
+
+The sidecar parser and evaluation helpers are covered by
+`cd frontend && npx vitest run ../tests/frontend/cvVideoEvaluation.test.ts`.
+They validate annotations, build knuckle/Z calibration models from raw
+landmarks for both hands, derive press/release transitions, and match events
+one-to-one by key. For real clips, start the production app and run
+`CV_VIDEO_FILE=/path/clip.mp4 CV_SIDECAR_FILE=/path/clip.json npm run test:cv-video`.
+The Playwright harness at `/cv-video-replay` uses the browser's MP4 decoder,
+MediaPipe hand landmarker, ArUco marker detector and live contact pipeline.
+It steps through the clip while paused, preserves frame order, scores
+transitions, and reports inference and processing time. Results go to stdout;
+set `CV_RESULT_FILE` to save them. The sidecar's `framesPerSecond` must match
+the clip's constant frame rate. Real labeled clips and frame-seek validation
+remain necessary before accuracy reporting.
+
+Local verification on 2026-10-12: all five CV evaluation Vitest cases passed,
+TypeScript and targeted ESLint passed, and `npm run build` compiled the new
+route. The page loaded without browser errors in system Google Chrome through
+Playwright. Playwright's bundled Chromium is unavailable on this macOS version,
+and no labeled MP4 clips are present, so full replay and accuracy results remain
+pending.
 
 ## Per-finger contact state verification
 

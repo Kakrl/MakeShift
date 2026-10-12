@@ -58,7 +58,7 @@ export interface DepthLine {
 export type DepthLineCoefficients = Pick<DepthLine, "slope" | "intercept">;
 
 export interface DepthCalibrationModel {
-  hand: "Right";
+  hand: "Right" | "Left";
   knuckleLines: Readonly<Record<DepthFinger, DepthLine>>;
   zLines: Readonly<Record<DepthFinger, DepthLine>>;
   samplesByPosition: Readonly<Record<DepthCalibrationPosition, DepthCalibrationSample>>;
@@ -66,7 +66,7 @@ export interface DepthCalibrationModel {
 
 export interface PersistedDepthCalibration {
   version: 1;
-  hand: "Right";
+  hand: "Right" | "Left";
   knuckleDistances: Readonly<
     Record<DepthCalibrationPosition, number>
   >;
@@ -83,7 +83,7 @@ export interface PersistedDepthCalibration {
 
 export interface CaptureResult {
   accepted: boolean;
-  reason?: "right-hand-required" | "invalid-observation";
+  reason?: "hand-required" | "invalid-observation";
 }
 
 function isFiniteNumber(value: number): boolean {
@@ -131,14 +131,15 @@ export function getFingertipZs(
     : null;
 }
 
-/** Build a sample from one right-hand detection captured by the button. */
+/** Build a sample from one matching-hand detection captured by the button. */
 export function makeDepthObservation(
   landmarks: readonly DepthLandmark[],
   handedness: DepthObservation["handedness"],
   sheetY: number,
   fingertipSheetYs: readonly number[],
+  expectedHand: "Right" | "Left" = "Right",
 ): DepthObservation | null {
-  if (handedness !== "Right" || !isFiniteNumber(sheetY)) return null;
+  if (handedness !== expectedHand || !isFiniteNumber(sheetY)) return null;
   if (
     landmarks.length !== 21 ||
     landmarks.some(({ x, y, z }) =>
@@ -260,7 +261,7 @@ function summarizeSamples(
 ): DepthCalibrationSample {
   return {
     position,
-    handedness: "Right",
+    handedness: samples[0].handedness,
     landmarks: samples[0].landmarks,
     sheetY: median(samples.map((sample) => sample.sheetY)),
     knuckleDistance: median(samples.map((sample) => sample.knuckleDistance)),
@@ -291,19 +292,21 @@ function fitFingerLines(
   return Object.fromEntries(lines) as Record<DepthFinger, DepthLine>;
 }
 
-/** Collects button-triggered right-hand samples for the three sheet positions. */
+/** Collects button-triggered samples for one hand at each sheet position. */
 export class DepthCalibrationCollector {
   private readonly samples = new Map<
     DepthCalibrationPosition,
     DepthCalibrationSample[]
   >();
 
+  constructor(private readonly hand: "Right" | "Left" = "Right") {}
+
   capture(
     position: DepthCalibrationPosition,
     observation: DepthObservation,
   ): CaptureResult {
-    if (observation.handedness !== "Right") {
-      return { accepted: false, reason: "right-hand-required" };
+    if (observation.handedness !== this.hand) {
+      return { accepted: false, reason: "hand-required" };
     }
 
     const values = [
@@ -367,7 +370,7 @@ export class DepthCalibrationCollector {
     if (!knuckleLines || !zLines) return null;
 
     return {
-      hand: "Right",
+      hand: this.hand,
       knuckleLines,
       zLines,
       samplesByPosition: summaries,
@@ -440,7 +443,10 @@ export function parsePersistedDepthCalibration(
     const value: unknown = JSON.parse(raw);
     if (!value || typeof value !== "object") return null;
     const candidate = value as Record<string, unknown>;
-    if (candidate.version !== 1 || candidate.hand !== "Right") return null;
+    if (
+      candidate.version !== 1 ||
+      (candidate.hand !== "Right" && candidate.hand !== "Left")
+    ) return null;
     if (
       !candidate.knuckleDistances ||
       !candidate.knuckleBoundaryYs ||

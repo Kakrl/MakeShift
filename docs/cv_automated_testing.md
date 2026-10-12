@@ -24,16 +24,17 @@ presses and releases.
 
 The copyable starting point is
 [`cv_video_test_template.json`](cv_video_test_template.json). It includes the
-video name, the labeled time range, keyboard layout and pitch mapping, depth
-calibration captures, and annotated events. Replace the example values with
+video name and constant `framesPerSecond`, labeled time range, keyboard layout
+and pitch mapping, depth calibration captures, and annotated events. Replace
+the example values with
 measurements for the paired video. `fullyLabeledRange` says which part of the
 video has been reviewed; inside that range, time with no listed press event is
 intended to mean no key was pressed. This makes hover and other negative
 examples usable for false-trigger measurement.
 
-Annotate physical contact onset and release. The template uses video frame
-numbers to avoid assuming constant frame rate; the runner should map frame
-numbers to the video's presentation timestamps. If contact time is ambiguous,
+Annotate physical contact onset and release. The browser replay uses frame
+numbers and `framesPerSecond` to seek each frame in order, so use constant-
+frame-rate clips. If contact time is ambiguous,
 record the best estimate plus the earliest and latest plausible frame rather
 than implying frame-level certainty.
 
@@ -56,8 +57,8 @@ template includes left-hand slots for the dataset, but the current calibration
 flow does not produce left-hand captures.
 
 The calibration arrays are raw detector observations from the separate
-calibration procedure. Other frames do not need landmark arrays: the video
-test can run hand detection over the recording. Keeping derived values out of
+calibration procedure. Other frames do not need landmark arrays: the browser
+replay runs hand detection over the recording. Keeping derived values out of
 the annotation file means the test implementation, rather than manual
 arithmetic, defines how knuckle and Z measurements are calculated.
 
@@ -72,10 +73,11 @@ Use two replay modes because they answer different questions.
 
 ### Fast ordered replay: best-case accuracy ceiling
 
-Decode and process every video frame in order as quickly as the machine allows.
-Preserve each frame's original presentation timestamp and pass it through hand
-inference and time-dependent contact logic. The test can take longer in wall
-time than the video duration; model time still follows the clip. This estimates
+Seek and process every video frame in order as quickly as the machine allows.
+Use the browser's video decoder and the sidecar frame rate to seek, then pass
+the source-frame timestamp through hand inference and time-dependent contact
+logic. The test can take longer in wall time than the video duration; model time
+still follows the clip. This estimates
 the best-case accuracy when every recorded observation is available. It does
 not represent live performance or audio output timing.
 
@@ -167,7 +169,8 @@ used to claim real audible latency.
    boundaries, hover, short presses, release grace, chords, source loss, and
    calibration changes. These isolate logic and run quickly.
 3. **Recorded-video integration tests:** replay selected clips through the
-   actual hand detector and CV pipeline in both replay modes. Save the raw
+   actual hand detector and CV pipeline. The fast ordered mode is implemented;
+   add normal-speed replay for live-performance evaluation. Save the raw
    detected press/release transitions and per-frame timing measurements in a
    generated report separate from the hand-authored annotations. Compare
    transitions one-to-one with labels. These exercise MediaPipe and the browser
@@ -180,10 +183,11 @@ used to claim real audible latency.
    camera recording and cannot by itself establish physical press-to-sound
    latency.
 
-Recorded-video coverage is identified as planned in the
-[verification inventory](../tests/verification_test_inventory.md). Any test
-implementation should update its existing requirement row and execution
-evidence there.
+The Playwright replay harness is implemented at `/cv-video-replay` and its
+command and current limits are recorded in the [test guide](../tests/README.md#cv-video-replay-39)
+and [verification inventory](../tests/verification_test_inventory.md). It
+currently supports constant-frame-rate clips and fast ordered replay; normal-
+speed replay and tests against labeled clips remain pending.
 
 ## Decisions to work through
 
