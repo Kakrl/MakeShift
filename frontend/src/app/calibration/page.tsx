@@ -862,21 +862,22 @@ export default function Calibration() {
         } catch { /* A blocked storage area remains unusable. */ }
         throw new Error("Could not save calibration. Enable browser storage and retry.");
       }
-      const cornerPositions = [
+      const landmarkPositions = [
         "top-left",
         "top-right",
         "bottom-left",
         "bottom-right",
+        "center",
       ] as const;
-      console.log("Calibration corner hand landmarks:", {
+      console.log("Calibration hand landmarks:", {
         Right: Object.fromEntries(
-          cornerPositions.map((position) => [
+          landmarkPositions.map((position) => [
             position,
             cornerLandmarksRef.current.Right[position],
           ]),
         ),
         Left: Object.fromEntries(
-          cornerPositions.map((position) => [
+          landmarkPositions.map((position) => [
             position,
             cornerLandmarksRef.current.Left[position],
           ]),
