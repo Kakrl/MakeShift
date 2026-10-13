@@ -1,7 +1,5 @@
 # MakeShift Testing
 
-<<<<<<< HEAD
-=======
 ## Piano timbre verification (issue #175)
 
 Local execution 2026-10-13 on Windows 10.0.26200, Node 22.20.0,
