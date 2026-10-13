@@ -1,5 +1,58 @@
 # MakeShift Testing
 
+## Finger-speed velocity verification (issue #28)
+
+Local Windows execution on 2026-10-07, Node 22.20.0, Vitest 4.1.11,
+on `feature/28-browser-piano-integration-followup`:
+
+- All 481 tests across 23 files passed, including 20 `fingerVelocity.test.ts`
+  cases and 24 recording-control cases. Frontend lint, TypeScript, all 37
+  contrast pairs and production build passed.
+- Estimator fixtures cover stationary/noisy motion, monotonic mapping,
+  timestamp/frame-rate and image-aspect correction, palm scale/translation,
+  optional depth, finite fallback, peak expiry/consumption, bounded history,
+  duplicate frames, source/time/gap/reset/invalid data, and pipeline latch/loss.
+  A simulated shadow worker confirms a press 50 ms after the motion sample,
+  retains the recent peak and rejects its result after reset.
+- Real coordinator/overlay integration with synthetic landmarks sends
+  velocities 0.36 and 1 to a chord's audio calls and records 36 and 100, with
+  matching 40 ms durations. Two simultaneous fingers on one key use the
+  stronger onset; held motion does not retrigger or rescale it. Missing palm
+  data gives velocity 0.2 (20 in MIDI), replacing old fixed-0.8 expectations.
+- The production DSP offline RMS ratio for estimated slow/fast input is 0.36
+  (about 8.87 dB difference). This is software amplitude evidence, not the
+  ten-trial physical dynamics test 2.4.2 or a user-volume-control check.
+- Production audio, keyboard-layout and deployment checks passed in Edge
+  154.0.4258.62 on port 3128 with fake media. Audio RMS/suspension/navigation,
+  persisted layout controls, camera denial/retry/loss/recovery, five assets/pages
+  and three local-play rounds with no note requests passed. Database was
+  unconfigured. Chromium remains unavailable locally (`spawn UNKNOWN`).
+- Existing CI invokes these Vitest tests; Actions execution for this change is
+  pending. Physical dynamics tuning and audible hardware remain unverified.
+
+## Direct contact delivery verification (issue #28)
+
+Local Windows execution on 2026-10-07, Node 22.20.0, Vitest 4.1.11,
+branch `feature/28-browser-piano-integration-followup`, based on `b46f342`:
+
+- The new `recordingControls.test.tsx` case sends a chord, a hold, an empty
+  frame and a repress within one React batch. Audio dispatch precedes commit;
+  the completed take retains both pitches, velocities, 40 ms initial durations
+  and 60 ms repress durations. Against the original coordinator it failed:
+  expected two audio calls before commit, received zero.
+- Frontend lint and TypeScript passed; all 459 Vitest tests across 22 files,
+  all 37 contrast pairs and production build passed. All 22 recording-control
+  cases passed. The existing frontend CI workflow invokes Vitest; new-regression
+  Actions execution evidence is pending.
+- Chromium runners could not launch (`spawn UNKNOWN`). Production audio,
+  keyboard-layout and deployment checks passed in Edge 154.0.4258.62 with fake
+  media on port 3128. Audio rendering/suspension/navigation, layout persistence,
+  camera denial/retry/loss/recovery, five assets/pages and three local-play
+  rounds with zero note requests passed. Database was unconfigured.
+- Real-camera contact, velocity sensing, audible hardware and physical latency/
+  accuracy remain unverified. Keep #28 open pending #30/#39 and
+  [physical follow-up](manual/2026-10-07_2.1.2.md).
+
 ## PR #177 main reconciliation and PDF relocation
 
 Local Windows execution on 2026-10-06 after merging main `5f26515` into
@@ -185,6 +238,7 @@ tests/
 │   ├── performanceResources.test.tsx # CameraProvider lifecycle
 │   ├── performanceMetrics.browser.mjs # profiles and paired overhead
 │   ├── fingerState.test.ts           # per-finger contact state transitions
+│   ├── fingerVelocity.test.ts        # normalized speed, onset latch and DSP response
 │   ├── browserAudio.test.ts      # production DSP offline rendering
 │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   ├── browserAudio.browser.mjs  # production browser graph check

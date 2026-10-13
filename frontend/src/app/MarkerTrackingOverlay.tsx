@@ -12,6 +12,7 @@ import {
 import { getKeyCollisions, updateKeyTransitions } from "../cv/collision";
 import type { Fingertip } from "../cv/collision";
 import type { HandObservation } from "../cv/collision";
+import type { KeyPress } from "../events/keyEventProducer";
 import type { FingerContactState } from "../cv/combinedContact";
 import {
   KNUCKLE_PLAYING_MARGIN_Y,
@@ -117,7 +118,12 @@ interface FingerDebugState {
   shadowAreaRatio: number | null;
 }
 
+export type ContactFrameHandler = (
+  fingertips: readonly Fingertip[], hands: readonly HandObservation[],
+) => void;
+
 export default function MarkerTrackingOverlay({
+  contactFrameRef,
   videoRef,
   fingertips,
   hands = [],
@@ -130,13 +136,14 @@ export default function MarkerTrackingOverlay({
   debugShowSheetWithoutCalibration = false,
   layout = DEFAULT_LAYOUT,
 }: {
+  contactFrameRef?: React.RefObject<ContactFrameHandler | null>;
   layout?: KeyboardLayout;
   videoRef: React.RefObject<HTMLVideoElement | null>;
   fingertips: readonly Fingertip[];
   hands?: readonly HandObservation[];
   depthCalibration?: PersistedDepthCalibration | null;
   activePitches: ReadonlySet<number>;
-  onKeyTransitions?: (pressed: readonly number[], released: readonly number[]) => void;
+  onKeyTransitions?: (pressed: readonly KeyPress[], released: readonly number[]) => void;
   trackingEnabled?: boolean;
   showVisualDebug?: boolean;
   debugShowSheetWithoutCalibration?: boolean;
@@ -194,10 +201,14 @@ export default function MarkerTrackingOverlay({
 
   const syncContactKeys = useCallback(() => {
     const detectedKeys = new Set<number>();
+    const velocities = new Map<number, number>();
     for (const [id, contact] of pipelineRef.current?.contacts ?? []) {
       if (!contact.active) continue;
-      for (const key of pipelineRef.current?.gates.get(id)?.keyIndexes ?? [])
+      for (const key of pipelineRef.current?.gates.get(id)?.keyIndexes ?? []) {
         detectedKeys.add(key);
+        const velocity = pipelineRef.current!.pressVelocities.get(id)!;
+        velocities.set(key, Math.max(velocities.get(key) ?? 0, velocity));
+      }
     }
     const currentKeys = trackingEnabledRef.current
       ? detectedKeys
@@ -208,7 +219,9 @@ export default function MarkerTrackingOverlay({
     );
     previousKeysRef.current = currentKeys;
     if (transitions.pressed.length || transitions.released.length) {
-      onKeyTransitionsRef.current?.(transitions.pressed, transitions.released);
+      onKeyTransitionsRef.current?.(transitions.pressed.map(keyIndex => ({
+        keyIndex, velocity: velocities.get(keyIndex)!,
+      })), transitions.released);
     }
     // Camera feedback is useful even before recording starts or while paused.
     const highlights = updateKeyTransitions(
@@ -605,14 +618,16 @@ export default function MarkerTrackingOverlay({
     projectedWhiteKeysRef.current = geometry.whiteKeys;
   }, [markerDetection, stream, cameraReady, videoRef, onCalibrationObservation, onKeyTransitions, debugShowSheetWithoutCalibration, layout]);
 
-  useEffect(() => {
+  const processContactFrame = useCallback((
+    fingertips: readonly Fingertip[], hands: readonly HandObservation[],
+  ) => {
     const inverseHomography = homographyRef.current
       ? invertHomography(homographyRef.current)
       : null;
     const pipeline = pipelineRef.current;
     if (!pipeline) return;
     const video = videoRef.current;
-    // The complete live pipeline runs here: overlap -> knuckles -> shadows.
+    // Inference invokes this directly; rendering is only a diagnostic consumer.
     const detectionStartedAt = pipelineMetrics.enabled ? performance.now() : null;
     const capturedShadowFrame = pipeline.processFrame({
       video,
@@ -684,15 +699,21 @@ export default function MarkerTrackingOverlay({
     // Console logging is intentionally disabled while tuning the visual prototype.
   }, [
     depthCalibration,
-    fingertips,
-    hands,
-    markerDetection,
     shadowPreviewFinger,
     showVisualDebug,
-    syncContactKeys,
-    trackingEnabled,
     videoRef,
   ]);
+
+  useEffect(() => {
+    if (!contactFrameRef) return;
+    contactFrameRef.current = processContactFrame;
+    return () => { contactFrameRef.current = null; };
+  }, [contactFrameRef, processContactFrame]);
+
+  useEffect(() => {
+    // Preserve standalone overlay use; the live coordinator uses direct input.
+    if (!contactFrameRef) processContactFrame(fingertips, hands);
+  }, [contactFrameRef, processContactFrame, fingertips, hands]);
 
   useEffect(() => {
     const overlay = overlayCanvasRef.current;

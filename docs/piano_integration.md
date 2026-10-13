@@ -21,9 +21,41 @@ interruption.
 Highlighted keys now represent accepted musical events. A fingertip over a key
 while stopped does not highlight it as sounding. The preview detector still
 uses polygon overlap, which can trigger on hovering; it is not intentional
-contact recognition. Live preview velocity is fixed at 0.8. Calibrated contact,
-finger-speed velocity and jitter tuning remain #34/#29. Do not treat this
+contact recognition. Live velocity now comes from recent fingertip motion;
+calibrated contact and camera-specific tuning remain #34/#29. Do not treat this
 preview as completed physical piano detection.
+
+## Finger-speed velocity
+
+`FingerVelocity` measures fingertip displacement relative to the wrist using
+landmark x/y and optional z. It converts y to the image-width scale, then
+normalizes displacement by the projected wrist-to-middle-knuckle distance.
+This makes speed independent of image resolution, uniform hand translation
+and hand scale. Units are palm lengths per second; timestamps are monotonic
+inference-observation times, not measured sensor exposure times. MediaPipe's
+relative z is a motion cue, not calibrated paper distance or physical force
+([landmark coordinates](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker/ios)).
+
+At contact onset the pipeline consumes the largest speed observed in the past
+100 ms. Speeds up to 0.5 palm lengths/s map to soft velocity 0.2; speed increases
+linearly to velocity 1 at 8 palm lengths/s, with saturation beyond that. The
+history has 24 fixed slots; samples less than 5 ms apart are ignored. Missing
+or invalid landmarks, degenerate palm scale, backward time, a gap over 150 ms,
+source changes, finger disappearance and session reset discard old history.
+Missing usable speed gives a soft 0.2 note rather than a spurious loud attack.
+Without z, estimation uses x/y; depth appearing/disappearing starts fresh history.
+
+Velocity is latched for the accepted press, including asynchronous shadow
+confirmation, and stays constant through holds and release grace. Each finger
+has independent history. For simultaneous contacts on the same key, the onset
+uses the strongest contacting finger. A second finger joining a held key does
+not retrigger it or change its velocity. Audio receives the normalized value;
+MIDI retains the existing integer 1–100 conversion and held-note capture policy.
+
+The mapping is a tunable motion heuristic. Hand rotation, landmark noise,
+perspective and lateral movement can affect it. It neither changes contact
+classification nor adds a waiting period before audio. Physical dynamics tuning
+and a user master-volume control remain separate work.
 
 ## Shared lifecycle
 
@@ -46,9 +78,17 @@ adopt a restarted session. Invalid velocity fails closed through the contract.
   unmount drain bounded accepted history before recorder snapshots/state changes,
   so a same-turn press is not lost. Draining never resends audio.
 
-No React render or MIDI observer runs inside audio dispatch. The inherited
-camera/overlap producer itself still uses React effects and main-thread CV;
-worker ownership and fresh-frame scheduling remain #37. There is no new network
+Hand inference calls the contact-frame handler synchronously before updating
+React's landmark snapshot. Contact transitions reach the captured session
+producer and audio without waiting for a render; repeated observations within
+one React batch retain release/repress transitions. React consumes snapshots
+for drawing. The handler is detached on overlay cleanup, and the session still
+rejects stale producer identities. Standalone overlays without the handler ref
+retain their prop-driven contact effect.
+
+No React render or MIDI observer runs inside audio dispatch. CV remains on the
+main thread except for shadow segmentation; worker ownership and fresh-frame
+scheduling remain #37. There is no new network
 dependency in note delivery: the existing local AudioWorklet renders sound.
 
 ## Verification and remaining acceptance criteria
