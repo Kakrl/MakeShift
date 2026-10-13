@@ -259,6 +259,9 @@ export default function Calibration() {
   const depthModelsRef = useRef<
     Partial<Record<CalibrationHand, DepthCalibrationModel>>
   >({});
+  const cornerLandmarksRef = useRef<
+    Record<CalibrationHand, Partial<Record<(typeof DEPTH_CALIBRATION_POSITIONS)[number], readonly { x: number; y: number; z?: number }[]>>>
+  >({ Right: {}, Left: {} });
   const { status: landmarkerStatus, detect, reload: reloadLandmarker } =
     useHandLandmarker();
 
@@ -269,6 +272,7 @@ export default function Calibration() {
     resultRef.current = null;
     calibrationSettingsRef.current = null;
     depthModelsRef.current = {};
+    cornerLandmarksRef.current = { Right: {}, Left: {} };
     depthCollectorsRef.current = {
       Right: new DepthCalibrationCollector("Right"),
       Left: new DepthCalibrationCollector("Left"),
@@ -350,6 +354,7 @@ export default function Calibration() {
     setDepthCaptureBusy(false);
     if (resetDepth) {
       depthModelsRef.current = {};
+      cornerLandmarksRef.current = { Right: {}, Left: {} };
       depthCollectorsRef.current = {
         Right: new DepthCalibrationCollector("Right"),
         Left: new DepthCalibrationCollector("Left"),
@@ -552,6 +557,9 @@ export default function Calibration() {
         setDepthCaptureMessage(`Only a detected ${hand.toLowerCase()} hand can be captured.`);
         return;
       }
+      cornerLandmarksRef.current[hand][position] = handLandmarks.map(
+        ({ x, y, z }) => ({ x, y, z }),
+      );
 
       const nextPositionIndex = depthPositionIndex + 1;
       setDepthPositionIndex(nextPositionIndex);
@@ -854,6 +862,26 @@ export default function Calibration() {
         } catch { /* A blocked storage area remains unusable. */ }
         throw new Error("Could not save calibration. Enable browser storage and retry.");
       }
+      const cornerPositions = [
+        "top-left",
+        "top-right",
+        "bottom-left",
+        "bottom-right",
+      ] as const;
+      console.log("Calibration corner hand landmarks:", {
+        Right: Object.fromEntries(
+          cornerPositions.map((position) => [
+            position,
+            cornerLandmarksRef.current.Right[position],
+          ]),
+        ),
+        Left: Object.fromEntries(
+          cornerPositions.map((position) => [
+            position,
+            cornerLandmarksRef.current.Left[position],
+          ]),
+        ),
+      });
       router.push("/");
     } catch (error) { setCaptureError(error instanceof Error ? error.message : "Please retry calibration."); }
   };
