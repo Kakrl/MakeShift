@@ -1,5 +1,36 @@
 # MakeShift Testing
 
+<<<<<<< HEAD
+=======
+## Piano timbre verification (issue #175)
+
+Local execution 2026-10-13 on Windows 10.0.26200, Node 22.20.0,
+Vitest 4.1.11. The default production DSP now has decaying modal piano voices;
+explicit legacy mode retains the sine/ADSR baseline. Existing pitch-only
+zero-crossing oracles intentionally remain baseline regressions, while
+pianoTimbre.test.ts covers the new default with spectral and state checks.
+The velocity estimator DSP test now asserts stronger fast strikes rather
+than the exact sine amplitude ratio because velocity also changes timbre.
+
+Frontend lint, TypeScript, 37 contrast pairs and production build passed.
+The final full suite passed **495 cases across 25 files**, including eleven
+piano-modal cases. Production audio,
+deployment and keyboard-layout checks passed against port 3175 in headless
+Edge 155.0.4283.45 with fake media. Soft/loud piano graph RMS was approximately
+0.003707/0.010006; Stop, suspension/re-enable and navigation cleanup passed.
+Chromium could not launch (`spawn UNKNOWN`), so its local result remains pending.
+Database was unconfigured. The browser threshold changes account for decaying,
+normalized timbre; they establish output presence, not acoustic quality.
+
+The paired synchronous browser DSP benchmark covered 44.1/48/96 kHz single
+notes, chords and rapid stealing; see [the complete timing table and limits](../docs/performance.md#piano-paired-dsp-profile-175-2026-10-13).
+Real AudioWorklet deadline/dropout stress with simultaneous live CV remains
+pending. The provisional 16-sample control interval has no listening-quality
+pass claim. [Listening/reference report](manual/2026-10-13_PT-03.md) is BLOCKED
+because hardware listening was not performed; physical latency/dynamics remain
+unverified. Existing CI invokes Vitest and the three production browser runners;
+new Actions execution evidence is pending. The paired profile runs manually.
+
 ## Finger-speed velocity verification (issue #28)
 
 Local Windows execution on 2026-10-07, Node 22.20.0, Vitest 4.1.11,

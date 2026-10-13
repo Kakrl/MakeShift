@@ -1,5 +1,45 @@
 # Pipeline performance diagnostics
 
+## Piano paired DSP profile (#175, 2026-10-13)
+
+Run `node ../tests/frontend/pianoProfile.browser.mjs` from frontend against
+a production server, setting MAKE_SHIFT_URL and AUDIO_BROWSER_CHANNEL.
+This compares the exact legacy sine and default piano renderers in alternating
+order on the browser main thread. It does not measure AudioWorklet deadlines,
+device dropouts, event handling, simultaneous live CV, or physical latency.
+The configured block is 128 samples; it is not a measured device quantum.
+The 16-sample cutoff-control interval remains provisional.
+
+Local Windows 10.0.26200, Intel Core i9-14900K, Node 22.20.0,
+headless Edge 155.0.4283.45: 1000 warmup blocks followed by 4000 measured
+blocks per mode/workload/rate. Each mode simulates 11.610 seconds at 44.1 kHz,
+10.667 seconds at 48 kHz, and 5.333 seconds at 96 kHz. This synchronous run
+finishes faster than real time. Timer granularity measured approximately
+0.1 ms; two performance.now reads bracket render, and their overhead is
+excluded from the subtraction but quantization/instrumentation effects remain.
+Zero timings indicate resolution limits, not free processing.
+
+| Rate | Workload | Sine p99 / max ms | Piano p99 / max ms | Piano calls >= half block / full block |
+| :--- | :--- | :--- | :--- | :--- |
+| 44100 | single | 0.1 / 1.1 | 0.1 / 0.8 | 0 / 0 |
+| 44100 | chord | 0.1 / 0.3 | 0.2 / 0.4 | 0 / 0 |
+| 44100 | stealing | 0.1 / 0.2 | 0.2 / 2.0 | 1 / 0 |
+| 48000 | single | 0.1 / 0.1 | 0.1 / 0.2 | 0 / 0 |
+| 48000 | chord | 0.1 / 0.2 | 0.2 / 1.3 | 0 / 0 |
+| 48000 | stealing | 0.1 / 0.2 | 0.2 / 0.3 | 0 / 0 |
+| 96000 | single | 0.1 / 0.1 | 0.1 / 0.2 | 0 / 0 |
+| 96000 | chord | 0.1 / 0.5 | 0.2 / 2.1 | 3 / 1 |
+| 96000 | stealing | 0.1 / 0.2 | 0.2 / 1.2 | 2 / 0 |
+
+All synchronous p99 timings were below half the configured block duration;
+outliers and the different execution context prohibit a real-time pass claim.
+Raw local output is frontend/test-results/piano-profile.json (ignored artifact).
+Repeat on target hardware in the actual worklet with measured quantum lengths,
+timing instrumentation supported by that browser, sustained live CV, and dropout
+observation before claiming the proposed gate. Physical latency stays pending:
+include attack and audible-onset threshold, p50/p95/max, fraction >=50 ms,
+uncertainty, startup/warm behavior and identical baseline/camera/output conditions.
+
 Issue [#38](https://github.com/Kakrl/MakeShift/issues/38), requirement 2.3,
 verification inventory 2.3.2. These diagnostics identify software bottlenecks;
 they do not measure physical press-to-sound latency or prove the 50 ms target.
