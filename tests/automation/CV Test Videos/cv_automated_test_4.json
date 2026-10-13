@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "video": "",
+  "video": "cv_automation_test_4.mov",
   "framesPerSecond": 30,
   "timebase": "video-frame",
   "annotation": {
@@ -1130,6 +1130,15 @@
       }
     ]
   },
-  "events": [],
+  "events": [
+    1. right pink (C2, 6.10, 6.233)
+    2. right middle (G1, 6.60, 6.733)
+    3. left index (D1, 7.267, 7.433)
+    4. right ring (B1, 7.767, 7.933)
+    5. left ring (D1, 8.298, 8.732)
+    6. right middle (A1, 9.132, 9.365)
+    7. left index (E1, 9.765, 9.998)
+    8. right thumb (F1, 10.332, 10.498)
+  ],
   "notes": []
 }

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "video": "",
+  "video": "cv_automation_test_2.mov",
   "framesPerSecond": 30,
   "timebase": "video-frame",
   "annotation": {
@@ -1130,6 +1130,23 @@
       }
     ]
   },
-  "events": [],
+  "events": [
+    1. left pinky press at 2.267, C1, release at 2.533
+    2. left ring press at 2.700, D1, release at 2.967
+    3. left middle press at 3.233, E1, release at 3.500
+    4. left index press at 3.867, F1, release at 4.067
+    5. left thumb press at 4.433, G1, release at 4.600
+    6. left middle press at 4.900, A1, release at 5.133
+    7. left index press at 5.367, B1, release at 5.500
+    8. left thumb press at 5.900, C2, release at 6.067
+    9. left thumb press at 7.40, C2, release at 7.533
+    10. left index press at 7.833, B1, release at 8.00
+    11. left middle press at 8.233, A1, release at 8.365
+    12. left thumb press at 8.732, G1, release at 8.898
+    13. left index press at 9.198, F1, release at 9.365
+    14. left middle press at 9.665, E1, release at 9.865
+    15. left ring press at 10.132, D1, release at 10.298
+    16. left pinky press at 10.632, C1, release at 11.132
+  ],
   "notes": []
 }

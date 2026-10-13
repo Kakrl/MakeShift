@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "video": "",
+  "video": "cv_automation_test_1.mov",
   "framesPerSecond": 30,
   "timebase": "video-frame",
   "annotation": {
@@ -1130,6 +1130,15 @@
       }
     ]
   },
-  "events": [],
+  "events": [
+    1. right humb press at 2.867, C1, release at 2.967
+    2. right index press at 3.267, D1, relase at 3.466
+    3. right middle press at 3.800, E1, release at 3.933
+    4. right thumb press at 4.333, F1, release art 4.367
+    5. right index press at 4.967, G1, releast at 5.040
+    6. right middle press at 5.500, A1, release at 5.700
+    7. right ring finger press at 6.033, B1, releast at 6.233
+    8. right pinky press at 6.633, C2, release at 6.800
+  ],
   "notes": []
 }
