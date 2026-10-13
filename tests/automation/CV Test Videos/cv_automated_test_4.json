@@ -14,7 +14,7 @@
   "calibration": {
     "keyboard": {
       "layoutId": "starter-one-octave",
-      "startingMidiNote": 60
+      "startingMidiNote":  24
     },
     "landmarkCoordinateConvention": "MediaPipe normalized x/y and relative z; landmark list index is the MediaPipe hand landmark index",
     "depthCaptures": [
@@ -1130,15 +1130,143 @@
       }
     ]
   },
-  "events": [
-    1. right pink (C2, 6.10, 6.233)
-    2. right middle (G1, 6.60, 6.733)
-    3. left index (D1, 7.267, 7.433)
-    4. right ring (B1, 7.767, 7.933)
-    5. left ring (D1, 8.298, 8.732)
-    6. right middle (A1, 9.132, 9.365)
-    7. left index (E1, 9.765, 9.998)
-    8. right thumb (F1, 10.332, 10.498)
+  "events":   [
+      {
+          "id": "event-001",
+          "hand": "Right",
+          "finger": "pinky",
+          "keyIndex": 7,
+          "midiNote": 36,
+          "press": {
+              "frame": 183,
+              "earliestFrame": 183,
+              "latestFrame": 183
+          },
+          "release": {
+              "frame": 187,
+              "earliestFrame": 186,
+              "latestFrame": 187
+          }
+      },
+      {
+          "id": "event-002",
+          "hand": "Right",
+          "finger": "middle",
+          "keyIndex": 4,
+          "midiNote": 31,
+          "press": {
+              "frame": 198,
+              "earliestFrame": 198,
+              "latestFrame": 198
+          },
+          "release": {
+              "frame": 202,
+              "earliestFrame": 201,
+              "latestFrame": 202
+          }
+      },
+      {
+          "id": "event-003",
+          "hand": "Left",
+          "finger": "index",
+          "keyIndex": 1,
+          "midiNote": 26,
+          "press": {
+              "frame": 218,
+              "earliestFrame": 218,
+              "latestFrame": 219
+          },
+          "release": {
+              "frame": 223,
+              "earliestFrame": 222,
+              "latestFrame": 223
+          }
+      },
+      {
+          "id": "event-004",
+          "hand": "Right",
+          "finger": "ring",
+          "keyIndex": 6,
+          "midiNote": 35,
+          "press": {
+              "frame": 233,
+              "earliestFrame": 233,
+              "latestFrame": 234
+          },
+          "release": {
+              "frame": 238,
+              "earliestFrame": 237,
+              "latestFrame": 238
+          }
+      },
+      {
+          "id": "event-005",
+          "hand": "Left",
+          "finger": "ring",
+          "keyIndex": 1,
+          "midiNote": 26,
+          "press": {
+              "frame": 249,
+              "earliestFrame": 248,
+              "latestFrame": 249
+          },
+          "release": {
+              "frame": 262,
+              "earliestFrame": 261,
+              "latestFrame": 262
+          }
+      },
+      {
+          "id": "event-006",
+          "hand": "Right",
+          "finger": "middle",
+          "keyIndex": 5,
+          "midiNote": 33,
+          "press": {
+              "frame": 274,
+              "earliestFrame": 273,
+              "latestFrame": 274
+          },
+          "release": {
+              "frame": 281,
+              "earliestFrame": 280,
+              "latestFrame": 281
+          }
+      },
+      {
+          "id": "event-007",
+          "hand": "Left",
+          "finger": "index",
+          "keyIndex": 2,
+          "midiNote": 28,
+          "press": {
+              "frame": 293,
+              "earliestFrame": 292,
+              "latestFrame": 293
+          },
+          "release": {
+              "frame": 300,
+              "earliestFrame": 299,
+              "latestFrame": 300
+          }
+      },
+      {
+          "id": "event-008",
+          "hand": "Right",
+          "finger": "thumb",
+          "keyIndex": 3,
+          "midiNote": 29,
+          "press": {
+              "frame": 310,
+              "earliestFrame": 309,
+              "latestFrame": 310
+          },
+          "release": {
+              "frame": 315,
+              "earliestFrame": 314,
+              "latestFrame": 315
+          }
+      }
   ],
   "notes": []
 }

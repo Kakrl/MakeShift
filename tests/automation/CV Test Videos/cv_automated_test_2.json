@@ -14,7 +14,7 @@
   "calibration": {
     "keyboard": {
       "layoutId": "starter-one-octave",
-      "startingMidiNote": 60
+      "startingMidiNote":  24
     },
     "landmarkCoordinateConvention": "MediaPipe normalized x/y and relative z; landmark list index is the MediaPipe hand landmark index",
     "depthCaptures": [
@@ -1130,23 +1130,279 @@
       }
     ]
   },
-  "events": [
-    1. left pinky press at 2.267, C1, release at 2.533
-    2. left ring press at 2.700, D1, release at 2.967
-    3. left middle press at 3.233, E1, release at 3.500
-    4. left index press at 3.867, F1, release at 4.067
-    5. left thumb press at 4.433, G1, release at 4.600
-    6. left middle press at 4.900, A1, release at 5.133
-    7. left index press at 5.367, B1, release at 5.500
-    8. left thumb press at 5.900, C2, release at 6.067
-    9. left thumb press at 7.40, C2, release at 7.533
-    10. left index press at 7.833, B1, release at 8.00
-    11. left middle press at 8.233, A1, release at 8.365
-    12. left thumb press at 8.732, G1, release at 8.898
-    13. left index press at 9.198, F1, release at 9.365
-    14. left middle press at 9.665, E1, release at 9.865
-    15. left ring press at 10.132, D1, release at 10.298
-    16. left pinky press at 10.632, C1, release at 11.132
+  "events":   [
+      {
+          "id": "event-001",
+          "hand": "Left",
+          "finger": "pinky",
+          "keyIndex": 0,
+          "midiNote": 24,
+          "press": {
+              "frame": 68,
+              "earliestFrame": 68,
+              "latestFrame": 69
+          },
+          "release": {
+              "frame": 76,
+              "earliestFrame": 75,
+              "latestFrame": 76
+          }
+      },
+      {
+          "id": "event-002",
+          "hand": "Left",
+          "finger": "ring",
+          "keyIndex": 1,
+          "midiNote": 26,
+          "press": {
+              "frame": 81,
+              "earliestFrame": 81,
+              "latestFrame": 81
+          },
+          "release": {
+              "frame": 89,
+              "earliestFrame": 89,
+              "latestFrame": 90
+          }
+      },
+      {
+          "id": "event-003",
+          "hand": "Left",
+          "finger": "middle",
+          "keyIndex": 2,
+          "midiNote": 28,
+          "press": {
+              "frame": 97,
+              "earliestFrame": 96,
+              "latestFrame": 97
+          },
+          "release": {
+              "frame": 105,
+              "earliestFrame": 105,
+              "latestFrame": 105
+          }
+      },
+      {
+          "id": "event-004",
+          "hand": "Left",
+          "finger": "index",
+          "keyIndex": 3,
+          "midiNote": 29,
+          "press": {
+              "frame": 116,
+              "earliestFrame": 116,
+              "latestFrame": 117
+          },
+          "release": {
+              "frame": 122,
+              "earliestFrame": 122,
+              "latestFrame": 123
+          }
+      },
+      {
+          "id": "event-005",
+          "hand": "Left",
+          "finger": "thumb",
+          "keyIndex": 4,
+          "midiNote": 31,
+          "press": {
+              "frame": 133,
+              "earliestFrame": 132,
+              "latestFrame": 133
+          },
+          "release": {
+              "frame": 138,
+              "earliestFrame": 138,
+              "latestFrame": 138
+          }
+      },
+      {
+          "id": "event-006",
+          "hand": "Left",
+          "finger": "middle",
+          "keyIndex": 5,
+          "midiNote": 33,
+          "press": {
+              "frame": 147,
+              "earliestFrame": 147,
+              "latestFrame": 147
+          },
+          "release": {
+              "frame": 154,
+              "earliestFrame": 153,
+              "latestFrame": 154
+          }
+      },
+      {
+          "id": "event-007",
+          "hand": "Left",
+          "finger": "index",
+          "keyIndex": 6,
+          "midiNote": 35,
+          "press": {
+              "frame": 161,
+              "earliestFrame": 161,
+              "latestFrame": 162
+          },
+          "release": {
+              "frame": 165,
+              "earliestFrame": 165,
+              "latestFrame": 165
+          }
+      },
+      {
+          "id": "event-008",
+          "hand": "Left",
+          "finger": "thumb",
+          "keyIndex": 7,
+          "midiNote": 36,
+          "press": {
+              "frame": 177,
+              "earliestFrame": 177,
+              "latestFrame": 177
+          },
+          "release": {
+              "frame": 182,
+              "earliestFrame": 182,
+              "latestFrame": 183
+          }
+      },
+      {
+          "id": "event-009",
+          "hand": "Left",
+          "finger": "thumb",
+          "keyIndex": 7,
+          "midiNote": 36,
+          "press": {
+              "frame": 222,
+              "earliestFrame": 222,
+              "latestFrame": 222
+          },
+          "release": {
+              "frame": 226,
+              "earliestFrame": 225,
+              "latestFrame": 226
+          }
+      },
+      {
+          "id": "event-010",
+          "hand": "Left",
+          "finger": "index",
+          "keyIndex": 6,
+          "midiNote": 35,
+          "press": {
+              "frame": 235,
+              "earliestFrame": 234,
+              "latestFrame": 235
+          },
+          "release": {
+              "frame": 240,
+              "earliestFrame": 240,
+              "latestFrame": 240
+          }
+      },
+      {
+          "id": "event-011",
+          "hand": "Left",
+          "finger": "middle",
+          "keyIndex": 5,
+          "midiNote": 33,
+          "press": {
+              "frame": 247,
+              "earliestFrame": 246,
+              "latestFrame": 247
+          },
+          "release": {
+              "frame": 251,
+              "earliestFrame": 250,
+              "latestFrame": 251
+          }
+      },
+      {
+          "id": "event-012",
+          "hand": "Left",
+          "finger": "thumb",
+          "keyIndex": 4,
+          "midiNote": 31,
+          "press": {
+              "frame": 262,
+              "earliestFrame": 261,
+              "latestFrame": 262
+          },
+          "release": {
+              "frame": 267,
+              "earliestFrame": 266,
+              "latestFrame": 267
+          }
+      },
+      {
+          "id": "event-013",
+          "hand": "Left",
+          "finger": "index",
+          "keyIndex": 3,
+          "midiNote": 29,
+          "press": {
+              "frame": 276,
+              "earliestFrame": 275,
+              "latestFrame": 276
+          },
+          "release": {
+              "frame": 281,
+              "earliestFrame": 280,
+              "latestFrame": 281
+          }
+      },
+      {
+          "id": "event-014",
+          "hand": "Left",
+          "finger": "middle",
+          "keyIndex": 2,
+          "midiNote": 28,
+          "press": {
+              "frame": 290,
+              "earliestFrame": 289,
+              "latestFrame": 290
+          },
+          "release": {
+              "frame": 296,
+              "earliestFrame": 295,
+              "latestFrame": 296
+          }
+      },
+      {
+          "id": "event-015",
+          "hand": "Left",
+          "finger": "ring",
+          "keyIndex": 1,
+          "midiNote": 26,
+          "press": {
+              "frame": 304,
+              "earliestFrame": 303,
+              "latestFrame": 304
+          },
+          "release": {
+              "frame": 309,
+              "earliestFrame": 308,
+              "latestFrame": 309
+          }
+      },
+      {
+          "id": "event-016",
+          "hand": "Left",
+          "finger": "pinky",
+          "keyIndex": 0,
+          "midiNote": 24,
+          "press": {
+              "frame": 319,
+              "earliestFrame": 318,
+              "latestFrame": 319
+          },
+          "release": {
+              "frame": 334,
+              "earliestFrame": 333,
+              "latestFrame": 334
+          }
+      }
   ],
   "notes": []
 }
