@@ -224,7 +224,7 @@ export default function SongsDialog({
             {view.kind === "list" && (
               <>
                 <h3 ref={headingRef} tabIndex={-1} className="sr-only">Song list</h3>
-                <Tabs tab={tab} mineCount={mine.entries.length} onChange={switchTab} />
+                <Tabs tab={tab} onChange={switchTab} />
                 <div role="tabpanel" id={`songs-panel-${tab}`} aria-labelledby={`songs-tab-${tab}`} className="mt-4">
                   {tab === "shared" ? (
                     <SharedList
@@ -277,7 +277,7 @@ export default function SongsDialog({
 }
 
 /** Two tabs with a pill that slides between them (transform only). */
-function Tabs({ tab, mineCount, onChange }: { tab: SongsTab; mineCount: number; onChange: (tab: SongsTab) => void }) {
+function Tabs({ tab, onChange }: { tab: SongsTab; onChange: (tab: SongsTab) => void }) {
   return (
     <div role="tablist" aria-label="Songs" className="ms-well relative grid grid-cols-2 rounded-full p-1">
       <span
@@ -297,7 +297,6 @@ function Tabs({ tab, mineCount, onChange }: { tab: SongsTab; mineCount: number; 
           className={`relative z-10 rounded-full px-3 py-2 text-[15px] transition-colors duration-150 focus-visible:outline-none focus-visible:shadow-(--halo) ${tab === value ? "text-ink font-medium" : "text-ink-muted hover:text-ink"}`}
         >
           {label}
-          {value === "mine" && mineCount > 0 && <span className="ml-1.5 tabular-nums text-ink-muted">{mineCount}</span>}
         </button>
       ))}
     </div>
