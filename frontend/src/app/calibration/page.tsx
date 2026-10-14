@@ -38,8 +38,8 @@ import {
 } from "../lighting";
 
 import { cameraSignature, markerCorners, compatibleCalibration, validateCalibration, saveCalibration, MARKER_ACQUIRE_INTERVAL_MS, MARKER_CHECK_INTERVAL_MS,
-  validSamples, SHEET_ID, type CalibrationResult, type LandmarkSample } from "../../cv/calibration";
-const TOTAL_STEPS = 5;
+  validSamples, SHEET_ID, type CalibrationResult } from "../../cv/calibration";
+const TOTAL_STEPS = 4;
 
 const PAGE_CORNERS: [Point, Point, Point, Point] = [
   { x: 0, y: 0 },
@@ -81,7 +81,7 @@ function SuccessBadge({ label }: { label: string }) {
   );
 }
 
-const STEP_NAMES = ["Setup", "Lighting", "Paper", "Hands", "Depth"];
+const STEP_NAMES = ["Setup", "Lighting", "Paper", "Depth"];
 
 /** Labeled stepper above the camera. Each step has its own rainbow color;
  * done steps are checked and each line segment fills solid in its step's color. */
@@ -150,12 +150,9 @@ export default function Calibration() {
   // Step 1
   const layout = useKeyboardLayout();
 
-  // Steps 4 & 5, shared countdown
-  const [countdown, setCountdown] = useState<number | null>(null);
+  // Depth calibration step
   const [hasStarted, setHasStarted] = useState(false);
-  const [fingersShown, setFingersShown] = useState(false);
-  const [showingImage, setShowingImage] = useState(false);
-  const [step5Success, setStep5Success] = useState(false);
+  const [depthCalibrationComplete, setDepthCalibrationComplete] = useState(false);
   const [depthPositionIndex, setDepthPositionIndex] = useState(0);
   const [depthCaptureMessage, setDepthCaptureMessage] = useState<string | null>(null);
   const [depthCaptureBusy, setDepthCaptureBusy] = useState(false);
@@ -180,7 +177,6 @@ export default function Calibration() {
   const [lighting, setLighting] = useState<LightingReading | null>(null);
 
   const [corners, setCorners] = useState<Point[] | null>(null);
-  const hoverRef = useRef<LandmarkSample[][] | null>(null);
   const resultRef = useRef<CalibrationResult | null>(null);
   const detectorRef = useRef<MarkerDetector | null>(null);
   const generationRef = useRef(0);
@@ -194,23 +190,23 @@ export default function Calibration() {
   const brightnessCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const depthCollectorRef = useRef(new DepthCalibrationCollector());
   const depthModelRef = useRef<DepthCalibrationModel | null>(null);
-  const { status: landmarkerStatus, detect, reload: reloadLandmarker } =
-    useHandLandmarker();
+  const {
+    status: landmarkerStatus,
+    detect,
+    reload: reloadLandmarker,
+  } = useHandLandmarker();
 
   useEffect(() => subscribeKeyboardLayout(() => {
     // Covers both local controls and another tab changing settings mid-capture.
     generationRef.current++;
-    hoverRef.current = null;
     resultRef.current = null;
     depthModelRef.current = null;
     depthCollectorRef.current = new DepthCalibrationCollector();
     setStep(1);
-    setCountdown(null);
     setCorners(null);
     setSheetGeometry(null);
     setSheetDetected(false);
-    setFingersShown(false);
-    setStep5Success(false);
+    setDepthCalibrationComplete(false);
     setDepthPositionIndex(0);
     setDepthCaptureBusy(false);
   }), []);
@@ -271,11 +267,8 @@ export default function Calibration() {
   }, [step, cameraReady, frameReady]);
 
   function resetInteractiveStepState(resetDepth = true) {
-    setCountdown(null);
     setHasStarted(false);
-    setFingersShown(false);
-    setShowingImage(false);
-    setStep5Success(false);
+    setDepthCalibrationComplete(false);
     setDepthPositionIndex(0);
     setDepthCaptureMessage(null);
     setDepthCaptureBusy(false);
@@ -291,8 +284,8 @@ export default function Calibration() {
 
   function goToAdjacentStep(delta: -1 | 1) {
     generationRef.current++;
-    if (delta === -1) { resultRef.current = null; hoverRef.current = null; }
-    resetInteractiveStepState(!(delta === 1 && step === 5));
+    if (delta === -1) resultRef.current = null;
+    resetInteractiveStepState(!(delta === 1 && step === 4));
     setStep((s) => s + delta);
   }
 
@@ -304,7 +297,6 @@ export default function Calibration() {
       paperFitOverride: false, ...patch, octaves, startingMidi, whiteKeys: octaves * 7 + 1 });
     generationRef.current++;
     resultRef.current = null;
-    hoverRef.current = null;
     setCorners(null);
     setSheetGeometry(null);
     setSheetDetected(false);
@@ -335,7 +327,6 @@ export default function Calibration() {
 
   useEffect(() => {
     generationRef.current++;
-    hoverRef.current = null;
     resultRef.current = null;
   }, [stream]);
 
@@ -469,8 +460,7 @@ export default function Calibration() {
         const calibrated = validateCalibration({ version: 1,
           coordinates: "unmirrored-frame-pixels/marker-unit-square",
           sheet: SHEET_ID, camera: observed.camera, layout, corners,
-          contact: { model: "landmark-reference-v1", hover: hoverRef.current,
-            rest: result.landmarks } });
+          contact: { model: "landmark-reference-v1", rest: result.landmarks } });
         if (!calibrated || !compatibleCalibration(calibrated, observed.camera, observed.corners, layout)) {
           setDepthCaptureMessage("Sheet or settings changed. Return to Align your paper and capture again.");
           setDepthPositionIndex(0);
@@ -479,7 +469,7 @@ export default function Calibration() {
         }
         depthModelRef.current = model;
         resultRef.current = calibrated;
-        setStep5Success(true);
+        setDepthCalibrationComplete(true);
         setDepthCaptureMessage("Depth calibration captured successfully.");
       } else {
         setDepthCaptureMessage(`${position} position captured.`);
@@ -666,51 +656,6 @@ export default function Calibration() {
     }
   }, [frameReady, markerDetection, sheetGeometry, step]);
 
-  // Single countdown tick, behaviour at 0 differs per step
-  // The timer schedules a real capture; it never establishes success itself.
-  useEffect(() => {
-    if (countdown === null || countdown < 0) return;
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(c => c === null ? null : c - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-    let cancelled = false;
-    const generation = generationRef.current;
-    const observed = (() => { try { return readSheet(); } catch { return null; } })();
-    capture().then(image => {
-      if (cancelled || generation !== generationRef.current) return;
-      if (!image || !observed || !corners) throw new Error("Camera or sheet unavailable. Return to Align your paper.");
-      const landmarks = detect(image)?.landmarks;
-      if (!validSamples(landmarks)) throw new Error("Show one or two complete hands, then retry.");
-      if (corners.some((p, i) => Math.hypot(p.x - observed.corners[i].x, p.y - observed.corners[i].y) >
-        Math.hypot(observed.camera.width, observed.camera.height) * 0.01)) {
-        throw new Error("The sheet moved. Return to Align your paper.");
-      }
-      if (step === 4) {
-        hoverRef.current = structuredClone(landmarks);
-        setFingersShown(true);
-      }
-      setShowingImage(true);
-    }).catch(error => {
-      if (!cancelled && generation === generationRef.current) {
-        setCaptureError(error instanceof Error ? error.message : "Capture failed. Retry.");
-        setShowingImage(false);
-      }
-    });
-    return () => { cancelled = true; };
-  // Capture is bound to the countdown/step; late promises are explicitly rejected.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [countdown, step, stream]);
-
-  const handleStartCountdown = () => {
-    setHasStarted(true);
-    setCountdown(3);
-    setShowingImage(false);
-    setFingersShown(false);
-    setStep5Success(false);
-    setCaptureError(null);
-  };
-
   const handleComplete = () => {
     try {
       const observed = readSheet();
@@ -741,20 +686,17 @@ export default function Calibration() {
     if (step === 1) return usableLayout(layout);
     if (step === 2) return lightingOk; // #16
     if (step === 3) return sheetDetected;
-    if (step === 4) return fingersShown;
-    if (step === 5) return step5Success;
+    if (step === 4) return depthCalibrationComplete;
     return true;
   };
 
   const isComplete = step > TOTAL_STEPS;
 
-  // Start is only meaningful once there is a frame to capture and a detector
-  // to run on it (#12, #13).
+  // Depth capture needs a decoded frame and a ready hand detector.
   const canCapture = cameraReady && frameReady && landmarkerStatus === "ready";
 
   // Counting down right now?
-  const isCounting = countdown !== null && countdown > 0;
-  const showPreviousStep = !isComplete && step > 1 && !isCounting;
+  const showPreviousStep = !isComplete && step > 1;
   const showExitCalibration = step === 1;
   // Step 1 is settings only; every later step asks the user to judge the camera feed.
   const showNextStep =
@@ -833,90 +775,24 @@ export default function Calibration() {
             </div>
           )}
           {/* Help button */}
-          {!isCounting && !fingersShown && (
-            <button onClick={() => setShowHelpModal(true)} aria-label="Show help" className="ms-key ms-key-icon absolute bottom-4 right-4 z-20 text-[17px] font-bold">?</button>
-          )}
+          <button onClick={() => setShowHelpModal(true)} aria-label="Show help" className="ms-key ms-key-icon absolute bottom-4 right-4 z-20 text-[17px] font-bold">?</button>
         </div>
       );
     }
 
-    // ── Step 4: hover hands ──
+    // ── Step 4: depth capture ──
     if (step === 4) {
-      const handNotDetected = showingImage && !fingersShown;
-      return (
-        <>
-          {/* Instruction pill, only before countdown starts */}
-          {!hasStarted && (
-            <div className="ms-pill absolute top-[35%] left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none">
-              <span>Hover your hands, then press Start</span>
-            </div>
-          )}
-
-          {/* Success overlay */}
-          {fingersShown && (
-            <div className="absolute inset-0 flex flex-col items-center justify-start pt-[14%] gap-3 pointer-events-none">
-              <div className="ms-pill gap-3 px-6 py-3">
-                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--color-success)"/><path d="M8 14L11.5 18L20 10" stroke="var(--color-white)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                <span className="font-display text-[24px] sm:text-[28px] font-bold tracking-tight">Hands detected!</span>
-              </div>
-              <p className="ms-pill py-1.5 text-[14px]">Press Next Step</p>
-            </div>
-          )}
-
-          {/* Status banner: capture failure, detector failure, or no hands */}
-          {(captureError || landmarkerStatus === "error" || handNotDetected) && (
-            <div className="ms-pill absolute top-4 left-1/2 -translate-x-1/2 max-w-[92%] w-max">
-              <AlertTriangle />
-              <p className="pointer-events-none">
-                {captureError ??
-                  (landmarkerStatus === "error"
-                    ? "Hand detection failed to load."
-                    : "No hands detected. Try again")}
-              </p>
-              {landmarkerStatus === "error" && (
-                <button
-                  onClick={reloadLandmarker}
-                  className="ms-key ms-key-glass rounded-full px-3 py-1 text-[14px]"
-                >
-                  Reload
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Waiting on the detector or the first decoded frame */}
-          {!hasStarted && landmarkerStatus === "loading" && (
-            <div className="ms-pill absolute top-4 left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none">
-              <p>Loading hand detection…</p>
-            </div>
-          )}
-          {!hasStarted && landmarkerStatus === "ready" && cameraReady && !frameReady && (
-            <div className="ms-pill absolute top-4 left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none">
-              <p>Waiting for the camera…</p>
-            </div>
-          )}
-
-          {/* Help button */}
-          {!isCounting && !step5Success && (
-            <button onClick={() => setShowHelpModal(true)} aria-label="Show help" className="ms-key ms-key-icon absolute bottom-4 right-4 z-20 text-[17px] font-bold">?</button>
-          )}
-        </>
-      );
-    }
-
-    // ── Step 5: hands on paper ──
-    if (step === 5) {
       return (
         <>
           {/* Instruction pill, before the first capture */}
-          {!hasStarted && !step5Success && (
+          {!hasStarted && !depthCalibrationComplete && (
             <div className="ms-pill absolute top-[35%] left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none">
                   <span>Right hand on each corner and the middle</span>
             </div>
           )}
 
           {/* Success overlay */}
-          {step5Success && (
+          {depthCalibrationComplete && (
             <div className="absolute inset-0 flex flex-col items-center justify-start pt-[14%] gap-3 pointer-events-none">
               <div className="ms-pill gap-3 px-6 py-3">
                 <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--color-success)"/><path d="M8 14L11.5 18L20 10" stroke="var(--color-white)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -933,19 +809,6 @@ export default function Calibration() {
     }
 
     return null;
-  };
-
-  // ── Single fullscreen countdown (steps 4 & 5) ────────────────────────────
-  const renderCountdown = () => {
-    if (!isCounting || isComplete) return null;
-    if (step !== 4 && step !== 5) return null;
-    return (
-      <div className="absolute inset-0 flex items-center justify-center bg-surface-dark/55 z-40 pointer-events-none">
-        <span key={countdown} className="ms-beat font-display text-white font-bold leading-none tabular-nums" style={{ fontSize: "clamp(80px,20vw,150px)" }}>
-          {countdown}
-        </span>
-      </div>
-    );
   };
 
   // ── Help modal ────────────────────────────────────────────────────────────
@@ -972,7 +835,7 @@ export default function Calibration() {
   // moving between steps, or a badge or message appearing, never shifts the
   // layout below.
   const restartCalibration = () => {
-    generationRef.current++; resultRef.current = null; hoverRef.current = null;
+    generationRef.current++; resultRef.current = null;
     setCorners(null); resetInteractiveStepState(); setStep(1);
   };
 
@@ -1073,38 +936,33 @@ export default function Calibration() {
 
     if (step === 4) {
       return {
-        title: "Step 4: Hover your hands",
-        controls: fingersShown ? (
-          <SuccessBadge label="Hands detected" />
-        ) : (
-          <button onClick={handleStartCountdown} disabled={isCounting || !canCapture} className="ms-key ms-key-primary min-w-[96px] px-6">
-            {hasStarted && !isCounting ? "Retry" : "Start"}
-          </button>
-        ),
-        status: !fingersShown && !canCapture
-          ? landmarkerStatus === "loading"
-            ? "Loading hand detection…"
-            : landmarkerStatus === "error"
-              ? "Hand detection unavailable"
-              : "Waiting for the camera…"
-          : null,
-      };
-    }
-
-    if (step === 5) {
-      return {
-        title: "Step 5: Touch the corners and middle",
-        controls: step5Success ? (
+        title: "Step 4: Touch the corners and middle",
+        controls: depthCalibrationComplete ? (
           <SuccessBadge label="Depth calibrated!" />
         ) : depthPositionIndex < DEPTH_CALIBRATION_POSITIONS.length ? (
-          <DepthCalibrationCapture
-            position={DEPTH_CALIBRATION_POSITIONS[depthPositionIndex]}
-            sampleCount={depthCollectorRef.current.getSampleCount(
-              DEPTH_CALIBRATION_POSITIONS[depthPositionIndex],
-            )}
-            disabled={depthCaptureBusy || !canCapture}
-            onCapture={captureDepthPosition}
-          />
+          <>
+            {landmarkerStatus === "error" ? (
+              <div className="flex flex-col items-start gap-2">
+                <p role="alert" className="text-danger">
+                  Hand detector unavailable. Reload to retry.
+                </p>
+                <button
+                  onClick={reloadLandmarker}
+                  className="ms-key ms-key-ghost px-5"
+                >
+                  Reload hand detector
+                </button>
+              </div>
+            ) : null}
+            <DepthCalibrationCapture
+              position={DEPTH_CALIBRATION_POSITIONS[depthPositionIndex]}
+              sampleCount={depthCollectorRef.current.getSampleCount(
+                DEPTH_CALIBRATION_POSITIONS[depthPositionIndex],
+              )}
+              disabled={depthCaptureBusy || !canCapture}
+              onCapture={captureDepthPosition}
+            />
+          </>
         ) : null,
         status: depthCaptureMessage,
       };
@@ -1134,12 +992,11 @@ export default function Calibration() {
             className="absolute inset-0 z-10 h-full w-full object-cover scale-x-[-1] pointer-events-none"
             style={{
               display:
-                step >= 3 && step <= TOTAL_STEPS && !showingImage
+                step >= 3 && step <= TOTAL_STEPS
                   ? "block"
                   : "none",
             }}
           />
-          {renderCountdown()}
           {cameraReady && renderCameraOverlay()}
           <CameraStatusOverlay />
           {renderHelpModal()}

@@ -20,11 +20,14 @@ const TAB_CLASS =
 export default function SideNav({
   active,
   onCalibrationClick,
+  calibrationDisabled = false,
   children,
 }: {
   active?: NavPage;
   /** Replaces the Calibration link with a button (home page). */
   onCalibrationClick?: () => void;
+  /** Dev mode (`?dev=1`) skips calibration, so the tab is inert. */
+  calibrationDisabled?: boolean;
   children?: React.ReactNode;
 }) {
   return (
@@ -49,6 +52,13 @@ export default function SideNav({
             );
           }
           const className = `${TAB_CLASS} bg-surface hover:bg-black/5 transition-colors`;
+          if (page === "calibration" && calibrationDisabled) {
+            return (
+              <button key={page} disabled title="Calibration is off in dev mode" className={`${TAB_CLASS} bg-surface opacity-50 cursor-not-allowed`}>
+                {text}
+              </button>
+            );
+          }
           if (page === "calibration" && onCalibrationClick) {
             return (
               <button key={page} onClick={onCalibrationClick} className={className}>
