@@ -92,10 +92,12 @@ vi.mock("../../frontend/src/cv/markerDetector", () => ({
   },
 }));
 vi.mock("next/dynamic", async () => {
+  const { default: ProfilePanel } = await import("../../frontend/src/app/midi/DeviceProfilePanel");
   const { default: LibraryPanel } = await import("../../frontend/src/app/midi/RecordingsLibraryPanel");
   return {
     default: (loader: () => unknown) => {
       const source = loader.toString();
+      if (source.includes("DeviceProfilePanel")) return ProfilePanel;
       if (source.includes("RecordingsLibraryPanel")) return LibraryPanel;
       if (source.includes("CVOverlayCoordinator")) {
         return function CoordinatorFixture(props: ComponentProps<typeof Coordinator>) {

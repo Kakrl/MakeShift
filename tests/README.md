@@ -1439,3 +1439,42 @@ added to this guide and the inventory. Lint, TypeScript, all 18 contrast pairs
 and production build passed. Vitest: 280 passed and five existing expected
 failures across 15 files. No new test cases; browser checks were not repeated
 for this consolidation.
+
+### Device profile verification (issue #125, 2026-10-10)
+
+Windows, production Chromium 151.0.7922.34: new browser ID, trimmed saved
+display name, reload persistence, and name changes preserving the ID passed
+using the real home sidebar and localStorage. Vitest: 488 tests passed across
+24 files, including seven profile cases. Lint, TypeScript, all 37 contrast
+checks, production build, and browser audio smoke passed. Home/recording test
+dynamic-import fixtures now render the real profile panel. Browser restart,
+cross-browser profile behavior, and physical camera/audio remain unverified.
+Initial deployment browser check stalled; diagnosed 2026-10-11 below.
+Actions evidence pending.
+
+### Local deployment camera diagnosis (2026-10-11)
+
+On Windows with Chromium 151.0.7922.34, the default fake-camera preview did not
+advance: video readiness was 4 but currentTime stayed zero. A standalone video
+on /audio reproduced the failure without CV processing. Adding `--disable-gpu`
+to a temporary copy of the deployment runner restored 60 frame callbacks over
+three seconds. All original deployment assertions then passed on a fresh
+production server at port 3001: five assets, five pages, three local audio rounds
+with zero note requests, unconfigured database, and camera denial/retry/loss/
+recovery. The temporary runner was removed; the committed default runner was
+not changed. This verifies software capture with GPU disabled, not physical
+camera behavior or hardware GPU correctness. A pre-existing server at port
+3000 separately timed out during home MediaPipe initialization.
+
+### Device profile review fixes (2026-10-14)
+
+PR #189: profile saves reread storage, preserve an existing saved ID, return the
+reconciled profile, and update panel state from that result. The empty-ID
+fixture uses the actual direct storage shape and asserts a generated replacement.
+Windows: lint, TypeScript, 489 Vitest tests in 24 files, 37 contrast checks and
+production build passed. Chromium 151.0.7922.34 against production port 3189
+passed the actual two-tab initial-quota-failure/retry sequence and reload,
+keyboard layout and audio smoke. All deployment assertions passed with the
+previously diagnosed local --disable-gpu workaround in a removed temporary
+runner; the committed runner is unchanged. Physical hardware was not measured.
+Actions execution for this follow-up is unverified.
