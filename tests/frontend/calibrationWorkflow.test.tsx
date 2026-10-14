@@ -8,8 +8,10 @@ import { loadKeyboardLayout } from "../../frontend/src/lib/keyboardSettings";
 const fixture = vi.hoisted(() => ({
   markers: true,
   hands: true,
+  handStatus: "ready" as "loading" | "ready" | "error",
   depthCapture: 0,
   push: vi.fn(),
+  handReload: vi.fn(),
   camera: {
     stream: {
       getVideoTracks: () => [
@@ -34,22 +36,36 @@ vi.mock("../../frontend/src/app/lighting", () => ({
   LIGHTING_MESSAGES: { ok: "OK" },
   readFrameBrightness: () => ({ brightness: 0.5, verdict: "ok" }),
 }));
-vi.mock("../../frontend/src/app/useHandLandmarker", () => ({
-  useHandLandmarker: () => ({
-    status: "ready",
-    reload: vi.fn(),
-    detect: () => {
-      const scale = 0.005 + fixture.depthCapture * 0.005;
+vi.mock("../../frontend/src/app/useHandLandmarker", async () => {
+  const React = await import("react");
+  return {
+    useHandLandmarker: () => {
+      const [, setReloadVersion] = React.useState(0);
       return {
-        handednesses: [[{ categoryName: "Right" }]],
-        landmarks: fixture.hands ? [Array.from({ length: 21 }, (_, index) => ({
-          x: 0.2 + index * scale, y: 0.3 + fixture.depthCapture * 0.05,
-          z: -0.01 - fixture.depthCapture * 0.015,
-        }))] : [],
+        status: fixture.handStatus,
+        reload: () => {
+          fixture.handReload();
+          fixture.handStatus = "loading";
+          setReloadVersion((version) => version + 1);
+          setTimeout(() => {
+            fixture.handStatus = "ready";
+            setReloadVersion((version) => version + 1);
+          }, 0);
+        },
+        detect: () => {
+          const scale = 0.005 + fixture.depthCapture * 0.005;
+          return {
+            handednesses: [[{ categoryName: "Right" }]],
+            landmarks: fixture.hands ? [Array.from({ length: 21 }, (_, index) => ({
+              x: 0.2 + index * scale, y: 0.3 + fixture.depthCapture * 0.05,
+              z: -0.01 - fixture.depthCapture * 0.015,
+            }))] : [],
+          };
+        },
       };
     },
-  }),
-}));
+  };
+});
 vi.mock("../../frontend/src/cv/markerDetector", () => ({
   MarkerDetector: {
     create: async () => ({
@@ -89,8 +105,10 @@ beforeEach(async () => {
   vi.useFakeTimers();
   fixture.markers = true;
   fixture.hands = true;
+  fixture.handStatus = "ready";
   fixture.depthCapture = 0;
   fixture.push.mockClear();
+  fixture.handReload.mockClear();
   vi.stubGlobal("requestAnimationFrame", (fn: FrameRequestCallback) =>
     setTimeout(() => fn(0), 0),
   );
@@ -195,6 +213,23 @@ it("requires detected hands before advancing through depth calibration", async (
   fixture.hands = true;
   await depth();
   expect(find("Next Step")).toBeDefined();
+});
+it("recovers from a failed hand-detector load with a successful retry", async () => {
+  await paper();
+  await click("Check paper");
+  await click("Next Step");
+  fixture.handStatus = "error";
+  await act(async () => root.render(<Calibration />));
+
+  expect(host.textContent).toContain("Hand detector unavailable. Reload to retry.");
+  expect(find("Reload hand detector")).toBeDefined();
+  expect(find("Capture top-left corner position")?.disabled).toBe(true);
+
+  await click("Reload hand detector");
+  expect(fixture.handReload).toHaveBeenCalledOnce();
+  expect(host.textContent).not.toContain("Hand detector unavailable. Reload to retry.");
+  await tick(0);
+  expect(find("Capture top-left corner position")?.disabled).toBe(false);
 });
 it("captures both phases and persists a validated result only on completion", async () => {
   await complete();

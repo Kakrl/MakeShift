@@ -190,7 +190,11 @@ export default function Calibration() {
   const brightnessCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const depthCollectorRef = useRef(new DepthCalibrationCollector());
   const depthModelRef = useRef<DepthCalibrationModel | null>(null);
-  const { status: landmarkerStatus, detect } = useHandLandmarker();
+  const {
+    status: landmarkerStatus,
+    detect,
+    reload: reloadLandmarker,
+  } = useHandLandmarker();
 
   useEffect(() => subscribeKeyboardLayout(() => {
     // Covers both local controls and another tab changing settings mid-capture.
@@ -936,14 +940,29 @@ export default function Calibration() {
         controls: depthCalibrationComplete ? (
           <SuccessBadge label="Depth calibrated!" />
         ) : depthPositionIndex < DEPTH_CALIBRATION_POSITIONS.length ? (
-          <DepthCalibrationCapture
-            position={DEPTH_CALIBRATION_POSITIONS[depthPositionIndex]}
-            sampleCount={depthCollectorRef.current.getSampleCount(
-              DEPTH_CALIBRATION_POSITIONS[depthPositionIndex],
-            )}
-            disabled={depthCaptureBusy || !canCapture}
-            onCapture={captureDepthPosition}
-          />
+          <>
+            {landmarkerStatus === "error" ? (
+              <div className="flex flex-col items-start gap-2">
+                <p role="alert" className="text-danger">
+                  Hand detector unavailable. Reload to retry.
+                </p>
+                <button
+                  onClick={reloadLandmarker}
+                  className="ms-key ms-key-ghost px-5"
+                >
+                  Reload hand detector
+                </button>
+              </div>
+            ) : null}
+            <DepthCalibrationCapture
+              position={DEPTH_CALIBRATION_POSITIONS[depthPositionIndex]}
+              sampleCount={depthCollectorRef.current.getSampleCount(
+                DEPTH_CALIBRATION_POSITIONS[depthPositionIndex],
+              )}
+              disabled={depthCaptureBusy || !canCapture}
+              onCapture={captureDepthPosition}
+            />
+          </>
         ) : null,
         status: depthCaptureMessage,
       };

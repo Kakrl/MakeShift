@@ -12,6 +12,20 @@ Local macOS execution on 2026-10-11, Node 24.2.0, Vitest 4.1.11:
   accepted but are optional and are not written by new calibration captures.
 - Real camera/printed-sheet verification remains unverified.
 
+### Hand-detector recovery follow-up (2026-10-14)
+
+Local macOS execution, Node 24.2.0, Vitest 4.1.11:
+
+- `cd frontend && npx vitest run ../tests/frontend/calibrationWorkflow.test.tsx`:
+  **16 tests passed**, including failed hand-detector initialization followed
+  by Reload and successful readiness. The error and retry control are shown in
+  depth step 4; capture stays disabled until the detector is ready.
+- Targeted ESLint checks for `frontend/src/app/calibration/page.tsx` and
+  `tests/frontend/calibrationWorkflow.test.tsx` passed. `git diff --check`
+  passed.
+- Full frontend suite, build, Actions execution and real camera verification
+  were not run for this follow-up.
+
 ## Finger-speed velocity verification (issue #28)
 
 Local Windows execution on 2026-10-07, Node 22.20.0, Vitest 4.1.11,
