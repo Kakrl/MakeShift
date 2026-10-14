@@ -907,7 +907,7 @@ export default function MarkerTrackingOverlay({
         ref={overlayCanvasRef}
         width={1920}
         height={1080}
-        className="absolute inset-0 z-10 h-full w-full object-cover pointer-events-none"
+        className="absolute inset-0 z-10 h-full w-full object-cover scale-x-[-1] pointer-events-none"
       />
       <canvas ref={processingCanvasRef} className="hidden" />
       {showVisualDebug && (

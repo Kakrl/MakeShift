@@ -197,7 +197,7 @@ export default function HandTrackingOverlay({
     <>
       <canvas
         ref={canvasRef}
-        className="pointer-events-none absolute inset-0 z-10 h-full w-full object-cover"
+        className="pointer-events-none absolute inset-0 z-10 h-full w-full object-cover scale-x-[-1]"
       />
       {showStatus && (
         <div className="absolute left-4 top-4 z-20 rounded bg-black/70 px-3 py-2 text-sm text-white">
