@@ -8,12 +8,14 @@ import { loadKeyboardLayout } from "../../frontend/src/lib/keyboardSettings";
 const fixture = vi.hoisted(() => ({
   markers: true,
   hands: true,
+  detectedHand: "Right",
   depthCapture: 0,
+  cameraDeviceId: "camera-1",
   push: vi.fn(),
   camera: {
     stream: {
       getVideoTracks: () => [
-        { readyState: "live", getSettings: () => ({ deviceId: "camera-1" }) },
+        { readyState: "live", getSettings: () => ({ deviceId: fixture.cameraDeviceId }) },
       ],
     },
     cameraReady: true,
@@ -41,7 +43,7 @@ vi.mock("../../frontend/src/app/useHandLandmarker", () => ({
     detect: () => {
       const scale = 0.005 + fixture.depthCapture * 0.005;
       return {
-        handednesses: [[{ categoryName: "Right" }]],
+        handednesses: [[{ categoryName: fixture.detectedHand }]],
         landmarks: fixture.hands ? [Array.from({ length: 21 }, (_, index) => ({
           x: 0.2 + index * scale, y: 0.3 + fixture.depthCapture * 0.05,
           z: -0.01 - fixture.depthCapture * 0.015,
@@ -89,7 +91,9 @@ beforeEach(async () => {
   vi.useFakeTimers();
   fixture.markers = true;
   fixture.hands = true;
+  fixture.detectedHand = "Right";
   fixture.depthCapture = 0;
+  fixture.cameraDeviceId = "camera-1";
   fixture.push.mockClear();
   vi.stubGlobal("requestAnimationFrame", (fn: FrameRequestCallback) =>
     setTimeout(() => fn(0), 0),
@@ -288,6 +292,56 @@ it("keeps settings unchanged when storage is blocked", async () => {
   await select("octave-count", 2);
   expect(loadKeyboardLayout().octaves).toBe(1);
   expect(host.textContent).toContain("Could not save keyboard settings");
+});
+
+it("retries the final depth capture after camera settings validation fails", async () => {
+  await paper();
+  await click("Check paper");
+  await click("Next Step");
+  await capture();
+  await click("Next Step");
+
+  for (const label of ["top-left corner", "top-right corner", "bottom-left corner", "bottom-right corner"]) {
+    fixture.depthCapture++;
+    await click(`Capture ${label} position`);
+  }
+
+  fixture.cameraDeviceId = "camera-2";
+  fixture.depthCapture++;
+  await click("Capture center position");
+  expect(host.textContent).toContain("Camera settings changed");
+  expect(find("Capture center position")).toBeDefined();
+  expect(find("Next Step")).toBeUndefined();
+
+  fixture.cameraDeviceId = "camera-1";
+  fixture.depthCapture++;
+  await click("Capture center position");
+  expect(find("Next Step")).toBeDefined();
+});
+
+it("resumes completed depth calibration after navigating back to hover", async () => {
+  await complete();
+  fixture.detectedHand = "Left";
+  fixture.depthCapture = 0;
+  await depth();
+
+  await click("Back");
+  await click("Back");
+  expect(host.textContent).toContain("Step 4:");
+  expect(find("Next Step")).toBeDefined();
+
+  await click("Next Step");
+  expect(host.textContent).toContain("Step 5:");
+  expect(find("Next Step")).toBeDefined();
+  await click("Next Step");
+  expect(host.textContent).toContain("Step 6:");
+  expect(find("Next Step")).toBeDefined();
+  await click("Next Step");
+  await click("Start Playing");
+
+  expect(loadCalibration()?.contact.rest[0]).toHaveLength(21);
+  expect(parsePersistedDepthCalibration(localStorage.getItem("depthCalibrationLines"))).not.toBeNull();
+  expect(fixture.push).toHaveBeenCalledExactlyOnceWith("/");
 });
 
 it.skip("restores the companion depth model if the primary calibration write fails", async () => {

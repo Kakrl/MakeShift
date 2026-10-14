@@ -370,12 +370,15 @@ export default function Calibration() {
 
   function goToAdjacentStep(delta: -1 | 1) {
     generationRef.current++;
-    if (delta === -1 && step <= 5) {
+    const targetStep = step + delta;
+    const resumeHover =
+      delta === -1 && targetStep === 4 && hoverRef.current !== null;
+    if (delta === -1 && targetStep < 4) {
       resultRef.current = null;
       hoverRef.current = null;
     }
-    resetInteractiveStepState(false);
-    const targetStep = step + delta;
+    resetInteractiveStepState(delta === -1 && targetStep < 4);
+    if (resumeHover) setFingersShown(true);
     if (targetStep === 5 || targetStep === 6) {
       const hand: CalibrationHand = targetStep === 5 ? "Right" : "Left";
       const collector = depthCollectorsRef.current[hand];
@@ -577,6 +580,7 @@ export default function Calibration() {
           setDepthCaptureMessage(
             "Camera settings are unavailable. Check the camera connection and try again.",
           );
+          setDepthPositionIndex(DEPTH_CALIBRATION_POSITIONS.length - 1);
           return;
         }
         const settingsError = getCalibrationSettingsError(
@@ -586,6 +590,7 @@ export default function Calibration() {
         );
         if (settingsError) {
           setDepthCaptureMessage(settingsError);
+          setDepthPositionIndex(DEPTH_CALIBRATION_POSITIONS.length - 1);
           return;
         }
         const calibrated = validateCalibration({ version: 1,
@@ -595,6 +600,7 @@ export default function Calibration() {
             rest: result.landmarks } });
         if (!calibrated || !compatibleCalibration(calibrated, currentCamera, corners ?? [], layout)) {
           setDepthCaptureMessage("Calibration references are invalid. Review the earlier calibration steps and try again.");
+          setDepthPositionIndex(DEPTH_CALIBRATION_POSITIONS.length - 1);
           return;
         }
         depthModelsRef.current[hand] = model;
@@ -825,6 +831,16 @@ export default function Calibration() {
   }, [countdown, step, stream]);
 
   const handleStartCountdown = () => {
+    if (step === 4 && hoverRef.current) {
+      resultRef.current = null;
+      depthModelsRef.current = {};
+      cornerLandmarksRef.current = { Right: {}, Left: {} };
+      depthCollectorsRef.current = {
+        Right: new DepthCalibrationCollector("Right"),
+        Left: new DepthCalibrationCollector("Left"),
+      };
+      setDepthPositionIndex(0);
+    }
     setHasStarted(true);
     setCountdown(3);
     setShowingImage(false);
