@@ -81,7 +81,7 @@ Geometry fixtures check actual-size assembly proportions and matching hit region
 The physical 1.2.2 workflow remains partially verified: jsdom and production
 Chromium checks cover warning/override, persistence and invalidation, while
 printer/camera/audible checks remain pending in the manual report. Calibration
-6.2.3 follows the four-step flow with five-position depth capture and validates
+6.2.3 follows the five-step wizard with five-position depth capture for each hand and validates
 save-before-navigation, replacing #162's expected failures. Software results establish
 neither physical contact accuracy nor sensor-to-sound latency.
 

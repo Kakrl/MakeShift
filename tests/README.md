@@ -1,14 +1,14 @@
 # MakeShift Testing
 
-## Four-step calibration workflow
+## Calibration workflow
 
 Local macOS execution on 2026-10-11, Node 24.2.0, Vitest 4.1.11:
 
 - All 481 tests across 23 files passed; all 15 calibration workflow tests passed.
 - Frontend lint, TypeScript, all 37 contrast pairs and production build passed.
-- The workflow goes from paper alignment directly to five depth captures.
-  Every depth position still requires a detected right hand, and the final
-  capture supplies the required rest landmarks. Legacy hover samples remain
+- The five-step wizard goes from paper alignment directly to five depth
+  captures for each hand. Each position requires the corresponding detected
+  hand, and the final capture supplies the required rest landmarks. Legacy hover samples remain
   accepted but are optional and are not written by new calibration captures.
 - Real camera/printed-sheet verification remains unverified.
 
@@ -129,7 +129,7 @@ Local Windows 11 Home 10.0.26200, Node 22.20.0, Vitest 4.1.11 execution on
 - `keyboardLayout.test.ts`: physical 23.5 mm key pitch, 8/15/22 hit regions,
   overlap/marker proportions, all MIDI bounds, invalid inputs and unchanged
   full range under explicit paper-fit override. These are synthetic points.
-- `calibrationWorkflow.test.tsx`: 15 passing cases cover the four-step flow
+- `calibrationWorkflow.test.tsx`: 15 passing cases cover the five-step wizard
   and its five depth buttons; complete rest landmarks and both records are
   saved before navigation. Missing hands/markers and storage failures block
   completion. There is no separate hover capture step.
@@ -705,6 +705,7 @@ comment after merge. Link the issue before the comment exists.
 
 | Defect | Issue | Severity | Root Cause (one line) | Fix PR | Regression Test | RCA Date | Author |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Calibration can become stuck after depth validation fails | [#194](https://github.com/Kakrl/MakeShift/issues/194) | High | #177 added final calibration checks, but failure returns left the depth capture index outside the five-position list; backward navigation also discarded the primary result while retaining completed depth models. | [#195](https://github.com/Kakrl/MakeShift/pull/195) | 6.2.3 — `tests/frontend/calibrationWorkflow.test.tsx`; retry after final camera-settings validation failure and back/forward navigation after both hand captures; frontend CI | 2026-10-14 | Francis Ozua (Codex-assisted) |
 | Calibration completion loses validated result | [#162](https://github.com/Kakrl/MakeShift/issues/162) | High | Replacing step five with depth buttons bypassed primary-result creation; completion cleared the model and navigated before validation/save. | [#177](https://github.com/Kakrl/MakeShift/pull/177) | 6.2.3 — `tests/frontend/calibrationWorkflow.test.tsx`, 14 normal workflow regressions run in `frontend-ci.yml`; local execution linked above | 2026-10-06 | Carl Xu (Codex-assisted) |
 
 | MIDI recording lifecycle and origin-chord export | [#88](https://github.com/Kakrl/MakeShift/issues/88) | High | UI-only controls and retained writable tracks caused D2/D11; subsequent writer mocks missed falsy tick-zero handling and duplicate end markers, while UI booleans misreported paused capture. | [#173](https://github.com/Kakrl/MakeShift/pull/173) | 4.2.3 real-writer `recordingExport.test.ts` and production MIDI download; 3.2.2/4.1.2 `recordingControls.test.tsx`; Vitest runs in frontend-ci.yml | 2026-10-05 | Carl Xu (Codex-assisted) |
