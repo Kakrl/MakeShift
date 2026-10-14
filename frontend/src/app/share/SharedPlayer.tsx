@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { SharedRecording } from "../../lib/recordings";
 import { downloadMidi, type Recording } from "../midi/midiUtils";
 import {
@@ -42,12 +42,15 @@ export default function SharedPlayer({
   recording,
   fill = false,
   shareActions = true,
+  actions,
 }: {
   recording: SharedRecording | null;
   /** Fill a flex column: the roll takes the free space, keys sit at the bottom. */
   fill?: boolean;
   /** Download MIDI and Copy link; off when previewing an unsaved take. */
   shareActions?: boolean;
+  /** Extra keys after Play, e.g. a local take's Download, Share and Delete. */
+  actions?: ReactNode;
 }) {
   const [timeline, setTimeline] = useState<PlaybackTimeline | null>(null);
   const [state, setState] = useState<PlaybackState>("stopped");
@@ -138,6 +141,7 @@ export default function SharedPlayer({
             )}
           </>
         )}
+        {actions}
       </div>
     </div>
   );

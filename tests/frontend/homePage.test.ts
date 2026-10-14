@@ -121,15 +121,24 @@ describe("home page", () => {
     const take = { id: "one", name: "First", bpm: 120, createdAt: "2026-10-03T00:00:00Z", notes: [] };
     localStorage.setItem("makeshift:recordings:v1", JSON.stringify([take, { ...take, id: "two", name: "Second" }]));
     renderHome();
-    fireEvent.click(screen.getAllByText("Rename")[0]);
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Renamed" } });
-    fireEvent.click(screen.getByText("Save name"));
+    expect(screen.getByText("2 recordings")).toBeTruthy();
+    // Takes live in the songs dialog's My recordings tab.
+    fireEvent.click(screen.getByRole("button", { name: "My recordings" }));
+    fireEvent.click(screen.getByRole("button", { name: /^First/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    const field = screen.getByLabelText("Recording name");
+    fireEvent.change(field, { target: { value: "Renamed" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    // Back to the list (the dialog's back key shares the sidebar button's name).
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Songs" })).getByRole("button", { name: "My recordings" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Second/ }));
     vi.spyOn(window, "confirm").mockReturnValue(true);
-    fireEvent.click(screen.getAllByText("Delete")[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     cleanup(); renderHome();
-    expect(screen.getByText("Renamed")).toBeTruthy();
-    expect(screen.queryByText("Second")).toBeNull();
-    expect(screen.getAllByText("Download MIDI")).toHaveLength(1);
+    expect(screen.getByText("1 recording")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "My recordings" }));
+    expect(screen.getByRole("button", { name: /^Renamed/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Second/ })).toBeNull();
   });
 
   beforeEach(() => {
@@ -339,16 +348,18 @@ describe("home page", () => {
 
     if (quota) {
       expect(screen.getByText(/Storage is full/)).toBeTruthy();
-      expect(screen.getByText(/Not saved/)).toBeTruthy();
+      expect(screen.getByText(/not saved/i)).toBeTruthy();
       write!.mockRestore();
       fireEvent.click(screen.getByText("Retry saving"));
-      expect(screen.queryByText(/Not saved/)).toBeNull();
+      expect(screen.queryByText(/not saved/i)).toBeNull();
     }
     cleanup(); renderHome();
-    expect(screen.getByText("Download MIDI")).toBeTruthy();
+    expect(screen.getByText("1 recording")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "My recordings" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Untitled recording/ }));
     vi.spyOn(window, "confirm").mockReturnValue(true);
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-    expect(screen.queryByText("Download MIDI")).toBeNull();
+    expect(screen.getByText("No recordings yet.")).toBeTruthy();
   });
 
   async function recordTake() {
@@ -376,8 +387,9 @@ describe("home page", () => {
     fireEvent.click(within(details).getByRole("button", { name: "Save" }));
 
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.getByText("Song for Mom")).toBeTruthy();
-    expect(screen.queryByText("Shared")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "My recordings" }));
+    const card = screen.getByRole("button", { name: /^Song for Mom/ });
+    expect(within(card).getByText("Only me")).toBeTruthy();
   });
 
   it("saves and shares to everyone, then shows the link", async () => {
@@ -400,7 +412,9 @@ describe("home page", () => {
     const done = screen.getByRole("dialog", { name: "Your song is shared!" });
     expect(within(done).getByText(/\/play\//)).toBeTruthy();
     fireEvent.click(within(done).getByRole("button", { name: "Done" }));
-    expect(screen.getByText("Shared")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "My recordings" }));
+    const card = screen.getByRole("button", { name: /^Twinkle/ });
+    expect(within(card).getByText("Shared")).toBeTruthy();
   });
 
   it("keeps an empty take private", async () => {

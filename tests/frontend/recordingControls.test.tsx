@@ -379,7 +379,7 @@ it("uses the real page/coordinator/marker transitions to capture held keys after
   expect(notes[1]).toMatchObject({ pitch: notes[0].pitch, startMs: 500, durationMs: 250 });
   expect(notes[2]).toMatchObject({ startMs: 500, durationMs: 250 });
   expect(notes[2].pitch).not.toBe(notes[0].pitch);
-  expect(host.textContent).toContain("Download MIDI");
+  expect(host.textContent).toContain("1 recording");
   expect(button("Start recording").disabled).toBe(false);
 });
 
@@ -431,7 +431,7 @@ it("cancels an initial count-in without making a take", async () => {
   await click(button("Stop recording"));
   await countIn();
   expect(fixtures.takes).toEqual([]);
-  expect(host.textContent).not.toContain("Download MIDI");
+  expect(host.textContent).toContain("No recordings yet.");
   expect(button("Start recording").disabled).toBe(false);
 });
 

@@ -65,7 +65,7 @@ MakeShift/
 │   │   │   ├── documentation/
 │   │   │   ├── midi/                # MIDI recorder, export and playback timeline
 │   │   │   ├── play/[id]/           # share link; opens the song in the shared songs dialog
-│   │   │   ├── share/               # mock share store, save/share/shared-songs dialogs, piano roll
+│   │   │   ├── share/               # mock share store, save and songs dialogs, piano roll
 │   │   │   ├── tutorial/
 │   │   │   ├── PipelineDiagnostics.tsx # opt-in metrics and report export
 │   │   │   ├── CameraContext.tsx
