@@ -39,7 +39,8 @@ the sound starts.
 - [x] Trigger note-on once when the z prediction passes. Require fresh shadow
   evidence within 150 ms; if confirmation does not arrive, send note-off and
   cancel the prediction. This path requires both knuckle and shadow techniques
-  enabled; both are currently disabled in the debug configuration.
+  enabled. Knuckles and shadows are enabled in the current configuration;
+  z-motion prediction remains disabled by default.
 - [x] Clear the fingertip's z history on tracking loss, key changes, or lost
   eligibility. Cancel a pending prediction when its gates are lost, then
   start with fresh z samples after recovery.

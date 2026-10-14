@@ -42,10 +42,11 @@ The result contains:
   Identical poses are possible and are not proof of contact; intentional-contact
   inference and thresholds remain #34.
 
-Calibration has four guided steps: setup, lighting, paper alignment, and depth.
-The separate hover countdown is omitted because live contact logic does not
-consume its sample. Each of the five depth captures still requires a detected
-right hand; the final capture supplies the required rest landmarks.
+Calibration has five guided steps: setup, lighting, paper alignment, right-hand
+depth, and left-hand depth. The separate hover countdown is omitted because
+live contact logic does not consume its sample. Each hand's five depth captures
+require that hand to be detected; the final left-hand capture supplies the
+required rest landmarks.
 
 ## Compatibility and interruption
 
@@ -89,16 +90,22 @@ Invalid/unsupported data is never migrated from a boolean or used as readiness.
 The home page links to calibration for recovery. A successful new capture
 replaces corrupt data. Write failure keeps the completion page open, reports
 that browser storage must be enabled, and offers retry through Start Playing.
-The completion action checks the live sheet and camera again before saving.
-The fifth depth-position capture creates the primary calibration result using
-that capture's complete rest-hand landmarks; no separate hover capture is
-required.
-If a depth capture throws, including a missing marker at the final sheet check,
-the collector and position reset to the first depth capture, so users can retry
-all five depth positions without restarting calibration.
-It retains the fitted depth model through the completion screen. Start Playing
-saves the depth model and validated primary record before navigating, with depth
-rollback if the primary write fails. It does not write a legacy completion flag.
+The completion action revalidates the current camera and keyboard settings
+against the paper-step snapshot before saving, using the saved sheet corners.
+Calibration has separate right- and left-hand depth steps, each collecting the
+five positions. No separate hover capture is required. The left-hand step's
+final capture creates the primary calibration result using its complete
+rest-hand landmarks. Start Playing saves both fitted depth models and the
+validated primary record before navigating.
+Each hand's final capture checks camera and keyboard settings against the
+snapshot taken during paper alignment, then reuses the saved sheet corners
+without running another marker scan. A settings mismatch keeps the captured
+positions and allows a retry at the center. Other capture errors leave the
+completed positions intact so the current position can be retried. Start Playing
+revalidates the camera and keyboard settings against the paper-step snapshot
+without running another marker scan. The flow retains both fitted depth models
+through the completion screen, with depth rollback if the primary write fails.
+It does not write a legacy completion flag.
 Local/other-tab configuration changes cancel pending captures, clear both saved
 records and retire playing sessions synchronously; old producers cannot adopt a
 new layout or session. A missed marker scan may retain geometry only while its

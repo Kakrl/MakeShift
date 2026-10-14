@@ -2,8 +2,8 @@
 
 This describes the per-finger contact state machine. Z-motion prediction is
 implemented in the live pipeline when the knuckle and shadow techniques are
-enabled; both technique switches are currently disabled in the debug
-configuration.
+enabled. Knuckles and shadows are enabled in the current configuration;
+z-motion prediction is disabled by default.
 
 ```mermaid
 stateDiagram-v2
