@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCamera } from "./CameraContext";
-import { cameraSignature, loadCalibration, markerCorners } from "../cv/calibration";
+import {
+  cameraSignature,
+  loadCalibration,
+  markerCorners,
+} from "../cv/calibration";
 import {
   getWhiteKeyPolygons,
   getPianoCorners,
@@ -25,6 +29,7 @@ import {
 } from "../cv/liveContactPipeline";
 import {
   getKnuckleBoundaryY,
+  getHandDepthCalibration,
   getKnuckleDistance,
   DEPTH_FINGERS,
 } from "../cv/depthCalibration";
@@ -46,7 +51,7 @@ import {
 import type { MarkerDetectionResult } from "../cv/types";
 import type { Point } from "../cv/types";
 import { keyIndexToMidi } from "../cv/noteMap";
-import { DEFAULT_LAYOUT, sameLayout, type KeyboardLayout } from "../cv/keyboardLayout";
+import { DEFAULT_LAYOUT, type KeyboardLayout } from "../cv/keyboardLayout";
 import {
   recordMarkerDetection,
   pipelineMetrics,
@@ -133,6 +138,7 @@ export default function MarkerTrackingOverlay({
   onCalibrationObservation,
   activePitches,
   showVisualDebug = false,
+  debugShowZLines = false,
   debugShowSheetWithoutCalibration = false,
   layout = DEFAULT_LAYOUT,
 }: {
@@ -146,6 +152,7 @@ export default function MarkerTrackingOverlay({
   onKeyTransitions?: (pressed: readonly KeyPress[], released: readonly number[]) => void;
   trackingEnabled?: boolean;
   showVisualDebug?: boolean;
+  debugShowZLines?: boolean;
   debugShowSheetWithoutCalibration?: boolean;
   onCalibrationObservation: (saved: unknown, camera: ReturnType<typeof cameraSignature>, corners: Point[] | null) => boolean;
 }) {
@@ -510,21 +517,10 @@ export default function MarkerTrackingOverlay({
     const corners = camera && markerDetection ? markerCorners(markerDetection, camera) : null;
     const saved = loadCalibration();
 
-    // A missed/failed marker scan is not proof that the paper moved. Keep the
-    // last good projection and calibration freshness until a complete scan or
-    // an actual camera-session change provides stronger evidence.
-    const videoTrackLive =
-      stream?.getVideoTracks()[0]?.readyState === "live";
-    if (cameraReady && stream && videoTrackLive && camera && !corners &&
-        saved && sameLayout(saved.layout, layout)) {
-      const geometry = markerGeometryPolicyRef.current.observe(null);
-      if (geometry) {
-        homographyRef.current = geometry.homography;
-        projectedPianoCornersRef.current = geometry.pianoCorners;
-        projectedWhiteKeysRef.current = geometry.whiteKeys;
-      }
-      return;
-    }
+    // A failed marker scan must leave the last successful marker projection
+    // and key state untouched. Only a complete marker result can update the
+    // calibration observation below.
+    if (!corners) return;
 
     let homography: Homography | null = null;
     let projectedPianoCorners: Point[] | null = null;
@@ -560,6 +556,7 @@ export default function MarkerTrackingOverlay({
     }
 
     const valid = onCalibrationObservation(saved, camera, corners);
+    if (!valid && !debugShowSheetWithoutCalibration) return;
     if (
       (valid || debugShowSheetWithoutCalibration) &&
       projectedPianoCorners &&
@@ -567,44 +564,6 @@ export default function MarkerTrackingOverlay({
     ) {
       displayPianoCornersRef.current = projectedPianoCorners;
       displayWhiteKeysRef.current = projectedWhiteKeys;
-    }
-    if (!valid) {
-      if (!debugShowSheetWithoutCalibration) {
-        displayPianoCornersRef.current = null;
-        displayWhiteKeysRef.current = null;
-      }
-      if (previousKeysRef.current.size) onKeyTransitions?.([], [...previousKeysRef.current]);
-      previousKeysRef.current = new Set();
-      if (
-        debugShowSheetWithoutCalibration &&
-        homography &&
-        projectedPianoCorners &&
-        projectedWhiteKeys
-      ) {
-        // The debug switch enables marker-derived overlap visualization only;
-        // session readiness still gates note dispatch in syncContactKeys.
-        const geometry = markerGeometryPolicyRef.current.observe({
-          homography,
-          pianoCorners: projectedPianoCorners,
-          whiteKeys: projectedWhiteKeys,
-        })!;
-        homographyRef.current = geometry.homography;
-        projectedPianoCornersRef.current = geometry.pianoCorners;
-        projectedWhiteKeysRef.current = geometry.whiteKeys;
-      } else {
-        if (homography && projectedPianoCorners && projectedWhiteKeys) {
-          markerGeometryPolicyRef.current.observe({
-            homography,
-            pianoCorners: projectedPianoCorners,
-            whiteKeys: projectedWhiteKeys,
-          });
-        }
-        markerGeometryPolicyRef.current.clearGeometry();
-        homographyRef.current = null;
-        projectedPianoCornersRef.current = null;
-        projectedWhiteKeysRef.current = null;
-      }
-      return;
     }
     if (!homography || !projectedPianoCorners || !projectedWhiteKeys) return;
 
@@ -799,10 +758,17 @@ export default function MarkerTrackingOverlay({
             [4, 8, 12, 16, 20].includes(landmarkIndex),
           )
           .forEach((fingertip) => {
+            const hand = hands[fingertip.handIndex];
+            if (!hand || (hand.handedness !== "Right" && hand.handedness !== "Left"))
+              return;
+            const handCalibration = getHandDepthCalibration(
+              depthCalibration,
+              hand.handedness,
+            );
+            if (!handCalibration) return;
             const keyOverlap =
               getKeyCollisions([fingertip], projectedWhiteKeys, 8).length > 0;
             if (!keyOverlap) return;
-            const hand = hands[fingertip.handIndex];
             const landmark = hand?.landmarks[fingertip.landmarkIndex];
             const knuckleDistance = hand
               ? getKnuckleDistance(hand.landmarks)
@@ -814,7 +780,7 @@ export default function MarkerTrackingOverlay({
             if (fingerIndex < 0) return;
             const finger = DEPTH_FINGERS[fingerIndex];
             const boundaryY = getKnuckleBoundaryY(
-              depthCalibration,
+              handCalibration,
               finger,
               knuckleDistance,
               true,
@@ -829,7 +795,7 @@ export default function MarkerTrackingOverlay({
                 : 0);
             const screenY = eligibilityY * videoRef.current!.videoHeight;
             const calibrationDistances = Object.values(
-              depthCalibration.knuckleDistances,
+              handCalibration.knuckleDistances,
             );
             const outsideRange =
               knuckleDistance < Math.min(...calibrationDistances) ||
@@ -861,6 +827,58 @@ export default function MarkerTrackingOverlay({
             context.restore();
           });
       }
+
+      if (
+        showVisualDebug &&
+        debugShowZLines &&
+        depthCalibration &&
+        videoRef.current?.videoHeight
+      ) {
+        const zLineColor = colors
+          .getPropertyValue("--color-accent-light")
+          .trim();
+        fingertips.forEach((fingertip) => {
+          const fingerIndex = [4, 8, 12, 16, 20].indexOf(
+            fingertip.landmarkIndex,
+          );
+          if (fingerIndex < 0) return;
+          const hand = hands[fingertip.handIndex];
+          if (!hand || (hand.handedness !== "Right" && hand.handedness !== "Left"))
+            return;
+          const handCalibration = getHandDepthCalibration(
+            depthCalibration,
+            hand.handedness,
+          );
+          if (!handCalibration) return;
+          const landmark = hand.landmarks[fingertip.landmarkIndex];
+          const z = landmark?.z;
+          if (z === undefined || !Number.isFinite(z)) return;
+
+          const finger = DEPTH_FINGERS[fingerIndex];
+          const line = handCalibration.zLines[finger];
+          const predictedSheetY = line.slope * z + line.intercept;
+          if (!Number.isFinite(predictedSheetY)) return;
+
+          const screenY = predictedSheetY * videoRef.current!.videoHeight;
+          context.save();
+          context.strokeStyle = zLineColor;
+          context.fillStyle = zLineColor;
+          context.lineWidth = 2;
+          context.setLineDash([6, 6]);
+          context.beginPath();
+          context.moveTo(0, screenY);
+          context.lineTo(overlay.width, screenY);
+          context.stroke();
+          context.setLineDash([]);
+          context.font = "bold 16px Arial";
+          context.fillText(
+            `${finger} zLine · z=${z.toFixed(4)} · predicted Y=${predictedSheetY.toFixed(4)}`,
+            12,
+            screenY - 8 - fingerIndex * 18,
+          );
+          context.restore();
+        });
+      }
     }
     if (shadowPreviewFinger) {
       drawShadowSamplingGuides(context, shadowPreviewFinger.point);
@@ -868,6 +886,7 @@ export default function MarkerTrackingOverlay({
   }, [
     highlightedKeyIndexes,
     showVisualDebug,
+    debugShowZLines,
     depthCalibration,
     fingerDebug,
     fingertips,
@@ -888,7 +907,7 @@ export default function MarkerTrackingOverlay({
         ref={overlayCanvasRef}
         width={1920}
         height={1080}
-        className="absolute inset-0 z-10 h-full w-full object-cover pointer-events-none"
+        className="absolute inset-0 z-10 h-full w-full object-cover scale-x-[-1] pointer-events-none"
       />
       <canvas ref={processingCanvasRef} className="hidden" />
       {showVisualDebug && (
@@ -905,7 +924,8 @@ export default function MarkerTrackingOverlay({
             <div className="mb-1 font-bold">Finger debug</div>
             <div className="mb-2">
               Techniques: knuckles {CONTACT_TECHNIQUES.knuckles ? "on" : "off"}{" "}
-              · shadows {CONTACT_TECHNIQUES.shadows ? "on" : "off"}
+              · shadows {CONTACT_TECHNIQUES.shadows ? "on" : "off"}{" "}
+              · z motion {CONTACT_TECHNIQUES.zMotion ? "on" : "off"}
             </div>
             {CONTACT_TECHNIQUES.shadows && (
               <div className="mb-3 border-b border-white/20 pb-2">
@@ -1003,24 +1023,24 @@ export default function MarkerTrackingOverlay({
               {markerDetection?.missingIds.length === 0 ? "ready" : "waiting"}
               <br />
               knuckle TL=
-              {depthCalibration
-                ? depthCalibration.knuckleDistances["top-left"].toFixed(5)
+              {depthCalibration?.hands.Right
+                ? depthCalibration.hands.Right.knuckleDistances["top-left"].toFixed(5)
                 : "n/a"}{" "}
               TR=
-              {depthCalibration
-                ? depthCalibration.knuckleDistances["top-right"].toFixed(5)
+              {depthCalibration?.hands.Right
+                ? depthCalibration.hands.Right.knuckleDistances["top-right"].toFixed(5)
                 : "n/a"}{" "}
               BL=
-              {depthCalibration
-                ? depthCalibration.knuckleDistances["bottom-left"].toFixed(5)
+              {depthCalibration?.hands.Right
+                ? depthCalibration.hands.Right.knuckleDistances["bottom-left"].toFixed(5)
                 : "n/a"}{" "}
               BR=
-              {depthCalibration
-                ? depthCalibration.knuckleDistances["bottom-right"].toFixed(5)
+              {depthCalibration?.hands.Right
+                ? depthCalibration.hands.Right.knuckleDistances["bottom-right"].toFixed(5)
                 : "n/a"}{" "}
               C=
-              {depthCalibration
-                ? depthCalibration.knuckleDistances.center.toFixed(5)
+              {depthCalibration?.hands.Right
+                ? depthCalibration.hands.Right.knuckleDistances.center.toFixed(5)
                 : "n/a"}{" "}
               current={fingerDebug[0]?.knuckleDistance?.toFixed(5) ?? "n/a"}
             </div>

@@ -16,9 +16,15 @@ import {
 } from "./contactPipeline";
 import {
   DEPTH_FINGERS,
+  getHandDepthCalibration,
   getKnuckleDistance,
   type PersistedDepthCalibration,
 } from "./depthCalibration";
+import {
+  evaluateZMotionPrediction,
+  Z_MOTION_HISTORY_WINDOW_MS,
+  type ZMotionSample,
+} from "./zMotionPrediction";
 import type {
   ShadowContactEvaluation,
   ShadowMeasurement,
@@ -33,13 +39,16 @@ const SHADOW_INTERVAL_MS = 10;
 export interface ContactTechniques {
   knuckles: boolean;
   shadows: boolean;
+  /** Requires both knuckles and shadows; off when omitted by older configs. */
+  zMotion?: boolean;
 }
 
 // Change these independently to debug either technique. Key overlap is required.
 // Both false isolates key overlap for debugging, without knuckles or shadows.
 export const CONTACT_TECHNIQUES: Readonly<ContactTechniques> = {
-  knuckles: false,
-  shadows: false,
+  knuckles: true,
+  shadows: true,
+  zMotion: false,
 };
 
 export interface ContactPipelineFrame {
@@ -71,6 +80,8 @@ export class LiveContactPipeline {
   readonly observations = new Map<string, ShadowObservation>();
   readonly shadowContacts = new Map<string, ShadowContactEvaluation>();
   private readonly measurements = new Map<string, ShadowMeasurement>();
+  private readonly zHistories = new Map<string, ZMotionSample[]>();
+  private readonly zPredictionLatched = new Set<string>();
   private worker: Worker | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private disposed = false;
@@ -109,6 +120,8 @@ export class LiveContactPipeline {
           this.measurements.clear();
           this.observations.clear();
           this.shadowContacts.clear();
+          this.zHistories.clear();
+          this.zPredictionLatched.clear();
           this.contacts.clear();
           this.pressVelocities.clear();
           this.motion.clear();
@@ -153,6 +166,8 @@ export class LiveContactPipeline {
     this.measurements.clear();
     this.observations.clear();
     this.shadowContacts.clear();
+    this.zHistories.clear();
+    this.zPredictionLatched.clear();
     // Keep revisions monotonic so pending results cannot enter a new session.
     this.callbacks.onContactsChanged();
   }
@@ -189,6 +204,10 @@ export class LiveContactPipeline {
         frame.video?.videoWidth ?? 0, frame.video?.videoHeight ?? 0,
         now, sourceIdentity);
       let distance: number | null = null;
+      const handCalibration =
+        hand.handedness === "Right" || hand.handedness === "Left"
+          ? getHandDepthCalibration(frame.calibration, hand.handedness)
+          : null;
       if (this.techniques.knuckles) {
         if (!knuckleDistances.has(fingertip.handIndex))
           knuckleDistances.set(
@@ -207,7 +226,7 @@ export class LiveContactPipeline {
         frame.video.readyState >= 2 &&
         hand.landmarks[fingertip.landmarkIndex] &&
         (!this.techniques.knuckles ||
-          (frame.calibration && distance !== null && screenY !== null)) &&
+          (handCalibration && distance !== null && screenY !== null)) &&
         (!this.techniques.shadows || this.worker),
       );
 
@@ -221,7 +240,7 @@ export class LiveContactPipeline {
         keyOverlap &&
         (!this.techniques.knuckles ||
           checkKnuckleEligibility({
-            calibration: frame.calibration,
+            calibration: handCalibration,
             finger: DEPTH_FINGERS[fingerIndex],
             knuckleDistance: distance,
             fingertipScreenY: screenY,
@@ -239,6 +258,55 @@ export class LiveContactPipeline {
         keysChanged ||
         previousGate?.available !== available ||
         previousGate?.knuckleEligible !== knuckleEligible;
+
+      let zMotionPredicted = false;
+      const fingertipZ = hand.landmarks[fingertip.landmarkIndex]?.z;
+      const zLine = handCalibration?.zLines[DEPTH_FINGERS[fingerIndex]];
+      const canEvaluateZMotion = Boolean(
+        this.techniques.knuckles &&
+          this.techniques.shadows &&
+          this.techniques.zMotion &&
+          zLine &&
+          keyOverlap &&
+          knuckleEligible &&
+          screenY !== null &&
+          fingertipZ !== undefined &&
+          Number.isFinite(fingertipZ),
+      );
+      if (!canEvaluateZMotion || gateChanged) {
+        this.zHistories.delete(fingertip.id);
+        this.zPredictionLatched.delete(fingertip.id);
+      }
+      if (
+        canEvaluateZMotion &&
+        screenY !== null &&
+        fingertipZ !== undefined &&
+        zLine
+      ) {
+        const history = this.zHistories.get(fingertip.id) ?? [];
+        const prediction = evaluateZMotionPrediction({
+          history,
+          zLine,
+          current: { timestampMs: now, z: fingertipZ, sheetY: screenY },
+          historyWindowMs: Z_MOTION_HISTORY_WINDOW_MS,
+        });
+        if (!prediction.boundaryCrossed)
+          this.zPredictionLatched.delete(fingertip.id);
+        zMotionPredicted = Boolean(
+          this.techniques.zMotion &&
+            this.techniques.shadows &&
+            prediction.predicted &&
+            !this.zPredictionLatched.has(fingertip.id),
+        );
+        if (zMotionPredicted) this.zPredictionLatched.add(fingertip.id);
+
+        const cutoffMs = now - Z_MOTION_HISTORY_WINDOW_MS;
+        history.push({ timestampMs: now, z: fingertipZ });
+        this.zHistories.set(
+          fingertip.id,
+          history.filter((sample) => sample.timestampMs >= cutoffMs),
+        );
+      }
 
       const gate: FingerContactGate = {
         available,
@@ -268,7 +336,10 @@ export class LiveContactPipeline {
         gate,
         now,
         undefined,
-        { shadowsEnabled: this.techniques.shadows },
+        {
+          shadowsEnabled: this.techniques.shadows,
+          zMotionPredicted,
+        },
       );
       this.setContact(fingertip.id, contact, now);
 
@@ -281,6 +352,8 @@ export class LiveContactPipeline {
       this.observations,
       this.shadowContacts,
       this.fingers,
+      this.zHistories,
+      this.zPredictionLatched,
       this.motion,
       this.pressVelocities,
     ]) {
