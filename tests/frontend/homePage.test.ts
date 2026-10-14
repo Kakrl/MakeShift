@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { createElement } from "react";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Regression coverage for #112: merge 30706c4 dropped the home page modals and
@@ -144,6 +144,7 @@ describe("home page", () => {
     cleanup();
     vi.restoreAllMocks();
     vi.useRealTimers();
+    window.history.replaceState(null, "", "/");
   });
 
   it("restores saved preferences without overwriting them on initial render", () => {
@@ -332,8 +333,9 @@ describe("home page", () => {
       throw new DOMException("full", "QuotaExceededError");
     }) : null;
     fireEvent.click(screen.getByLabelText("Stop recording"));
-    expect(screen.getByText("Recording Complete!")).toBeTruthy();
-    fireEvent.click(screen.getByText("Dismiss"));
+    // The take is kept already; closing the question leaves it in Recordings.
+    const review = screen.getByRole("dialog", { name: "Would you like to save your recording?" });
+    fireEvent.click(within(review).getByRole("button", { name: "Close" }));
 
     if (quota) {
       expect(screen.getByText(/Storage is full/)).toBeTruthy();
@@ -347,5 +349,73 @@ describe("home page", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(screen.queryByText("Download MIDI")).toBeNull();
+  });
+
+  async function recordTake() {
+    localStorage.setItem("hasVisited", "true");
+    calibration.valid = true;
+    localStorage.setItem(CALIBRATION_KEY, JSON.stringify(validCalibration()));
+    renderHome();
+    fireEvent.click(screen.getByLabelText("Toggle metronome"));
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText("Start recording"));
+    });
+    for (let beat = 0; beat < 4; beat++) act(() => vi.advanceTimersByTime(500));
+    fireEvent.click(screen.getByLabelText("Stop recording"));
+    return screen.getByRole("dialog", { name: "Would you like to save your recording?" });
+  }
+
+  it("asks to save after Stop and saves privately under a new name without asking for a name", async () => {
+    const review = await recordTake();
+    fireEvent.click(within(review).getByRole("button", { name: "Yes, save it" }));
+
+    const details = screen.getByRole("dialog", { name: "Save your recording" });
+    fireEvent.change(within(details).getByLabelText("Recording name"), { target: { value: "Song for Mom" } });
+    expect(within(details).getByRole("radio", { name: /Only me/ })).toHaveProperty("checked", true);
+    expect(within(details).queryByLabelText("Your name")).toBeNull();
+    fireEvent.click(within(details).getByRole("button", { name: "Save" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByText("Song for Mom")).toBeTruthy();
+    expect(screen.queryByText("Shared")).toBeNull();
+  });
+
+  it("saves and shares to everyone, then shows the link", async () => {
+    // The dev demo take has notes; a take with none can only stay private.
+    window.history.replaceState(null, "", "/?dev=1&demo=take");
+    localStorage.setItem("hasVisited", "true");
+    renderHome();
+    const review = screen.getByRole("dialog", { name: "Would you like to save your recording?" });
+    fireEvent.click(within(review).getByRole("button", { name: "Yes, save it" }));
+    const details = screen.getByRole("dialog", { name: "Save your recording" });
+    fireEvent.change(within(details).getByLabelText("Recording name"), { target: { value: "Twinkle" } });
+    fireEvent.click(within(details).getByRole("radio", { name: /Everyone/ }));
+    fireEvent.change(within(details).getByLabelText("Your name"), { target: { value: "Jo" } });
+    // The mock upload waits like a network call.
+    await act(async () => {
+      fireEvent.click(within(details).getByRole("button", { name: "Save and share" }));
+      await vi.advanceTimersByTimeAsync(400);
+    });
+
+    const done = screen.getByRole("dialog", { name: "Your song is shared!" });
+    expect(within(done).getByText(/\/play\//)).toBeTruthy();
+    fireEvent.click(within(done).getByRole("button", { name: "Done" }));
+    expect(screen.getByText("Shared")).toBeTruthy();
+  });
+
+  it("keeps an empty take private", async () => {
+    const review = await recordTake();
+    fireEvent.click(within(review).getByRole("button", { name: "Yes, save it" }));
+    const details = screen.getByRole("dialog", { name: "Save your recording" });
+    expect(within(details).getByRole("radio", { name: /Everyone/ })).toHaveProperty("disabled", true);
+    expect(within(details).getByText("Play a note first to share")).toBeTruthy();
+  });
+
+  it("deletes the take when the player says no", async () => {
+    const review = await recordTake();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    fireEvent.click(within(review).getByRole("button", { name: "No, delete it" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByText("No recordings yet.")).toBeTruthy();
   });
 });

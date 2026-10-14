@@ -25,6 +25,7 @@ import { readStored, writeStored } from "../lib/storage";
 import { rainbow } from "./rainbow";
 import { useDialogFocus } from "./useDialogFocus";
 import { isDevMode } from "../debugFlags";
+import { demoTake } from "./share/mockShareStore";
 
 const RecordingsLibrary = dynamic(
   () => import("./midi/RecordingsLibraryPanel"),
@@ -101,15 +102,6 @@ function SpeakerIcon() {
     <svg aria-hidden="true" width="18" height="18" viewBox="0 0 16 16" fill="none">
       <path d="M2.5 6v4h2.5l3.5 3V3L5 6H2.5Z" fill="currentColor" />
       <path d="M11 5.5a3.5 3.5 0 0 1 0 5M12.75 3.5a6 6 0 0 1 0 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function CheckBadge({ size = 28 }: { size?: number }) {
-  return (
-    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 28 28" fill="none">
-      <circle cx="14" cy="14" r="13" fill="var(--color-success)" />
-      <path d="M8.5 14.5L12 18L19.5 10.5" stroke="var(--color-white)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -210,12 +202,25 @@ export default function Home() {
   const recordingsLibraryRef = useRef<RecordingsLibraryHandle | null>(null);
   const [libraryLoaded, setLibraryLoaded] = useState(false);
   const [hasRecordings, setHasRecordings] = useState(false);
+  // `?dev=1&demo=take` acts out a finished take once the library is ready,
+  // to preview the post-recording save dialog without a sheet (#203).
+  const demoTakePending = useRef(true);
   const updateLibraryStatus = useCallback((loaded: boolean, hasRecordings: boolean) => {
     setLibraryLoaded(loaded);
     setHasRecordings(hasRecordings);
+    if (!loaded || !demoTakePending.current) return;
+    demoTakePending.current = false;
+    if (!isDevMode() || new URLSearchParams(window.location.search).get("demo") !== "take") return;
+    const take = demoTake();
+    recordingsLibraryRef.current?.completeTake(take);
+    recordingsLibraryRef.current?.reviewTake(take.id);
+    setShowRecordingComplete(true);
   }, []);
+  // Every finished take is saved at once, then the library asks whether to
+  // keep it, so closing the tab mid-question never loses a take.
   const completeTake = useCallback((take: Recording) => {
     recordingsLibraryRef.current?.completeTake(take);
+    recordingsLibraryRef.current?.reviewTake(take.id);
   }, []);
 
   // ── Tempo & time signature (controlled) ─────────────────────────────────
@@ -289,8 +294,11 @@ export default function Home() {
       const dev = isDevMode();
       setDevMode(dev);
       setIsCalibrated(dev || loadCalibration() !== null);
-      // Show welcome modal only on the very first visit
-      if (!dev) try {
+      // Show welcome modal only on the very first visit. Arriving from a
+      // share link (`/play/<id>` → `?song=<id>`) opens that song instead; the
+      // welcome waits for the next visit rather than stacking under it.
+      const openingSharedSongs = new URLSearchParams(window.location.search).get("song") !== null;
+      if (!dev && !openingSharedSongs) try {
         if (!localStorage.getItem("hasVisited")) {
           setShowWelcome(true);
           localStorage.setItem("hasVisited", "true");
@@ -645,23 +653,6 @@ export default function Home() {
                     className={`size-2.5 rounded-full transition-[transform,background-color] duration-150 ease-out ${i + 1 <= countInBeat ? rainbow(i).fill : "bg-white/30"} ${i + 1 === countInBeat ? "scale-[1.4]" : ""}`}
                   />
                 ))}
-              </div>
-            </div>
-          )}
-
-          {/* Recording Complete banner */}
-          {showRecordingComplete && (
-            <div className="ms-backdrop absolute inset-0 flex items-center justify-center z-50">
-              <div className="ms-dialog px-6 sm:px-10 py-6 sm:py-7 max-w-[90%] flex flex-col items-center gap-2 text-center">
-                <CheckBadge size={36} />
-                <p className="mt-1 font-display text-[22px] sm:text-[26px] font-bold tracking-tight text-ink">Recording Complete!</p>
-                <p className="text-[14px] text-ink-muted">Find it in Recordings.</p>
-                <button
-                  onClick={() => setShowRecordingComplete(false)}
-                  className="ms-key mt-3 px-6"
-                >
-                  Dismiss
-                </button>
               </div>
             </div>
           )}

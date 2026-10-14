@@ -13,8 +13,22 @@ import {
 } from "./recordingsLibrary";
 import { downloadMidi, type Recording } from "./midiUtils";
 import type { WriteResult } from "../../lib/storage";
+import SharedSongsDialog from "../share/SharedSongsDialog";
+import ShareDialog from "../share/ShareDialog";
+import SaveTakeDialog from "../share/SaveTakeDialog";
+import CopyLinkButton from "../share/CopyLinkButton";
+import {
+  loadTakeShares,
+  mockShareStore,
+  saveTakeShare,
+  shareUrl,
+} from "../share/mockShareStore";
 
-export type RecordingsLibraryHandle = { completeTake(take: Recording): void };
+export type RecordingsLibraryHandle = {
+  completeTake(take: Recording): void;
+  /** Asks whether to keep a just-finished take, then names and shares it. */
+  reviewTake(takeId: string): void;
+};
 type Props = {
   ref: Ref<RecordingsLibraryHandle>;
   onStatusChange: (loaded: boolean, hasRecordings: boolean) => void;
@@ -28,6 +42,13 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [recordingName, setRecordingName] = useState("");
+  const [shares, setShares] = useState(() => loadTakeShares());
+  const [sharingTake, setSharingTake] = useState<Recording | null>(null);
+  const [reviewingTake, setReviewingTake] = useState<Recording | null>(null);
+  const [unsharingId, setUnsharingId] = useState<string | null>(null);
+  // A share link (`/play/<id>` redirects to `?song=<id>`) opens that song.
+  const [linkedSongId, setLinkedSongId] = useState(() => new URLSearchParams(window.location.search).get("song"));
+  const [showSharedSongs, setShowSharedSongs] = useState(linkedSongId !== null);
 
   const refreshLibrary = useCallback(
     (result: WriteResult) => {
@@ -48,6 +69,10 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
     () => ({
       completeTake(take: Recording) {
         refreshLibrary(library.completeTake(take));
+      },
+      reviewTake(takeId: string) {
+        const entry = library.list().find(({ recording }) => recording.id === takeId);
+        if (entry) setReviewingTake(entry.recording);
       },
     }),
     [library, refreshLibrary],
@@ -70,6 +95,20 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
     }
   }
 
+  async function stopSharing(takeId: string) {
+    const share = shares[takeId];
+    if (!share || !window.confirm("Stop sharing? The link will stop working. Your recording stays here.")) return;
+    setUnsharingId(takeId);
+    try {
+      await mockShareStore.remove(share.id, share.deleteToken);
+      setShares(saveTakeShare(takeId, null));
+    } catch {
+      setLibraryError("Sharing could not be stopped. Try again.");
+    } finally {
+      setUnsharingId(null);
+    }
+  }
+
   function retrySaving() {
     refreshLibrary(library.retrySaving());
   }
@@ -80,9 +119,18 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
         <h2 id="recordings-heading" className="ms-label">
           Recordings
         </h2>
-        {recordings.length > 0 && (
-          <span className="text-[12px] text-ink-muted tabular-nums">{recordings.length}</span>
-        )}
+        <span className="flex items-baseline gap-3">
+          <button
+            type="button"
+            className="rounded-[6px] text-[13px] text-ink-muted underline decoration-ink-muted/40 underline-offset-4 hover:text-ink focus-visible:outline-none focus-visible:shadow-(--halo)"
+            onClick={() => setShowSharedSongs(true)}
+          >
+            Shared songs
+          </button>
+          {recordings.length > 0 && (
+            <span className="text-[12px] text-ink-muted tabular-nums">{recordings.length}</span>
+          )}
+        </span>
       </div>
       {libraryError && (
         <div role="alert" className="mb-3 rounded-[10px] bg-danger/5 p-3 text-[13px] leading-relaxed text-danger">
@@ -102,6 +150,9 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
                 {recording.name}
                 {!saved && (
                   <span className="ms-chip ms-chip-danger px-2 py-0.5 text-[11px]">Not saved</span>
+                )}
+                {shares[recording.id] && (
+                  <span className="ms-chip ms-chip-success px-2 py-0.5 text-[11px]">Shared</span>
                 )}
               </p>
               {renamingId === recording.id ? (
@@ -156,6 +207,30 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
                   >
                     Download MIDI
                   </button>
+                  {shares[recording.id] ? (
+                    <>
+                      <CopyLinkButton
+                        url={shareUrl(shares[recording.id].id)}
+                        className="ms-key px-2.5 py-1.5 text-[13px] min-w-[84px]"
+                      />
+                      <button
+                        type="button"
+                        className="ms-key ms-key-ghost px-2.5 py-1.5 text-[13px]"
+                        disabled={unsharingId === recording.id}
+                        onClick={() => void stopSharing(recording.id)}
+                      >
+                        {unsharingId === recording.id ? "Stopping..." : "Stop sharing"}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="ms-key px-2.5 py-1.5 text-[13px]"
+                      onClick={() => setSharingTake(recording)}
+                    >
+                      Share
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="ms-key ms-key-ghost ms-key-danger px-2.5 py-1.5 text-[13px]"
@@ -168,6 +243,39 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
             </li>
           ))}
         </ul>
+      )}
+      {sharingTake && (
+        <ShareDialog
+          take={sharingTake}
+          onShared={(share) => setShares(saveTakeShare(sharingTake.id, share))}
+          onClose={() => setSharingTake(null)}
+        />
+      )}
+      {reviewingTake && (
+        <SaveTakeDialog
+          take={reviewingTake}
+          onSave={(name, share) => {
+            const id = reviewingTake.id;
+            refreshLibrary(library.renameRecording(id, name));
+            if (share) setShares(saveTakeShare(id, share));
+          }}
+          onDelete={() => {
+            if (!window.confirm("Delete this recording? This can't be undone.")) return false;
+            refreshLibrary(library.deleteRecording(reviewingTake.id));
+            return true;
+          }}
+          onClose={() => setReviewingTake(null)}
+        />
+      )}
+      {showSharedSongs && (
+        <SharedSongsDialog
+          initialSongId={linkedSongId}
+          onClose={() => {
+            setShowSharedSongs(false);
+            // Used once; the Shared songs link opens the list from now on.
+            setLinkedSongId(null);
+          }}
+        />
       )}
     </section>
   );
