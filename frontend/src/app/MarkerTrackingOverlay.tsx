@@ -138,6 +138,7 @@ export default function MarkerTrackingOverlay({
   onCalibrationObservation,
   activePitches,
   showVisualDebug = false,
+  debugShowZLines = false,
   debugShowSheetWithoutCalibration = false,
   layout = DEFAULT_LAYOUT,
 }: {
@@ -151,6 +152,7 @@ export default function MarkerTrackingOverlay({
   onKeyTransitions?: (pressed: readonly KeyPress[], released: readonly number[]) => void;
   trackingEnabled?: boolean;
   showVisualDebug?: boolean;
+  debugShowZLines?: boolean;
   debugShowSheetWithoutCalibration?: boolean;
   onCalibrationObservation: (saved: unknown, camera: ReturnType<typeof cameraSignature>, corners: Point[] | null) => boolean;
 }) {
@@ -756,10 +758,17 @@ export default function MarkerTrackingOverlay({
             [4, 8, 12, 16, 20].includes(landmarkIndex),
           )
           .forEach((fingertip) => {
+            const hand = hands[fingertip.handIndex];
+            if (!hand || (hand.handedness !== "Right" && hand.handedness !== "Left"))
+              return;
+            const handCalibration = getHandDepthCalibration(
+              depthCalibration,
+              hand.handedness,
+            );
+            if (!handCalibration) return;
             const keyOverlap =
               getKeyCollisions([fingertip], projectedWhiteKeys, 8).length > 0;
             if (!keyOverlap) return;
-            const hand = hands[fingertip.handIndex];
             const landmark = hand?.landmarks[fingertip.landmarkIndex];
             const knuckleDistance = hand
               ? getKnuckleDistance(hand.landmarks)
@@ -770,11 +779,6 @@ export default function MarkerTrackingOverlay({
             );
             if (fingerIndex < 0) return;
             const finger = DEPTH_FINGERS[fingerIndex];
-            const handCalibration =
-              hand.handedness === "Right" || hand.handedness === "Left"
-                ? getHandDepthCalibration(depthCalibration, hand.handedness)
-                : null;
-            if (!handCalibration) return;
             const boundaryY = getKnuckleBoundaryY(
               handCalibration,
               finger,
@@ -823,6 +827,58 @@ export default function MarkerTrackingOverlay({
             context.restore();
           });
       }
+
+      if (
+        showVisualDebug &&
+        debugShowZLines &&
+        depthCalibration &&
+        videoRef.current?.videoHeight
+      ) {
+        const zLineColor = colors
+          .getPropertyValue("--color-accent-light")
+          .trim();
+        fingertips.forEach((fingertip) => {
+          const fingerIndex = [4, 8, 12, 16, 20].indexOf(
+            fingertip.landmarkIndex,
+          );
+          if (fingerIndex < 0) return;
+          const hand = hands[fingertip.handIndex];
+          if (!hand || (hand.handedness !== "Right" && hand.handedness !== "Left"))
+            return;
+          const handCalibration = getHandDepthCalibration(
+            depthCalibration,
+            hand.handedness,
+          );
+          if (!handCalibration) return;
+          const landmark = hand.landmarks[fingertip.landmarkIndex];
+          const z = landmark?.z;
+          if (z === undefined || !Number.isFinite(z)) return;
+
+          const finger = DEPTH_FINGERS[fingerIndex];
+          const line = handCalibration.zLines[finger];
+          const predictedSheetY = line.slope * z + line.intercept;
+          if (!Number.isFinite(predictedSheetY)) return;
+
+          const screenY = predictedSheetY * videoRef.current!.videoHeight;
+          context.save();
+          context.strokeStyle = zLineColor;
+          context.fillStyle = zLineColor;
+          context.lineWidth = 2;
+          context.setLineDash([6, 6]);
+          context.beginPath();
+          context.moveTo(0, screenY);
+          context.lineTo(overlay.width, screenY);
+          context.stroke();
+          context.setLineDash([]);
+          context.font = "bold 16px Arial";
+          context.fillText(
+            `${finger} zLine · z=${z.toFixed(4)} · predicted Y=${predictedSheetY.toFixed(4)}`,
+            12,
+            screenY - 8 - fingerIndex * 18,
+          );
+          context.restore();
+        });
+      }
     }
     if (shadowPreviewFinger) {
       drawShadowSamplingGuides(context, shadowPreviewFinger.point);
@@ -830,6 +886,7 @@ export default function MarkerTrackingOverlay({
   }, [
     highlightedKeyIndexes,
     showVisualDebug,
+    debugShowZLines,
     depthCalibration,
     fingerDebug,
     fingertips,
@@ -867,7 +924,8 @@ export default function MarkerTrackingOverlay({
             <div className="mb-1 font-bold">Finger debug</div>
             <div className="mb-2">
               Techniques: knuckles {CONTACT_TECHNIQUES.knuckles ? "on" : "off"}{" "}
-              · shadows {CONTACT_TECHNIQUES.shadows ? "on" : "off"}
+              · shadows {CONTACT_TECHNIQUES.shadows ? "on" : "off"}{" "}
+              · z motion {CONTACT_TECHNIQUES.zMotion ? "on" : "off"}
             </div>
             {CONTACT_TECHNIQUES.shadows && (
               <div className="mb-3 border-b border-white/20 pb-2">

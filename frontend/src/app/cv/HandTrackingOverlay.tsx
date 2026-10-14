@@ -21,11 +21,13 @@ export default function HandTrackingOverlay({
   onTrackingFailure,
   onLandmarks,
   showVisualDebug = false,
+  showStatus = showVisualDebug,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   onTrackingFailure?: () => void;
   onLandmarks?: (hands: readonly HandObservation[]) => void;
   showVisualDebug?: boolean;
+  showStatus?: boolean;
 }) {
   const [status, setStatus] = useState("Loading MediaPipe…");
   const [handCount, setHandCount] = useState(0);
@@ -197,7 +199,7 @@ export default function HandTrackingOverlay({
         ref={canvasRef}
         className="pointer-events-none absolute inset-0 z-10 h-full w-full object-cover"
       />
-      {showVisualDebug && (
+      {showStatus && (
         <div className="absolute left-4 top-4 z-20 rounded bg-black/70 px-3 py-2 text-sm text-white">
           {status} · Hands: {handCount}
           <br />

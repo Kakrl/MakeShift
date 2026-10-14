@@ -34,11 +34,19 @@ The result contains:
   exceeding declared paper is usable only with an explicit override, which
   extends geometry beyond the paper at the same physical key pitch.
 - Contact input revision `landmark-reference-v1`, with one or two complete
-  21-landmark hover and rest samples. x/y are normalized frame coordinates;
-  z is MediaPipe relative depth, not millimeters or distance from the paper.
-  Finite/in-range validation is required. These are captured reference inputs,
-  not a trained contact classifier. Identical poses are possible and are not
-  proof of contact; intentional-contact inference and thresholds remain #34.
+  21-landmark rest samples. x/y are normalized frame coordinates; z is
+  MediaPipe relative depth, not millimeters or distance from the paper.
+  Finite/in-range validation is required. Older records may include an optional
+  hover sample, which is retained for compatibility but not used at runtime.
+  These are captured reference inputs, not a trained contact classifier.
+  Identical poses are possible and are not proof of contact; intentional-contact
+  inference and thresholds remain #34.
+
+Calibration has five guided steps: setup, lighting, paper alignment, right-hand
+depth, and left-hand depth. The separate hover countdown is omitted because
+live contact logic does not consume its sample. Each hand's five depth captures
+require that hand to be detected; the final left-hand capture supplies the
+required rest landmarks.
 
 ## Compatibility and interruption
 
@@ -82,18 +90,22 @@ Invalid/unsupported data is never migrated from a boolean or used as readiness.
 The home page links to calibration for recovery. A successful new capture
 replaces corrupt data. Write failure keeps the completion page open, reports
 that browser storage must be enabled, and offers retry through Start Playing.
-The paper step checks all four markers and records their corners. Later hand
-captures and the completion action reuse those corners; they recheck camera and
-keyboard settings but do not run marker detection again.
-Depth calibration has separate right- and left-hand steps, each collecting the
-five positions. The primary calibration result is finalized with the last
-left-hand capture. A settings mismatch shows which camera or keyboard setting
-changed and retains the captured hand samples. Other capture exceptions reset
-that hand's collector and position. Start Playing saves both depth models and
-the validated primary record before navigating, with depth rollback if the
-primary write fails. Version 1 right-only depth data remains usable for the
-right hand while the left calibration is absent; it is never used as a
-left-hand substitute. It does not write a legacy completion flag.
+The completion action revalidates the current camera and keyboard settings
+against the paper-step snapshot before saving, using the saved sheet corners.
+Calibration has separate right- and left-hand depth steps, each collecting the
+five positions. No separate hover capture is required. The left-hand step's
+final capture creates the primary calibration result using its complete
+rest-hand landmarks. Start Playing saves both fitted depth models and the
+validated primary record before navigating.
+Each hand's final capture checks camera and keyboard settings against the
+snapshot taken during paper alignment, then reuses the saved sheet corners
+without running another marker scan. A settings mismatch keeps the captured
+positions and allows a retry at the center. Other capture errors leave the
+completed positions intact so the current position can be retried. Start Playing
+revalidates the camera and keyboard settings against the paper-step snapshot
+without running another marker scan. The flow retains both fitted depth models
+through the completion screen, with depth rollback if the primary write fails.
+It does not write a legacy completion flag.
 Local/other-tab configuration changes cancel pending captures, clear both saved
 records and retire playing sessions synchronously; old producers cannot adopt a
 new layout or session. A missed marker scan may retain geometry only while its
