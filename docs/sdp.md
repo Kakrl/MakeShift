@@ -75,6 +75,11 @@ sympathetic resonance are separate scope. See [tuning and compatibility](browser
 Audio/latency owner is Carl Xu. Offline/modal coverage maps to PT-01;
 paired synchronous profiling to PT-02; listening to PT-03. Physical latency
 2.3.1 and ten-trial dynamics 2.4.2 retain their original requirements.
+The guided calibration flow uses four steps: setup, lighting, paper alignment
+and five-position depth capture. It omits the former hover countdown because
+runtime contact logic does not consume a hover sample. Each depth capture still
+requires complete detected hand landmarks; older calibration records may retain
+an optional legacy hover field.
 
 **Previous SDP Work**
 

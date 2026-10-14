@@ -7,8 +7,14 @@ Both vector PDFs contain eight white keys, C through the next C, and five black
 keys on one US Letter landscape page (279.4 x 215.9 mm). Print in landscape
 at **100% / Actual size**, with **Fit to page** and **Shrink** disabled.
 Measure the printed 50 mm ruler before cutting. An A4 printer can center the
-Letter artwork at actual size without scaling. All artwork has at least
-6 mm clearance from Letter page edges; check printer unprintable margins.
+Letter artwork at actual size without scaling. The extension keyboard starts
+at **x = 0 mm**, directly on the left page edge. Use borderless printing with
+automatic borderless enlargement disabled, or center the Letter PDF on larger
+paper at actual size and cut at the PDF's left page boundary. Do not shift the
+keyboard to a printer margin or use Fit/Shrink. On A4, retain this same PDF
+boundary as the assembly edge. Verify all eight keys, including the left C,
+print completely. The starter's top/bottom quiet zones approach 2.2 mm from
+the page edge, so check those against the printer's unprintable margins too.
 
 ## Dimensions
 
@@ -24,12 +30,18 @@ positioning vary between instruments; this sheet uses centered black keys.
 ## Assemble one, two or three octaves
 
 1. Print one starter and zero, one or two copies of the extension.
-2. Trim **both side margins** of every sheet along the dashed lines and their
-   continuation along the keyboard's outer edges. Keep the top and bottom
-   paper strips intact: they hold the markers and cover old markers.
+2. Trim the starter's **both side margins** along the dashed guides, retaining
+   **4 mm beyond each keyboard edge**. Trim only the extension's right margin,
+   retaining **4 mm beyond its right keyboard edge** (cut at x = 192 mm).
+   Its left page edge is already the assembly edge; do not remove any of its
+   left C. Continue cuts straight through the page, not along keyboard edges.
+   Keep the top and bottom paper strips intact: they hold the markers and
+   cover old markers. Cutting flush to the right key edge clips the markers.
 3. Place an extension **on top** of the preceding sheet. Align its leftmost C
    exactly over the preceding sheet's rightmost C. Match top/bottom key edges.
-   The overlap is one white key, **23.5 mm**; each extension adds **164.5 mm**.
+   The keyboard overlap is one white key, **23.5 mm**; each extension adds
+   **164.5 mm**. The retained right margin makes paper overlap **27.5 mm**.
+   Align key edges, not the previous sheet's paper edge.
 4. Ensure the extension's blank upper/lower left strips completely cover the
    preceding right markers. Use opaque paper/backing if markers show through.
    Tape from behind without covering visible markers.
@@ -46,15 +58,23 @@ positioning vary between instruments; this sheet uses centered black keys.
 
 Markers remain **OpenCV DICT_4X4_50**: top left ID 0, top right ID 1,
 bottom right ID 2, bottom left ID 3, with the black keys at the top.
-The extension contains only IDs 1 and 2. Each marker is a 12 mm vector square
-with a one-cell black border and at least 2 mm of white quiet zone, including
-after side trimming.
+The extension contains only IDs 1 and 2. Each marker is an **18 mm** vector
+square (increased from 12 mm), with a one-cell black border and **3 mm** of
+white quiet zone on every side, including after the prescribed trimming.
+The complete marker/quiet-zone footprint is 24 x 24 mm. The 4 mm retained
+margin leaves about 0.45 mm beyond that footprint. On an assembly, the old
+right marker's entire footprint falls within the next extension's blank
+left strip (x = 2.64..26.64 mm from its left edge).
 
 On the starter, marker centers position the keyboard to match the existing
 `keyboardGeometry.ts` coordinates exactly: x = -0.05..1.05 and y = 0.1..0.9
 relative to the four-center unit square. Recalibrate after replacing paper,
 changing scale, assembling sheets or moving the camera. The same IDs cannot
 identify which physical print or octave count is present.
+Marker centers relative to key edges are unchanged: 8.54545 mm inset from
+each side, with a 170.90909 mm horizontal span and 187.5 mm vertical span.
+Translating the extension artwork by -45.7 mm preserves these distances.
+No application geometry or calibration schema change is needed.
 
 In calibration, choose **1, 2 or 3 octaves**, the starting pitch assigned to
 the leftmost printed C, and the number of octaves actually assembled on paper.
@@ -92,3 +112,25 @@ marker payloads/quiet zones and simulated two/three-sheet overlaps. These
 checks establish file geometry, not printer scale, webcam detection quality,
 intentional-contact accuracy or physical latency. Physical printing and
 camera testing remain pending; no CI execution is claimed for these assets.
+
+Issue #187 verification on Windows, 2026-10-13: regenerated and visually
+inspected both complete pages with Poppler. Five automated cases in
+[`test_piano_sheets.py`](../tests/python/test_piano_sheets.py) passed:
+byte-identical regeneration, Letter dimensions, rendered key boundaries,
+zero extension margin, 18 mm marker bounds, canonical OpenCV detection and
+orientation, 3 mm white rings, and trimmed two-/three-sheet raster assemblies
+with exactly the four exterior IDs and fully covered interior footprints.
+These are synthetic file checks; physical printing and webcam detection under
+recorded lighting, distance, camera resolution and angle remain **pending**.
+See the [execution record](../tests/README.md#piano-sheet-verification-issue-187).
+
+The optional verification dependencies are separate from the generator:
+
+```sh
+python -m pip install -r tests/python/piano_sheet_requirements.txt
+python -m pytest tests/python/test_piano_sheets.py
+```
+
+Install Poppler (`pdftoppm`) on PATH. Missing optional tools explicitly skip
+the PDF tests; the existing CI has no dedicated PDF tool installation, so
+this coverage is manual automation and no CI execution is claimed.

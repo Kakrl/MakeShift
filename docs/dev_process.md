@@ -132,6 +132,8 @@ MakeShift/
 │   │   ├── storage.test.ts           # versioned localStorage module
 │   │   └── check-contrast.mjs
 │   ├── python/
+│   │   ├── test_piano_sheets.py    # rendered PDF/ArUco/assembly checks
+│   │   ├── piano_sheet_requirements.txt # optional PDF verification tools
 │   │   ├── latency_estimate.py      # software latency estimator
 │   │   ├── latency_estimate.example.json # metadata and explicit allowances
 │   │   ├── test_latency_estimate.py # synthetic estimator regression cases

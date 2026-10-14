@@ -36,7 +36,8 @@ export interface CalibrationResult {
   corners: Point[];
   contact: {
     model: "landmark-reference-v1";
-    hover: LandmarkSample[][];
+    /** Legacy optional sample; runtime contact logic does not consume it. */
+    hover?: LandmarkSample[][];
     rest: LandmarkSample[][];
   };
 }
@@ -166,7 +167,8 @@ export function validateCalibration(value: unknown): CalibrationResult | null {
     !usableLayout(value.layout as KeyboardLayout) ||
     !object(value.contact) ||
     value.contact.model !== "landmark-reference-v1" ||
-    !validSamples(value.contact.hover) ||
+    (value.contact.hover !== undefined &&
+      !validSamples(value.contact.hover)) ||
     !validSamples(value.contact.rest)
   )
     return null;

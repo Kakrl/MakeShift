@@ -26,6 +26,12 @@ Native tests remain native evidence and cannot prove browser integration.
 | 5.1, 5.2 | Browser-only playing, HTTPS assets and permissions; no per-note network dependency | 5.1.1, 5.2.1–5.2.3; #89 |
 | 5.3 | Application/model readiness measured separately from warm note latency | 5.3.1; #89, #38 |
 
+Calibration guidance is four steps: setup, lighting, paper alignment and five-
+position depth capture. The separate hover countdown/sample is removed because
+runtime contact logic does not consume it; complete hand detection remains
+required at each depth position. The validator accepts legacy records with an
+optional hover sample and newly saved records omit it.
+
 This addendum is planning, not execution evidence. Existing owners, test IDs,
 implementation status, CI status and historical run links stay distinct.
 Implementation PRs must extend appropriate rows and add newly numbered tests
@@ -94,8 +100,8 @@ Geometry fixtures check actual-size assembly proportions and matching hit region
 The physical 1.2.2 workflow remains partially verified: jsdom and production
 Chromium checks cover warning/override, persistence and invalidation, while
 printer/camera/audible checks remain pending in the manual report. Calibration
-6.2.3 follows the real five-position depth capture and validates save-before-
-navigation, replacing #162's expected failures. Software results establish
+6.2.3 follows the five-step wizard with five-position depth capture for each hand and validates
+save-before-navigation, replacing #162's expected failures. Software results establish
 neither physical contact accuracy nor sensor-to-sound latency.
 
 ## Recording playback extension (#130)

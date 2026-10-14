@@ -28,7 +28,9 @@ MARKER_LEFT = KEY_LEFT + 0.05 * MARKER_SPAN_X
 MARKER_RIGHT = MARKER_LEFT + MARKER_SPAN_X
 MARKER_TOP = KEY_TOP - 0.1 * MARKER_SPAN_Y
 MARKER_BOTTOM = MARKER_TOP + MARKER_SPAN_Y
-MARKER_SIZE = 12.0
+MARKER_SIZE = 18.0
+QUIET_ZONE = MARKER_SIZE / 6
+TRIM_MARGIN = 4.0  # Retain enlarged markers and their quiet zones.
 
 # Canonical, row-major white bits (MSB first), OpenCV DICT_4X4_50 IDs 0..3.
 # https://github.com/opencv/opencv/blob/4.x/modules/objdetect/src/aruco/
@@ -59,10 +61,11 @@ def marker(pdf, marker_id, center_x, center_y):
     top = center_y - MARKER_SIZE / 2
     cell = MARKER_SIZE / 6
     bits = (MARKER_BYTES[marker_id][0] << 8) | MARKER_BYTES[marker_id][1]
-    # One full cell (2 mm) of white quiet zone survives side trimming.
+    # One full cell (3 mm) of white quiet zone survives side trimming.
     pdf.setFillColorRGB(1, 1, 1)
-    rectangle(pdf, left - 2, top - 2, MARKER_SIZE + 4,
-              MARKER_SIZE + 4, fill=True)
+    rectangle(pdf, left - QUIET_ZONE, top - QUIET_ZONE,
+              MARKER_SIZE + 2 * QUIET_ZONE,
+              MARKER_SIZE + 2 * QUIET_ZONE, fill=True)
     pdf.setFillColorRGB(0, 0, 0)
     rectangle(pdf, left, top, MARKER_SIZE, MARKER_SIZE, fill=True)
     pdf.setFillColorRGB(1, 1, 1)
@@ -83,6 +86,10 @@ def generate(destination, extension=False):
     pdf.setTitle(title)
     pdf.setAuthor("MakeShift")
     pdf.setLineWidth(0.2 * mm)
+    # Translate only the playing artwork; retain marker-to-key geometry.
+    pdf.saveState()
+    if extension:
+        pdf.translate(-KEY_LEFT * mm, 0)
     rectangle(pdf, KEY_LEFT, KEY_TOP, 8 * WHITE_PITCH, WHITE_LENGTH)
     for index in range(1, 8):
         x = KEY_LEFT + index * WHITE_PITCH
@@ -99,6 +106,7 @@ def generate(destination, extension=False):
         marker(pdf, 3, MARKER_LEFT, MARKER_BOTTOM)
     marker(pdf, 1, MARKER_RIGHT, MARKER_TOP)
     marker(pdf, 2, MARKER_RIGHT, MARKER_BOTTOM)
+    pdf.restoreState()
 
     label(pdf, PAGE_WIDTH / 2, 27, title, 9)
     label(pdf, PAGE_WIDTH / 2, 190,
@@ -111,10 +119,13 @@ def generate(destination, extension=False):
         line(pdf, x, 199.5, x, 202.5)
     label(pdf, PAGE_WIDTH / 2, 207, "Check this line measures 50 mm", 7)
 
-    # Cutting at both keyboard edges removes page margins; the next sheet
-    # lies ON TOP of the preceding high C and its now-interior right markers.
+    # Retain 4 mm outside key edges for the enlarged markers' quiet zones.
+    # The next sheet lies ON TOP of the preceding high C and right markers.
     pdf.setDash(1.5 * mm, 1.5 * mm)
-    for x in (KEY_LEFT, KEY_RIGHT):
+    # The extension's left page edge is already its assembly edge.
+    trim_edges = ((KEY_RIGHT - KEY_LEFT + TRIM_MARGIN,) if extension else
+                 (KEY_LEFT - TRIM_MARGIN, KEY_RIGHT + TRIM_MARGIN))
+    for x in trim_edges:
         line(pdf, x, 6, x, KEY_TOP - 1)
         line(pdf, x, KEY_TOP + WHITE_LENGTH + 1, x, PAGE_HEIGHT - 6)
     pdf.setDash()
