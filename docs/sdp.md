@@ -63,6 +63,12 @@ See [print/layout instructions](piano_sheet.md) and the
 Physical printing, webcam contact quality and audibility remain separate
 hardware verification, not claims established by software fixtures.
 
+The guided calibration flow uses four steps: setup, lighting, paper alignment
+and five-position depth capture. It omits the former hover countdown because
+runtime contact logic does not consume a hover sample. Each depth capture still
+requires complete detected hand landmarks; older calibration records may retain
+an optional legacy hover field.
+
 **Previous SDP Work**
 
 [Initial SDP](https://docs.google.com/document/d/1dI5X3cngPTwBOdPjmCn8FGk9viVCrHLxQcX2h_NOIWU/edit?usp=sharing)
