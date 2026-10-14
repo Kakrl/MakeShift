@@ -24,6 +24,7 @@ import type { RecordingsLibraryHandle } from "./midi/RecordingsLibraryPanel";
 import { readStored, writeStored } from "../lib/storage";
 import { rainbow } from "./rainbow";
 import { useDialogFocus } from "./useDialogFocus";
+import { isDevMode } from "../debugFlags";
 
 const RecordingsLibrary = dynamic(
   () => import("./midi/RecordingsLibraryPanel"),
@@ -271,6 +272,7 @@ export default function Home() {
   // Drives the calibration prompt; live readiness stays with the session.
   // null until storage is read, so calibrated users never see the prompt flash.
   const [isCalibrated, setIsCalibrated] = useState<boolean | null>(null);
+  const [devMode, setDevMode] = useState(false);
 
   useEffect(() => {
     if (stream && videoRef.current) videoRef.current.srcObject = stream;
@@ -284,9 +286,11 @@ export default function Home() {
       setTempo(saved.tempo);
       setMetronome(saved.metronome);
       setSettingsLoaded(true);
-      setIsCalibrated(loadCalibration() !== null);
+      const dev = isDevMode();
+      setDevMode(dev);
+      setIsCalibrated(dev || loadCalibration() !== null);
       // Show welcome modal only on the very first visit
-      try {
+      if (!dev) try {
         if (!localStorage.getItem("hasVisited")) {
           setShowWelcome(true);
           localStorage.setItem("hasVisited", "true");
@@ -593,6 +597,7 @@ export default function Home() {
             activePitches={activePitches}
           />
           <CameraStatusOverlay />
+          {devMode && <p className="ms-pill absolute top-3 right-3 z-30 py-1.5 px-3 text-[12px] font-semibold">Dev mode: calibration skipped</p>}
 
           {/* Calibrate-first call to action: the first thing to do on this page */}
           {needsCalibration && cameraReady && (
@@ -661,11 +666,12 @@ export default function Home() {
             </div>
           )}
 
-          {!canPlay && isCalibrated === true && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Show the calibrated sheet and camera, or <a href="/calibration" className="underline underline-offset-2 font-medium">calibrate again</a>. Saved data is checked before playing.</span></p>}
+          {!canPlay && devMode && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Dev mode: show all four sheet markers and your hands to play.</span></p>}
+          {!canPlay && !devMode && isCalibrated === true && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Show the calibrated sheet and camera, or <a href="/calibration" className="underline underline-offset-2 font-medium">calibrate again</a>. Saved data is checked before playing.</span></p>}
         </div>
 
         {/* Right sidebar (below the camera under lg) */}
-        <SideNav onCalibrationClick={() => setShowCalibrationIntro(true)}>
+        <SideNav onCalibrationClick={() => setShowCalibrationIntro(true)} calibrationDisabled={devMode}>
           <section aria-label="Playback settings" className="relative grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-[23px] mt-6 lg:mt-[42px] lg:pl-[43px]">
             {/* Tempo */}
             <div className="flex flex-col gap-2">
