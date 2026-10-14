@@ -140,7 +140,22 @@ export class LiveSession {
       );
       return false;
     }
-    const key = JSON.stringify(valid);
+    return this.acceptCalibration(JSON.stringify(valid));
+  }
+  /** Dev mode only: a complete live marker scan stands in for saved calibration. */
+  observeUncalibratedSheet(
+    camera: CameraSignature | null,
+    corners: Point[] | null,
+  ) {
+    this.expireBeforeRefresh();
+    if (!camera || !corners || !usableLayout(this.layout)) {
+      this.calibrationAt = -Infinity;
+      this.interrupt("Dev mode: show all four sheet markers to play.");
+      return false;
+    }
+    return this.acceptCalibration(`dev:${JSON.stringify(this.layout)}`);
+  }
+  private acceptCalibration(key: string) {
     if (this.calibrationKey && key !== this.calibrationKey)
       this.interrupt(
         "Calibration changed. Select Enable audio to start a new session.",
