@@ -1419,3 +1419,16 @@ recovery. The temporary runner was removed; the committed default runner was
 not changed. This verifies software capture with GPU disabled, not physical
 camera behavior or hardware GPU correctness. A pre-existing server at port
 3000 separately timed out during home MediaPipe initialization.
+
+### Device profile review fixes (2026-10-14)
+
+PR #189: profile saves reread storage, preserve an existing saved ID, return the
+reconciled profile, and update panel state from that result. The empty-ID
+fixture uses the actual direct storage shape and asserts a generated replacement.
+Windows: lint, TypeScript, 489 Vitest tests in 24 files, 37 contrast checks and
+production build passed. Chromium 151.0.7922.34 against production port 3189
+passed the actual two-tab initial-quota-failure/retry sequence and reload,
+keyboard layout and audio smoke. All deployment assertions passed with the
+previously diagnosed local --disable-gpu workaround in a removed temporary
+runner; the committed runner is unchanged. Physical hardware was not measured.
+Actions execution for this follow-up is unverified.

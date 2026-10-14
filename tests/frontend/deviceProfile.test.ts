@@ -52,15 +52,30 @@ describe("device profile", () => {
   it.each([
     "broken",
     JSON.stringify({
-      version: 1,
-      data: { deviceId: "", displayName: "Harry" },
+      deviceId: "",
+      displayName: "Harry",
     }),
   ])("replaces invalid storage: %s", (raw) => {
     const storage = memory();
     storage.values.set(storageKey("profile", 1), raw);
     const result = loadOrCreateProfile(storage.access);
     expect(result.result.ok).toBe(true);
+    expect(result.profile.deviceId).toMatch(/^[0-9a-f-]{36}$/);
     expect(loadOrCreateProfile(storage.access).profile).toEqual(result.profile);
+  });
+  it("preserves another tab's saved ID when retrying failed initial persistence", () => {
+    const storage = memory();
+    const tabA = loadOrCreateProfile(() => null);
+    expect(tabA.result.ok).toBe(false);
+    const tabB = loadOrCreateProfile(storage.access);
+    expect(tabB.result.ok).toBe(true);
+    const result = saveProfile(
+      { ...tabA.profile, displayName: "Harry" },
+      storage.access,
+    );
+    const expected = { deviceId: tabB.profile.deviceId, displayName: "Harry" };
+    expect(result).toEqual({ ok: true, profile: expected });
+    expect(loadOrCreateProfile(storage.access).profile).toEqual(expected);
   });
   it("reports unavailable storage", () => {
     expect(loadOrCreateProfile(() => null).result).toEqual({

@@ -27,8 +27,8 @@ export default function DeviceProfilePanel() {
       setMessage("Your profile could not be saved. Try again.");
       return;
     }
-    setProfile(next);
-    setName(next.displayName);
+    setProfile(result.profile);
+    setName(result.profile.displayName);
     setMessage("Sharing name saved.");
   }
 

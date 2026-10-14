@@ -132,3 +132,6 @@ The browser saves it with a generated ID at `makeshift:profile:v1`. Reloads and
 name changes keep the ID; clearing site storage or using another browser creates
 a new one. This is not an account or authentication credential. Failed saves
 show an error and can be retried. Upload integration is separate (#133).
+
+Profile saves preserve a valid ID already stored by another tab, including
+retries after initial storage failure. The panel adopts the saved profile.

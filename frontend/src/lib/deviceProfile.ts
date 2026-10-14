@@ -49,10 +49,18 @@ export function loadOrCreateProfile(storage?: StorageAccess) {
 export function saveProfile(profile: DeviceProfile, storage?: StorageAccess) {
   if (!isDeviceProfile(profile) || !isValidDisplayName(profile.displayName))
     return { ok: false, reason: "error" } as const;
-  return writeStored(
+  // A different tab may have persisted an ID while this tab could not save.
+  const saved = readStored<DeviceProfile | null>(
     STORAGE_NAME,
     STORAGE_VERSION,
-    { ...profile, displayName: profile.displayName.trim() },
+    null,
+    isDeviceProfile,
     storage,
   );
+  const next: DeviceProfile = {
+    deviceId: saved?.deviceId ?? profile.deviceId,
+    displayName: profile.displayName.trim(),
+  };
+  const result = writeStored(STORAGE_NAME, STORAGE_VERSION, next, storage);
+  return result.ok ? ({ ok: true, profile: next } as const) : result;
 }
