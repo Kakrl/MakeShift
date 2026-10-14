@@ -357,6 +357,15 @@ CI runs these through `frontend-ci.yml`.
 | REC-02 | Unit | Issue #117 acceptance criteria | Each out-of-range field rejected with a field-named issue: text lengths and types, non-integer or out-of-range BPM, empty or oversized note lists, malformed or out-of-range pitch, velocity outside integer 1-100, negative/non-finite timing and notes past the duration cap; only the first bad note reported; non-object bodies rejected ([source](frontend/recordingsSchema.test.ts)) | Harry Deng | Vitest | Yes | Implemented | Yes (`frontend-ci.yml`) | Local run passed 2026-10-03; Actions pending |
 | REC-03 | Unit | Issue #117 acceptance criteria | `recordingDurationMs` uses the latest note end; shared `pitchToMidi` parses sharps, flats and octave -1 to 9 and rejects malformed or out-of-range names ([source](frontend/recordingsSchema.test.ts)) | Harry Deng | Vitest | Yes | Implemented | Yes (`frontend-ci.yml`) | Local run passed 2026-10-03; Actions pending |
 
+## Printable sheet assets (#187)
+
+Synthetic file verification; physical printing/webcam coverage remains pending.
+The existing Python CI discovers the file but lacks the optional PDF toolchain.
+
+| Test ID | Level | Requirement | Description / source | Owner | Tool | Automated? | Implementation Status | CI Integrated? | Execution evidence |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| SHEET-01 | Integration | #187 acceptance criteria; supports 1.2 | Five cases: byte-identical regenerated PDFs and Letter size; rendered key boundaries and zero extension margin; OpenCV IDs/orientation and 18 mm bounds with 3 mm white rings on both PDFs; trimmed two-/three-sheet overlap, four exterior markers, full interior footprint coverage and unchanged center span ([source](python/test_piano_sheets.py)) | Francis Ozua | pytest, Poppler, OpenCV, Pillow, pypdf | Yes | Implemented; synthetic opaque paper, no printer/webcam evidence | No (optional dependencies absent; explicit skip) | [Local execution 2026-10-13](README.md#piano-sheet-verification-issue-187): five passed; Actions pending |
+
 ## Developer dev mode (#179)
 
 Developer tooling for `?dev=1`, which skips calibration on local and preview

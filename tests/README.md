@@ -1,5 +1,23 @@
 # MakeShift Testing
 
+## Piano-sheet verification (issue #187)
+
+Local Windows execution on 2026-10-13, Python 3.12.14, reportlab 4.4.9,
+OpenCV 5.0.0, pypdf 6.10.0, Pillow 12.3.0, NumPy 2.5.4 and pytest 9.1.1:
+five rendered-PDF cases passed in `tests/python/test_piano_sheets.py`.
+The full Python suite passed (30 cases), Ruff passed for `backend/src`,
+`tests` and the generator, and mypy passed for the five backend source files.
+They check deterministic committed assets, Letter dimensions, actual-size
+key boundaries, zero-left-margin extension, 18 mm canonical marker payloads
+and orientation, 3 mm quiet rings, and two-/three-sheet opaque overlaps.
+OpenCV detects exactly IDs 0-3 on each assembly; interior marker footprints
+are entirely white after overlap. Both final pages were rendered with Poppler
+and visually inspected. Physical printing and webcam detection remain pending.
+
+Install `tests/python/piano_sheet_requirements.txt` and Poppler on PATH to
+run these optional checks. Missing tools skip explicitly. CI discovers the
+test file through pytest but does not install the optional PDF toolchain;
+no CI execution pass is claimed. See [printing/trim instructions](../docs/piano_sheet.md).
 ## Calibration workflow
 
 Local macOS execution on 2026-10-11, Node 24.2.0, Vitest 4.1.11:
