@@ -88,25 +88,26 @@ export class Finger {
     if (!this.canContact()) return this.enterHover();
     if (!this.shadowsEnabled) return this.keepPressedIfLandmarksFresh();
 
+    const predictionStartedAtMs = this.contact?.predictionStartedAtMs;
+    if (
+      predictionStartedAtMs === null ||
+      predictionStartedAtMs === undefined ||
+      this.nowMs - predictionStartedAtMs >=
+        CONTACT_PREDICTION_CONFIRMATION_MS
+    ) {
+      // The predicted note was not confirmed before its deadline. Becoming
+      // inactive sends its note-off through the normal key-transition path.
+      return this.enterReady();
+    }
+
     const frameAtMs = this.currentShadowFrameAtMs();
     if (
       frameAtMs !== null &&
+      frameAtMs > predictionStartedAtMs &&
       !this.shadowIsStale(frameAtMs) &&
       this.shadowState() === "press candidate"
     ) {
       return this.enterPressed(frameAtMs);
-    }
-
-    const predictionStartedAtMs = this.contact?.predictionStartedAtMs;
-    if (
-      predictionStartedAtMs !== null &&
-      predictionStartedAtMs !== undefined &&
-      this.nowMs - predictionStartedAtMs >=
-        CONTACT_PREDICTION_CONFIRMATION_MS
-    ) {
-      // The predicted note was not confirmed. Becoming inactive sends its
-      // note-off through the normal key-transition path.
-      return this.enterReady();
     }
 
     return this.staySame("predicted", frameAtMs);
