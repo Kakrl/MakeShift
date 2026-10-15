@@ -185,6 +185,18 @@ on port 3100; audible hardware was not measured. New-regression CI and physical 
 verification remain pending. The Medium defect is tracked in
 [#178](https://github.com/Kakrl/MakeShift/issues/178), fixed by PR #177.
 
+## Key gray boundary geometry (issue #181)
+
+Local macOS execution on 2026-10-14, Node 24.2.0, Vitest 4.1.11:
+
+- `cd frontend && npx vitest run ../tests/frontend/keyBoundary.test.ts`:
+  **7 tests passed**. Coverage includes interior/boundary/outside points,
+  width scaling, shared edges, invalid points, and usable interiors for one,
+  two and three octaves.
+- Targeted ESLint passed for `collision.ts` and `keyBoundary.test.ts`.
+- This checks synthetic projected geometry only. Camera behavior and the
+  selected 15% gray-band width have not been physically evaluated.
+
 ## Octave layout and calibration verification (issues #36 and #162)
 
 Local Windows 11 Home 10.0.26200, Node 22.20.0, Vitest 4.1.11 execution on

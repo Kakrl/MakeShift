@@ -13,7 +13,10 @@ import {
   pressWhiteKey,
   releaseWhiteKey,
 } from "../cv/keyboardGeometry";
-import { getKeyCollisions, updateKeyTransitions } from "../cv/collision";
+import {
+  getKeyCollisions,
+  updateKeyTransitions,
+} from "../cv/collision";
 import type { Fingertip } from "../cv/collision";
 import type { HandObservation } from "../cv/collision";
 import type { KeyPress } from "../events/keyEventProducer";
