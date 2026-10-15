@@ -13,7 +13,7 @@ import {
   loadShareName,
   uploadTake,
   type TakeShare,
-} from "./mockShareStore";
+} from "./shareStore";
 
 type Step = "review" | "details" | "shared";
 type Audience = "private" | "public";

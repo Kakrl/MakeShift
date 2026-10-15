@@ -15,12 +15,7 @@ import type { Recording } from "./midiUtils";
 import type { WriteResult } from "../../lib/storage";
 import SongsDialog, { type MyRecordings, type SongsTab } from "../share/SongsDialog";
 import SaveTakeDialog from "../share/SaveTakeDialog";
-import {
-  loadTakeShares,
-  mockShareStore,
-  saveTakeShare,
-  ShareNotFoundError,
-} from "../share/mockShareStore";
+import { loadTakeShares, saveTakeShare, stopShare } from "../share/shareStore";
 
 export type RecordingsLibraryHandle = {
   completeTake(take: Recording): void;
@@ -90,15 +85,21 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
       refreshLibrary(result);
       return result.ok;
     },
-    remove(id) {
+    async remove(id) {
       const share = shares[id];
       if (!window.confirm(share ? "Delete this recording? It will also stop being shared." : "Delete this recording?")) return false;
-      refreshLibrary(library.deleteRecording(id));
-      // A deleted take takes its share with it, or nothing could stop it later.
+      // Stop the share first: the take holds the only delete token, so
+      // deleting it while the share is still up would leave the share for good.
       if (share) {
+        try {
+          await stopShare(share);
+        } catch {
+          setLibraryError("Sharing could not be stopped, so the recording was kept. Try again.");
+          return false;
+        }
         setShares(saveTakeShare(id, null));
-        mockShareStore.remove(share.id, share.deleteToken).catch(() => {});
       }
+      refreshLibrary(library.deleteRecording(id));
       return true;
     },
     shared(id, share) {
@@ -108,13 +109,10 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
       const share = shares[id];
       if (!share || !window.confirm("Stop sharing? The link will stop working. Your recording stays here.")) return false;
       try {
-        await mockShareStore.remove(share.id, share.deleteToken);
-      } catch (cause) {
-        // Already gone counts as stopped; anything else can be retried.
-        if (!(cause instanceof ShareNotFoundError)) {
-          setLibraryError("Sharing could not be stopped. Try again.");
-          return false;
-        }
+        await stopShare(share);
+      } catch {
+        setLibraryError("Sharing could not be stopped. Try again.");
+        return false;
       }
       setShares(saveTakeShare(id, null));
       return true;

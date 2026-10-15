@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   createMockShareStore,
-  loadTakeShares,
-  PAGE_SIZE,
   PLAYABLE_RANGE,
-  saveTakeShare,
-  ShareNotFoundError,
   type MockMode,
 } from "../../frontend/src/app/share/mockShareStore";
+import {
+  loadTakeShares,
+  PAGE_SIZE,
+  saveTakeShare,
+  ShareNotFoundError,
+} from "../../frontend/src/app/share/shareStore";
 import type { StorageArea } from "../../frontend/src/lib/storage";
 import { pitchToMidi } from "../../frontend/src/cv/noteMap";
 
