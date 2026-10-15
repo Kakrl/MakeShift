@@ -8,7 +8,8 @@ import type { LibraryEntry } from "../midi/recordingsLibrary";
 import { rainbow } from "../rainbow";
 import { useDialogFocus } from "../useDialogFocus";
 import CopyLinkButton from "./CopyLinkButton";
-import { AuthorNameField, BackIcon, CloseIcon, SharedConfirmation } from "./ShareParts";
+import DeviceProfilePanel from "../midi/DeviceProfilePanel";
+import { AuthorNameField, BackIcon, CloseIcon, SharedConfirmation, SharingAs } from "./ShareParts";
 import SharedPlayer from "./SharedPlayer";
 import {
   asSharedRecording,
@@ -227,7 +228,10 @@ export default function SongsDialog({
                       onOpen={(summary) => push({ kind: "shared", id: summary.id, summary })}
                     />
                   ) : (
-                    <MineList mine={mine} onOpen={(id) => push({ kind: "mine", id })} />
+                    <>
+                      <DeviceProfilePanel />
+                      <MineList mine={mine} onOpen={(id) => push({ kind: "mine", id })} />
+                    </>
                   )}
                 </div>
               </>
@@ -621,6 +625,7 @@ function ShareTakeView({
 }) {
   const [title, setTitle] = useState(take.name);
   const [authorName, setAuthorName] = useState(() => loadShareName());
+  const [askName] = useState(() => authorName === "");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shared, setShared] = useState<TakeShare | null>(null);
@@ -671,7 +676,11 @@ function ShareTakeView({
         onChange={(event) => setTitle(event.target.value)}
         className="ms-input mt-1.5 mb-4 w-full"
       />
-      <AuthorNameField id="share-author" value={authorName} onChange={setAuthorName} />
+      {askName ? (
+        <AuthorNameField id="share-author" value={authorName} onChange={setAuthorName} />
+      ) : (
+        <SharingAs name={authorName} />
+      )}
       {take.notes.length === 0 && (
         <p className="mt-3 text-[14px] text-ink-muted">This take has no notes yet, so there&apos;s nothing to share.</p>
       )}

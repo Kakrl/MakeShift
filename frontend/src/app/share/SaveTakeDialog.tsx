@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { RECORDING_LIMITS } from "../../lib/recordings";
 import type { Recording } from "../midi/midiUtils";
 import { useDialogFocus } from "../useDialogFocus";
-import { AuthorNameField, BackIcon, CloseIcon, SharedConfirmation } from "./ShareParts";
+import { AuthorNameField, BackIcon, CloseIcon, SharedConfirmation, SharingAs } from "./ShareParts";
 import SharedPlayer from "./SharedPlayer";
 import {
   asSharedRecording,
@@ -49,6 +49,8 @@ export default function SaveTakeDialog({
   const [name, setName] = useState(take.name === "Untitled recording" ? "" : take.name);
   const [audience, setAudience] = useState<Audience>("private");
   const [authorName, setAuthorName] = useState(() => loadShareName());
+  // The sharing name is asked for once; after that it lives in My recordings.
+  const [askName] = useState(() => authorName === "");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shared, setShared] = useState<TakeShare | null>(null);
@@ -198,7 +200,11 @@ export default function SaveTakeDialog({
               {/* Only a public song needs a name to show; a private one never asks. */}
               {audience === "public" && (
                 <div className="ms-rise mt-5">
-                  <AuthorNameField id="save-take-author" value={authorName} onChange={setAuthorName} />
+                  {askName ? (
+                    <AuthorNameField id="save-take-author" value={authorName} onChange={setAuthorName} />
+                  ) : (
+                    <SharingAs name={authorName} />
+                  )}
                 </div>
               )}
 

@@ -52,12 +52,10 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push, back: vi.fn() }) }
 // set instead of running CV.
 const calibration = vi.hoisted(() => ({ valid: false }));
 vi.mock("next/dynamic", async () => {
-  const { default: ProfilePanel } = await import("../../frontend/src/app/midi/DeviceProfilePanel");
   const { default: LibraryPanel } = await import("../../frontend/src/app/midi/RecordingsLibraryPanel");
   const { useEffect } = await import("react");
   return {
     default: (loader: () => unknown) =>
-      loader.toString().includes("DeviceProfilePanel") ? ProfilePanel :
       loader.toString().includes("RecordingsLibraryPanel") ? LibraryPanel :
       function CoordinatorStub({ session }: { session: LiveSession }) {
         useEffect(() => {
@@ -414,10 +412,11 @@ describe("home page", () => {
     const done = screen.getByRole("dialog", { name: "Your song is shared!" });
     expect(within(done).getByText(/\/play\//)).toBeTruthy();
     fireEvent.click(within(done).getByRole("button", { name: "Done" }));
-    // The name shared under is the device profile's sharing name (#125).
-    expect(screen.getByText("Sharing as")).toBeTruthy();
-    expect(screen.getByText("Jo")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "My recordings" }));
+    // The name shared under becomes the profile's sharing name (#125),
+    // shown and edited in My recordings.
+    const profile = screen.getByRole("region", { name: "Sharing name" });
+    expect(within(profile).getByText("Jo")).toBeTruthy();
     const card = screen.getByRole("button", { name: /^Twinkle/ });
     expect(within(card).getByText("Shared")).toBeTruthy();
 
@@ -430,6 +429,20 @@ describe("home page", () => {
     });
     expect(localStorage.getItem("makeshift:mock-shared-recordings:v1")).not.toContain("Twinkle");
     expect(localStorage.getItem("makeshift:take-shares:v1")).not.toContain("demo-take");
+  });
+
+  it("asks for the sharing name only until it is set", async () => {
+    localStorage.setItem("makeshift:profile:v1", JSON.stringify({ deviceId: "device-1", displayName: "Jo" }));
+    window.history.replaceState(null, "", "/?dev=1&demo=take");
+    localStorage.setItem("hasVisited", "true");
+    renderHome();
+    fireEvent.click(screen.getByRole("button", { name: "Yes, save it" }));
+    const details = screen.getByRole("dialog", { name: "Save your recording" });
+    fireEvent.change(within(details).getByLabelText("Recording name"), { target: { value: "Twinkle" } });
+    fireEvent.click(within(details).getByRole("radio", { name: /Everyone/ }));
+    expect(within(details).queryByLabelText("Your name")).toBeNull();
+    expect(within(details).getByText("Jo")).toBeTruthy();
+    expect(within(details).getByRole("button", { name: "Save and share" })).toHaveProperty("disabled", false);
   });
 
   it("keeps an empty take private", async () => {

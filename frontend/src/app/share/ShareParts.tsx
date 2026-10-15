@@ -41,7 +41,16 @@ export function SharedConfirmation({ heading, shareId, onDone }: { heading: Reac
   );
 }
 
-/** The public name field both share forms ask for. */
+/** Once the sharing name is set, the share forms just say it. */
+export function SharingAs({ name }: { name: string }) {
+  return (
+    <p className="text-[14px] text-ink-muted">
+      Shared as <span className="font-medium text-ink">{name}</span>. You can change it in My recordings.
+    </p>
+  );
+}
+
+/** The public name field the first share asks for. */
 export function AuthorNameField({ id, value, onChange }: { id: string; value: string; onChange: (value: string) => void }) {
   return (
     <>

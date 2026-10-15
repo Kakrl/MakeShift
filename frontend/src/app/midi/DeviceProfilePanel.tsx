@@ -10,8 +10,9 @@ import {
 import { RECORDING_LIMITS } from "../../lib/recordings";
 
 /**
- * The name shown on songs you share. It reads as one line until you edit
- * it; the share forms use and update the same profile.
+ * The name shown on songs you share, at the top of My recordings. It reads
+ * as one line until you edit it; the first share asks for it once, and
+ * later shares use it without asking.
  */
 export default function DeviceProfilePanel() {
   const [initial] = useState(() => loadOrCreateProfile());
@@ -57,14 +58,14 @@ export default function DeviceProfilePanel() {
   }
 
   return (
-    <section aria-labelledby="profile-heading" className="mb-6 w-full text-ink">
-      <h2 id="profile-heading" className="ms-label mb-1.5">
+    <section aria-labelledby="profile-heading" className="ms-well mb-3 w-full rounded-[14px] px-3.5 py-2.5 text-ink">
+      <h3 id="profile-heading" className="sr-only">
         Sharing name
-      </h2>
+      </h3>
       {editing ? (
-        <form onSubmit={handleSave} className="ms-rise">
-          <label htmlFor="display-name" className="sr-only">
-            Display name
+        <form onSubmit={handleSave} className="ms-rise py-1">
+          <label htmlFor="display-name" className="ms-label mb-1.5 block">
+            Sharing name
           </label>
           <input
             id="display-name"
@@ -102,19 +103,19 @@ export default function DeviceProfilePanel() {
         </form>
       ) : (
         <div className="flex items-center justify-between gap-2">
-          <p className="min-w-0 text-[13px] text-ink-muted">
+          <p className="min-w-0 text-[14px] text-ink-muted">
             {profile.displayName ? (
               <>
                 Sharing as{" "}
                 <span className="font-medium text-ink break-words">{profile.displayName}</span>
               </>
             ) : (
-              "Not set yet"
+              "No sharing name yet"
             )}
           </p>
           <button
             type="button"
-            className="ms-key ms-key-ghost -mr-2 shrink-0 px-2 py-1 text-[13px]"
+            className="ms-key ms-key-ghost -mr-2 shrink-0 px-2 py-1 text-[14px]"
             onClick={() => {
               setMessage("");
               setEditing(true);
