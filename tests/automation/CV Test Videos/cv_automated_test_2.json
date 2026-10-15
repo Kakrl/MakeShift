@@ -8,7 +8,7 @@
     "releaseDefinition": "first video frame after fingertip contact ends",
     "fullyLabeledRange": {
       "startFrame": 0,
-      "endFrame": 899
+      "endFrame": 377
     }
   },
   "calibration": {

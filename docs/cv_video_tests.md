@@ -29,6 +29,25 @@ detector, and the same live contact pipeline used by the app.
 
 ## Run it
 
+Run all checked-in clips in sequence with one command:
+
+```sh
+cd frontend
+npm run test:cv-video:auto
+```
+
+This builds and starts the production app once, runs each replay in sequence,
+then shuts the app down. It prints each full report and a combined score and
+performance summary. Per-clip reports and the summary are saved under
+`frontend/test-results/cv-video/`. On Apple Silicon Macs the runner uses
+installed Google Chrome automatically because Playwright Chromium is not
+available for macOS 13 arm64. On other platforms, install Playwright Chromium
+once with `cd frontend && npx playwright install chromium`. Pass
+`-- --clip 2` to run only video 2, `-- --browser chrome` to choose Chrome, or
+`-- --browser chromium` to choose bundled Chromium.
+
+For custom clips, use the manual steps below.
+
 Start the production app in one terminal:
 
 ```sh

@@ -119,6 +119,7 @@ MakeShift/
 │   │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   │   ├── browserAudio.browser.mjs  # production browser graph check
 │   │   ├── deployment.browser.mjs    # production assets, camera recovery, offline playing
+│   │   ├── runCvVideo.mjs             # builds app and runs a labeled CV replay
 │   │   ├── homePage.test.ts
 │   │   ├── supabaseHealth.test.ts    # /api/health database check
 │   │   ├── pianoIntegration.test.ts # deterministic note-to-audio/MIDI/feedback
