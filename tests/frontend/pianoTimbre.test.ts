@@ -91,7 +91,7 @@ describe("piano modal DSP (#175)", () => {
       spectrum(early, 48000, second) / spectrum(early, 48000, 440),
     );
   });
-  it("preserves the tuned onset gain and finite headroom for ten-note chords", () => {
+  it("preserves the tuned onset gain and velocity ordering", () => {
     let previous = 0;
     for (const velocity of [0.2, 0.5, 1]) {
       const s = start(48000, 69, velocity);
@@ -100,31 +100,35 @@ describe("piano modal DSP (#175)", () => {
       expect(level).toBeGreaterThan(previous);
       previous = level;
     }
-    for (const rate of [8000, 44100, 48000, 96000, 192000, 384000]) {
+  });
+
+  // Offline sample correctness, not a real-time performance threshold.
+  it.each([8000, 44100, 48000, 96000, 192000, 384000])(
+    "preserves finite headroom for ten-note chords at %i Hz",
+    (rate) => {
       for (const notes of [
         Array(10).fill(69),
         [48, 52, 55, 60, 64, 67, 72, 76, 79, 84],
       ]) {
         const s = start(rate, notes[0]);
-        notes
-          .slice(1)
-          .forEach((note, index) =>
-            s.handle({
-              type: "note-on",
-              session: 1,
-              press: index + 2,
-              note,
-              velocity: 1,
-            }),
-          );
+        notes.slice(1).forEach((note, index) =>
+          s.handle({
+            type: "note-on",
+            session: 1,
+            press: index + 2,
+            note,
+            velocity: 1,
+          }),
+        );
         expect(
           render(s, Math.round(rate * 0.2)).every(
             (x) => Number.isFinite(x) && Math.abs(x) < 1,
           ),
         ).toBe(true);
       }
-    }
-  });
+    },
+    15000,
+  );
 
   it("tracks velocity and register with independent filters", () => {
     const soft = start(48000, 60, 0.25),
