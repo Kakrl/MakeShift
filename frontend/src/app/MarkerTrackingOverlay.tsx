@@ -15,7 +15,7 @@ import {
   pressWhiteKey,
   releaseWhiteKey,
 } from "../cv/keyboardGeometry";
-import { getKeyCollisions, updateKeyTransitions } from "../cv/collision";
+import { getPianoKeyCollisions, updateKeyTransitions } from "../cv/collision";
 import type { Fingertip } from "../cv/collision";
 import type { HandObservation } from "../cv/collision";
 import type { KeyPress } from "../events/keyEventProducer";
@@ -612,6 +612,7 @@ export default function MarkerTrackingOverlay({
       fingertips,
       hands,
       whiteKeys: projectedWhiteKeysRef.current,
+      blackKeys: projectedBlackKeysRef.current,
       calibration: depthCalibration,
       previewFingerId: shadowPreviewFinger?.id ?? null,
     });
@@ -712,6 +713,7 @@ export default function MarkerTrackingOverlay({
     const accent = colors.getPropertyValue("--color-accent").trim();
     const ink = colors.getPropertyValue("--color-ink").trim();
     const danger = colors.getPropertyValue("--color-danger").trim();
+    const info = colors.getPropertyValue("--color-info").trim();
     const white = colors.getPropertyValue("--color-white").trim();
 
     context.lineWidth = 4;
@@ -767,8 +769,12 @@ export default function MarkerTrackingOverlay({
         else releaseWhiteKey(context, key, white);
       });
 
-      context.fillStyle = ink;
-      projectedBlackKeys.forEach((key) => drawBlackKey(context, key, ink));
+      projectedBlackKeys.forEach((key, index) => {
+        const isCollided = highlightedKeyIndexes.includes(
+          layout.whiteKeys + index,
+        );
+        drawBlackKey(context, key, isCollided ? info : ink);
+      });
 
       if (
         showVisualDebug &&
@@ -790,7 +796,12 @@ export default function MarkerTrackingOverlay({
             );
             if (!handCalibration) return;
             const keyOverlap =
-              getKeyCollisions([fingertip], projectedWhiteKeys, 8).length > 0;
+              getPianoKeyCollisions(
+                [fingertip],
+                projectedWhiteKeys,
+                projectedBlackKeysRef.current ?? [],
+                8,
+              ).length > 0;
             if (!keyOverlap) return;
             const landmark = hand?.landmarks[fingertip.landmarkIndex];
             const knuckleDistance = hand
