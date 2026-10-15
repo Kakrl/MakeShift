@@ -1,0 +1,6 @@
+-r ../../docs/piano_sheet_requirements.txt
+pytest==9.1.1
+pypdf==6.10.0
+Pillow==12.3.0
+opencv-python-headless==5.0.0.93
+numpy==2.5.4

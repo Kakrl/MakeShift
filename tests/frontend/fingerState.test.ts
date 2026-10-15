@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Finger } from "../../frontend/src/cv/finger";
 import {
+  CONTACT_PREDICTION_CONFIRMATION_MS,
   CONTACT_RELEASE_GRACE_MS,
   CONTACT_SHADOW_MAX_AGE_MS,
   type FingerContactGate,
@@ -74,6 +75,45 @@ describe("Finger contact state machine", () => {
     );
     expect(hover.state).toBe("hover");
     expect(hover.active).toBe(false);
+  });
+
+  it("does not use a candidate captured before prediction as confirmation", () => {
+    const finger = new Finger("finger-1");
+    finger.checkState(eligibleGate(), 100, {
+      state: "press candidate",
+      frameAtMs: 100,
+    });
+    const predicted = finger.checkState(eligibleGate(), 110, undefined, {
+      zMotionPredicted: true,
+    });
+    expect(predicted.state).toBe("predicted");
+
+    const stillPredicted = finger.checkState(eligibleGate(), 120);
+    expect(stillPredicted.state).toBe("predicted");
+    expect(stillPredicted.active).toBe(true);
+
+    const confirmed = finger.checkState(eligibleGate(), 130, {
+      state: "press candidate",
+      frameAtMs: 125,
+    });
+    expect(confirmed.state).toBe("pressed");
+  });
+
+  it("expires a prediction before accepting a late candidate", () => {
+    const finger = new Finger("finger-1");
+    finger.checkState(eligibleGate(), 100);
+    finger.checkState(eligibleGate(), 110, undefined, {
+      zMotionPredicted: true,
+    });
+
+    const expiredAtMs = 110 + CONTACT_PREDICTION_CONFIRMATION_MS;
+    const expired = finger.checkState(
+      eligibleGate(),
+      expiredAtMs + 1,
+      { state: "press candidate", frameAtMs: expiredAtMs },
+    );
+    expect(expired.state).toBe("ready");
+    expect(expired.active).toBe(false);
   });
 
   it("holds through release grace, recovers to pressed, then releases once grace expires", () => {
