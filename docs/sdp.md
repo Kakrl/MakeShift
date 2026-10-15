@@ -63,6 +63,18 @@ See [print/layout instructions](piano_sheet.md) and the
 Physical printing, webcam contact quality and audibility remain separate
 hardware verification, not claims established by software fixtures.
 
+## Piano timbre extension (#175)
+
+PT-1 expands browser synthesis under requirement 2.2: held notes naturally
+decay, amplitude and pitch/velocity-tracked cutoff evolve independently, and
+up to sixteen anti-aliased inharmonic partials per voice mellow over time.
+Ten-voice/session safety remains required. JavaScript AudioWorklet rendering
+retains immediate dispatch without added buffering. Explicit legacy ADSR
+options preserve the former sine baseline. Sample pools (#22), pedal and
+sympathetic resonance are separate scope. See [tuning and compatibility](browser_audio.md#piano-default-175).
+Audio/latency owner is Carl Xu. Offline/modal coverage maps to PT-01;
+paired synchronous profiling to PT-02; listening to PT-03. Physical latency
+2.3.1 and ten-trial dynamics 2.4.2 retain their original requirements.
 The guided calibration flow uses four steps: setup, lighting, paper alignment
 and five-position depth capture. It omits the former hover countdown because
 runtime contact logic does not consume a hover sample. Each depth capture still

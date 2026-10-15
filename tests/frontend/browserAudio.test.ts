@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Synth } from "../../frontend/public/audio/synth.js";
 
 function synth(rate = 48000) {
-  const engine = new Synth(rate);
+  const engine = new Synth(rate, { mode: "legacy" });
   engine.handle({ type: "reset", session: 1 });
   return engine;
 }
@@ -139,7 +139,7 @@ describe("production browser synthesis offline", () => {
 
 describe("sample-timed ADSR envelopes (#27)", () => {
   function configured(rate: number, options = {}) {
-    const engine = new Synth(rate, options);
+    const engine = new Synth(rate, { mode: "legacy", ...options });
     engine.handle({ type: "reset", session: 1 });
     on(engine, 1);
     return engine;

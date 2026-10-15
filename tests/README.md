@@ -1,5 +1,57 @@
 # MakeShift Testing
 
+## Piano timbre verification (issue #175)
+
+CI timeout follow-up 2026-10-14: the [frontend job at e6de2fa](https://github.com/Kakrl/MakeShift/actions/runs/38662133296/job/116185643600)
+failed when the combined three-rate rapid-retrigger case took 5058 ms against
+Vitest's default 5000 ms timeout; no assertion failure was reported. Each rate
+now runs as a separate case with a 15000 ms offline-test timeout. The same
+999 presses per rate, malformed-event checks and reset checks are retained;
+this timeout is not a real-time DSP performance threshold. Local full-suite
+verification after integrating the updated PR branch passed 510 cases across
+26 files with one existing skip;
+all fourteen piano-modal cases passed. New Actions execution is pending.
+
+PR #202 review follow-up, local execution 2026-10-14 on the same Windows/Node
+host: equal effective cutoff endpoints now use a fixed filter and zero pitch
+tracking. The regression checks every pitch preset, constant filter coefficients,
+finite nonzero held output, release and retirement at 8/48/96 kHz. All twelve
+piano-modal cases passed; the full suite passed 500 cases across 25 files with
+one existing skip. Lint, TypeScript, all 37 contrast pairs and the normal
+Turbopack production build passed. Deployment, keyboard-layout and audio browser
+checks passed in headless Edge 155.0.4283.45 with fake media; soft/loud graph RMS
+was approximately 0.003739/0.010006. Audible hardware was not measured by these
+runners. Chromium and new Actions execution evidence remain pending.
+
+Local execution 2026-10-13 on Windows 10.0.26200, Node 22.20.0,
+Vitest 4.1.11. The default production DSP now has decaying modal piano voices;
+explicit legacy mode retains the sine/ADSR baseline. Existing pitch-only
+zero-crossing oracles intentionally remain baseline regressions, while
+pianoTimbre.test.ts covers the new default with spectral and state checks.
+The velocity estimator DSP test now asserts stronger fast strikes rather
+than the exact sine amplitude ratio because velocity also changes timbre.
+
+Frontend lint, TypeScript, 37 contrast pairs and production build passed.
+The final full suite passed **495 cases across 25 files**, including eleven
+piano-modal cases. Production audio,
+deployment and keyboard-layout checks passed against port 3175 in headless
+Edge 155.0.4283.45 with fake media. Soft/loud piano graph RMS was approximately
+0.003707/0.010006; Stop, suspension/re-enable and navigation cleanup passed.
+Chromium could not launch (`spawn UNKNOWN`), so its local result remains pending.
+Database was unconfigured. The browser threshold changes account for decaying,
+normalized timbre; they establish output presence, not acoustic quality.
+
+The paired synchronous browser DSP benchmark covered 44.1/48/96 kHz single
+notes, chords and rapid stealing; see [the complete timing table and limits](../docs/performance.md#piano-paired-dsp-profile-175-2026-10-13).
+Real AudioWorklet deadline/dropout stress with simultaneous live CV remains
+pending. The provisional 16-sample control interval has no listening-quality
+pass claim for that interval. Carl Xu reported on 2026-10-13 that the piano
+sounds good and responds swiftly: a qualitative user-reported listening pass.
+The [listening/reference report](manual/2026-10-13_PT-03.md) is PARTIAL;
+individual structured steps, reference comparison and exact listening environment
+remain pending. Physical latency/dynamics remain
+unverified. Existing CI invokes Vitest and the three production browser runners;
+new Actions execution evidence is pending. The paired profile runs manually.
 ## Piano-sheet verification (issue #187)
 
 Local Windows execution on 2026-10-13, Python 3.12.14, reportlab 4.4.9,
