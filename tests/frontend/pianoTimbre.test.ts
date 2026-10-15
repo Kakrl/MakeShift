@@ -144,6 +144,21 @@ describe("piano modal DSP (#175)", () => {
     b.handle({ type: "note-on", session: 1, press: 12, note: 60, velocity: 1 });
     expect(power(render(b, 128))).toBe(0);
   });
+  it("renders equal cutoff bounds as a finite fixed filter", () => {
+    for (const rate of [8000, 48000, 96000]) {
+      const cutoff = 1000;
+      const s = start(rate, 60, 1, { cutoffMin: cutoff, cutoffMax: cutoff });
+      expect(s.presets.every((preset) => preset.tracking === 0)).toBe(true);
+      expect(s.filterTable.every((g) => g === s.filterTable[0])).toBe(true);
+      const held = render(s, rate);
+      expect(held.every(Number.isFinite)).toBe(true);
+      expect(power(held)).toBeGreaterThan(0);
+      s.handle({ type: "note-off", session: 1, press: 1 });
+      expect(render(s, s.voices[0].preset.release).every(Number.isFinite)).toBe(true);
+      expect(s.voices[0].press).toBe(0);
+      expect(power(render(s, 128))).toBe(0);
+    }
+  });
   it("retires held tails and validates filter configuration", () => {
     const s = start(8000);
     render(s, 8000 * 30);

@@ -228,8 +228,10 @@ export class Synth extends LegacySynth {
           1,
           Math.max(
             0,
-            Math.log(Math.max(frequency * 2, this.cutoffMin) / this.cutoffMin) /
-              Math.log(this.cutoffMax / this.cutoffMin),
+            this.cutoffMax === this.cutoffMin
+              ? 0 // Equal bounds define a fixed cutoff with no pitch tracking.
+              : Math.log(Math.max(frequency * 2, this.cutoffMin) / this.cutoffMin) /
+                Math.log(this.cutoffMax / this.cutoffMin),
           ),
         ),
       };

@@ -2,6 +2,17 @@
 
 ## Piano timbre verification (issue #175)
 
+PR #202 review follow-up, local execution 2026-10-14 on the same Windows/Node
+host: equal effective cutoff endpoints now use a fixed filter and zero pitch
+tracking. The regression checks every pitch preset, constant filter coefficients,
+finite nonzero held output, release and retirement at 8/48/96 kHz. All twelve
+piano-modal cases passed; the full suite passed 500 cases across 25 files with
+one existing skip. Lint, TypeScript, all 37 contrast pairs and the normal
+Turbopack production build passed. Deployment, keyboard-layout and audio browser
+checks passed in headless Edge 155.0.4283.45 with fake media; soft/loud graph RMS
+was approximately 0.003739/0.010006. Audible hardware was not measured by these
+runners. Chromium and new Actions execution evidence remain pending.
+
 Local execution 2026-10-13 on Windows 10.0.26200, Node 22.20.0,
 Vitest 4.1.11. The default production DSP now has decaying modal piano voices;
 explicit legacy mode retains the sine/ADSR baseline. Existing pitch-only
@@ -24,8 +35,11 @@ The paired synchronous browser DSP benchmark covered 44.1/48/96 kHz single
 notes, chords and rapid stealing; see [the complete timing table and limits](../docs/performance.md#piano-paired-dsp-profile-175-2026-10-13).
 Real AudioWorklet deadline/dropout stress with simultaneous live CV remains
 pending. The provisional 16-sample control interval has no listening-quality
-pass claim. [Listening/reference report](manual/2026-10-13_PT-03.md) is BLOCKED
-because hardware listening was not performed; physical latency/dynamics remain
+pass claim for that interval. Carl Xu reported on 2026-10-13 that the piano
+sounds good and responds swiftly: a qualitative user-reported listening pass.
+The [listening/reference report](manual/2026-10-13_PT-03.md) is PARTIAL;
+individual structured steps, reference comparison and exact listening environment
+remain pending. Physical latency/dynamics remain
 unverified. Existing CI invokes Vitest and the three production browser runners;
 new Actions execution evidence is pending. The paired profile runs manually.
 ## Piano-sheet verification (issue #187)

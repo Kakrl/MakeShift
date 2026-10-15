@@ -187,7 +187,9 @@ Construction accepts finite `cutoffMin` (20–20000 Hz, default 180),
 `cutoffMax` (at least cutoffMin, at most 100000 Hz, default 18000),
 `resonance` (Q 0.5–1, default 0.707), `cutoffFast` and `cutoffSlow`
 (0.001–10 seconds), and `cutoffDepth` (0–1, default 0.85). Actual cutoff
-endpoints clamp to 0.4/0.45 times sample rate. Supported rates remain
+endpoints clamp to 0.4/0.45 times sample rate. Equal effective endpoints
+define a fixed cutoff with zero pitch tracking, avoiding division by zero.
+Supported rates remain
 8000–384000 Hz; automated stage/Nyquist checks sample six representative rates.
 
 `pianoTimbre.test.ts` verifies the production default; `browserAudio.test.ts`
