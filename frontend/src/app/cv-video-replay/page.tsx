@@ -113,6 +113,7 @@ export default function CvVideoReplayPage() {
         onShadowPreview: () => undefined,
         onError: (message) => { throw new Error(message); },
       }, undefined, () => replayTimeMs);
+      pipeline.start();
       const lastFrame = Math.floor((video.duration - 0.001) * videoCase.framesPerSecond);
       const labeledStart = videoCase.annotation.fullyLabeledRange.startFrame;
       const labeledEnd = videoCase.annotation.fullyLabeledRange.endFrame;
@@ -134,6 +135,7 @@ export default function CvVideoReplayPage() {
       let lastMarkerDetectionMs = -Infinity;
       let markerAcquired = false;
       let markerDetectionCount = 0;
+      let shadowSamplesSubmitted = 0;
       let cachedWhiteKeys: Point[][] | null = null;
       const replayStartedMs = performance.now();
       for (let frame = 0; frame <= lastFrame; frame += 1) {
@@ -186,9 +188,9 @@ export default function CvVideoReplayPage() {
         const fingertips = getFingertips(hands.map((hand) => hand.landmarks),
           video.videoWidth, video.videoHeight);
         const contactStartedMs = performance.now();
-        pipeline.processFrame({ video, hands, fingertips, whiteKeys,
+        if (pipeline.processFrame({ video, hands, fingertips, whiteKeys,
           calibration: depthModels.Right ?? depthModels.Left,
-          previewFingerId: null });
+          previewFingerId: null })) shadowSamplesSubmitted += 1;
         const wallEndMs = performance.now();
         const contactMs = wallEndMs - contactStartedMs;
         timings.push({ frame, mediaTimeMs, wallStartMs, wallEndMs,
@@ -230,6 +232,7 @@ export default function CvVideoReplayPage() {
               (replayElapsedMs - frameStages[0].seekMs - frameStages[0].totalCvMs)
             : null,
           markerDetectionCount,
+          shadowSamplesSubmitted,
           markerAcquired,
           markerAcquireIntervalMs: MARKER_ACQUIRE_INTERVAL_MS,
           markerCheckIntervalMs: MARKER_CHECK_INTERVAL_MS,

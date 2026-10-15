@@ -327,6 +327,22 @@ ordered run, not a live-performance or population accuracy result. The full
 109 KB report, including all transitions and per-frame stage times, is
 [`cv_automated_test_1.results.json`](automation/CV%20Test%20Videos/cv_automated_test_1.results.json).
 
+With both `knuckles` and `shadows` enabled, the same clip completed at 26.5 FPS
+(27.6 FPS after the first frame) and emitted 6 transitions. Press scoring was
+1 TP / 2 FP / 7 FN (33.3% precision, 12.5% recall); release scoring was
+0 TP / 3 FP / 8 FN (0% precision and recall). Fourteen shadow samples were
+submitted to the worker. This run is also exploratory; the small labeled set
+and asynchronous shadow sampling limit accuracy conclusions. Its complete
+report is
+[`cv_automated_test_1.knuckles-shadows.results.json`](automation/CV%20Test%20Videos/cv_automated_test_1.knuckles-shadows.results.json).
+
+With knuckles enabled and shadows disabled, the replay completed at 28.3 FPS
+(29.6 FPS after the first frame) and emitted 12 transitions. Press scoring was
+1 TP / 5 FP / 7 FN (16.7% precision, 12.5% recall); release scoring was
+0 TP / 6 FP / 8 FN (0% precision and recall). This did not recover more
+labeled presses than the combined gates on this clip. The complete report is
+[`cv_automated_test_1.knuckles-only.results.json`](automation/CV%20Test%20Videos/cv_automated_test_1.knuckles-only.results.json).
+
 ## Per-finger contact state verification
 
 Local execution on macOS, 2026-10-04, Node 24.2.0 and Vitest 4.1.11:

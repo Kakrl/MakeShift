@@ -59,7 +59,8 @@ contact pipeline's clock using video time. It requests the MediaPipe GPU
 delegate and falls back to CPU if GPU initialization fails. The report records
 the selected delegate and WebGL renderer. ArUco detection follows the live
 250 ms acquisition / 10 s recheck cadence, retaining the last usable key
-geometry between scans.
+geometry between scans. The replay starts the shadow worker when shadows are
+enabled and uses replay time for asynchronous shadow results.
 
 The report includes every detected transition, matched and unmatched expected
 and predicted events, and scores presses and releases separately. It also

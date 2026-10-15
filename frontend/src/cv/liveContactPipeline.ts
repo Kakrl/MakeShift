@@ -392,7 +392,7 @@ export class LiveContactPipeline {
   private receiveShadows(data: ShadowWorkerResponse) {
     if (this.disposed) return;
     this.inFlight = false;
-    const now = performance.now();
+    const now = this.now();
     const accepted: typeof data.observations = [];
     for (const result of data.observations) {
       const { id, observation, keyOverlap, contactRevision } = result;
