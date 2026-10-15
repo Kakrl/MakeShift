@@ -126,5 +126,5 @@ export function drawBlackKey(
   fillStyle: string,
 ): void {
   context.strokeStyle = fillStyle;
-  drawWhiteKey(context, key, fillStyle, 0.92);
+  drawWhiteKey(context, key, fillStyle, 0.68);
 }
