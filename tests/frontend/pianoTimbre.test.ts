@@ -154,7 +154,9 @@ describe("piano modal DSP (#175)", () => {
       expect(held.every(Number.isFinite)).toBe(true);
       expect(power(held)).toBeGreaterThan(0);
       s.handle({ type: "note-off", session: 1, press: 1 });
-      expect(render(s, s.voices[0].preset.release).every(Number.isFinite)).toBe(true);
+      expect(render(s, s.voices[0].preset.release).every(Number.isFinite)).toBe(
+        true,
+      );
       expect(s.voices[0].press).toBe(0);
       expect(power(render(s, 128))).toBe(0);
     }
@@ -189,8 +191,11 @@ describe("piano modal DSP (#175)", () => {
       ).toBe(true);
     }
   });
-  it("bounds rapid retriggers and malformed events without changing active state", () => {
-    for (const rate of [44100, 48000, 96000]) {
+  // Offline correctness stress, not a wall-clock DSP performance threshold.
+  // Keep each rate independently reportable and allow shared CI runner overhead.
+  it.each([44100, 48000, 96000])(
+    "bounds rapid retriggers and malformed events without changing active state at %i Hz",
+    (rate) => {
       const s = start(rate);
       const output = new Float32Array(128);
       for (let p = 2; p < 1000; p++) {
@@ -221,6 +226,7 @@ describe("piano modal DSP (#175)", () => {
       expect(s.voices.map((v) => v.press)).toEqual(presses);
       s.handle({ type: "reset", session: 2 });
       expect(power(render(s, 128))).toBe(0);
-    }
-  });
+    },
+    15000,
+  );
 });

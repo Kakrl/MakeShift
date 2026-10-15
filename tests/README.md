@@ -2,6 +2,16 @@
 
 ## Piano timbre verification (issue #175)
 
+CI timeout follow-up 2026-10-14: the [frontend job at e6de2fa](https://github.com/Kakrl/MakeShift/actions/runs/38662133296/job/116185643600)
+failed when the combined three-rate rapid-retrigger case took 5058 ms against
+Vitest's default 5000 ms timeout; no assertion failure was reported. Each rate
+now runs as a separate case with a 15000 ms offline-test timeout. The same
+999 presses per rate, malformed-event checks and reset checks are retained;
+this timeout is not a real-time DSP performance threshold. Local full-suite
+verification after integrating the updated PR branch passed 510 cases across
+26 files with one existing skip;
+all fourteen piano-modal cases passed. New Actions execution is pending.
+
 PR #202 review follow-up, local execution 2026-10-14 on the same Windows/Node
 host: equal effective cutoff endpoints now use a fixed filter and zero pitch
 tracking. The regression checks every pitch preset, constant filter coefficients,
