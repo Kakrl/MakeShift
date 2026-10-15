@@ -116,6 +116,8 @@ MakeShift/
 │   │   ├── browserAudio.test.ts      # production DSP offline rendering
 │   │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   │   ├── browserAudio.browser.mjs  # production browser graph check
+│   │   ├── pianoTimbre.test.ts       # piano modal envelopes/filter/spectra/lifecycle
+│   │   ├── pianoProfile.browser.mjs  # paired synchronous browser DSP benchmark
 │   │   ├── deployment.browser.mjs    # production assets, camera recovery, offline playing
 │   │   ├── homePage.test.ts
 │   │   ├── supabaseHealth.test.ts    # /api/health database check
@@ -132,6 +134,8 @@ MakeShift/
 │   │   ├── storage.test.ts           # versioned localStorage module
 │   │   └── check-contrast.mjs
 │   ├── python/
+│   │   ├── test_piano_sheets.py    # rendered PDF/ArUco/assembly checks
+│   │   ├── piano_sheet_requirements.txt # optional PDF verification tools
 │   │   ├── latency_estimate.py      # software latency estimator
 │   │   ├── latency_estimate.example.json # metadata and explicit allowances
 │   │   ├── test_latency_estimate.py # synthetic estimator regression cases

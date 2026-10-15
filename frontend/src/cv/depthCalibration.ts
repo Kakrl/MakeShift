@@ -12,6 +12,7 @@ export const DEPTH_CALIBRATION_STORAGE_KEY = "depthCalibrationLines";
 
 export type DepthCalibrationPosition =
   (typeof DEPTH_CALIBRATION_POSITIONS)[number];
+export type CalibrationHand = "Right" | "Left";
 
 export const DEPTH_FINGERS = [
   "thumb",
@@ -35,7 +36,6 @@ export interface DepthLandmark {
   y: number;
   z?: number;
 }
-
 export interface DepthObservation {
   handedness: "Right" | "Left" | "Unknown";
   sheetY: number;
@@ -57,15 +57,13 @@ export interface DepthLine {
 export type DepthLineCoefficients = Pick<DepthLine, "slope" | "intercept">;
 
 export interface DepthCalibrationModel {
-  hand: "Right";
+  hand: CalibrationHand;
   knuckleLines: Readonly<Record<DepthFinger, DepthLine>>;
   zLines: Readonly<Record<DepthFinger, DepthLine>>;
   samplesByPosition: Readonly<Record<DepthCalibrationPosition, DepthCalibrationSample>>;
 }
 
-export interface PersistedDepthCalibration {
-  version: 1;
-  hand: "Right";
+export interface PersistedDepthHandCalibration {
   knuckleDistances: Readonly<
     Record<DepthCalibrationPosition, number>
   >;
@@ -80,9 +78,21 @@ export interface PersistedDepthCalibration {
   >;
 }
 
+export interface PersistedDepthCalibration {
+  version: 2;
+  hands: Readonly<Record<CalibrationHand, PersistedDepthHandCalibration | null>>;
+}
+
 export interface CaptureResult {
   accepted: boolean;
-  reason?: "right-hand-required" | "invalid-observation";
+  reason?: "hand-required" | "invalid-observation";
+}
+
+export function getHandDepthCalibration(
+  calibration: PersistedDepthCalibration | null,
+  hand: CalibrationHand,
+): PersistedDepthHandCalibration | null {
+  return calibration?.hands[hand] ?? null;
 }
 
 function isFiniteNumber(value: number): boolean {
@@ -130,14 +140,15 @@ export function getFingertipZs(
     : null;
 }
 
-/** Build a sample from one right-hand detection captured by the button. */
+/** Build a sample from one hand detection captured by the button. */
 export function makeDepthObservation(
   landmarks: readonly DepthLandmark[],
   handedness: DepthObservation["handedness"],
   sheetY: number,
   fingertipSheetYs: readonly number[],
+  expectedHand: CalibrationHand = "Right",
 ): DepthObservation | null {
-  if (handedness !== "Right" || !isFiniteNumber(sheetY)) return null;
+  if (handedness !== expectedHand || !isFiniteNumber(sheetY)) return null;
 
   const knuckleDistance = getKnuckleDistance(landmarks);
   const fingertipZs = getFingertipZs(landmarks);
@@ -172,7 +183,7 @@ export function isBeyondDepthBoundary(
  * Distances outside the captured calibration range are not contact evidence.
  */
 export function getKnuckleBoundaryY(
-  calibration: PersistedDepthCalibration,
+  calibration: PersistedDepthHandCalibration,
   finger: DepthFinger,
   knuckleDistance: number,
   allowOutside = false,
@@ -234,9 +245,10 @@ function fitLine(
     (sum, sample) => sum + (getDepth(sample) - meanDepth) ** 2,
     0,
   );
-  if (denominator === 0) return null;
-
-  const slope = numerator / denominator;
+  // Identical or nearly identical depth readings still form a usable flat
+  // boundary. Rejecting them here forced the entire five-position capture to
+  // restart even when the player had completed every position correctly.
+  const slope = denominator > 1e-12 ? numerator / denominator : 0;
   const intercept = meanY - slope * meanDepth;
   return {
     slope,
@@ -251,7 +263,7 @@ function summarizeSamples(
 ): DepthCalibrationSample {
   return {
     position,
-    handedness: "Right",
+    handedness: samples[0].handedness,
     sheetY: median(samples.map((sample) => sample.sheetY)),
     knuckleDistance: median(samples.map((sample) => sample.knuckleDistance)),
     fingertipSheetYs: DEPTH_FINGERS.map((_, index) =>
@@ -288,12 +300,14 @@ export class DepthCalibrationCollector {
     DepthCalibrationSample[]
   >();
 
+  constructor(private readonly hand: CalibrationHand = "Right") {}
+
   capture(
     position: DepthCalibrationPosition,
     observation: DepthObservation,
   ): CaptureResult {
-    if (observation.handedness !== "Right") {
-      return { accepted: false, reason: "right-hand-required" };
+    if (observation.handedness !== this.hand) {
+      return { accepted: false, reason: "hand-required" };
     }
 
     const values = [
@@ -347,7 +361,7 @@ export class DepthCalibrationCollector {
     if (!knuckleLines || !zLines) return null;
 
     return {
-      hand: "Right",
+      hand: this.hand,
       knuckleLines,
       zLines,
       samplesByPosition: summaries,
@@ -356,17 +370,15 @@ export class DepthCalibrationCollector {
 }
 
 export function toPersistedDepthCalibration(
-  model: DepthCalibrationModel,
+  models: Readonly<Record<CalibrationHand, DepthCalibrationModel>>,
 ): PersistedDepthCalibration {
-  return {
-    version: 1,
-    hand: model.hand,
+  const persistHand = (model: DepthCalibrationModel): PersistedDepthHandCalibration => ({
     knuckleDistances: Object.fromEntries(
       DEPTH_CALIBRATION_POSITIONS.map((position) => [
         position,
         model.samplesByPosition[position].knuckleDistance,
       ]),
-    ) as PersistedDepthCalibration["knuckleDistances"],
+    ) as PersistedDepthHandCalibration["knuckleDistances"],
     knuckleBoundaryYs: Object.fromEntries(
       DEPTH_FINGERS.map((finger, fingerIndex) => [
         finger,
@@ -377,7 +389,7 @@ export function toPersistedDepthCalibration(
           ]),
         ),
       ]),
-    ) as PersistedDepthCalibration["knuckleBoundaryYs"],
+    ) as PersistedDepthHandCalibration["knuckleBoundaryYs"],
     knuckleLines: Object.fromEntries(
       DEPTH_FINGERS.map((finger) => [
         finger,
@@ -386,7 +398,7 @@ export function toPersistedDepthCalibration(
           intercept: model.knuckleLines[finger].intercept,
         },
       ]),
-    ) as PersistedDepthCalibration["knuckleLines"],
+    ) as PersistedDepthHandCalibration["knuckleLines"],
     zLines: Object.fromEntries(
       DEPTH_FINGERS.map((finger) => [
         finger,
@@ -395,8 +407,21 @@ export function toPersistedDepthCalibration(
           intercept: model.zLines[finger].intercept,
         },
       ]),
-    ) as PersistedDepthCalibration["zLines"],
-  };
+    ) as PersistedDepthHandCalibration["zLines"],
+  });
+  return { version: 2, hands: { Right: persistHand(models.Right), Left: persistHand(models.Left) } };
+}
+
+function parseHandCalibration(candidate: Record<string, unknown>): PersistedDepthHandCalibration | null {
+  const knuckleDistances = candidate.knuckleDistances as Record<string, unknown> | undefined;
+  const knuckleBoundaryYs = candidate.knuckleBoundaryYs as Record<string, Record<string, unknown>> | undefined;
+  const knuckleLines = candidate.knuckleLines as Record<string, unknown> | undefined;
+  const zLines = candidate.zLines as Record<string, unknown> | undefined;
+  if (!knuckleDistances || !knuckleBoundaryYs || !knuckleLines || !zLines) return null;
+  if (!DEPTH_CALIBRATION_POSITIONS.every((p) => typeof knuckleDistances[p] === "number" && Number.isFinite(knuckleDistances[p]))) return null;
+  if (!DEPTH_CALIBRATION_POSITIONS.every((p) => DEPTH_FINGERS.every((f) => typeof knuckleBoundaryYs[f]?.[p] === "number" && Number.isFinite(knuckleBoundaryYs[f]?.[p])))) return null;
+  if (!DEPTH_FINGERS.every((f) => hasLine(knuckleLines[f]) && hasLine(zLines[f]))) return null;
+  return candidate as unknown as PersistedDepthHandCalibration;
 }
 
 function hasLine(value: unknown): value is DepthLineCoefficients {
@@ -420,51 +445,19 @@ export function parsePersistedDepthCalibration(
     const value: unknown = JSON.parse(raw);
     if (!value || typeof value !== "object") return null;
     const candidate = value as Record<string, unknown>;
-    if (candidate.version !== 1 || candidate.hand !== "Right") return null;
-    if (
-      !candidate.knuckleDistances ||
-      !candidate.knuckleBoundaryYs ||
-      !candidate.knuckleLines ||
-      !candidate.zLines
-    ) {
-      return null;
+    if (candidate.version === 2 && candidate.hands && typeof candidate.hands === "object") {
+      const hands = candidate.hands as Record<string, unknown>;
+      const right = hands.Right && typeof hands.Right === "object" ? parseHandCalibration(hands.Right as Record<string, unknown>) : null;
+      const left = hands.Left && typeof hands.Left === "object" ? parseHandCalibration(hands.Left as Record<string, unknown>) : null;
+      if (!right) return null;
+      return { version: 2, hands: { Right: right, Left: left } };
     }
-
-    const knuckleDistances = candidate.knuckleDistances as Record<
-      string,
-      unknown
-    >;
-    const knuckleBoundaryYs = candidate.knuckleBoundaryYs as Record<
-      string,
-      Record<string, unknown>
-    >;
-    const knuckleLines = candidate.knuckleLines as Record<string, unknown>;
-    const zLines = candidate.zLines as Record<string, unknown>;
-    const hasAllKnuckleDistances = DEPTH_CALIBRATION_POSITIONS.every(
-      (position) =>
-        typeof knuckleDistances[position] === "number" &&
-        Number.isFinite(knuckleDistances[position]),
-    );
-    const hasAllKnuckleBoundaryYs = DEPTH_CALIBRATION_POSITIONS.every(
-      (position) =>
-        DEPTH_FINGERS.every(
-          (finger) =>
-            typeof knuckleBoundaryYs[finger]?.[position] === "number" &&
-            Number.isFinite(knuckleBoundaryYs[finger]?.[position]),
-        ),
-    );
-    const hasAllLines = DEPTH_FINGERS.every(
-      (finger) => hasLine(knuckleLines[finger]) && hasLine(zLines[finger]),
-    );
-    if (
-      !hasAllKnuckleDistances ||
-      !hasAllKnuckleBoundaryYs ||
-      !hasAllLines
-    ) {
-      return null;
+    // Preserve existing right-hand calibration until the user completes the new left step.
+    if (candidate.version === 1 && candidate.hand === "Right") {
+      const right = parseHandCalibration(candidate);
+      return right ? { version: 2, hands: { Right: right, Left: null } } : null;
     }
-
-    return value as PersistedDepthCalibration;
+    return null;
   } catch {
     return null;
   }
