@@ -98,7 +98,10 @@ export class LegacySynth {
     selected.step =
       (2 * Math.PI * (440 * 2 ** ((event.note - 69) / 12))) / this.rate;
     // Above Nyquist is intentionally silent rather than an aliased wrong pitch.
-    selected.gain = selected.step < Math.PI ? event.velocity * 0.08 : 0;
+    // Shape audio only; shared and recorded velocities remain unchanged.
+    // Ten coherent full-level voices sum to at most 0.95 before the clamp.
+    // Calculate once at onset, leaving the render loop unchanged.
+    selected.gain = selected.step < Math.PI ? 0.095 * event.velocity ** 1.5 : 0;
     selected.level = 0;
     selected.releasing = false;
     selected.elapsed = 0;
@@ -307,7 +310,7 @@ export class Synth extends LegacySynth {
       sum += w;
     }
     for (let p = 0; p < 16; p++) v.weights[p] /= sum || 1;
-    v.gain = event.velocity * 0.08;
+    v.gain = 0.095 * event.velocity ** 1.5;
     v.stage = "attack";
     v.age = v.elapsed = v.level = 0;
     v.fast = v.slow = 1;
