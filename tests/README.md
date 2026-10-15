@@ -1,5 +1,101 @@
 # MakeShift Testing
 
+## Piano timbre verification (issue #175)
+
+CI timeout follow-up 2026-10-14: the [frontend job at e6de2fa](https://github.com/Kakrl/MakeShift/actions/runs/38662133296/job/116185643600)
+failed when the combined three-rate rapid-retrigger case took 5058 ms against
+Vitest's default 5000 ms timeout; no assertion failure was reported. Each rate
+now runs as a separate case with a 15000 ms offline-test timeout. The same
+999 presses per rate, malformed-event checks and reset checks are retained;
+this timeout is not a real-time DSP performance threshold. Local full-suite
+verification after integrating the updated PR branch passed 510 cases across
+26 files with one existing skip;
+all fourteen piano-modal cases passed. New Actions execution is pending.
+
+PR #202 review follow-up, local execution 2026-10-14 on the same Windows/Node
+host: equal effective cutoff endpoints now use a fixed filter and zero pitch
+tracking. The regression checks every pitch preset, constant filter coefficients,
+finite nonzero held output, release and retirement at 8/48/96 kHz. All twelve
+piano-modal cases passed; the full suite passed 500 cases across 25 files with
+one existing skip. Lint, TypeScript, all 37 contrast pairs and the normal
+Turbopack production build passed. Deployment, keyboard-layout and audio browser
+checks passed in headless Edge 155.0.4283.45 with fake media; soft/loud graph RMS
+was approximately 0.003739/0.010006. Audible hardware was not measured by these
+runners. Chromium and new Actions execution evidence remain pending.
+
+Local execution 2026-10-13 on Windows 10.0.26200, Node 22.20.0,
+Vitest 4.1.11. The default production DSP now has decaying modal piano voices;
+explicit legacy mode retains the sine/ADSR baseline. Existing pitch-only
+zero-crossing oracles intentionally remain baseline regressions, while
+pianoTimbre.test.ts covers the new default with spectral and state checks.
+The velocity estimator DSP test now asserts stronger fast strikes rather
+than the exact sine amplitude ratio because velocity also changes timbre.
+
+Frontend lint, TypeScript, 37 contrast pairs and production build passed.
+The final full suite passed **495 cases across 25 files**, including eleven
+piano-modal cases. Production audio,
+deployment and keyboard-layout checks passed against port 3175 in headless
+Edge 155.0.4283.45 with fake media. Soft/loud piano graph RMS was approximately
+0.003707/0.010006; Stop, suspension/re-enable and navigation cleanup passed.
+Chromium could not launch (`spawn UNKNOWN`), so its local result remains pending.
+Database was unconfigured. The browser threshold changes account for decaying,
+normalized timbre; they establish output presence, not acoustic quality.
+
+The paired synchronous browser DSP benchmark covered 44.1/48/96 kHz single
+notes, chords and rapid stealing; see [the complete timing table and limits](../docs/performance.md#piano-paired-dsp-profile-175-2026-10-13).
+Real AudioWorklet deadline/dropout stress with simultaneous live CV remains
+pending. The provisional 16-sample control interval has no listening-quality
+pass claim for that interval. Carl Xu reported on 2026-10-13 that the piano
+sounds good and responds swiftly: a qualitative user-reported listening pass.
+The [listening/reference report](manual/2026-10-13_PT-03.md) is PARTIAL;
+individual structured steps, reference comparison and exact listening environment
+remain pending. Physical latency/dynamics remain
+unverified. Existing CI invokes Vitest and the three production browser runners;
+new Actions execution evidence is pending. The paired profile runs manually.
+## Piano-sheet verification (issue #187)
+
+Local Windows execution on 2026-10-13, Python 3.12.14, reportlab 4.4.9,
+OpenCV 5.0.0, pypdf 6.10.0, Pillow 12.3.0, NumPy 2.5.4 and pytest 9.1.1:
+five rendered-PDF cases passed in `tests/python/test_piano_sheets.py`.
+The full Python suite passed (30 cases), Ruff passed for `backend/src`,
+`tests` and the generator, and mypy passed for the five backend source files.
+They check deterministic committed assets, Letter dimensions, actual-size
+key boundaries, zero-left-margin extension, 18 mm canonical marker payloads
+and orientation, 3 mm quiet rings, and two-/three-sheet opaque overlaps.
+OpenCV detects exactly IDs 0-3 on each assembly; interior marker footprints
+are entirely white after overlap. Both final pages were rendered with Poppler
+and visually inspected. Physical printing and webcam detection remain pending.
+
+Install `tests/python/piano_sheet_requirements.txt` and Poppler on PATH to
+run these optional checks. Missing tools skip explicitly. CI discovers the
+test file through pytest but does not install the optional PDF toolchain;
+no CI execution pass is claimed. See [printing/trim instructions](../docs/piano_sheet.md).
+## Calibration workflow
+
+Local macOS execution on 2026-10-11, Node 24.2.0, Vitest 4.1.11:
+
+- All 481 tests across 23 files passed; all 15 calibration workflow tests passed.
+- Frontend lint, TypeScript, all 37 contrast pairs and production build passed.
+- The five-step wizard goes from paper alignment directly to five depth
+  captures for each hand. Each position requires the corresponding detected
+  hand, and the final capture supplies the required rest landmarks. Legacy hover samples remain
+  accepted but are optional and are not written by new calibration captures.
+- Real camera/printed-sheet verification remains unverified.
+
+### Hand-detector recovery follow-up (2026-10-14)
+
+Local macOS execution, Node 24.2.0, Vitest 4.1.11:
+
+- `cd frontend && npx vitest run ../tests/frontend/calibrationWorkflow.test.tsx`:
+  **16 tests passed**, including failed hand-detector initialization followed
+  by Reload and successful readiness. The error and retry control are shown in
+  depth step 4; capture stays disabled until the detector is ready.
+- Targeted ESLint checks for `frontend/src/app/calibration/page.tsx` and
+  `tests/frontend/calibrationWorkflow.test.tsx` passed. `git diff --check`
+  passed.
+- Full frontend suite, build, Actions execution and real camera verification
+  were not run for this follow-up.
+
 ## Finger-speed velocity verification (issue #28)
 
 Local Windows execution on 2026-10-07, Node 22.20.0, Vitest 4.1.11,
@@ -103,9 +199,10 @@ Local Windows 11 Home 10.0.26200, Node 22.20.0, Vitest 4.1.11 execution on
 - `keyboardLayout.test.ts`: physical 23.5 mm key pitch, 8/15/22 hit regions,
   overlap/marker proportions, all MIDI bounds, invalid inputs and unchanged
   full range under explicit paper-fit override. These are synthetic points.
-- `calibrationWorkflow.test.tsx`: 14 passing cases follow the actual five depth
-  buttons; complete hover/rest landmarks and both records are saved before
-  navigation. Missing hands/markers and storage failures block completion.
+- `calibrationWorkflow.test.tsx`: 15 passing cases cover the five-step wizard
+  and its five depth buttons; complete rest landmarks and both records are
+  saved before navigation. Missing hands/markers and storage failures block
+  completion. There is no separate hover capture step.
   One/two/three-octave selection, starting-C bounds, override and invalidation
   are covered. The old five `it.fails` cases are restored as normal regressions.
 - Live-session/real-overlay fixtures verify immediate held-note release,
@@ -710,7 +807,7 @@ defect report is filed.
 | D3 | Medium | CI | The Vitest suite (4.1.3-4.1.7, 4.2.3) is not run in CI. `frontend-ci.yml` runs lint, type check, contrast, and build, but not `vitest run`, so MIDI regressions merge undetected | `.github/workflows/frontend-ci.yml` | [#152](https://github.com/Kakrl/MakeShift/issues/152) | Fixed in [#158](https://github.com/Kakrl/MakeShift/pull/158) |
 | D4 | Medium | CI | The C++ test path filter `'CMakeLists.txt'` only matches a root-level file. A PR that only changes `backend/CMakeLists.txt` skips the C++ build and tests. It should be `'**/CMakeLists.txt'` | `.github/workflows/testing.yml:29` | | Open |
 | D5 | Medium | Tests | `AudioEngineTest.StreamStartsAndStops` and `MultipleStartStopCycles` `return` early when there is no audio device, so on CI they report PASS without testing anything. Use `GTEST_SKIP()` so the skip shows in results | `tests/audio/test_audio.cpp:24-27`, `:35-38` | | Open |
-| D6 | Medium | Calibration | Versioned geometry/camera/layout and hover/rest inputs replace the boolean; live compatibility gates reuse. Manual calibration checklist passed (Carl Xu, user-reported 2026-09-28). | `frontend/src/cv/calibration.ts`, `frontend/src/app/calibration/page.tsx` | [#87](https://github.com/Kakrl/MakeShift/issues/87) | Manual verification passed (user-reported); review/merge pending |
+| D6 | Medium | Calibration | Versioned geometry/camera/layout and rest inputs replace the boolean; live compatibility gates reuse. Manual calibration checklist passed (Carl Xu, user-reported 2026-09-28). | `frontend/src/cv/calibration.ts`, `frontend/src/app/calibration/page.tsx` | [#87](https://github.com/Kakrl/MakeShift/issues/87) | Manual verification passed (user-reported); review/merge pending |
 | D7 | Medium | CV / performance | Remaining automatic CV telemetry and detector debug logging at #140 base; older per-frame logs were already removed upstream. #38 replaces telemetry with opt-in bounded reports and removes debug logging. | `frontend/src/diagnostics/performanceMetrics.ts`, `frontend/src/cv/markerDetector.ts`; [diagnostics](../docs/performance.md) | [#149](https://github.com/Kakrl/MakeShift/issues/149) | Fixed on feature/38-pipeline-metrics; verified locally, merge pending |
 | D8 | Medium | Audio | Calling `AudioEngine::startStream()` twice overwrites `stream` without closing it, which leaks the first PortAudio stream. `Pa_GetDeviceInfo` is dereferenced without a null check | `backend/src/audio/AudioEngine.cpp:89-119` | | Open |
 | D9 | Medium | Audio / Python | Importing `backend.src.audio` builds an `AudioEngine` and calls `Pa_Initialize()` as a side effect. Any import (including from pytest) touches audio hardware and fails if the extension is not built. The example in `docs/audio_events.md` creates a second engine | `backend/src/audio/__init__.py:3-5` | | Open |
@@ -725,8 +822,10 @@ defect report is filed.
 | D18 | High | MIDI / UI | Runtime path alias points midi-writer-js at a declarations-only file, so final Export throws on undefined Track and produces no download (Req 4.2) | `frontend/tsconfig.json` | [#140](https://github.com/Kakrl/MakeShift/issues/140) | Fix verified locally in [#141](https://github.com/Kakrl/MakeShift/pull/141); review/merge pending |
 | D19 | Medium | CI | The `Vercel preview` workflow fails on every fork PR: `actions/checkout` refuses fork code in `pull_request_target` unless the step sets `allow-unsafe-pr-checkout: true`, so labeling `preview-link` never deploys | `.github/workflows/preview.yml:33-39` | [#160](https://github.com/Kakrl/MakeShift/issues/160) | Open |
 | D20 | High | UI | (Req 3.1, 3.2, 4.2, 6.2) Merge `30706c4` (PR #98) resolved `page.tsx` by keeping the branch's older JSX, dropping the welcome and Calibration intro modals, count-in overlay, Recording Complete banner, Delete confirmation, calibration prompt, `CameraStatusOverlay`, and the aria-live region. The home Calibration tab and Delete button did nothing. ESLint flagged the orphaned state only as warnings | `frontend/src/app/page.tsx` | [#112](https://github.com/Kakrl/MakeShift/issues/112) | Fixed in [#113](https://github.com/Kakrl/MakeShift/pull/113) |
-| D22 | Medium | Calibration | Final depth sheet-check exception removed capture/Next controls. Reset collector/index on exception and retain hover for retry. | `frontend/src/app/calibration/page.tsx` | [#178](https://github.com/Kakrl/MakeShift/issues/178) | Fixed in PR #177; local 6.2.3 regression passed; CI/merge pending |
+| D22 | Medium | Calibration | Final depth sheet-check exception removed capture/Next controls. Reset collector/index on exception so all five depth positions can be retried. | `frontend/src/app/calibration/page.tsx` | [#178](https://github.com/Kakrl/MakeShift/issues/178) | Fixed in PR #177; local 6.2.3 regression passed; CI/merge pending |
 | D21 | High | Calibration | (Req 6.2, 1.1, 2.1) #148 replaced the reachable result capture with depth buttons and navigated before validation/save. Final depth capture now creates the primary result; completion retains its model and saves both records before navigation. 6.2.3's expected failures are restored as passing regressions. | `frontend/src/app/calibration/page.tsx` | [#162](https://github.com/Kakrl/MakeShift/issues/162) | Fix verified locally 2026-10-06; review/merge and physical check pending |
+
+| D23 | Medium | Audio | (Req 2.4, related 2.2) User reports high-velocity strikes are not loud enough and wants more apparent velocity dynamics. Listening report 2026-10-14; cause and hardware verification pending. | `frontend/src/cv/fingerVelocity.ts`, `frontend/public/audio/synth.js` | [#209](https://github.com/Kakrl/MakeShift/issues/209) | DSP tuning implemented locally; [verification and listening limits](manual/2026-10-14_209-velocity.md); user confirmed audible velocity changes locally 2026-10-14; measured trials/chord distortion checks pending |
 
 ## Root Cause Analysis Log
 
@@ -736,6 +835,7 @@ comment after merge. Link the issue before the comment exists.
 
 | Defect | Issue | Severity | Root Cause (one line) | Fix PR | Regression Test | RCA Date | Author |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| Calibration can become stuck after depth validation fails | [#194](https://github.com/Kakrl/MakeShift/issues/194) | High | #177 added final calibration checks, but failure returns left the depth capture index outside the five-position list; backward navigation also discarded the primary result while retaining completed depth models. | [#195](https://github.com/Kakrl/MakeShift/pull/195) | 6.2.3 — `tests/frontend/calibrationWorkflow.test.tsx`; retry after final camera-settings validation failure and back/forward navigation after both hand captures; frontend CI | 2026-10-14 | Francis Ozua (Codex-assisted) |
 | Calibration completion loses validated result | [#162](https://github.com/Kakrl/MakeShift/issues/162) | High | Replacing step five with depth buttons bypassed primary-result creation; completion cleared the model and navigated before validation/save. | [#177](https://github.com/Kakrl/MakeShift/pull/177) | 6.2.3 — `tests/frontend/calibrationWorkflow.test.tsx`, 14 normal workflow regressions run in `frontend-ci.yml`; local execution linked above | 2026-10-06 | Carl Xu (Codex-assisted) |
 
 | MIDI recording lifecycle and origin-chord export | [#88](https://github.com/Kakrl/MakeShift/issues/88) | High | UI-only controls and retained writable tracks caused D2/D11; subsequent writer mocks missed falsy tick-zero handling and duplicate end markers, while UI booleans misreported paused capture. | [#173](https://github.com/Kakrl/MakeShift/pull/173) | 4.2.3 real-writer `recordingExport.test.ts` and production MIDI download; 3.2.2/4.1.2 `recordingControls.test.tsx`; Vitest runs in frontend-ci.yml | 2026-10-05 | Carl Xu (Codex-assisted) |
@@ -1451,3 +1551,42 @@ added to this guide and the inventory. Lint, TypeScript, all 18 contrast pairs
 and production build passed. Vitest: 280 passed and five existing expected
 failures across 15 files. No new test cases; browser checks were not repeated
 for this consolidation.
+
+### Device profile verification (issue #125, 2026-10-10)
+
+Windows, production Chromium 151.0.7922.34: new browser ID, trimmed saved
+display name, reload persistence, and name changes preserving the ID passed
+using the real home sidebar and localStorage. Vitest: 488 tests passed across
+24 files, including seven profile cases. Lint, TypeScript, all 37 contrast
+checks, production build, and browser audio smoke passed. Home/recording test
+dynamic-import fixtures now render the real profile panel. Browser restart,
+cross-browser profile behavior, and physical camera/audio remain unverified.
+Initial deployment browser check stalled; diagnosed 2026-10-11 below.
+Actions evidence pending.
+
+### Local deployment camera diagnosis (2026-10-11)
+
+On Windows with Chromium 151.0.7922.34, the default fake-camera preview did not
+advance: video readiness was 4 but currentTime stayed zero. A standalone video
+on /audio reproduced the failure without CV processing. Adding `--disable-gpu`
+to a temporary copy of the deployment runner restored 60 frame callbacks over
+three seconds. All original deployment assertions then passed on a fresh
+production server at port 3001: five assets, five pages, three local audio rounds
+with zero note requests, unconfigured database, and camera denial/retry/loss/
+recovery. The temporary runner was removed; the committed default runner was
+not changed. This verifies software capture with GPU disabled, not physical
+camera behavior or hardware GPU correctness. A pre-existing server at port
+3000 separately timed out during home MediaPipe initialization.
+
+### Device profile review fixes (2026-10-14)
+
+PR #189: profile saves reread storage, preserve an existing saved ID, return the
+reconciled profile, and update panel state from that result. The empty-ID
+fixture uses the actual direct storage shape and asserts a generated replacement.
+Windows: lint, TypeScript, 489 Vitest tests in 24 files, 37 contrast checks and
+production build passed. Chromium 151.0.7922.34 against production port 3189
+passed the actual two-tab initial-quota-failure/retry sequence and reload,
+keyboard layout and audio smoke. All deployment assertions passed with the
+previously diagnosed local --disable-gpu workaround in a removed temporary
+runner; the committed runner is unchanged. Physical hardware was not measured.
+Actions execution for this follow-up is unverified.

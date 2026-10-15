@@ -189,7 +189,7 @@ export default function CvVideoReplayPage() {
           video.videoWidth, video.videoHeight);
         const contactStartedMs = performance.now();
         if (pipeline.processFrame({ video, hands, fingertips, whiteKeys,
-          calibration: depthModels.Right ?? depthModels.Left,
+          calibration: depthModels,
           previewFingerId: null })) shadowSamplesSubmitted += 1;
         const wallEndMs = performance.now();
         const contactMs = wallEndMs - contactStartedMs;

@@ -10,6 +10,7 @@ import {
   makeDepthObservation,
   toPersistedDepthCalibration,
   type DepthCalibrationPosition,
+  type DepthCalibrationModel,
   type DepthLandmark,
   type PersistedDepthCalibration,
 } from "./depthCalibration";
@@ -230,8 +231,8 @@ export function parseCvVideoCase(value: unknown): CvVideoCase {
 /** Build one production calibration model for each hand with complete samples. */
 export function buildDepthCalibrations(
   videoCase: CvVideoCase,
-): Readonly<Record<"Right" | "Left", PersistedDepthCalibration | null>> {
-  const models: Record<"Right" | "Left", PersistedDepthCalibration | null> = {
+): PersistedDepthCalibration {
+  const models: Record<"Right" | "Left", DepthCalibrationModel | null> = {
     Right: null,
     Left: null,
   };
@@ -270,9 +271,9 @@ export function buildDepthCalibrations(
     if (!model) {
       throw new Error(`${hand} calibration does not span enough knuckle and Z values`);
     }
-    models[hand] = toPersistedDepthCalibration(model);
+    models[hand] = model;
   }
-  return models;
+  return toPersistedDepthCalibration(models);
 }
 
 export function annotationsToTransitions(

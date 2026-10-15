@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Synth } from "../../frontend/public/audio/synth.js";
 
 function synth(rate = 48000) {
-  const engine = new Synth(rate);
+  const engine = new Synth(rate, { mode: "legacy" });
   engine.handle({ type: "reset", session: 1 });
   return engine;
 }
@@ -54,21 +54,21 @@ describe("production browser synthesis offline", () => {
         ).toBeLessThan(0.1);
         expect([...output].every(Number.isFinite)).toBe(true);
         expect(rms(output.subarray(rate))).toBeCloseTo(
-          (0.08 * 0.7) / Math.sqrt(2),
+          (0.095 * 0.7) / Math.sqrt(2),
           3,
         );
       });
     }
   }
 
-  it("scales amplitude linearly with velocity and uses a smooth attack and release", () => {
+  it("widens velocity dynamics and uses a smooth attack and release", () => {
     const soft = synth(),
       loud = synth();
     on(soft, 1, 69, 0.25);
     on(loud, 1, 69, 0.75);
     const a = render(soft),
       b = render(loud);
-    expect(rms(b) / rms(a)).toBeCloseTo(3, 5);
+    expect(rms(b) / rms(a)).toBeCloseTo(3 ** 1.5, 5);
     expect(rms(a.subarray(0, 100))).toBeLessThan(rms(a.subarray(1000, 1100)));
     loud.handle({ type: "note-off", session: 1, press: 1 });
     const tail = render(loud, 4000);
@@ -90,8 +90,47 @@ describe("production browser synthesis offline", () => {
     expect(engine.voices[0].releasing).toBe(false);
     const output = render(engine);
     expect(
-      output.every((value) => Number.isFinite(value) && Math.abs(value) <= 0.8),
+      output.every(
+        (value) => Number.isFinite(value) && Math.abs(value) <= 0.95,
+      ),
     ).toBe(true);
+  });
+
+  it("keeps dynamics monotonic and full-level chords below the safety clamp", () => {
+    let previous = 0;
+    for (let step = 1; step <= 100; step++) {
+      const velocity = step / 100;
+      const engine = synth();
+      on(engine, 1, 69, velocity);
+      const level = rms(render(engine).subarray(24000));
+      expect(level).toBeGreaterThan(previous);
+      previous = level;
+      expect(level).toBeCloseTo(
+        (0.095 * velocity ** 1.5 * 0.7) / Math.sqrt(2),
+        6,
+      );
+    }
+    for (const rate of [8000, 44100, 48000, 96000, 192000, 384000]) {
+      // Coherent repeated pitches bound the worst case; also render a chord.
+      for (const notes of [
+        Array(10).fill(69),
+        [48, 52, 55, 60, 64, 67, 72, 76, 79, 84],
+      ]) {
+        const engine = new Synth(rate, { sustain: 1 });
+        engine.handle({ type: "reset", session: 1 });
+        notes.forEach((note, index) => on(engine, index + 1, note));
+        const output = render(engine, rate);
+        expect(
+          output.every(
+            (value) => Number.isFinite(value) && Math.abs(value) <= 0.950001,
+          ),
+        ).toBe(true);
+        expect(rms(output)).toBeGreaterThan(0.1);
+      }
+    }
+    expect(
+      20 * Math.log10(previous / ((0.08 * 0.7) / Math.sqrt(2))),
+    ).toBeCloseTo(1.493, 2);
   });
 
   it("reuses released voices and preserves phase across render blocks", () => {
@@ -139,7 +178,7 @@ describe("production browser synthesis offline", () => {
 
 describe("sample-timed ADSR envelopes (#27)", () => {
   function configured(rate: number, options = {}) {
-    const engine = new Synth(rate, options);
+    const engine = new Synth(rate, { mode: "legacy", ...options });
     engine.handle({ type: "reset", session: 1 });
     on(engine, 1);
     return engine;
@@ -163,12 +202,12 @@ describe("sample-timed ADSR envelopes (#27)", () => {
         engine.render(sample);
         expect(voice.level).toBeCloseTo(expected, 12);
         expect(sample[0]).toBeCloseTo(
-          Math.sin(((i - 1) * 2 * Math.PI * 440) / rate) * expected * 0.08,
+          Math.sin(((i - 1) * 2 * Math.PI * 440) / rate) * expected * 0.095,
           6,
         );
         // Carrier slope plus the larger envelope slope bounds every boundary.
         expect(Math.abs(sample[0] - previous)).toBeLessThanOrEqual(
-          0.08 * ((2 * Math.PI * 440) / rate + 1 / a) + 1e-7,
+          0.095 * ((2 * Math.PI * 440) / rate + 1 / a) + 1e-7,
         );
         previous = sample[0];
       }
@@ -179,7 +218,7 @@ describe("sample-timed ADSR envelopes (#27)", () => {
         engine.render(sample);
         expect(voice.level).toBeCloseTo(0.7 * (1 - i / r), 12);
         expect(Math.abs(sample[0] - previous)).toBeLessThanOrEqual(
-          0.08 * ((2 * Math.PI * 440) / rate + 0.7 / r) + 1e-7,
+          0.095 * ((2 * Math.PI * 440) / rate + 0.7 / r) + 1e-7,
         );
         previous = sample[0];
         expect(voice.press).toBe(i === r ? 0 : 1);
@@ -270,13 +309,13 @@ describe("sample-timed ADSR envelopes (#27)", () => {
           render(engine, 23);
         }
         const oldSample =
-          Math.sin(engine.voices[0].phase) * engine.voices[0].level * 0.08;
+          Math.sin(engine.voices[0].phase) * engine.voices[0].level * 0.095;
         const other = { ...engine.voices[1] };
         on(engine, 11);
         expect(engine.voices[0].level).toBe(0);
         expect(engine.voices[0].phase).toBe(0);
         expect(engine.voices[0].stage).toBe("attack");
-        expect(Math.abs(oldSample)).toBeLessThanOrEqual(0.08); // Explicit hard-cut discontinuity bound.
+        expect(Math.abs(oldSample)).toBeLessThanOrEqual(0.095); // Explicit hard-cut discontinuity bound.
         expect(Math.abs(oldSample)).toBeGreaterThan(0); // It is not a seamless crossfade.
         expect(engine.voices[1]).toEqual(other);
         off(engine, 1);

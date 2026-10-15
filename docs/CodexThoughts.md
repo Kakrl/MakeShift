@@ -54,6 +54,27 @@ to be idempotent across sessions or users. A local calibrated residual and
 temporal hysteresis are more defensible than interpreting `z` as height above
 the paper.
 
+**Current status:** MediaPipe fingertip `z` is captured during depth
+calibration. The persisted per-finger `zLines` map fingertip z to expected
+sheet Y; they are calibrated z-dependent position boundaries, not metric
+contact-depth values. The live controller now has a per-finger z history and a
+predicted-contact state. With knuckle and shadow techniques enabled, decreasing
+z across three observations plus crossing the calibrated zLine starts note-on;
+fresh shadow evidence must confirm within 150 ms or the provisional note is
+released. The current configuration enables knuckles and shadows and leaves z
+prediction disabled. Z-based contact has not been validated for accuracy or
+latency. The standalone contact-score experiment remains separate from the
+live note path.
+
+The saved trial labels support decreasing MediaPipe z as the working direction
+during the move phase after excluding its first four settling/hover samples.
+There is no per-finger movement-delta threshold. The evaluator uses a 150 ms
+history window and currently requires a net decrease; its `Z_LINE_TOLERANCE`
+applies only to the predicted sheet-position boundary and is zero for now.
+Verify the working direction and behavior with clearly labeled trials before
+tuning that tolerance. On tracking loss or eligibility/key changes, discard
+the finger's history and prediction latch.
+
 ### Knuckle-distance depth estimate
 
 Knuckle distance should be treated as a second depth signal alongside
@@ -211,11 +232,11 @@ No single feature should trigger a note. In particular, knuckle scale and
 shadow change should increase confidence only when they agree with fingertip
 location and a plausible press trajectory.
 
-## Implemented contact-score interface
+## Implemented contact-score interface (separate from live path)
 
-The score is implemented as a modular interface. Each heuristic returns a
-confidence value, a weight, and whether its input is available. The current
-heuristic file contains separate entries for:
+The score experiment is implemented as a modular interface. Each heuristic
+returns a confidence value, a weight, and whether its input is available. The
+current heuristic file contains separate entries for:
 
 - key overlap;
 - the `z` boundary;
@@ -227,7 +248,9 @@ heuristic file contains separate entries for:
 The score requires key overlap and at least one supporting heuristic. Missing
 heuristics are skipped rather than treated as evidence against a press. This
 lets each model be implemented and tuned independently while the score keeps
-the same interface.
+the same interface. This interface is not currently connected to the live
+contact state machine; in particular, neither its z-boundary nor motion
+heuristic currently predicts live note-on.
 
 The current shape is:
 
@@ -244,9 +267,9 @@ to the live detection pipeline.
 
 ## Current depth-calibration flow
 
-The current prototype uses the right hand for calibration, then reuses the
-result for either hand during playing. The user presses a capture button while
-holding the touching hand at five positions:
+The calibration flow captures the right hand, then the left hand, each in its
+own five-position step. At runtime, each detected hand uses only its matching
+calibration. The user presses a capture button while holding that hand at:
 
 ```text
 top-left -> top-right -> bottom-left -> bottom-right -> center
@@ -258,6 +281,11 @@ by knuckle distance and used to predict the fingertip boundary `y`. The corner
 and center locations therefore provide more samples for that distance-to-
 boundary curve; they are not yet used as a two-dimensional surface. The
 current prototype uses normalized image `y` for this boundary experiment.
+
+Saved depth calibration is version 2 and contains independent right- and
+left-hand models. Existing version 1 data is read as right-hand-only until the
+user completes the left-hand step; the right model is never substituted for a
+missing left model.
 
 ## Knuckle heuristic tuning notes
 
