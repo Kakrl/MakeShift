@@ -79,10 +79,13 @@ No application geometry or calibration schema change is needed.
 In calibration, choose **1, 2 or 3 octaves**, the starting pitch assigned to
 the leftmost printed C, and the number of octaves actually assembled on paper.
 The application exposes 8, 15 or 22 white-key hit regions and maps those same
-keys to audio, MIDI and highlights. Black rectangles are visual references;
-black-key contact/pitch mapping remains #25. Starting C choices are restricted
-so the highest key never exceeds MIDI 127. If increasing the range would exceed
-the limit, the starting C moves to the highest valid C automatically.
+keys to audio, MIDI and highlights. Black rectangles are also projected and
+used for contact selection; black-key identities map to chromatic pitches
+through the existing audio/MIDI interface. Automated and physical verification
+remain pending; see the [black-key plan](black_keys_plan.md). Starting C
+choices are restricted so the highest key never exceeds MIDI 127. If increasing
+the range would exceed the limit, the starting C moves to the highest valid C
+automatically.
 
 When the selected range exceeds the assembled paper, calibration warns and
 blocks advancement until you add sheets or explicitly allow the full range to

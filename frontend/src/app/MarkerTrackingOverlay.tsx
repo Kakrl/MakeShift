@@ -52,7 +52,7 @@ import {
 } from "../cv/homography";
 import type { MarkerDetectionResult } from "../cv/types";
 import type { Point } from "../cv/types";
-import { keyIndexToMidi } from "../cv/noteMap";
+import { blackKeyIndexToMidi, keyIndexToMidi } from "../cv/noteMap";
 import { DEFAULT_LAYOUT, type KeyboardLayout } from "../cv/keyboardLayout";
 import {
   recordMarkerDetection,
@@ -770,10 +770,10 @@ export default function MarkerTrackingOverlay({
       });
 
       projectedBlackKeys.forEach((key, index) => {
-        const isCollided = highlightedKeyIndexes.includes(
-          layout.whiteKeys + index,
-        );
-        drawBlackKey(context, key, isCollided ? info : ink);
+        const pitch = blackKeyIndexToMidi(index, layout);
+        const isPlaying = pitch !== null && activePitches.has(pitch);
+        const isCollided = collidedKeys.has(layout.whiteKeys + index);
+        drawBlackKey(context, key, isCollided || isPlaying ? info : ink);
       });
 
       if (

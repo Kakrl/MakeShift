@@ -1,6 +1,7 @@
-import { keyIndexToMidi } from "../cv/noteMap";
+import { pianoKeyIndexToMidi } from "../cv/noteMap";
 import type { LiveSession } from "./liveSession";
 
+/** Region index: white keys first, then black keys in octave order. */
 export type KeyPress = Readonly<{ keyIndex: number; velocity: number }>;
 
 /** One producer belongs to one session; delayed callbacks cannot adopt a new ID.
@@ -12,7 +13,7 @@ export function createKeyEventProducer(session: LiveSession, sessionId: string) 
   return (pressed: readonly KeyPress[], released: readonly number[], timestampMs: number) => {
     if (session.sessionId !== sessionId) return;
     for (const keyIndex of released) {
-      const pitch = keyIndexToMidi(keyIndex, layout);
+      const pitch = pianoKeyIndexToMidi(keyIndex, layout);
       const pressId = keys.get(keyIndex);
       if (pitch === null || pressId === undefined) continue;
       const result = session.noteOff(sessionId, pressId, pitch, timestampMs);
@@ -20,7 +21,7 @@ export function createKeyEventProducer(session: LiveSession, sessionId: string) 
       keys.delete(keyIndex);
     }
     for (const { keyIndex, velocity } of pressed) {
-      const pitch = keyIndexToMidi(keyIndex, layout);
+      const pitch = pianoKeyIndexToMidi(keyIndex, layout);
       if (pitch === null || keys.has(keyIndex)) continue;
       const pressId = ++press;
       const result = session.noteOn(sessionId, pressId, pitch, velocity, timestampMs);
