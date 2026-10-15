@@ -28,10 +28,10 @@ can be closed even while its module is loading.
 
 Ten voice records are preallocated. For MIDI note n, frequency is
 `440 * 2 ** ((n - 69) / 12)` Hz at the actual worklet sample rate.
-Each voice is a sine wave with peak amplitude `0.08 * velocity`; velocity
+Each voice is a sine wave with peak amplitude `0.095 * velocity ** 1.5` (#209); velocity
 must be finite and in (0, 1]. Invalid notes/velocities are rejected rather than
-clamped. A threefold velocity gives threefold amplitude (about 9.54 dB).
-Ten full-velocity in-phase voices peak at 0.8; the final mix also clamps to
+clamped. A threefold velocity gives 5.196-fold amplitude (about 14.31 dB). The curve is applied once at onset; estimator and MIDI values remain unchanged.
+Ten full-velocity in-phase voices are bounded by 0.95 even at sustain 1; the final mix also clamps to
 [-1, 1]. Frequencies at or above Nyquist are silent rather than aliased.
 
 ### ADSR contract (#27)
@@ -72,11 +72,11 @@ Free slots are reused first; otherwise the oldest press is immediately replaced,
 even during release. Stealing resets phase/level and starts a new attack without
 changing other voices. A late note-off for the stolen press cannot release its
 replacement. This hard cut can click: the removed single-voice contribution is
-bounded by 0.08. It is tested as a hard transition, not a seamless crossfade.
+bounded by 0.095. It is tested as a hard transition, not a seamless crossfade.
 Reset and terminal release-all retain their immediate-silence safety semantics.
 
 The envelope scales the sine oscillator; envelopes alone do not provide realistic
-piano timbre. Steady amplitude is now `0.08 * velocity * 0.7` by default.
+piano timbre. Steady amplitude is now `0.095 * velocity ** 1.5 * 0.7` by default.
 
 Rendering visits at most ten voices per sample, allocates no buffers or voice
 objects, and performs no logging, waiting, network access, or React updates.
@@ -139,3 +139,9 @@ CV detection accuracy, user volume controls, or MIDI behavior. Browser tests
 are local, not yet in CI. Record a listening check with the manual template:
 enable audio, compare soft/loud A4, listen to the chord, stop, suspend/resume
 and navigate away. Do not mark hardware audibility passed from graph samples.
+
+## Velocity tuning (#209)
+
+The previous peak was 0.08 times velocity. The new power curve uses more headroom for strong strikes and widens soft-to-loud contrast without render-loop allocations. Maximum strikes gain 1.49 dB; coherent ten-voice peaks retain at least 0.45 dB headroom. This conservative increase needs listening verification on the actual output device. Register balancing and estimator thresholds are unchanged.
+
+See the [dated verification/listening report](../tests/manual/2026-10-14_209-velocity.md) for before/after digital levels and the pending hardware procedure. Digital RMS does not establish acoustic SPL or physical latency.

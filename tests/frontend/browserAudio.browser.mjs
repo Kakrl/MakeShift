@@ -69,7 +69,7 @@ const { chromium } = requireFromFrontend("playwright");
     await page.getByRole("button", { name: "Loud A4" }).click();
     await page.waitForTimeout(150);
     const loud = await readRms();
-    assert(Math.abs(loud / soft - 3) < 0.1);
+    assert(Math.abs(loud / soft - 3 ** 1.5) < 0.1);
     await page.getByRole("button", { name: "Stop sound" }).click();
     await page.waitForTimeout(100);
     await page.getByRole("button", { name: "Ten-note chord" }).click();
