@@ -29,8 +29,22 @@ try {
   await page.locator("#clip").setInputFiles(videoPath);
   await page.locator("#sidecar").setInputFiles(sidecarPath);
   await page.getByRole("button", { name: "Run replay" }).click();
-  await page.getByRole("status").filter({ hasText: "Replay complete" })
-    .waitFor({ timeout: 10 * 60 * 1000 });
+  const status = page.getByRole("status");
+  const deadline = Date.now() + 10 * 60 * 1000;
+  let previousStatus = "";
+  while (Date.now() < deadline) {
+    const currentStatus = await status.innerText();
+    if (currentStatus !== previousStatus) {
+      process.stdout.write(`${currentStatus}\n`);
+      previousStatus = currentStatus;
+    }
+    if (currentStatus === "Replay complete") break;
+    if (currentStatus.startsWith("Replay failed:")) {
+      throw new Error(currentStatus);
+    }
+    await page.waitForTimeout(1000);
+  }
+  assert.equal(previousStatus, "Replay complete", "CV replay timed out");
   assert.deepEqual(pageErrors, [], "CV replay must not throw browser errors");
   const output = JSON.parse(await page.locator("pre").innerText());
   const outputJson = JSON.stringify(output, null, 2);

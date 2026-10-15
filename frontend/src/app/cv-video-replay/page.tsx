@@ -176,7 +176,7 @@ export default function CvVideoReplayPage() {
     <label>Video <input id="clip" type="file" accept="video/mp4,video/*" /></label>
     <label style={{ marginLeft: 16 }}>Sidecar <input id="sidecar" type="file" accept="application/json,.json" /></label>
     <button type="button" onClick={() => void runReplay().catch((error: unknown) =>
-      setStatus(error instanceof Error ? error.message : String(error)))}>
+      setStatus(`Replay failed: ${error instanceof Error ? error.message : String(error)}`))}>
       Run replay
     </button>
     <p role="status">{status}</p>

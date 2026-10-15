@@ -311,12 +311,14 @@ set `CV_RESULT_FILE` to save them. The sidecar's `framesPerSecond` must match
 the clip's constant frame rate. Real labeled clips and frame-seek validation
 remain necessary before accuracy reporting.
 
-Local verification on 2026-10-12: all five CV evaluation Vitest cases passed,
-TypeScript and targeted ESLint passed, and `npm run build` compiled the new
-route. The page loaded without browser errors in system Google Chrome through
-Playwright. Playwright's bundled Chromium is unavailable on this macOS version,
-and no labeled MP4 clips are present, so full replay and accuracy results remain
-pending.
+Local verification on 2026-10-15: all five CV evaluation Vitest cases passed,
+the production build succeeded, and the first labeled MOV replay completed in
+Google Chrome. The 288-frame clip processed at 7.79 FPS; inference duration was
+66 ms median, 67.3 ms p95 and 225.1 ms maximum. Press scoring matched 2/8
+labels (15.4% precision, 25% recall); release scoring matched 0/8 (0% precision
+and recall). This is one fast ordered run with current production contact
+settings, not a live-performance or population accuracy result. The clip and
+sidecar are in `tests/automation/CV Test Videos/`.
 
 ## Per-finger contact state verification
 
