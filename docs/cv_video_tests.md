@@ -55,10 +55,17 @@ the report; otherwise it is printed to the terminal.
 ## Read the report
 
 The replay pauses the video, seeks through frames in order, and advances the
-contact pipeline's clock using video time. It reports detected transitions
-and scores presses and releases separately. Each score includes matched,
-unmatched, precision, and recall counts. Frame performance includes processed
-FPS and median, p95, and maximum hand-inference and total CV processing times.
+contact pipeline's clock using video time. It requests the MediaPipe GPU
+delegate and falls back to CPU if GPU initialization fails. The report records
+the selected delegate and WebGL renderer. ArUco detection follows the live
+250 ms acquisition / 10 s recheck cadence, retaining the last usable key
+geometry between scans.
+
+The report includes every detected transition, matched and unmatched expected
+and predicted events, and scores presses and releases separately. It also
+includes per-frame seek, marker, geometry, inference, contact-pipeline and
+total-CV timings, plus aggregate median, p95 and maximum values. Save the
+complete output with `CV_RESULT_FILE` to inspect all frames and transitions.
 
 The current score matches transitions by key and press/release type. Although
 the sidecar records hand and finger, finger attribution is not scored yet. The
@@ -68,7 +75,6 @@ not currently measure normal-speed frame drops or physical press-to-sound
 latency. Check the [full measurement plan](cv_automated_testing.md) before
 interpreting results.
 
-The example template and the five automated evaluation-core cases are useful
-for setup checks, but no labeled video has been scored yet. Validate that
-browser seeking selects the intended encoded frame on your clips before using
-their scores as an accuracy ceiling.
+The five automated evaluation-core cases cover parser and scoring setup.
+Validate that browser seeking selects the intended encoded frame on each clip
+before using its scores as an accuracy ceiling.

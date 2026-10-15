@@ -18,7 +18,11 @@ import {
 import { getFingertips, type HandObservation } from "../../cv/collision";
 import { LiveContactPipeline } from "../../cv/liveContactPipeline";
 import { MarkerDetector } from "../../cv/markerDetector";
-import { PAGE_CORNERS } from "../../cv/calibration";
+import {
+  MARKER_ACQUIRE_INTERVAL_MS,
+  MARKER_CHECK_INTERVAL_MS,
+  PAGE_CORNERS,
+} from "../../cv/calibration";
 import { computeHomography, projectPoint } from "../../cv/homography";
 import { getWhiteKeyPolygons } from "../../cv/keyboardGeometry";
 import { DEFAULT_LAYOUT, type KeyboardLayout } from "../../cv/keyboardLayout";
@@ -66,6 +70,7 @@ export default function CvVideoReplayPage() {
     const url = URL.createObjectURL(videoFile);
     const video = document.querySelector("#video") as HTMLVideoElement;
     let landmarker: HandLandmarker | null = null;
+    let handLandmarkerDelegate: "GPU" | "CPU" = "GPU";
     let markerDetector: MarkerDetector | null = null;
     let pipeline: LiveContactPipeline | null = null;
     let replayTimeMs = 0;
@@ -79,10 +84,19 @@ export default function CvVideoReplayPage() {
       video.pause();
 
       const handVision = await FilesetResolver.forVisionTasks(WASM_PATH);
-      landmarker = await HandLandmarker.createFromOptions(handVision, {
-        baseOptions: { modelAssetPath: VISION_MODEL },
-        runningMode: "VIDEO", numHands: 2,
-      });
+      try {
+        landmarker = await HandLandmarker.createFromOptions(handVision, {
+          baseOptions: { modelAssetPath: VISION_MODEL, delegate: "GPU" },
+          runningMode: "VIDEO", numHands: 2,
+        });
+      } catch (gpuError) {
+        console.warn("GPU hand tracking unavailable; falling back to CPU", gpuError);
+        handLandmarkerDelegate = "CPU";
+        landmarker = await HandLandmarker.createFromOptions(handVision, {
+          baseOptions: { modelAssetPath: VISION_MODEL },
+          runningMode: "VIDEO", numHands: 2,
+        });
+      }
       markerDetector = await MarkerDetector.create();
       const canvas = document.querySelector("#frame") as HTMLCanvasElement;
       canvas.width = video.videoWidth;
@@ -105,26 +119,61 @@ export default function CvVideoReplayPage() {
       if (labeledEnd > lastFrame) {
         throw new Error(`Labeled end frame ${labeledEnd} exceeds clip frame ${lastFrame}`);
       }
-      setStatus(`Replaying ${lastFrame + 1} frames through MediaPipe and CV...`);
+      setStatus(`Replaying ${lastFrame + 1} frames through MediaPipe and CV (${handLandmarkerDelegate})...`);
 
+      const frameStages: Array<{
+        frame: number;
+        mediaTimeMs: number;
+        seekMs: number;
+        markerMs: number;
+        geometryMs: number;
+        inferenceMs: number;
+        contactMs: number;
+        totalCvMs: number;
+      }> = [];
+      let lastMarkerDetectionMs = -Infinity;
+      let markerAcquired = false;
+      let markerDetectionCount = 0;
+      let cachedWhiteKeys: Point[][] | null = null;
+      const replayStartedMs = performance.now();
       for (let frame = 0; frame <= lastFrame; frame += 1) {
         const mediaTimeMs = frame * 1000 / videoCase.framesPerSecond;
+        const seekStartedMs = performance.now();
         await seekFrame(video, mediaTimeMs);
+        const seekMs = performance.now() - seekStartedMs;
         replayTimeMs = mediaTimeMs;
         const wallStartMs = performance.now();
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const markers = markerDetector.detect(canvas);
-        const markerCenters = [0, 1, 2, 3].map((id) =>
-          markers.observations.find((observation) => observation.id === id)?.center,
-        );
-        let whiteKeys: Point[][] | null = null;
-        if (markerCenters.every((point): point is Point => point !== undefined)) {
-          const homography = computeHomography(PAGE_CORNERS, markerCenters);
-          if (homography) whiteKeys = getWhiteKeyPolygons(layout).map((key) =>
-            key.map((point) => projectPoint(homography, point))
-              .filter((point): point is Point => point !== null),
+        let markerMs = 0;
+        let geometryMs = 0;
+        const markerIntervalMs = markerAcquired
+          ? MARKER_CHECK_INTERVAL_MS : MARKER_ACQUIRE_INTERVAL_MS;
+        if (mediaTimeMs - lastMarkerDetectionMs >= markerIntervalMs) {
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const markerStartedMs = performance.now();
+          const markers = markerDetector.detect(canvas);
+          markerMs = performance.now() - markerStartedMs;
+          markerDetectionCount += 1;
+          lastMarkerDetectionMs = mediaTimeMs;
+          const markerCenters = [0, 1, 2, 3].map((id) =>
+            markers.observations.find((observation) => observation.id === id)?.center,
           );
+          const geometryStartedMs = performance.now();
+          if (markerCenters.every((point): point is Point => point !== undefined)) {
+            const homography = computeHomography(PAGE_CORNERS, markerCenters);
+            if (homography) {
+              const candidateKeys = getWhiteKeyPolygons(layout).map((key) =>
+                key.map((point) => projectPoint(homography, point)),
+              );
+              if (candidateKeys.every((key) =>
+                key.every((point): point is Point => point !== null))) {
+                cachedWhiteKeys = candidateKeys as Point[][];
+                markerAcquired = true;
+              }
+            }
+          }
+          geometryMs = performance.now() - geometryStartedMs;
         }
+        const whiteKeys = cachedWhiteKeys;
         const inferenceStartMs = performance.now();
         const prediction = landmarker.detectForVideo(video, mediaTimeMs);
         const inferenceMs = performance.now() - inferenceStartMs;
@@ -136,12 +185,16 @@ export default function CvVideoReplayPage() {
         }));
         const fingertips = getFingertips(hands.map((hand) => hand.landmarks),
           video.videoWidth, video.videoHeight);
+        const contactStartedMs = performance.now();
         pipeline.processFrame({ video, hands, fingertips, whiteKeys,
           calibration: depthModels.Right ?? depthModels.Left,
           previewFingerId: null });
         const wallEndMs = performance.now();
+        const contactMs = wallEndMs - contactStartedMs;
         timings.push({ frame, mediaTimeMs, wallStartMs, wallEndMs,
           processMs: wallEndMs - wallStartMs, inferenceMs, result: null });
+        frameStages.push({ frame, mediaTimeMs, seekMs, markerMs, geometryMs,
+          inferenceMs, contactMs, totalCvMs: wallEndMs - wallStartMs });
         const activeKeyIndexes = new Set<number>();
         for (const [id, contact] of pipeline.contacts) {
           if (!contact.active) continue;
@@ -155,11 +208,34 @@ export default function CvVideoReplayPage() {
       const transitions = transitionsFromFrames(keys).filter((transition) =>
         transition.frame >= labeledStart && transition.frame <= labeledEnd,
       );
+      const replayElapsedMs = performance.now() - replayStartedMs;
+      const graphicsCanvas = document.createElement("canvas");
+      const graphics = graphicsCanvas.getContext("webgl2") ??
+        graphicsCanvas.getContext("webgl");
+      const debugInfo = graphics?.getExtension("WEBGL_debug_renderer_info");
       const output = { clip: videoCase.video, processedFrames: lastFrame + 1,
+        runtime: {
+          handLandmarkerDelegate,
+          webGlAvailable: graphics !== null,
+          webGlVendor: debugInfo ? graphics?.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) : null,
+          webGlRenderer: debugInfo ? graphics?.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : null,
+        },
         transitions,
         scores: scoreTransitions(videoCase.events, transitions, 1),
-        performance: summarizeFramePerformance(timings),
-        replayMode: "ordered-paused-frame-stepping" };
+        performance: { ...summarizeFramePerformance(timings),
+          replayElapsedMs,
+          replayFps: (lastFrame + 1) * 1000 / replayElapsedMs,
+          steadyStateReplayFps: frameStages.length > 1
+            ? (frameStages.length - 1) * 1000 /
+              (replayElapsedMs - frameStages[0].seekMs - frameStages[0].totalCvMs)
+            : null,
+          markerDetectionCount,
+          markerAcquired,
+          markerAcquireIntervalMs: MARKER_ACQUIRE_INTERVAL_MS,
+          markerCheckIntervalMs: MARKER_CHECK_INTERVAL_MS,
+          frameStages },
+        contactTechniques: pipeline.techniques,
+        replayMode: "ordered-paused-frame-stepping-with-live-marker-cadence" };
       setResult(JSON.stringify(output, null, 2));
       setStatus("Replay complete");
     } finally {

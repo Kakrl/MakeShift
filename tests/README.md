@@ -303,22 +303,29 @@ They validate annotations, build knuckle/Z calibration models from raw
 landmarks for both hands, derive press/release transitions, and match events
 one-to-one by key. For real clips, start the production app and run
 `CV_VIDEO_FILE=/path/clip.mp4 CV_SIDECAR_FILE=/path/clip.json npm run test:cv-video`.
-The Playwright harness at `/cv-video-replay` uses the browser's MP4 decoder,
+The Playwright harness at `/cv-video-replay` uses the browser's video decoder,
 MediaPipe hand landmarker, ArUco marker detector and live contact pipeline.
 It steps through the clip while paused, preserves frame order, scores
-transitions, and reports inference and processing time. Results go to stdout;
-set `CV_RESULT_FILE` to save them. The sidecar's `framesPerSecond` must match
-the clip's constant frame rate. Real labeled clips and frame-seek validation
-remain necessary before accuracy reporting.
+transitions, and reports every transition plus per-frame stage timings. It
+requests MediaPipe's GPU delegate and falls back to CPU if unavailable. Marker
+detection follows the live 250 ms acquisition / 10 s check cadence and keeps
+the last usable geometry. Results go to stdout; set `CV_RESULT_FILE` to save
+the complete JSON report. The sidecar's `framesPerSecond` must match the clip's
+constant frame rate. Validate browser seeking against encoded frames before
+using scores as an accuracy ceiling.
 
 Local verification on 2026-10-15: all five CV evaluation Vitest cases passed,
 the production build succeeded, and the first labeled MOV replay completed in
-Google Chrome. The 288-frame clip processed at 7.79 FPS; inference duration was
-66 ms median, 67.3 ms p95 and 225.1 ms maximum. Press scoring matched 2/8
-labels (15.4% precision, 25% recall); release scoring matched 0/8 (0% precision
-and recall). This is one fast ordered run with current production contact
-settings, not a live-performance or population accuracy result. The clip and
-sidecar are in `tests/automation/CV Test Videos/`.
+Google Chrome on Apple M2. MediaPipe selected GPU with the Metal WebGL renderer.
+With overlap-only contact (`knuckles: false`, `shadows: false`), all 288 frames
+processed at 29.3 FPS including the first frame, and 30.6 FPS after it; median
+inference was 18.6 ms. The replay performed one ArUco scan (63.9 ms) during
+the 9.6 s clip. Presses matched 5/8 labels (8.2% precision, 62.5% recall);
+releases matched 2/8 (3.3% precision, 25% recall). The overlap-only run
+produced 122 transitions, so false transitions were common. This is one fast
+ordered run, not a live-performance or population accuracy result. The full
+109 KB report, including all transitions and per-frame stage times, is
+[`cv_automated_test_1.results.json`](automation/CV%20Test%20Videos/cv_automated_test_1.results.json).
 
 ## Per-finger contact state verification
 
