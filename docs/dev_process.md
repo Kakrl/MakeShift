@@ -128,6 +128,7 @@ MakeShift/
 │   │   ├── cameraLayout.browser.mjs # home camera feed 16:9 across viewports
 │   │   ├── keyboardLayout.test.ts   # physical layout proportions and MIDI bounds
 │   │   ├── keyBoundary.test.ts      # projected key interior and gray-band geometry
+│   │   ├── liveContactPipeline.test.ts # active finger key ownership and boundary switching
 │   │   ├── keyboardLayout.browser.mjs # production layout/override/persistence controls
 │   │   ├── midiUtils.test.ts
 │   │   ├── storage.test.ts           # versioned localStorage module

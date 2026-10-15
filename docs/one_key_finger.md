@@ -47,35 +47,33 @@ a starting value for later camera testing and tuning.
 - `fingerState.test.ts` covers assignment, retention, and clearing.
 
 **Done:** the finger's key index follows its contact lifecycle without being
-stored in a second ownership map. This step seeds it from the first existing
-overlap result; Step 3 will apply the gray-boundary rule.
+stored in a second ownership map. On a new press it starts from the existing
+overlap result; Step 3 applies the gray-boundary rule during an active press.
 
 ### 3. Apply the boundary rule during a press
 
-- In `liveContactPipeline.ts`, keep the current press logic for a finger with
-  no assigned key.
-- For a finger with an assigned key, keep that key while the fingertip is in
-  the gray band.
-- When the fingertip enters another key's interior, update the finger's key
-  index to that key.
-- Make sure a single finger contributes at most one key at any time.
-- Add pipeline tests for staying on a key, boundary jitter, switching to
-  another key, and release grace.
+- `liveContactPipeline.ts` keeps the current press logic for a finger without
+  an assigned key.
+- An active finger keeps its current key while in the gray band. The pipeline
+  preserves active contact when the overlap list changes.
+- The finger switches keys only after entering another key's interior.
+- `liveContactPipeline.test.ts` covers boundary jitter, switching, and normal
+  hover behavior.
 
-**Done when:** one finger cannot activate two keys, and it does not switch
-while in the gray band.
+**Done:** one finger owns one key; overlap changes do not reset its contact,
+and it switches only in another key's interior.
 
 ### 4. Connect key ownership to output
 
-- Update `MarkerTrackingOverlay.tsx` to read the active key from each
-  `Finger`, rather than treating every polygon overlap as pressed.
-- Preserve key aggregation: multiple fingers may contribute to the same key,
-  and the key stays active until all of them release it.
-- Preserve velocity selection when multiple fingers contribute to one key.
-- Add integration coverage for two fingers on the same key and for one finger
-  switching keys.
+- `MarkerTrackingOverlay.tsx` now reads each active key from `Finger.keyIndex`
+  rather than treating every polygon overlap as pressed.
+- Multiple fingers still aggregate to one active key. The key stays active
+  until all of them release it, and the strongest finger velocity is kept.
+- Integration tests cover one fingertip overlapping two keys, one finger
+  moving to another key, and multiple fingers sharing a key.
 
-**Done when:** key press and release events match the per-finger assignments.
+**Done:** output and highlights use `Finger.keyIndex`; pipeline tests cover
+gray-band retention and switching.
 
 ### 5. Record and verify the change
 
@@ -86,4 +84,5 @@ while in the gray band.
 **Done when:** implementation, tests, inventory, and verification evidence
 agree.
 
-This describes planned behavior. It is not implemented yet.
+Steps 1 through 5 are complete. Physical camera behavior remains to be
+verified separately.
