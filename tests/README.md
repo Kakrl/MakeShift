@@ -422,6 +422,19 @@ Local execution on macOS, 2026-10-04, Node 24.2.0 and Vitest 4.1.11:
   no manifest or lockfile changes were made. Actions execution evidence is
   pending.
 
+### Key ownership lifecycle follow-up (issue #181)
+
+Local macOS execution on 2026-10-14, Node 24.2.0, Vitest 4.1.11:
+
+- `cd frontend && npx vitest run ../tests/frontend/fingerState.test.ts`:
+  **11 tests passed**. The added cases verify that a key is assigned only when
+  the finger becomes active, remains assigned through overlap changes and
+  release grace, and is cleared after release, tracking timeout, or reset.
+- Targeted ESLint passed for `finger.ts` and `fingerState.test.ts`; TypeScript
+  passed with `cd frontend && npx tsc --noEmit`.
+- Key assignment remains internal to `Finger` in this step. Output wiring and
+  boundary-based switching are not covered yet.
+
 ## Marker acquisition and geometry retention verification
 
 Local execution on 2026-10-04, Node 24.2.0 and Vitest 4.1.11:

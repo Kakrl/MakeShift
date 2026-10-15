@@ -38,15 +38,17 @@ a starting value for later camera testing and tuning.
 
 ### 2. Give `Finger` key ownership
 
-- Add a current key index to `Finger` in `finger.ts`.
-- Assign it when the existing contact logic first makes the finger active.
-- Keep it through pressed and releasing states, including release grace.
-- Clear it when the contact becomes inactive or unavailable, and when the
+- `Finger` now has a `keyIndex` field.
+- It is assigned when the existing contact logic first makes the finger
+  active, and kept through pressed and releasing states, including release
+  grace.
+- It is cleared when contact becomes inactive or unavailable, or when the
   finger or pipeline resets.
-- Add state tests for assignment, retention, and clearing.
+- `fingerState.test.ts` covers assignment, retention, and clearing.
 
-**Done when:** the finger's key index follows its contact lifecycle without
-being stored in a second ownership map.
+**Done:** the finger's key index follows its contact lifecycle without being
+stored in a second ownership map. This step seeds it from the first existing
+overlap result; Step 3 will apply the gray-boundary rule.
 
 ### 3. Apply the boundary rule during a press
 
