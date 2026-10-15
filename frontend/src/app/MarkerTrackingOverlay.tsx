@@ -8,6 +8,8 @@ import {
   markerCorners,
 } from "../cv/calibration";
 import {
+  drawBlackKey,
+  getBlackKeyPolygons,
   getWhiteKeyPolygons,
   getPianoCorners,
   pressWhiteKey,
@@ -175,15 +177,18 @@ export default function MarkerTrackingOverlay({
   const homographyRef = useRef<Homography | null>(null);
   const projectedPianoCornersRef = useRef<Point[] | null>(null);
   const projectedWhiteKeysRef = useRef<Point[][] | null>(null);
+  const projectedBlackKeysRef = useRef<Point[][] | null>(null);
   const markerGeometryPolicyRef = useRef(
     new MarkerGeometryPolicy<{
       homography: Homography;
       pianoCorners: Point[];
       whiteKeys: Point[][];
+      blackKeys: Point[][];
     }>(),
   );
   const displayPianoCornersRef = useRef<Point[] | null>(null);
   const displayWhiteKeysRef = useRef<Point[][] | null>(null);
+  const displayBlackKeysRef = useRef<Point[][] | null>(null);
   const markerDetectionRef = useRef<MarkerDetectionResult | null>(null);
   const previousKeysRef = useRef<Set<number>>(new Set());
   const previousHighlightedKeysRef = useRef<Set<number>>(new Set());
@@ -406,8 +411,10 @@ export default function MarkerTrackingOverlay({
     homographyRef.current = null;
     projectedPianoCornersRef.current = null;
     projectedWhiteKeysRef.current = null;
+    projectedBlackKeysRef.current = null;
     displayPianoCornersRef.current = null;
     displayWhiteKeysRef.current = null;
+    displayBlackKeysRef.current = null;
     queueMicrotask(() => {
       if (!cancelled) setMarkerDetection(null);
     });
@@ -478,8 +485,10 @@ export default function MarkerTrackingOverlay({
             homographyRef.current = null;
             projectedPianoCornersRef.current = null;
             projectedWhiteKeysRef.current = null;
+            projectedBlackKeysRef.current = null;
             displayPianoCornersRef.current = null;
             displayWhiteKeysRef.current = null;
+            displayBlackKeysRef.current = null;
             lastDetectionTime = -Infinity;
             videoWasUnavailable = true;
           }
@@ -525,6 +534,7 @@ export default function MarkerTrackingOverlay({
     let homography: Homography | null = null;
     let projectedPianoCorners: Point[] | null = null;
     let projectedWhiteKeys: Point[][] | null = null;
+    let projectedBlackKeys: Point[][] | null = null;
     if (markerDetection?.missingIds.length === 0) {
       const markerCenters = new Map(
         markerDetection.observations.map((observation) => [
@@ -543,12 +553,17 @@ export default function MarkerTrackingOverlay({
         const keys = getWhiteKeyPolygons(layout).map((key) =>
           key.map((corner) => projectPoint(homography!, corner)),
         );
+        const blackKeys = getBlackKeyPolygons(layout).map((key) =>
+          key.map((corner) => projectPoint(homography!, corner)),
+        );
         if (
           piano.every((corner): corner is Point => corner !== null) &&
-          keys.every((key) => key.every((corner) => corner !== null))
+          keys.every((key) => key.every((corner) => corner !== null)) &&
+          blackKeys.every((key) => key.every((corner) => corner !== null))
         ) {
           projectedPianoCorners = piano;
           projectedWhiteKeys = keys as Point[][];
+          projectedBlackKeys = blackKeys as Point[][];
         } else {
           homography = null;
         }
@@ -560,21 +575,25 @@ export default function MarkerTrackingOverlay({
     if (
       (valid || debugShowSheetWithoutCalibration) &&
       projectedPianoCorners &&
-      projectedWhiteKeys
+      projectedWhiteKeys &&
+      projectedBlackKeys
     ) {
       displayPianoCornersRef.current = projectedPianoCorners;
       displayWhiteKeysRef.current = projectedWhiteKeys;
+      displayBlackKeysRef.current = projectedBlackKeys;
     }
-    if (!homography || !projectedPianoCorners || !projectedWhiteKeys) return;
+    if (!homography || !projectedPianoCorners || !projectedWhiteKeys || !projectedBlackKeys) return;
 
     const geometry = markerGeometryPolicyRef.current.observe({
       homography,
       pianoCorners: projectedPianoCorners,
       whiteKeys: projectedWhiteKeys,
+      blackKeys: projectedBlackKeys,
     })!;
     homographyRef.current = geometry.homography;
     projectedPianoCornersRef.current = geometry.pianoCorners;
     projectedWhiteKeysRef.current = geometry.whiteKeys;
+    projectedBlackKeysRef.current = geometry.blackKeys;
   }, [markerDetection, stream, cameraReady, videoRef, onCalibrationObservation, onKeyTransitions, debugShowSheetWithoutCalibration, layout]);
 
   const processContactFrame = useCallback((
@@ -719,8 +738,9 @@ export default function MarkerTrackingOverlay({
 
     const projectedPianoCorners = displayPianoCornersRef.current;
     const projectedWhiteKeys = displayWhiteKeysRef.current;
+    const projectedBlackKeys = displayBlackKeysRef.current;
 
-    if (projectedPianoCorners && projectedWhiteKeys) {
+    if (projectedPianoCorners && projectedWhiteKeys && projectedBlackKeys) {
       context.beginPath();
       projectedPianoCorners.forEach((corner, index) => {
         if (index === 0) context.moveTo(corner.x, corner.y);
@@ -746,6 +766,9 @@ export default function MarkerTrackingOverlay({
         if (isPressed) pressWhiteKey(context, key, danger);
         else releaseWhiteKey(context, key, white);
       });
+
+      context.fillStyle = ink;
+      projectedBlackKeys.forEach((key) => drawBlackKey(context, key, ink));
 
       if (
         showVisualDebug &&
