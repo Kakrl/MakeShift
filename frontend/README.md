@@ -129,3 +129,14 @@ Finished takes are saved locally and listed on the home page. Rename, delete
 in memory with a Not saved label and a retry action; download unsaved takes
 before leaving. The browser chooses the download location. See
 [the library contract](../docs/recordings_library.md).
+
+### Sharing profile (#125)
+
+Set or change your display name in the home sidebar (1-50 Unicode characters).
+The browser saves it with a generated ID at `makeshift:profile:v1`. Reloads and
+name changes keep the ID; clearing site storage or using another browser creates
+a new one. This is not an account or authentication credential. Failed saves
+show an error and can be retried. Upload integration is separate (#133).
+
+Profile saves preserve a valid ID already stored by another tab, including
+retries after initial storage failure. The panel adopts the saved profile.

@@ -26,6 +26,11 @@ import { rainbow } from "./rainbow";
 import { useDialogFocus } from "./useDialogFocus";
 import { isDevMode } from "../debugFlags";
 
+const DeviceProfilePanel = dynamic(
+  () => import("./midi/DeviceProfilePanel"),
+  { ssr: false, loading: () => <p role="status">Loading sharing name...</p> },
+);
+
 const RecordingsLibrary = dynamic(
   () => import("./midi/RecordingsLibraryPanel"),
   { ssr: false, loading: () => <p role="status">Loading recordings...</p> },
@@ -588,7 +593,7 @@ export default function Home() {
             autoPlay
             playsInline
             muted
-            className="absolute inset-0 w-full h-full object-cover"
+            className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
           />
           <CVOverlayCoordinator
             session={session}
@@ -729,6 +734,7 @@ export default function Home() {
           </section>
 
           <div className="mt-[23px] lg:pl-[43px]">
+            <DeviceProfilePanel />
             <RecordingsLibrary ref={recordingsLibraryRef} onStatusChange={updateLibraryStatus} />
           </div>
         </SideNav>

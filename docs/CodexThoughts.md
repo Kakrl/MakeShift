@@ -61,9 +61,10 @@ contact-depth values. The live controller now has a per-finger z history and a
 predicted-contact state. With knuckle and shadow techniques enabled, decreasing
 z across three observations plus crossing the calibrated zLine starts note-on;
 fresh shadow evidence must confirm within 150 ms or the provisional note is
-released. Both techniques are currently disabled in the debug configuration,
-and this path has not been validated for accuracy or latency. The standalone
-contact-score experiment remains separate from the live note path.
+released. The current configuration enables knuckles and shadows and leaves z
+prediction disabled. Z-based contact has not been validated for accuracy or
+latency. The standalone contact-score experiment remains separate from the
+live note path.
 
 The saved trial labels support decreasing MediaPipe z as the working direction
 during the move phase after excluding its first four settling/hover samples.
@@ -266,9 +267,9 @@ to the live detection pipeline.
 
 ## Current depth-calibration flow
 
-The current prototype uses the right hand for calibration, then reuses the
-result for either hand during playing. The user presses a capture button while
-holding the touching hand at five positions:
+The calibration flow captures the right hand, then the left hand, each in its
+own five-position step. At runtime, each detected hand uses only its matching
+calibration. The user presses a capture button while holding that hand at:
 
 ```text
 top-left -> top-right -> bottom-left -> bottom-right -> center
@@ -280,6 +281,11 @@ by knuckle distance and used to predict the fingertip boundary `y`. The corner
 and center locations therefore provide more samples for that distance-to-
 boundary curve; they are not yet used as a two-dimensional surface. The
 current prototype uses normalized image `y` for this boundary experiment.
+
+Saved depth calibration is version 2 and contains independent right- and
+left-hand models. Existing version 1 data is read as right-hand-only until the
+user completes the left-hand step; the right model is never substituted for a
+missing left model.
 
 ## Knuckle heuristic tuning notes
 

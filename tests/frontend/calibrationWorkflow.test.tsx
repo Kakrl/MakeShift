@@ -9,13 +9,15 @@ const fixture = vi.hoisted(() => ({
   markers: true,
   hands: true,
   handStatus: "ready" as "loading" | "ready" | "error",
+  detectedHand: "Right",
   depthCapture: 0,
+  cameraDeviceId: "camera-1",
   push: vi.fn(),
   handReload: vi.fn(),
   camera: {
     stream: {
       getVideoTracks: () => [
-        { readyState: "live", getSettings: () => ({ deviceId: "camera-1" }) },
+        { readyState: "live", getSettings: () => ({ deviceId: fixture.cameraDeviceId }) },
       ],
     },
     cameraReady: true,
@@ -55,7 +57,7 @@ vi.mock("../../frontend/src/app/useHandLandmarker", async () => {
         detect: () => {
           const scale = 0.005 + fixture.depthCapture * 0.005;
           return {
-            handednesses: [[{ categoryName: "Right" }]],
+            handednesses: [[{ categoryName: fixture.detectedHand }]],
             landmarks: fixture.hands ? [Array.from({ length: 21 }, (_, index) => ({
               x: 0.2 + index * scale, y: 0.3 + fixture.depthCapture * 0.05,
               z: -0.01 - fixture.depthCapture * 0.015,
@@ -106,7 +108,9 @@ beforeEach(async () => {
   fixture.markers = true;
   fixture.hands = true;
   fixture.handStatus = "ready";
+  fixture.detectedHand = "Right";
   fixture.depthCapture = 0;
+  fixture.cameraDeviceId = "camera-1";
   fixture.push.mockClear();
   fixture.handReload.mockClear();
   vi.stubGlobal("requestAnimationFrame", (fn: FrameRequestCallback) =>
@@ -182,10 +186,14 @@ async function complete() {
   await paper();
   await click("Check paper");
   await click("Next Step");
-  await depth();
+  await depth("Right");
+  await click("Next Step");
+  await depth("Left");
   await click("Next Step");
 }
-async function depth() {
+async function depth(hand: "Right" | "Left") {
+  fixture.detectedHand = hand;
+  fixture.depthCapture = 0;
   for (const label of ["top-left corner", "top-right corner", "bottom-left corner", "bottom-right corner", "center"]) {
     fixture.depthCapture++;
     await click(`Capture ${label} position`);
@@ -205,13 +213,13 @@ it("requires detected hands before advancing through depth calibration", async (
   await paper();
   await click("Check paper");
   await click("Next Step");
-  expect(host.textContent).toContain("Step 4: Touch the corners and middle");
+  expect(host.textContent).toContain("Step 4: Calibrate the right hand");
   fixture.hands = false;
   await click("Capture top-left corner position");
   expect(find("Next Step")).toBeUndefined();
   expect(loadCalibration()).toBeNull();
   fixture.hands = true;
-  await depth();
+  await depth("Right");
   expect(find("Next Step")).toBeDefined();
 });
 it("recovers from a failed hand-detector load with a successful retry", async () => {
@@ -230,6 +238,35 @@ it("recovers from a failed hand-detector load with a successful retry", async ()
   expect(host.textContent).not.toContain("Hand detector unavailable. Reload to retry.");
   await tick(0);
   expect(find("Capture top-left corner position")?.disabled).toBe(false);
+});
+it("keeps hand calibration progress when going back and resuming", async () => {
+  await paper();
+  await click("Check paper");
+  await click("Next Step");
+  await depth("Right");
+  await click("Next Step");
+
+  fixture.detectedHand = "Left";
+  fixture.depthCapture = 0;
+  for (const label of ["top-left corner", "top-right corner"]) {
+    fixture.depthCapture++;
+    await click(`Capture ${label} position`);
+  }
+
+  await click("Back");
+  expect(host.textContent).toContain("Right hand calibrated!");
+  await click("Next Step");
+  expect(find("Capture bottom-left corner position")).toBeDefined();
+
+  for (const label of ["bottom-left corner", "bottom-right corner", "center"]) {
+    fixture.depthCapture++;
+    await click(`Capture ${label} position`);
+  }
+  expect(find("Next Step")).toBeDefined();
+  await click("Next Step");
+  await click("Start Playing");
+  expect(loadCalibration()?.contact.rest[0]).toHaveLength(21);
+  expect(parsePersistedDepthCalibration(localStorage.getItem("depthCalibrationLines"))).not.toBeNull();
 });
 it("captures both phases and persists a validated result only on completion", async () => {
   await complete();
@@ -259,14 +296,12 @@ it("shows storage recovery and does not navigate on a write failure", async () =
   expect(fixture.push).not.toHaveBeenCalled();
   expect(host.textContent).toContain("Enable browser storage");
 });
-it("checks the sheet again before saving", async () => {
+it("saves with validated paper corners without a second marker scan", async () => {
   await complete();
   fixture.markers = false;
   await click("Start Playing");
-  expect(fixture.push).not.toHaveBeenCalled();
-  expect(loadCalibration()).toBeNull();
-  await click("Restart calibration");
-  expect(host.textContent).toContain("Step 1:");
+  expect(fixture.push).toHaveBeenCalledExactlyOnceWith("/");
+  expect(loadCalibration()?.contact.rest[0]).toHaveLength(21);
 });
 
 async function select(id: string, value: number) {
@@ -353,7 +388,7 @@ it("discards in-progress depth captures when another tab changes configuration",
   expect(find("Capture top-left corner position")).toBeDefined();
 });
 
-it("restarts depth captures after final sheet detection fails and completes on retry", async () => {
+it("does not restart depth captures when markers are missed at the final position", async () => {
   await paper();
   await click("Check paper");
   await click("Next Step");
@@ -364,18 +399,40 @@ it("restarts depth captures after final sheet detection fails and completes on r
   fixture.markers = false;
   fixture.depthCapture++;
   await click("Capture center position");
-  expect(find("Capture top-left corner position")).toBeDefined();
-  expect(find("Next Step")).toBeUndefined();
+  expect(find("Capture top-left corner position")).toBeUndefined();
+  expect(find("Next Step")).toBeDefined();
   expect(loadCalibration()).toBeNull();
   expect(fixture.push).not.toHaveBeenCalled();
 
   fixture.markers = true;
-  fixture.depthCapture = 0;
-  await depth();
+  await click("Next Step");
+  await depth("Left");
   expect(find("Next Step")).toBeDefined();
   await click("Next Step");
   await click("Start Playing");
   expect(loadCalibration()?.contact.rest[0]).toHaveLength(21);
   expect(parsePersistedDepthCalibration(localStorage.getItem("depthCalibrationLines"))).not.toBeNull();
   expect(fixture.push).toHaveBeenCalledExactlyOnceWith("/");
+});
+
+it("keeps the final position available when camera settings changed", async () => {
+  await paper();
+  await click("Check paper");
+  await click("Next Step");
+  for (const label of ["top-left corner", "top-right corner", "bottom-left corner", "bottom-right corner"]) {
+    fixture.depthCapture++;
+    await click(`Capture ${label} position`);
+  }
+
+  fixture.cameraDeviceId = "camera-2";
+  fixture.depthCapture++;
+  await click("Capture center position");
+  expect(host.textContent).toContain("Camera settings changed");
+  expect(find("Capture center position")).toBeDefined();
+  expect(find("Capture top-left corner position")).toBeUndefined();
+
+  fixture.cameraDeviceId = "camera-1";
+  fixture.depthCapture++;
+  await click("Capture center position");
+  expect(find("Next Step")).toBeDefined();
 });

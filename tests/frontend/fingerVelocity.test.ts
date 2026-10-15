@@ -157,7 +157,8 @@ it("estimated fast motion produces a louder production DSP render than slow moti
   const slow = rms(-0.008);
   const fast = rms(-0.032);
   expect(slow).toBeGreaterThan(0);
-  expect(slow / fast).toBeCloseTo(0.36 ** 1.5, 5);
+  expect(slow / fast).toBeGreaterThan(0.15);
+  expect(slow / fast).toBeLessThan(0.6);
   expect(20 * Math.log10(fast / slow)).toBeGreaterThan(5);
 });
 

@@ -40,6 +40,25 @@ and worker overload. Do not claim those tests already exist.
 
 ## Measurement rules
 
+### Piano timbre extension (#175)
+
+PT-1 expands requirement 2.2 with decaying amplitude, independent cutoff and
+bounded evolving partials. PT-01 covers offline production-default envelopes,
+spectra, pitch, anti-aliasing, continuity, filter stability and voice safety.
+Existing 2.2.2/13/14/17 retain explicit legacy-baseline regression coverage;
+2.2.16 exercises the new default in a production browser. PT-02 is a paired
+synchronous browser DSP benchmark, not a real-time deadline result. PT-03
+tracks hardware listening and reference provenance. All are owned by Carl Xu.
+The proposed worklet gate requires warmed p99 below half the actual quantum
+duration and no observed deadline misses/dropouts during sustained live-CV
+stress, with maximum, counts, duration, hardware and instrumentation limits.
+That gate remains unverified until measured in the actual worklet context.
+Physical latency 2.3.1 must include attack and a stated audible-onset threshold;
+report p50/p95/max, fraction at or above 50 ms, uncertainty, startup/warm and
+camera/output conditions against baseline. The under-50 ms target and 2.4.2
+dynamics criterion remain unchanged. No reference recordings are bundled;
+reference licensing/listening verification remains pending.
+
 Issue #30's revised scope requires reproducible software estimation, explicit
 unknowns/assumptions and sensitivity analysis, with no physical manual test as
 a completion prerequisite. Its published baseline simulation yields a 47.67 ms
@@ -81,7 +100,7 @@ Geometry fixtures check actual-size assembly proportions and matching hit region
 The physical 1.2.2 workflow remains partially verified: jsdom and production
 Chromium checks cover warning/override, persistence and invalidation, while
 printer/camera/audible checks remain pending in the manual report. Calibration
-6.2.3 follows the four-step flow with five-position depth capture and validates
+6.2.3 follows the five-step wizard with five-position depth capture for each hand and validates
 save-before-navigation, replacing #162's expected failures. Software results establish
 neither physical contact accuracy nor sensor-to-sound latency.
 

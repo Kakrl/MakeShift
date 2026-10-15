@@ -28,7 +28,7 @@ can be closed even while its module is loading.
 
 Ten voice records are preallocated. For MIDI note n, frequency is
 `440 * 2 ** ((n - 69) / 12)` Hz at the actual worklet sample rate.
-Each voice is a sine wave with peak amplitude `0.095 * velocity ** 1.5` (#209); velocity
+The legacy comparison mode uses a sine wave with peak amplitude `0.095 * velocity ** 1.5`; velocity
 must be finite and in (0, 1]. Invalid notes/velocities are rejected rather than
 clamped. A threefold velocity gives 5.196-fold amplitude (about 14.31 dB). The curve is applied once at onset; estimator and MIDI values remain unchanged.
 Ten full-velocity in-phase voices are bounded by 0.95 even at sustain 1; the final mix also clamps to
@@ -37,7 +37,8 @@ Ten full-velocity in-phase voices are bounded by 0.95 even at sustain 1; the fin
 ### ADSR contract (#27)
 
 `new Synth(sampleRate, options)` accepts an optional construction-time envelope.
-The production AudioWorklet uses the defaults; there is no live parameter UI or
+Explicit ADSR options or `{mode: "legacy"}` select the previous sine renderer.
+The production AudioWorklet uses the piano defaults below; there is no live parameter UI or
 per-note configuration. Options are copied into sample counts at construction.
 
 | Option | Unit | Default | Valid range |
@@ -119,7 +120,7 @@ wiring remains #24 and #28. Do not mix bridge-owned and legacy calls on one owne
 
 From `frontend/`, run the standard lint, TypeScript, Vitest, contrast and build
 checks. `tests/frontend/browserAudio.test.ts` renders the exact production DSP
-offline at 44.1, 48 and 96 kHz. Interpolated positive zero crossings estimate
+in explicit legacy mode offline at 44.1, 48 and 96 kHz. Interpolated positive zero crossings estimate
 pitch within 0.1 Hz across eleven notes; steady-state RMS allows finite-window
 error. Tests cover velocity ratios, attack/release, ten voices, stealing,
 slot reuse, buffer continuity, invalid input and session resets. ADSR cases additionally check every default stage sample at 8/44.1/48/96/192/384 kHz, early release in every stage, duplicate releases, independent retriggers, zero/sub-sample durations, parameter limits, and sample discontinuity bounds. See the [#27 listening report](../tests/manual/2026-09-24_2.2.18.md) for the user-reported audible pass and its environment/evidence limitations.
@@ -140,8 +141,68 @@ are local, not yet in CI. Record a listening check with the manual template:
 enable audio, compare soft/loud A4, listen to the chord, stop, suspend/resume
 and navigate away. Do not mark hardware audibility passed from graph samples.
 
+## Piano default (#175)
+
+`new Synth(rate)` now uses ten fixed modal voices. Each voice has sixteen
+partials, independent amplitude/cutoff state, and a topology-preserving
+state-variable low-pass with damping `1/Q`. There are no additional detuned
+oscillators or hammer noise: the total oscillator budget is 160. Presets for
+all 128 MIDI pitches, a 4096-entry interpolated sine table and a 1024-interval
+filter coefficient table are generated before readiness. Rendering and note
+dispatch allocate no partial storage and require no decoding, network,
+look-ahead or additional audio buffers.
+
+Register is `r = MIDI/127`. Amplitude uses a cubic smoothstep attack of
+`1 + 3*(1-r)` ms, then a `50 + 100*(1-r)` ms cubic decay from 1 to 0.35,
+followed by exponential decay with time constant `0.5 + 3.5*(1-r)` seconds.
+Release captures the instantaneous amplitude and quadratically damps it over
+`40 + 110*(1-r)` ms. Levels below 0.00001 retire after attack; maximum lifetime
+is 30 seconds. These are design tuning choices, not measured piano parameters.
+Explicit legacy ADSR retains all previous zero/sub-sample-duration semantics.
+`mode: "piano"` with ADSR options throws to prevent ambiguous migration.
+
+Partial frequencies use `k*f0*sqrt((1+B*k*k)/(1+B))`, with
+`B = 0.00002 + 0.00018*r*r`, preserving the fundamental. Frequencies at or
+above 0.45 times the actual sample rate are culled before oscillation. The
+fundamental weight is 1; higher partials start at
+`(0.22 + 0.35*velocity)/k^1.6`. Weights are normalized by their sum. Partial k
+decays additionally with time constant `(0.24 + 0.35*(1-r))/(k-1)` seconds;
+the fundamental has no additional decay. Peak excitation gain is 0.095 times velocity to the power 1.5 (#209). Ten-note output is tested without mix clipping; stealing additionally
+ramps the previous slot's last output to zero over 3 ms while the new voice
+attacks. This bounded correction avoids a hard cut but is not a full waveform
+crossfade. Filter states and partial phases reset on reuse. Emergency Stop,
+reset and release-all erase all output/correction immediately.
+
+Cutoff opens during attack, then closes with independent 90 ms and 800 ms
+exponentials, weighted 0.7/0.3. Velocity brightness is `0.4+0.6*velocity`;
+pitch tracking sets the lower envelope endpoint from twice the fundamental.
+Release closes from the instantaneous log-frequency envelope. Frequency maps
+as `min*(max/min)^e`; coefficient targets update every 16 samples and interpolate
+over the next 16 samples. Positive TPT coefficients and bounded resonance avoid
+arbitrary biquad interpolation. The 16-sample interval is provisional pending
+listening and real-time CPU evidence; the paired microbenchmark is separate.
+
+Construction accepts finite `cutoffMin` (20–20000 Hz, default 180),
+`cutoffMax` (at least cutoffMin, at most 100000 Hz, default 18000),
+`resonance` (Q 0.5–1, default 0.707), `cutoffFast` and `cutoffSlow`
+(0.001–10 seconds), and `cutoffDepth` (0–1, default 0.85). Actual cutoff
+endpoints clamp to 0.4/0.45 times sample rate. Equal effective endpoints
+define a fixed cutoff with zero pitch tracking, avoiding division by zero.
+Supported rates remain
+8000–384000 Hz; automated stage/Nyquist checks sample six representative rates.
+
+`pianoTimbre.test.ts` verifies the production default; `browserAudio.test.ts`
+retains the explicitly selected legacy oracle for baseline/migration.
+Browser graph thresholds now account for normalized harmonics and decaying
+amplitude (soft RMS >0.001, chord RMS >0.01), and test velocity ordering rather
+than an exact sine ratio. These thresholds establish nonzero output only.
+No licensed reference recordings have been incorporated. Listening/reference
+tuning and physical latency remain pending in the dated manual report.
+The sample-pool proposal #22 is deferred: this bounded procedural approximation
+needs no sample downloads; sampling, resonance and pedal modeling remain separate.
+
 ## Velocity tuning (#209)
 
-The previous peak was 0.08 times velocity. The new power curve uses more headroom for strong strikes and widens soft-to-loud contrast without render-loop allocations. Maximum strikes gain 1.49 dB; coherent ten-voice peaks retain at least 0.45 dB headroom. This conservative increase needs listening verification on the actual output device. Register balancing and estimator thresholds are unchanged.
+The previous peak was 0.08 times velocity. The new power curve uses more headroom for strong strikes and widens soft-to-loud contrast without render-loop allocations. Maximum excitation gain increases 1.49 dB. The legacy sine mix retains 0.45 dB headroom; piano output additionally includes its filter and steal correction and is verified separately. The user confirmed velocity audibility before the piano merge; listening to the combined piano/velocity implementation remains pending. Register balancing and estimator thresholds are unchanged.
 
 See the [dated verification/listening report](../tests/manual/2026-10-14_209-velocity.md) for before/after digital levels and the pending hardware procedure. Digital RMS does not establish acoustic SPL or physical latency.
