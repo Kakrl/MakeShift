@@ -5,35 +5,18 @@ import { createPortal } from "react-dom";
 import { RECORDING_LIMITS } from "../../lib/recordings";
 import type { Recording } from "../midi/midiUtils";
 import { useDialogFocus } from "../useDialogFocus";
-import CopyLinkButton from "./CopyLinkButton";
+import { AuthorNameField, BackIcon, CloseIcon, SharedConfirmation } from "./ShareParts";
 import SharedPlayer from "./SharedPlayer";
 import {
   asSharedRecording,
   formatDuration,
   loadShareName,
-  shareUrl,
   uploadTake,
   type TakeShare,
 } from "./mockShareStore";
 
 type Step = "review" | "details" | "shared";
 type Audience = "private" | "public";
-
-function CloseIcon() {
-  return (
-    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function BackIcon() {
-  return (
-    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M10 3.5 5.5 8l4.5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 const AUDIENCES: { value: Audience; label: string; hint: string }[] = [
   { value: "private", label: "Only me", hint: "Saved on this device" },
@@ -215,17 +198,7 @@ export default function SaveTakeDialog({
               {/* Only a public song needs a name to show; a private one never asks. */}
               {audience === "public" && (
                 <div className="ms-rise mt-5">
-                  <label htmlFor="save-take-author" className="ms-label">Your name</label>
-                  <input
-                    id="save-take-author"
-                    value={authorName}
-                    maxLength={RECORDING_LIMITS.authorNameLength.max}
-                    placeholder="First name or nickname"
-                    onChange={(event) => setAuthorName(event.target.value)}
-                    className="ms-input mt-1.5 w-full"
-                    autoComplete="nickname"
-                  />
-                  <p className="mt-1.5 text-[13px] text-ink-muted">Shown next to your song. Don&apos;t use your full name.</p>
+                  <AuthorNameField id="save-take-author" value={authorName} onChange={setAuthorName} />
                 </div>
               )}
 
@@ -239,21 +212,15 @@ export default function SaveTakeDialog({
           )}
 
           {step === "shared" && shared && (
-            <div className="flex flex-1 flex-col">
-              <h2 id="save-take-title" ref={headingRef} tabIndex={-1} className={heading}>
-                Your song is shared!
-              </h2>
-              <p className="mt-2 text-[15px] text-ink-muted leading-relaxed">
-                It&apos;s in Shared songs, and anyone with this link can listen.
-              </p>
-              <p className="ms-well mt-4 px-3 py-2.5 text-[14px] break-all select-all">{shareUrl(shared.id)}</p>
-              <div className="mt-auto flex shrink-0 gap-2 pt-5">
-                <CopyLinkButton url={shareUrl(shared.id)} className="ms-key ms-key-primary flex-1 px-4 py-2.5 text-[15px]" />
-                <button type="button" className="ms-key flex-1 px-4 py-2.5 text-[15px]" onClick={onClose}>
-                  Done
-                </button>
-              </div>
-            </div>
+            <SharedConfirmation
+              heading={
+                <h2 id="save-take-title" ref={headingRef} tabIndex={-1} className={heading}>
+                  Your song is shared!
+                </h2>
+              }
+              shareId={shared.id}
+              onDone={onClose}
+            />
           )}
         </div>
       </div>

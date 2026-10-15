@@ -19,6 +19,7 @@ import {
   loadTakeShares,
   mockShareStore,
   saveTakeShare,
+  ShareNotFoundError,
 } from "../share/mockShareStore";
 
 export type RecordingsLibraryHandle = {
@@ -90,8 +91,14 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
       return result.ok;
     },
     remove(id) {
-      if (!window.confirm("Delete this recording?")) return false;
+      const share = shares[id];
+      if (!window.confirm(share ? "Delete this recording? It will also stop being shared." : "Delete this recording?")) return false;
       refreshLibrary(library.deleteRecording(id));
+      // A deleted take takes its share with it, or nothing could stop it later.
+      if (share) {
+        setShares(saveTakeShare(id, null));
+        mockShareStore.remove(share.id, share.deleteToken).catch(() => {});
+      }
       return true;
     },
     shared(id, share) {
@@ -102,13 +109,17 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
       if (!share || !window.confirm("Stop sharing? The link will stop working. Your recording stays here.")) return false;
       try {
         await mockShareStore.remove(share.id, share.deleteToken);
-        setShares(saveTakeShare(id, null));
-        return true;
-      } catch {
-        setLibraryError("Sharing could not be stopped. Try again.");
-        return false;
+      } catch (cause) {
+        // Already gone counts as stopped; anything else can be retried.
+        if (!(cause instanceof ShareNotFoundError)) {
+          setLibraryError("Sharing could not be stopped. Try again.");
+          return false;
+        }
       }
+      setShares(saveTakeShare(id, null));
+      return true;
     },
+    error: libraryError,
   };
 
   const unsaved = recordings.filter(({ saved }) => !saved).length;
@@ -166,8 +177,14 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
           mine={mine}
           onClose={() => {
             setSongsTab(null);
-            // Used once; the buttons open the lists from now on.
-            setLinkedSongId(null);
+            // Used once; the buttons open the lists from now on, and a
+            // reload shouldn't reopen the song.
+            if (linkedSongId !== null) {
+              setLinkedSongId(null);
+              const url = new URL(window.location.href);
+              url.searchParams.delete("song");
+              window.history.replaceState(window.history.state, "", url);
+            }
           }}
         />
       )}

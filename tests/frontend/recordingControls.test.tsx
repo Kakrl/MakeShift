@@ -496,6 +496,9 @@ it("backgrounding releases the session and closes the recording", async () => {
   expect(fixtures.takes).toHaveLength(1);
   expect(button("Start recording").disabled).toBe(true);
   expect(host.textContent).toContain("background");
+  // Kept without the save question: the person never chose to stop.
+  expect(document.body.textContent).toContain("1 recording");
+  expect(document.body.textContent).not.toContain("Would you like to save");
 });
 
 

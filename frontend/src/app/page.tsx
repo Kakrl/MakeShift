@@ -217,10 +217,12 @@ export default function Home() {
     setShowRecordingComplete(true);
   }, []);
   // Every finished take is saved at once, then the library asks whether to
-  // keep it, so closing the tab mid-question never loses a take.
-  const completeTake = useCallback((take: Recording) => {
+  // keep it, so closing the tab mid-question never loses a take. A take the
+  // session stopped on its own (hidden tab, error) is kept without asking,
+  // so a quick "No" can't delete something the person never chose to stop.
+  const completeTake = useCallback((take: Recording, review = true) => {
     recordingsLibraryRef.current?.completeTake(take);
-    recordingsLibraryRef.current?.reviewTake(take.id);
+    if (review) recordingsLibraryRef.current?.reviewTake(take.id);
   }, []);
 
   // ── Tempo & time signature (controlled) ─────────────────────────────────
@@ -379,7 +381,7 @@ export default function Home() {
         setCountInBeat(null);
         session.flushNotes();
         const take = recorder.stopRecording();
-        if (take) completeTake(take);
+        if (take) completeTake(take, false);
         setRecordingState(recorder.getState());
         setShowRecordingComplete(take !== null);
       }

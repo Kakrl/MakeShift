@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { RECORDING_LIMITS, type RecordingSummary, type SharedRecording } from "../../lib/recordings";
+import { RECORDING_LIMITS, recordingDurationMs, type RecordingSummary, type SharedRecording } from "../../lib/recordings";
 import { downloadMidi, type Recording } from "../midi/midiUtils";
 import type { LibraryEntry } from "../midi/recordingsLibrary";
 import { rainbow } from "../rainbow";
 import { useDialogFocus } from "../useDialogFocus";
 import CopyLinkButton from "./CopyLinkButton";
+import { AuthorNameField, BackIcon, CloseIcon, SharedConfirmation } from "./ShareParts";
 import SharedPlayer from "./SharedPlayer";
 import {
   asSharedRecording,
@@ -33,6 +34,8 @@ export type MyRecordings = {
   shared(id: string, share: TakeShare): void;
   /** Asks first; false when the person backs out or it fails. */
   stopSharing(id: string): Promise<boolean>;
+  /** The last failed change, shown in the dialog as well as the panel. */
+  error: string | null;
 };
 
 type ListStatus = "loading" | "ready" | "error";
@@ -42,22 +45,6 @@ type View =
   | { kind: "shared"; id: string; summary: RecordingSummary | null }
   | { kind: "mine"; id: string }
   | { kind: "share"; id: string };
-
-function CloseIcon() {
-  return (
-    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function BackIcon() {
-  return (
-    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M10 3.5 5.5 8l4.5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 const TABS: { value: SongsTab; label: string }[] = [
   { value: "shared", label: "Shared" },
@@ -118,9 +105,10 @@ export default function SongsDialog({
     }
   }, []);
 
+  // Sharing or unsharing a take changes the Shared list, so it reloads.
   useEffect(() => {
     void load(null);
-  }, [load]);
+  }, [load, mine.shares]);
 
   // Infinite scroll inside the dialog body. A page that fits without
   // scrolling keeps the sentinel visible, so the next page follows at once.
@@ -160,6 +148,8 @@ export default function SongsDialog({
 
   function push(next: View) {
     if (view.kind === "list") listScroll.current = bodyRef.current?.scrollTop ?? 0;
+    // Never show the last song's notes under the next song's title.
+    if (next.kind === "shared") setSong("loading");
     setDirection("push");
     setView(next);
   }
@@ -397,7 +387,7 @@ function MineList({ mine, onOpen }: { mine: MyRecordings; onOpen: (id: string) =
                 )}
               </span>
               <span className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-ink-muted tabular-nums">
-                <span>{formatDuration(asSharedRecording(recording).durationMs)}</span>
+                <span>{formatDuration(recordingDurationMs(recording.notes))}</span>
                 <span>{recording.notes.length} notes</span>
                 <span>{formatDate(recording.createdAt)}</span>
               </span>
@@ -505,10 +495,15 @@ function MySongView({
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(recording.name);
   const [stopping, setStopping] = useState(false);
+  // Enter or Escape already ended the edit; the blur from unmounting the
+  // field must not commit again (or commit a cancelled draft).
+  const editEnded = useRef(false);
 
   function commitRename() {
+    if (editEnded.current) return;
     const name = draft.trim();
     if (name && name !== recording.name && !mine.rename(recording.id, name)) return;
+    editEnded.current = true;
     setRenaming(false);
   }
 
@@ -529,6 +524,7 @@ function MySongView({
               if (event.key === "Escape") {
                 // Cancel the rename without closing the whole dialog.
                 event.stopPropagation();
+                editEnded.current = true;
                 setDraft(recording.name);
                 setRenaming(false);
               }
@@ -545,6 +541,7 @@ function MySongView({
               type="button"
               className="ms-key ms-key-ghost shrink-0 px-2 py-1 text-[14px]"
               onClick={() => {
+                editEnded.current = false;
                 setDraft(recording.name);
                 setRenaming(true);
               }}
@@ -577,6 +574,7 @@ function MySongView({
           </>
         )}
       </p>
+      {mine.error && <p role="alert" className="-mt-3 mb-4 text-[14px] text-danger">{mine.error}</p>}
       <SharedPlayer
         recording={preview}
         fill
@@ -645,17 +643,11 @@ function ShareTakeView({
   if (shared)
     return (
       <div className="ms-swap flex flex-1 flex-col">
-        <h3 ref={headingRef} tabIndex={-1} className={SONG_TITLE}>Your song is shared!</h3>
-        <p className="mt-2 text-[15px] text-ink-muted leading-relaxed">
-          It&apos;s in Shared songs, and anyone with this link can listen.
-        </p>
-        <p className="ms-well mt-4 px-3 py-2.5 text-[14px] break-all select-all">{shareUrl(shared.id)}</p>
-        <div className="mt-auto flex shrink-0 gap-2 pt-5">
-          <CopyLinkButton url={shareUrl(shared.id)} className="ms-key ms-key-primary flex-1 px-4 py-2.5 text-[15px]" />
-          <button type="button" className="ms-key flex-1 px-4 py-2.5 text-[15px]" onClick={onDone}>
-            Done
-          </button>
-        </div>
+        <SharedConfirmation
+          heading={<h3 ref={headingRef} tabIndex={-1} className={SONG_TITLE}>Your song is shared!</h3>}
+          shareId={shared.id}
+          onDone={onDone}
+        />
       </div>
     );
 
@@ -679,17 +671,7 @@ function ShareTakeView({
         onChange={(event) => setTitle(event.target.value)}
         className="ms-input mt-1.5 mb-4 w-full"
       />
-      <label htmlFor="share-author" className="ms-label">Your name</label>
-      <input
-        id="share-author"
-        value={authorName}
-        maxLength={RECORDING_LIMITS.authorNameLength.max}
-        placeholder="First name or nickname"
-        onChange={(event) => setAuthorName(event.target.value)}
-        className="ms-input mt-1.5 w-full"
-        autoComplete="nickname"
-      />
-      <p className="mt-1.5 text-[13px] text-ink-muted">Shown next to your song. Don&apos;t use your full name.</p>
+      <AuthorNameField id="share-author" value={authorName} onChange={setAuthorName} />
       {take.notes.length === 0 && (
         <p className="mt-3 text-[14px] text-ink-muted">This take has no notes yet, so there&apos;s nothing to share.</p>
       )}

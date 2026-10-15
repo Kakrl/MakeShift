@@ -211,12 +211,20 @@ export function createMockShareStore(
         const kept = shares.filter(
           (share) => !(share.id === id && share.deleteToken === deleteToken),
         );
-        if (kept.length === shares.length) throw new Error("Recording not found.");
+        if (kept.length === shares.length) throw new ShareNotFoundError();
         writeStored(STORAGE_NAME, STORAGE_VERSION, kept, storage);
         return { deleted: true as const };
       });
     },
   };
+}
+
+/** The share is already gone (a 404), so there is nothing left to stop. */
+export class ShareNotFoundError extends Error {
+  constructor() {
+    super("Recording not found.");
+    this.name = "ShareNotFoundError";
+  }
 }
 
 export const mockShareStore = createMockShareStore();

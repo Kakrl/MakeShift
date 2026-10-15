@@ -415,6 +415,16 @@ describe("home page", () => {
     fireEvent.click(screen.getByRole("button", { name: "My recordings" }));
     const card = screen.getByRole("button", { name: /^Twinkle/ });
     expect(within(card).getByText("Shared")).toBeTruthy();
+
+    // Deleting a shared take stops its share too, so no link is left orphaned.
+    fireEvent.click(card);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+      await vi.advanceTimersByTimeAsync(400);
+    });
+    expect(localStorage.getItem("makeshift:mock-shared-recordings:v1")).not.toContain("Twinkle");
+    expect(localStorage.getItem("makeshift:take-shares:v1")).not.toContain("demo-take");
   });
 
   it("keeps an empty take private", async () => {

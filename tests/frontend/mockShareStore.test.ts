@@ -5,6 +5,7 @@ import {
   PAGE_SIZE,
   PLAYABLE_RANGE,
   saveTakeShare,
+  ShareNotFoundError,
   type MockMode,
 } from "../../frontend/src/app/share/mockShareStore";
 import type { StorageArea } from "../../frontend/src/lib/storage";
@@ -82,6 +83,8 @@ describe("mock share store", () => {
     await expect(shares.remove(id, "wrong")).rejects.toThrow();
     await expect(shares.remove(id, deleteToken)).resolves.toEqual({ deleted: true });
     expect(await shares.get(id)).toBeNull();
+    // Gone already: a typed not-found, so stopping a share can treat it as done.
+    await expect(shares.remove(id, deleteToken)).rejects.toBeInstanceOf(ShareNotFoundError);
   });
 
   it("rejects an upload the real schema rejects", async () => {
