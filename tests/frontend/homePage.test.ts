@@ -414,6 +414,9 @@ describe("home page", () => {
     const done = screen.getByRole("dialog", { name: "Your song is shared!" });
     expect(within(done).getByText(/\/play\//)).toBeTruthy();
     fireEvent.click(within(done).getByRole("button", { name: "Done" }));
+    // The name shared under is the device profile's sharing name (#125).
+    expect(screen.getByText("Sharing as")).toBeTruthy();
+    expect(screen.getByText("Jo")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "My recordings" }));
     const card = screen.getByRole("button", { name: /^Twinkle/ });
     expect(within(card).getByText("Shared")).toBeTruthy();

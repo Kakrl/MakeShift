@@ -14,6 +14,7 @@ import {
   type UploadRecordingResponse,
 } from "../../lib/recordings";
 import { readStored, writeStored, type StorageAccess } from "../../lib/storage";
+import { loadOrCreateProfile, saveProfile } from "../../lib/deviceProfile";
 
 export const PAGE_SIZE = 6;
 const STORAGE_NAME = "mock-shared-recordings";
@@ -282,13 +283,13 @@ export function demoTake(): Recording {
   };
 }
 
-// Stand-in for the device profile name (#125) until that lands.
-const NAME_STORAGE = "share-name";
-const isString = (value: unknown): value is string => typeof value === "string";
-export const loadShareName = (storage?: StorageAccess) =>
-  readStored(NAME_STORAGE, 1, "", isString, storage);
+/** The sharing name from the device profile (#125), shown in the sidebar too. */
+export const loadShareName = () => loadOrCreateProfile().profile.displayName;
 
-/** Uploads a local take under a title and display name, remembering the name. */
+/**
+ * Uploads a local take under a title and display name, from this device's
+ * profile ID, and keeps the name as the profile's sharing name.
+ */
 export async function uploadTake(
   take: Recording,
   title: string,
@@ -297,11 +298,12 @@ export async function uploadTake(
   const share = await mockShareStore.upload({
     title,
     authorName,
-    deviceId: "mock-device",
+    deviceId: loadOrCreateProfile().profile.deviceId,
     bpm: take.bpm,
     notes: take.notes,
   });
-  writeStored(NAME_STORAGE, 1, authorName.trim());
+  const { profile } = loadOrCreateProfile();
+  if (profile.displayName !== authorName.trim()) saveProfile({ ...profile, displayName: authorName });
   return share;
 }
 
