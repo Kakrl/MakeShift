@@ -8,11 +8,9 @@ import {
   DEPTH_FINGERS,
   DepthCalibrationCollector,
   makeDepthObservation,
-  toPersistedDepthCalibration,
   type DepthCalibrationPosition,
   type DepthCalibrationModel,
   type DepthLandmark,
-  type PersistedDepthCalibration,
 } from "./depthCalibration";
 
 export type TransitionKind = "press" | "release";
@@ -231,7 +229,7 @@ export function parseCvVideoCase(value: unknown): CvVideoCase {
 /** Build one production calibration model for each hand with complete samples. */
 export function buildDepthCalibrations(
   videoCase: CvVideoCase,
-): PersistedDepthCalibration {
+): Readonly<Record<"Right" | "Left", DepthCalibrationModel | null>> {
   const models: Record<"Right" | "Left", DepthCalibrationModel | null> = {
     Right: null,
     Left: null,
@@ -273,7 +271,7 @@ export function buildDepthCalibrations(
     }
     models[hand] = model;
   }
-  return toPersistedDepthCalibration(models);
+  return models;
 }
 
 export function annotationsToTransitions(

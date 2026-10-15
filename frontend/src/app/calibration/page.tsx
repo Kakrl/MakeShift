@@ -782,7 +782,9 @@ export default function Calibration() {
           "MakeShift raw depth calibration landmarks (copy this JSON):",
           JSON.stringify({
             schemaVersion: 1,
-            depthCaptures: depthCollectorRef.current.getRawLandmarkCaptures(),
+            depthCaptures: Object.values(depthCollectorsRef.current).flatMap(
+              (collector) => collector.getRawLandmarkCaptures(),
+            ),
           }, null, 2),
         );
       }

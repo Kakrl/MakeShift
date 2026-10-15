@@ -15,6 +15,7 @@ import {
   type ActiveKeyFrame,
   type TimedFrameResult,
 } from "../../cv/videoEvaluation";
+import { toPersistedDepthCalibration } from "../../cv/depthCalibration";
 import { getFingertips, type HandObservation } from "../../cv/collision";
 import { LiveContactPipeline } from "../../cv/liveContactPipeline";
 import { MarkerDetector } from "../../cv/markerDetector";
@@ -106,7 +107,9 @@ export default function CvVideoReplayPage() {
 
       const layout = layoutFromCase(videoCase.calibration.keyboard.layoutId,
         videoCase.calibration.keyboard.startingMidiNote);
-      const depthModels = buildDepthCalibrations(videoCase);
+      const depthModels = toPersistedDepthCalibration(
+        buildDepthCalibrations(videoCase),
+      );
       pipeline = new LiveContactPipeline({
         onContactsChanged: () => undefined,
         onShadowCameraPreview: () => undefined,
