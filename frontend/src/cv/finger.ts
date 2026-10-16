@@ -22,6 +22,7 @@ interface ShadowObservation {
 export class Finger {
   contact: FingerContactEvaluation | null = null;
   gate: FingerContactGate | null = null;
+  keyIndex: number | null = null;
   private nowMs = 0;
   private observation?: ShadowObservation;
   private shadowsEnabled = true;
@@ -51,21 +52,32 @@ export class Finger {
           observation.frameAtMs > this.contact.shadowFrameAtMs),
     );
 
+    let contact: FingerContactEvaluation;
     switch (this.contact?.state) {
       case "pressed":
-        return this.handlePressed();
+        contact = this.handlePressed();
+        break;
       case "predicted":
-        return this.handlePredicted();
+        contact = this.handlePredicted();
+        break;
       case "releasing":
-        return this.handleReleasing();
+        contact = this.handleReleasing();
+        break;
       case "ready":
-        return this.handleReady();
+        contact = this.handleReady();
+        break;
       case "hover":
-        return this.handleHover();
+        contact = this.handleHover();
+        break;
       case "unavailable":
       case undefined:
-        return this.handleUnavailable();
+        contact = this.handleUnavailable();
+        break;
     }
+
+    if (!contact.active) this.keyIndex = null;
+    else if (this.keyIndex === null) this.keyIndex = gate.keyIndexes[0] ?? null;
+    return contact;
   }
 
   handlePressed(): FingerContactEvaluation {
@@ -171,6 +183,7 @@ export class Finger {
   reset() {
     this.contact = null;
     this.gate = null;
+    this.keyIndex = null;
     this.observation = undefined;
     this.freshObservation = false;
     this.zMotionPredicted = false;

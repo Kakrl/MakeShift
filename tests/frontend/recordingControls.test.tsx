@@ -283,6 +283,50 @@ it("dispatches a chord and release/repress before React commits the landmark sna
   ]);
 });
 
+it("outputs one key when a single fingertip overlaps adjacent key polygons", async () => {
+  await start();
+  vi.mocked(browserAudio.noteOn).mockClear();
+  vi.mocked(browserAudio.noteOff).mockClear();
+
+  await keys(170); // Within the 8 px overlap tolerance of the next key.
+  expect(browserAudio.noteOn).toHaveBeenCalledTimes(1);
+  expect(browserAudio.noteOn).toHaveBeenCalledWith(48, 0.2);
+
+  await keys();
+  expect(browserAudio.noteOff).toHaveBeenCalledTimes(1);
+});
+
+it("switches the output key when one finger moves to another key", async () => {
+  await start();
+  vi.mocked(browserAudio.noteOn).mockClear();
+  vi.mocked(browserAudio.noteOff).mockClear();
+
+  await keys(115);
+  expect(browserAudio.noteOn).toHaveBeenCalledWith(48, 0.2);
+  now += 20;
+  await keys(325);
+
+  expect(browserAudio.noteOff).toHaveBeenCalledTimes(1);
+  expect(browserAudio.noteOn).toHaveBeenCalledTimes(2);
+  expect(vi.mocked(browserAudio.noteOn).mock.calls[1][0]).toBe(52);
+});
+
+it("keeps a shared key active until its last finger releases", async () => {
+  await start();
+  vi.mocked(browserAudio.noteOn).mockClear();
+  vi.mocked(browserAudio.noteOff).mockClear();
+
+  await keys(115, 115);
+  expect(browserAudio.noteOn).toHaveBeenCalledTimes(1);
+  expect(browserAudio.noteOn).toHaveBeenCalledWith(48, 0.2);
+
+  await keys(115);
+  expect(browserAudio.noteOff).not.toHaveBeenCalled();
+
+  await keys();
+  expect(browserAudio.noteOff).toHaveBeenCalledTimes(1);
+});
+
 it.each([false, true])("sends estimated velocities to audio/MIDI and retains them while held (same key: %s)", async (sameKey) => {
   await start();
   const landmarks: NormalizedLandmark[] = Array.from({ length: 21 }, () => ({ x: -10, y: -10, z: 0 }));

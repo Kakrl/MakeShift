@@ -1,5 +1,6 @@
 import {
   FINGERTIP_LANDMARK_INDICES,
+  classifyKeyRegion,
   type Fingertip,
   type HandObservation,
 } from "./collision";
@@ -196,6 +197,8 @@ export class LiveContactPipeline {
       if (!hand || fingerIndex < 0) continue;
       activeIds.add(fingertip.id);
       const previousGate = this.gates.get(fingertip.id);
+      const finger = this.fingers.get(fingertip.id) ?? new Finger(fingertip.id);
+      this.fingers.set(fingertip.id, finger);
       const sourceIdentity = `${hand.handedness}:${frame.video?.videoWidth}:${frame.video?.videoHeight}`;
       const sameSource = previousGate?.sourceIdentity === sourceIdentity;
       const motion = this.motion.get(fingertip.id) ?? new FingerVelocity();
@@ -258,6 +261,13 @@ export class LiveContactPipeline {
         keysChanged ||
         previousGate?.available !== available ||
         previousGate?.knuckleEligible !== knuckleEligible;
+      const preserveActiveContact = Boolean(
+        sameSource &&
+          previousGate &&
+          this.contacts.get(fingertip.id)?.active &&
+          previousGate.available === available &&
+          previousGate.knuckleEligible === knuckleEligible,
+      );
 
       let zMotionPredicted = false;
       const fingertipZ = hand.landmarks[fingertip.landmarkIndex]?.z;
@@ -329,9 +339,19 @@ export class LiveContactPipeline {
       }
 
       this.gates.set(fingertip.id, gate);
-      const finger = this.fingers.get(fingertip.id) ?? new Finger(fingertip.id);
-      this.fingers.set(fingertip.id, finger);
-      if (gateChanged) finger.reset();
+      if (gateChanged && !preserveActiveContact) finger.reset();
+      if (
+        preserveActiveContact &&
+        finger.keyIndex !== null &&
+        frame.whiteKeys
+      ) {
+        const nextKeyIndex = frame.whiteKeys.findIndex(
+          (key, keyIndex) =>
+            keyIndex !== finger.keyIndex &&
+            classifyKeyRegion(fingertip.point, key) === "interior",
+        );
+        if (nextKeyIndex >= 0) finger.keyIndex = nextKeyIndex;
+      }
       const contact = finger.checkState(
         gate,
         now,
