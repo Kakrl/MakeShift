@@ -16,12 +16,12 @@ import {
   formatDate,
   formatDuration,
   loadShareName,
-  mockShareStore,
   PAGE_SIZE,
+  shareStore,
   shareUrl,
   uploadTake,
   type TakeShare,
-} from "./mockShareStore";
+} from "./shareStore";
 
 export type SongsTab = "shared" | "mine";
 
@@ -30,8 +30,8 @@ export type MyRecordings = {
   entries: LibraryEntry[];
   shares: Record<string, TakeShare>;
   rename(id: string, name: string): boolean;
-  /** Asks first; false when the person backs out. */
-  remove(id: string): boolean;
+  /** Asks first, and stops any share before deleting; false when the person backs out or it fails. */
+  remove(id: string): Promise<boolean>;
   shared(id: string, share: TakeShare): void;
   /** Asks first; false when the person backs out or it fails. */
   stopSharing(id: string): Promise<boolean>;
@@ -95,7 +95,7 @@ export default function SongsDialog({
     if (cursor) setLoadingMore(true);
     else setStatus("loading");
     try {
-      const page = await mockShareStore.list(cursor);
+      const page = await shareStore.list(cursor);
       setRecordings((current) => (cursor ? [...current, ...page.recordings] : page.recordings));
       setNextCursor(page.nextCursor);
       setStatus("ready");
@@ -130,7 +130,7 @@ export default function SongsDialog({
   useEffect(() => {
     if (!sharedId) return;
     let current = true;
-    mockShareStore
+    shareStore
       .get(sharedId)
       .then((recording) => current && setSong(recording ?? "missing"))
       .catch(() => current && setSong("error"));
@@ -589,7 +589,7 @@ function MySongView({
               Download MIDI
             </button>
             {share ? (
-              <CopyLinkButton url={shareUrl(share.id)} className={`${KEY} min-w-[116px]`} />
+              <CopyLinkButton url={shareUrl(share.id, share.mock === true)} className={`${KEY} min-w-[116px]`} />
             ) : (
               <button type="button" className={KEY} onClick={onShare}>
                 Share
@@ -598,8 +598,8 @@ function MySongView({
             <button
               type="button"
               className="ms-key ms-key-ghost ms-key-danger ml-auto px-3 py-2.5 text-[15px]"
-              onClick={() => {
-                if (mine.remove(recording.id)) onDeleted();
+              onClick={async () => {
+                if (await mine.remove(recording.id)) onDeleted();
               }}
             >
               Delete
