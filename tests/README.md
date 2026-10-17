@@ -336,6 +336,8 @@ tests/
 │   ├── performanceMetrics.browser.mjs # profiles and paired overhead
 │   ├── fingerState.test.ts           # per-finger contact state transitions
 │   ├── fingerVelocity.test.ts        # normalized speed, onset latch and DSP response
+│   ├── cvVideoEvaluation.test.ts     # sidecar, calibration, matching and replay core
+│   ├── cvVideoReplay.browser.mjs     # Playwright clip replay through production CV
 │   ├── browserAudio.test.ts      # production DSP offline rendering
 │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   ├── browserAudio.browser.mjs  # production browser graph check
@@ -380,11 +382,67 @@ No test implementation requires an exception to this layout.
 | Frontend unit (Vitest) | `cd frontend && npx vitest run` | `npm ci` in `frontend/` |
 | Browser audio smoke | `cd frontend && npm run test:audio-browser` | Production server on `MAKE_SHIFT_URL` (default `http://127.0.0.1:3000`); `AUDIO_BROWSER_CHANNEL=chromium` for Playwright Chromium (default `msedge`) |
 | Deployment smoke | `cd frontend && npm run test:deployment` | Production server or Vercel URL in `MAKE_SHIFT_URL`; `npx playwright install chromium`; network for jsDelivr WASM; `EXPECT_DATABASE=ok` requires Supabase secrets (`infisical run`) |
+| CV video replay | `cd frontend && npm run test:cv-video:auto` (all checked-in clips, sequentially) | Builds/starts production app once; Playwright Chromium installed once where supported (Apple Silicon Mac uses installed Chrome); optional `-- --clip N` or `-- --browser chrome`; per-clip and combined reports saved under `frontend/test-results/cv-video/` |
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
 | MIDI production download | `cd frontend && npm run test:midi-browser` | Running production server; Playwright and Edge; optional MAKE_SHIFT_URL / MIDI_BROWSER_CHANNEL |
 | Pipeline profiling | `cd frontend && npm run test:performance-browser` | Production server on port 3100, Playwright + Edge; synthetic camera; local only |
 | Camera feed layout | `cd frontend && npm run test:layout-browser` | Running production server; Playwright bundled Chromium; optional MAKE_SHIFT_URL / LAYOUT_BROWSER_CHANNEL |
 | RCA automation | `node --test tests/automation/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
+
+### CV video replay (#39)
+
+See the [quick guide](../docs/cv_video_tests.md) for preparing a clip/sidecar
+pair and running the browser replay.
+
+The sidecar parser and evaluation helpers are covered by
+`cd frontend && npx vitest run ../tests/frontend/cvVideoEvaluation.test.ts`.
+They validate annotations, build knuckle/Z calibration models from raw
+landmarks for both hands, derive press/release transitions, and match events
+one-to-one by key. Run `cd frontend && npm run test:cv-video:auto` to replay all
+checked-in clips sequentially; it starts/stops the production app and saves
+per-clip reports plus a combined summary under
+`frontend/test-results/cv-video/`. Pass `-- --clip 2` to run just one clip.
+For custom clips, start the production app and run
+`CV_VIDEO_FILE=/path/clip.mp4 CV_SIDECAR_FILE=/path/clip.json npm run test:cv-video`.
+The Playwright harness at `/cv-video-replay` uses the browser's video decoder,
+MediaPipe hand landmarker, ArUco marker detector and live contact pipeline.
+It steps through the clip while paused, preserves frame order, scores
+transitions, and reports every transition plus per-frame stage timings. It
+requests MediaPipe's GPU delegate and falls back to CPU if unavailable. Marker
+detection follows the live 250 ms acquisition / 10 s check cadence and keeps
+the last usable geometry. Results go to stdout; set `CV_RESULT_FILE` to save
+the complete JSON report. The sidecar's `framesPerSecond` must match the clip's
+constant frame rate. Validate browser seeking against encoded frames before
+using scores as an accuracy ceiling.
+
+Local verification on 2026-10-15: all five CV evaluation Vitest cases passed,
+the production build succeeded, and the first labeled MOV replay completed in
+Google Chrome on Apple M2. MediaPipe selected GPU with the Metal WebGL renderer.
+With overlap-only contact (`knuckles: false`, `shadows: false`), all 288 frames
+processed at 29.3 FPS including the first frame, and 30.6 FPS after it; median
+inference was 18.6 ms. The replay performed one ArUco scan (63.9 ms) during
+the 9.6 s clip. Presses matched 5/8 labels (8.2% precision, 62.5% recall);
+releases matched 2/8 (3.3% precision, 25% recall). The overlap-only run
+produced 122 transitions, so false transitions were common. This is one fast
+ordered run, not a live-performance or population accuracy result. The full
+109 KB report, including all transitions and per-frame stage times, is
+[`cv_automated_test_1.results.json`](automation/CV%20Test%20Videos/cv_automated_test_1.results.json).
+
+With both `knuckles` and `shadows` enabled, the same clip completed at 26.5 FPS
+(27.6 FPS after the first frame) and emitted 6 transitions. Press scoring was
+1 TP / 2 FP / 7 FN (33.3% precision, 12.5% recall); release scoring was
+0 TP / 3 FP / 8 FN (0% precision and recall). Fourteen shadow samples were
+submitted to the worker. This run is also exploratory; the small labeled set
+and asynchronous shadow sampling limit accuracy conclusions. Its complete
+report is
+[`cv_automated_test_1.knuckles-shadows.results.json`](automation/CV%20Test%20Videos/cv_automated_test_1.knuckles-shadows.results.json).
+
+With knuckles enabled and shadows disabled, the replay completed at 28.3 FPS
+(29.6 FPS after the first frame) and emitted 12 transitions. Press scoring was
+1 TP / 5 FP / 7 FN (16.7% precision, 12.5% recall); release scoring was
+0 TP / 6 FP / 8 FN (0% precision and recall). This did not recover more
+labeled presses than the combined gates on this clip. The complete report is
+[`cv_automated_test_1.knuckles-only.results.json`](automation/CV%20Test%20Videos/cv_automated_test_1.knuckles-only.results.json).
 
 ## Per-finger contact state verification
 
