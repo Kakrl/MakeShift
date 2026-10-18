@@ -70,23 +70,42 @@ const SHADOW_PREVIEW_RADIUS = SHADOW_CROP_RADIUS;
 const SHADOW_PREVIEW_SIZE = 280;
 const SHOW_EXTRA_SHADOW_DEBUG_OVERLAYS = false;
 const PROFILE_SIDE_ANGLE = (20 * Math.PI) / 180;
-const PROFILE_LUMA_GROUP_GAP = 12;
-const PROFILE_GROUP_COLOR_TOKENS = [
-  "--color-red-light",
-  "--color-info",
-  "--color-green-light",
-];
-const PROFILE_REBOUND_MIN_RISE = 20;
-const PROFILE_REBOUND_MAX_WIDTH = 6;
-const PROFILE_REBOUND_FRACTION = 0.8;
-const PROFILE_REBOUND_MIN_DIP = 8;
-const PROFILE_REBOUND_MAX_DIP = 50;
+const PROFILE_NAIL_RGB = [138, 98, 88] as const;
+const PROFILE_NAIL_RGB_TOLERANCE = 30;
+const PROFILE_PAPER_RGB_TOLERANCE = 18;
 
-function getProfileGroupColors(element: HTMLElement) {
+type ProfileColorClass = "nail" | "paper" | "other";
+
+function classifyProfileColor(
+  red: number,
+  green: number,
+  blue: number,
+  paperRgb: readonly number[] | null,
+): ProfileColorClass {
+  const nailMatch = PROFILE_NAIL_RGB.every(
+    (channel, index) =>
+      Math.abs([red, green, blue][index] - channel) <=
+      PROFILE_NAIL_RGB_TOLERANCE,
+  ) && red >= green + 30;
+  if (nailMatch) return "nail";
+  if (
+    paperRgb &&
+    [red, green, blue].every(
+      (channel, index) =>
+        Math.abs(channel - paperRgb[index]) <= PROFILE_PAPER_RGB_TOLERANCE,
+    )
+  ) return "paper";
+  return "other";
+}
+
+function profileClassColor(element: HTMLElement, value: ProfileColorClass) {
   const style = getComputedStyle(element);
-  return PROFILE_GROUP_COLOR_TOKENS.map((token) =>
-    style.getPropertyValue(token).trim(),
-  );
+  const token = value === "nail"
+    ? "--color-yellow-light"
+    : value === "paper"
+      ? "--color-white"
+      : "--color-info";
+  return style.getPropertyValue(token).trim();
 }
 
 function drawGrayShadowArc(
@@ -536,152 +555,10 @@ function drawBackgroundDeltaPreview(
 interface ShadowProfileRay {
   label: string;
   target: Point;
-  values: number[];
-  smoothedValues: number[];
-  groups: number[];
-  branches: number[];
-  minimumIndex: number | null;
-  reboundIndex: number | null;
-  dipDepth: number | null;
-  steepestRise: number | null;
-  reboundWidth: number | null;
-  sharpRebound: boolean;
+  colorClasses: ProfileColorClass[];
 }
 
-function smoothLumaProfile(values: readonly number[]) {
-  return values.map((value, index) => {
-    const start = Math.max(0, index - 1);
-    const end = Math.min(values.length - 1, index + 1);
-    let sum = 0;
-    for (let sample = start; sample <= end; sample += 1)
-      sum += values[sample];
-    return sum / (end - start + 1);
-  });
-}
-
-function measureSharpRebound(values: readonly number[]) {
-  if (values.length < 12) {
-    return {
-      minimumIndex: null,
-      reboundIndex: null,
-      dipDepth: null,
-      steepestRise: null,
-      reboundWidth: null,
-      sharpRebound: false,
-    };
-  }
-  const tailStart = values.length - 6;
-  const paperLevel =
-    values.slice(tailStart).reduce((sum, value) => sum + value, 0) /
-    (values.length - tailStart);
-  let minimumIndex = 2;
-  for (let index = 3; index < tailStart - 1; index += 1)
-    if (values[index] < values[minimumIndex]) minimumIndex = index;
-
-  const leftStart = Math.max(0, minimumIndex - 6);
-  const leftEnd = Math.max(leftStart + 1, minimumIndex - 1);
-  const leftShoulder =
-    values.slice(leftStart, leftEnd).reduce((sum, value) => sum + value, 0) /
-    (leftEnd - leftStart);
-  const minimum = values[minimumIndex];
-  const dipDepth = leftShoulder - minimum;
-  const rise = paperLevel - minimum;
-  if (rise <= 0) {
-    return {
-      minimumIndex,
-      reboundIndex: null,
-      dipDepth,
-      steepestRise: null,
-      reboundWidth: null,
-      sharpRebound: false,
-    };
-  }
-  const target = minimum + rise * PROFILE_REBOUND_FRACTION;
-  let reboundIndex: number | null = null;
-  let steepestRise = 0;
-  for (let index = minimumIndex + 1; index < values.length; index += 1) {
-    steepestRise = Math.max(
-      steepestRise,
-      values[index] - values[index - 1],
-    );
-    if (values[index] >= target) {
-      reboundIndex = index;
-      break;
-    }
-  }
-  const reboundWidth =
-    reboundIndex === null ? null : reboundIndex - minimumIndex;
-  return {
-    minimumIndex,
-    reboundIndex,
-    dipDepth,
-    steepestRise,
-    reboundWidth,
-    sharpRebound:
-      steepestRise >= PROFILE_REBOUND_MIN_RISE &&
-      reboundWidth !== null &&
-      reboundWidth <= PROFILE_REBOUND_MAX_WIDTH,
-  };
-}
-
-/** Cluster the small one-dimensional ray, then merge indistinct luma levels. */
-function groupRayLuma(values: readonly number[]) {
-  if (!values.length) return { groups: [], branches: [] };
-  let centers = [
-    Math.min(...values),
-    values[Math.floor((values.length - 1) / 2)],
-    Math.max(...values),
-  ];
-  for (let iteration = 0; iteration < 5; iteration += 1) {
-    const sums = [0, 0, 0];
-    const counts = [0, 0, 0];
-    values.forEach((value) => {
-      let nearest = 0;
-      for (let index = 1; index < centers.length; index += 1)
-        if (
-          Math.abs(value - centers[index]) <
-          Math.abs(value - centers[nearest])
-        )
-          nearest = index;
-      sums[nearest] += value;
-      counts[nearest] += 1;
-    });
-    centers = centers.map((center, index) =>
-      counts[index] ? sums[index] / counts[index] : center,
-    );
-  }
-  const orderedCenters = [...centers].sort((a, b) => a - b);
-  const mergedCenters: number[] = [];
-  orderedCenters.forEach((center) => {
-    if (
-      mergedCenters.length &&
-      center - mergedCenters[mergedCenters.length - 1] < PROFILE_LUMA_GROUP_GAP
-    ) {
-      mergedCenters[mergedCenters.length - 1] =
-        (mergedCenters[mergedCenters.length - 1] + center) / 2;
-    } else mergedCenters.push(center);
-  });
-  const groups = values.map((value) => {
-    let nearest = 0;
-    for (let index = 1; index < mergedCenters.length; index += 1)
-      if (
-        Math.abs(value - mergedCenters[index]) <
-        Math.abs(value - mergedCenters[nearest])
-      )
-        nearest = index;
-    return nearest;
-  });
-  const branches: number[] = [];
-  let previous = -1;
-  groups.forEach((group) => {
-    if (group !== previous) branches.push(0);
-    branches[branches.length - 1] += 1;
-    previous = group;
-  });
-  return { groups, branches };
-}
-
-function getBrightnessProfileTargets(center: Point) {
+function getRgbProfileTargets(center: Point) {
   const intersectArc = (angle: number) => {
     const ellipseValue = (distance: number) => {
       const x = Math.sin(angle) * distance;
@@ -715,23 +592,24 @@ function drawShadowArcLines(
   const context = cameraPreview.getContext("2d");
   if (!context) return;
   const scale = cameraPreview.width / (SHADOW_PREVIEW_RADIUS * 2);
-  const style = getComputedStyle(cameraPreview);
-  const groupColors = getProfileGroupColors(cameraPreview);
-  const troughColor = style.getPropertyValue("--color-orange-light").trim();
-  const reboundColor = style.getPropertyValue("--color-yellow-light").trim();
+  const classColors: Record<ProfileColorClass, string> = {
+    nail: profileClassColor(cameraPreview, "nail"),
+    paper: profileClassColor(cameraPreview, "paper"),
+    other: profileClassColor(cameraPreview, "other"),
+  };
   const start = {
     x: SHADOW_PREVIEW_RADIUS * scale,
     y: (SHADOW_PREVIEW_RADIUS + SHADOW_CUTOFF_OFFSET_Y) * scale,
   };
   context.save();
   context.lineCap = "round";
-  for (const [rayIndex, ray] of rays.entries()) {
+  for (const ray of rays) {
     const dx = (ray.target.x - SHADOW_PREVIEW_RADIUS) * scale;
     const dy = (ray.target.y - SHADOW_PREVIEW_RADIUS) * scale;
-    for (let index = 1; index < ray.values.length; index += 1) {
-      const denominator = Math.max(1, ray.values.length - 1);
+    for (let index = 1; index < ray.colorClasses.length; index += 1) {
+      const denominator = Math.max(1, ray.colorClasses.length - 1);
       context.lineWidth = 2.5 / scale;
-      context.strokeStyle = groupColors[ray.groups[index] ?? 0];
+      context.strokeStyle = classColors[ray.colorClasses[index] ?? "other"];
       context.beginPath();
       context.moveTo(
         start.x + (dx * (index - 1)) / denominator,
@@ -743,22 +621,8 @@ function drawShadowArcLines(
       );
       context.stroke();
     }
-    if (rayIndex === 0 && ray.minimumIndex !== null) {
-      const denominator = Math.max(1, ray.values.length - 1);
-      const mark = (index: number, color: string) => {
-        const x = start.x + (dx * index) / denominator;
-        const y = start.y + (dy * index) / denominator;
-        context.beginPath();
-        context.arc(x, y, 4 / scale, 0, Math.PI * 2);
-        context.fillStyle = color;
-        context.fill();
-      };
-      mark(ray.minimumIndex, troughColor);
-      if (ray.reboundIndex !== null)
-        mark(ray.reboundIndex, reboundColor);
-    }
   }
-  context.fillStyle = groupColors[1];
+  context.fillStyle = classColors.paper;
   context.beginPath();
   context.arc(start.x, start.y, 4 / scale, 0, Math.PI * 2);
   context.fill();
@@ -770,163 +634,103 @@ function drawShadowLineProfile(
   crop: HTMLCanvasElement,
   center: Point,
   cropOffset: Point,
+  backgroundCanvas: HTMLCanvasElement | null,
 ) {
   const chart = profileCanvas.getContext("2d");
   const currentContext = crop.getContext("2d", { willReadFrequently: true });
   if (!chart || !currentContext) return null;
 
   const current = currentContext.getImageData(0, 0, crop.width, crop.height).data;
-  const targets = getBrightnessProfileTargets(center);
-  const rays: ShadowProfileRay[] = targets.map(({ label, target }) => {
-    const length = Math.hypot(target.x - center.x, target.y - center.y);
-    const values: number[] = [];
-    const steps = Math.ceil(length);
-    for (let step = 0; step <= steps; step += 1) {
-      const ratio = step / steps;
-      const x = Math.round(
-        center.x + (target.x - center.x) * ratio + cropOffset.x,
-      );
-      const y = Math.round(
-        center.y + (target.y - center.y) * ratio + cropOffset.y,
-      );
-      if (x < 0 || x >= crop.width || y < 0 || y >= crop.height) continue;
-      const offset = (y * crop.width + x) * 4;
-      values.push(
-        0.2126 * current[offset] +
-          0.7152 * current[offset + 1] +
-          0.0722 * current[offset + 2],
-      );
-    }
-    const smoothedValues = smoothLumaProfile(values);
-    const { groups, branches } = groupRayLuma(smoothedValues);
-    return {
-      label,
-      target,
-      values,
-      smoothedValues,
-      groups,
-      branches,
-      ...measureSharpRebound(smoothedValues),
-    };
+  const backgroundContext = backgroundCanvas?.getContext("2d", {
+    willReadFrequently: true,
   });
+  const background = backgroundContext && backgroundCanvas &&
+      cropOffset.x >= 0 && cropOffset.y >= 0 &&
+      cropOffset.x + crop.width <= backgroundCanvas.width &&
+      cropOffset.y + crop.height <= backgroundCanvas.height
+    ? backgroundContext.getImageData(
+        cropOffset.x,
+        cropOffset.y,
+        crop.width,
+        crop.height,
+      ).data
+    : null;
+  const rays: ShadowProfileRay[] = getRgbProfileTargets(center).map(
+    ({ label, target }) => {
+      const length = Math.hypot(target.x - center.x, target.y - center.y);
+      const colorClasses: ProfileColorClass[] = [];
+      const steps = Math.ceil(length);
+      for (let step = 0; step <= steps; step += 1) {
+        const ratio = step / steps;
+        const x = Math.round(center.x + (target.x - center.x) * ratio);
+        const y = Math.round(center.y + (target.y - center.y) * ratio);
+        if (x < 0 || x >= crop.width || y < 0 || y >= crop.height) continue;
+        const offset = (y * crop.width + x) * 4;
+        const paperRgb = background
+          ? [background[offset], background[offset + 1], background[offset + 2]]
+          : null;
+        colorClasses.push(
+          classifyProfileColor(
+            current[offset],
+            current[offset + 1],
+            current[offset + 2],
+            paperRgb,
+          ),
+        );
+      }
+      return { label, target, colorClasses };
+    },
+  );
 
   const style = getComputedStyle(profileCanvas);
-  const groupColors = getProfileGroupColors(profileCanvas);
-  const ink = style.getPropertyValue("--color-white").trim();
-  const seriesColors = groupColors;
   const left = 24;
-  const top = 20;
   const width = profileCanvas.width - 32;
-  const height = profileCanvas.height - 80;
   chart.clearRect(0, 0, profileCanvas.width, profileCanvas.height);
   chart.fillStyle = style.getPropertyValue("--color-surface-dark").trim();
   chart.fillRect(0, 0, profileCanvas.width, profileCanvas.height);
-  chart.strokeStyle = "rgba(255,255,255,0.25)";
-  chart.lineWidth = 1;
-  chart.beginPath();
-  chart.moveTo(left, top);
-  chart.lineTo(left, top + height);
-  chart.lineTo(left + width, top + height);
-  chart.stroke();
-  chart.font = "9px sans-serif";
   const rayDisplayNames = ["C", "L20°", "R20°"];
+  const code = { nail: "N", paper: "P", other: "O" } as const;
+  const rowTop = 30;
   rays.forEach((ray, index) => {
-    chart.fillStyle = seriesColors[index];
-    const levels = Math.max(...ray.groups, -1) + 1;
-    const shownRuns = ray.branches.slice(0, 3).join("/");
-    const extraRuns = ray.branches.length > 3 ? "+" : "";
-    chart.fillText(
-      `${rayDisplayNames[index]} ${levels}L ${shownRuns}${extraRuns}`,
-      left + index * 92,
-      11,
-    );
-  });
-  rays.forEach((ray) => {
-    chart.strokeStyle = "rgba(255,255,255,0.35)";
-    chart.lineWidth = 1;
-    chart.beginPath();
-    ray.values.forEach((value, index) => {
-      const x = left + (index / Math.max(1, ray.values.length - 1)) * width;
-      const y = top + height - (value / 255) * height;
-      if (index === 0) chart.moveTo(x, y);
-      else chart.lineTo(x, y);
-    });
-    chart.stroke();
-    chart.lineWidth = 2;
-    ray.smoothedValues.forEach((value, index) => {
-      if (index === 0) return;
-      const denominator = Math.max(1, ray.smoothedValues.length - 1);
-      const x1 = left + ((index - 1) / denominator) * width;
-      const x2 = left + (index / denominator) * width;
-      const y1 = top + height - (ray.smoothedValues[index - 1] / 255) * height;
-      const y2 = top + height - (value / 255) * height;
-      chart.strokeStyle = groupColors[ray.groups[index] ?? 0];
-      chart.beginPath();
-      chart.moveTo(x1, y1);
-      chart.lineTo(x2, y2);
-      chart.stroke();
-    });
-    if (ray.label === "center" && ray.minimumIndex !== null) {
-      const denominator = Math.max(1, ray.smoothedValues.length - 1);
-      const mark = (index: number, color: string) => {
-        const x = left + (index / denominator) * width;
-        const y = top + height - (ray.smoothedValues[index] / 255) * height;
-        chart.beginPath();
-        chart.arc(x, y, 3, 0, Math.PI * 2);
-        chart.fillStyle = color;
-        chart.fill();
-      };
-      mark(ray.minimumIndex, style.getPropertyValue("--color-orange-light").trim());
-      if (ray.reboundIndex !== null)
-        mark(ray.reboundIndex, style.getPropertyValue("--color-yellow-light").trim());
+    const runs: Array<{ colorClass: ProfileColorClass; count: number }> = [];
+    for (const colorClass of ray.colorClasses) {
+      const last = runs[runs.length - 1];
+      if (last?.colorClass === colorClass) last.count += 1;
+      else runs.push({ colorClass, count: 1 });
     }
+    const shownRuns = runs.slice(0, 4)
+      .map((run) => `${code[run.colorClass]}${run.count}`)
+      .join(" ");
+    const extraRuns = runs.length > 4 ? " +" : "";
+    chart.font = "8px sans-serif";
+    chart.fillStyle = style.getPropertyValue("--color-white").trim();
+    chart.fillText(
+      `${rayDisplayNames[index]} ${shownRuns}${extraRuns}`,
+      2,
+      rowTop + index * 34 + 9,
+    );
+    const denominator = Math.max(1, ray.colorClasses.length);
+    ray.colorClasses.forEach((colorClass, sampleIndex) => {
+      chart.fillStyle = profileClassColor(profileCanvas, colorClass);
+      const x = left + (sampleIndex / denominator) * width;
+      const nextX = left + ((sampleIndex + 1) / denominator) * width;
+      chart.fillRect(
+        x,
+        rowTop + index * 34 + 16,
+        Math.max(1, nextX - x),
+        10,
+      );
+    });
   });
-  chart.fillStyle = ink;
-  chart.font = "10px sans-serif";
-  chart.fillText("255", 1, top + 4);
-  chart.fillText("0", 10, top + height);
-  chart.fillText("tip", left, profileCanvas.height - 3);
-  chart.fillText("arc", left + width - 24, profileCanvas.height - 3);
-  const centerRay = rays[0];
-  chart.font = "8px sans-serif";
-  const dipDepth = centerRay?.dipDepth;
-  const dipTooDeep =
-    centerRay?.sharpRebound === true &&
-    dipDepth !== null &&
-    dipDepth !== undefined &&
-    dipDepth > PROFILE_REBOUND_MAX_DIP;
-  const dipTooShallow =
-    centerRay?.sharpRebound === true &&
-    dipDepth !== null &&
-    dipDepth !== undefined &&
-    dipDepth < PROFILE_REBOUND_MIN_DIP;
-  const sharpReboundCandidate =
-    centerRay?.sharpRebound === true &&
-    dipDepth !== null &&
-    dipDepth !== undefined &&
-    dipDepth >= PROFILE_REBOUND_MIN_DIP &&
-    dipDepth <= PROFILE_REBOUND_MAX_DIP;
-  chart.fillStyle = sharpReboundCandidate
-    ? style.getPropertyValue("--color-orange-light").trim()
-    : dipTooDeep
-      ? style.getPropertyValue("--color-red-light").trim()
-      : ink;
-  chart.fillText(
-    centerRay?.minimumIndex !== null && centerRay?.minimumIndex !== undefined
-      ? `${sharpReboundCandidate ? "SHARP REBOUND CANDIDATE" : dipTooDeep ? "DIP TOO DEEP" : dipTooShallow ? "DIP TOO SHALLOW" : "CENTER REBOUND"} · dip ${centerRay.dipDepth?.toFixed(0) ?? "—"} · rise ${centerRay.steepestRise?.toFixed(0) ?? "—"}/px · 80% ${centerRay.reboundWidth ?? "—"}px`
-      : "CENTER REBOUND · unavailable",
-    left,
-    height + 21,
-  );
   chart.font = "9px sans-serif";
   chart.fillStyle = "rgba(255,255,255,0.7)";
-  chart.fillText("raw", left, height + 39);
-  chart.fillStyle = groupColors[0];
-  chart.fillText("dark", left + 28, height + 39);
-  chart.fillStyle = groupColors[1];
-  chart.fillText("mid", left + 66, height + 39);
-  chart.fillStyle = groupColors[2];
-  chart.fillText("bright", left + 96, height + 39);
+  chart.fillText(
+    background
+      ? "N = nail-color match   P = saved paper   O = other"
+      : "N = nail-color match   paper baseline unavailable   O = other",
+    left,
+    138,
+  );
   return { rays };
 }
 
@@ -1244,6 +1048,7 @@ export default function MarkerTrackingOverlay({
                 crop,
                 arcAnchor,
                 { x: cropLeft, y: cropTop },
+                shadowBackgroundRef.current,
               )
             : null;
         const rays = profile?.rays ?? [];
@@ -2042,7 +1847,7 @@ export default function MarkerTrackingOverlay({
                   ref={shadowLineProfileRef}
                   width={280}
                   height={168}
-                  aria-label="Raw and smoothed brightness profiles with a diagnostic sharp-rebound measurement on the center line"
+                  aria-label="RGB class sequences along three fingertip rays: nail-color match, saved paper, and other"
                   className={`${shadowPreviewMode === "camera" ? "block" : "hidden"} mt-1 h-auto max-w-full`}
                 />
                 <div className="mt-1">
@@ -2050,7 +1855,7 @@ export default function MarkerTrackingOverlay({
                     ? "Black: darkest color group. White: other groups."
                     : shadowPreviewMode === "difference"
                       ? "Black: little changed from the saved sheet. White: pixels that changed (hand or shadow)."
-                      : "Camera crop with hand and shadow overlays."}
+                      : "Camera crop with RGB ray classes: nail-color match, saved paper, or other."}
                 </div>
                 {shadowPreviewMode === "difference" && (
                   <div>
@@ -2094,10 +1899,11 @@ export default function MarkerTrackingOverlay({
                   Red is darkest, blue is middle, and green is brightest. The
                   labels show distinct levels and run lengths in pixels. The
                   gray curve is raw luma; the colored curve is smoothed. Orange
-                  marks the center-line minimum and yellow marks its 80% rebound
+                  marks the valley's left edge in blue, bottom in orange, and
+                  sharp-rise point in yellow
                   point. Candidate means an 8–50 luma drop from the local
                   shoulder to the minimum, followed by a rise of at least 20
-                  luma/pixel reaching 80% within 6 pixels. A deeper dip is
+                  luma/pixel within 6 pixels of the valley bottom. A deeper dip is
                   labeled too deep. This is diagnostic only and does not
                   trigger notes.
                 </div>}
@@ -2185,7 +1991,7 @@ export default function MarkerTrackingOverlay({
                     <div>
                       dip={finger.synchronousShadow.rays[0]?.dipDepth?.toFixed(0) ?? "n/a"}
                       · rise={finger.synchronousShadow.rays[0]?.steepestRise?.toFixed(0) ?? "n/a"}/px
-                      · 80%={finger.synchronousShadow.rays[0]?.reboundWidth ?? "n/a"}px
+                      · bottom→rise={finger.synchronousShadow.rays[0]?.reboundWidth ?? "n/a"}px
                       · background={finger.synchronousShadow.backgroundAvailable
                         ? `${finger.synchronousShadow.changedPixels ?? 0} changed`
                         : "unavailable"}

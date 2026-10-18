@@ -5,6 +5,7 @@ export interface ShadowRayMeasurement {
   target: Point;
   values: number[];
   smoothedValues: number[];
+  valleyLeftIndex: number | null;
   minimumIndex: number | null;
   reboundIndex: number | null;
   dipDepth: number | null;
@@ -41,7 +42,6 @@ const MIN_DIP = 8;
 const MAX_DIP = 50;
 const MIN_RISE_PER_PIXEL = 20;
 const MAX_REBOUND_WIDTH = 6;
-const REBOUND_FRACTION = 0.8;
 const BACKGROUND_DIFFERENCE_THRESHOLD = 12;
 
 function lumaAt(pixels: Uint8ClampedArray, width: number, x: number, y: number) {
@@ -65,11 +65,13 @@ function smooth(values: readonly number[]) {
 
 function rebound(
   values: readonly number[],
+  minDip: number,
   minRisePerPixel: number,
   maxReboundWidth: number,
 ) {
   if (values.length < 12)
     return {
+      valleyLeftIndex: null,
       minimumIndex: null,
       reboundIndex: null,
       dipDepth: null,
@@ -78,47 +80,52 @@ function rebound(
       sharpRebound: false,
     };
   const tailStart = values.length - 6;
-  const paper = values.slice(tailStart).reduce((sum, value) => sum + value, 0) /
-    (values.length - tailStart);
-  let minimumIndex = 2;
-  for (let i = 3; i < tailStart - 1; i += 1)
-    if (values[i] < values[minimumIndex]) minimumIndex = i;
-  const shoulderStart = Math.max(0, minimumIndex - 6);
-  const shoulderEnd = Math.max(shoulderStart + 1, minimumIndex - 1);
-  const shoulder = values.slice(shoulderStart, shoulderEnd).reduce(
-    (sum, value) => sum + value,
-    0,
-  ) / (shoulderEnd - shoulderStart);
-  const dipDepth = shoulder - values[minimumIndex];
-  const rise = paper - values[minimumIndex];
-  if (rise <= 0)
+  let riseIndex: number | null = null;
+  let steepestRise = 0;
+  for (let i = 3; i < tailStart; i += 1) {
+    const rise = values[i] - values[i - 1];
+    if (rise > steepestRise) {
+      steepestRise = rise;
+      riseIndex = i;
+    }
+  }
+  if (riseIndex === null || steepestRise < minRisePerPixel)
     return {
-      minimumIndex,
+      valleyLeftIndex: null,
+      minimumIndex: null,
       reboundIndex: null,
-      dipDepth,
+      dipDepth: null,
       steepestRise: null,
       reboundWidth: null,
       sharpRebound: false,
     };
-  const target = values[minimumIndex] + rise * REBOUND_FRACTION;
-  let reboundIndex: number | null = null;
-  let steepestRise = 0;
-  for (let i = minimumIndex + 1; i < values.length; i += 1) {
-    steepestRise = Math.max(steepestRise, values[i] - values[i - 1]);
-    if (values[i] >= target) {
-      reboundIndex = i;
-      break;
-    }
-  }
-  const reboundWidth = reboundIndex === null ? null : reboundIndex - minimumIndex;
+  let minimumIndex = 2;
+  for (let i = 3; i < riseIndex; i += 1)
+    if (values[i] < values[minimumIndex]) minimumIndex = i;
+  let valleyLeftIndex = 2;
+  for (let i = 3; i <= minimumIndex; i += 1)
+    if (values[i] > values[valleyLeftIndex]) valleyLeftIndex = i;
+  const dipDepth = values[valleyLeftIndex] - values[minimumIndex];
+  const reboundWidth = riseIndex - minimumIndex;
+  if (dipDepth < minDip)
+    return {
+      valleyLeftIndex,
+      minimumIndex,
+      reboundIndex: riseIndex,
+      dipDepth,
+      steepestRise,
+      reboundWidth,
+      sharpRebound: false,
+    };
   return {
+    valleyLeftIndex,
     minimumIndex,
-    reboundIndex,
+    reboundIndex: riseIndex,
     dipDepth,
     steepestRise,
     reboundWidth,
     sharpRebound: steepestRise >= minRisePerPixel &&
-      reboundWidth !== null && reboundWidth <= maxReboundWidth,
+      reboundWidth <= maxReboundWidth,
   };
 }
 
@@ -152,7 +159,7 @@ export function analyzeSynchronousShadow(
       },
       values,
       smoothedValues,
-      ...rebound(smoothedValues, minRise, maxWidth),
+      ...rebound(smoothedValues, options.minDip ?? MIN_DIP, minRise, maxWidth),
     };
   });
   const centerRay = rays[0];

@@ -74,14 +74,15 @@ shadow enters the region.
    `CONTACT_TECHNIQUES.knuckles` on and use a valid calibration. The diagnostic
    toggle keeps this experiment from triggering notes.
 3. Choose **Camera** in Shadow analysis preview to see the three sampled rays
-   and luma graph. The center ray is the first one to assess. Orange marks its
-   dark minimum; yellow marks the 80% rebound point. Read the displayed dip,
-   rise per pixel, and rebound width. **SHARP REBOUND CANDIDATE** is only a
-   visual cue, not a press/hover decision.
-4. Capture labeled examples of hover, press, and release, especially hovers
-   close to the sheet. Keep lighting and camera placement fixed. Record the
-   displayed measurements and whether the candidate marker is present. Do not
-   tune thresholds from a single frame; compare multiple examples.
+   colored by RGB class and their class-run strips. N means a match to the
+   existing nail-color rule, P means the current pixel is within 18 RGB values
+   per channel of the captured empty-sheet pixel, and O means other. The
+   overlay is diagnostic only; it does not classify contact or drive notes.
+   If there is no captured empty-sheet frame, paper classification is
+   unavailable and unmatched pixels are shown as other.
+4. Capture labeled examples of hover, press, and release. Keep lighting and
+   camera placement fixed. Record the per-ray class order and run lengths. Do
+   not tune thresholds from a single frame; compare multiple examples.
 
 The still-image set is `experiment/0_hover_middle.png` through
 `experiment/10_hover_middle.png`: 0–1 and 8–10 are labeled hover; 2–7 are
@@ -90,14 +91,38 @@ labeled press. A later hover counterexample is
 used for the stills differs from the live MediaPipe-centered profile, so those
 measurements are useful context but are not directly comparable.
 
-Current candidate settings are provisional: dip depth 8–50 luma, steepest
-rise at least 20 luma/pixel, and 80% rebound within 6 pixels. Near-sheet hovers
-remain unresolved. The reported 30 fps is an informal observation, not a
-measurement. Luma-profile work currently runs synchronously in the preview
+The existing synchronous note detector still uses its provisional luma bounds:
+left-shoulder-to-bottom depth 8–50 luma, steepest rise at least 20 luma/pixel,
+and no more than 6 pixels from bottom to rise. The RGB class preview is
+separate and diagnostic-only. Near-sheet hovers may be treated as presses for
+this use case. The reported 30 fps is an informal observation, not a
+measurement. RGB classification currently runs synchronously in the preview
 callback, while full crop segmentation and mask generation remain in the
 asynchronous worker. Treat a smaller finger-and-rays crop as a follow-up
 optimization; measure frame timing and dropped frames before changing that
 worker boundary.
+
+The camera preview now uses RGB classes instead of a grayscale profile. The
+nail class uses the existing RGB (138, 98, 88) rule with ±30 tolerance per
+channel and red at least 30 greater than green. Paper is a pixelwise match to
+the captured empty-sheet frame with ±18 tolerance per channel. Everything else
+is “other”; this class can include shadows, printed ink, skin outside the nail
+range, and noise. This is an initial visualization rule, not a skin detector
+or note decision. Inspect the three-ray class runs on labeled press and hover
+examples before tuning the RGB ranges or using them in contact state.
+
+The still-image tool at `/cv-image-test` also displays RGB class strips for
+each analyzed target after **Run image analysis**. It shows both MediaPipe and
+yellow-dot origins when the latter is available, using the selected empty-sheet
+image as the pixelwise paper reference. The strips preserve sample order along
+each ray and show consecutive class run lengths; the existing luma detector
+tables remain separate diagnostic output. The enlarged grayscale subtraction
+crop has those same class-colored ray segments overlaid on it: yellow for
+nail-color match, white for paper, purple for a slight darkening of 18–39 luma
+levels, blue for a stronger darkening of at least 40 luma levels, and red for
+other color changes. M and Y label the MediaPipe and yellow-dot origins. The
+darkening is measured against the empty-sheet pixel at the same image
+coordinate; these are visual classes, not proof that a pixel is a shadow.
 
 ## Visual debugger requirements
 
@@ -513,27 +538,31 @@ are diagnostic observations, not performance estimates. In particular, the
 yellow point itself was not missing in the hover sample that looked
 press-shaped to the parser.
 
-The current parser smooths each ray with a three-sample mean, chooses the
-global minimum between sample 2 and the last six samples, estimates dip depth
-from the preceding six-sample shoulder, and searches forward for recovery to
-80% of the rise toward the average of the final six samples. This can select
-an early, unrelated dip: a later sharp rise may be the meaningful shadow edge,
-while the global minimum (and its preceding shoulder) belongs to another
-profile feature. Conversely, a small early fluctuation can become the selected
-dip on a mostly flat profile. The user identified early dip selection as the
-next issue to investigate.
+The previous parser smoothed each ray with a three-sample mean, chose the
+global minimum between sample 2 and the last six samples, estimated dip depth
+from the preceding six-sample shoulder, and searched forward for recovery to
+80% of the rise toward the average of the final six samples. That could pair a
+rise with an unrelated global minimum, or select a small fluctuation on an
+otherwise flat profile.
 
-Next, inspect the plotted raw and smoothed yellow-point center-ray profiles,
-including the hover false positive and press misses, and compare the selected
-minimum/rebound markers with the visible shadow transition. Then evaluate
-associating each plausible sharp rise with a preceding local dip inside a
-bounded search window, instead of pairing the rise only with the global
-minimum. Preserve the existing graph and markers while comparing old and
-candidate parsing on the same labeled set. Report per-image marker locations
-and hover/press counts; keep the revised parser diagnostic until it reduces
-missed presses without adding hover false positives. Do not treat the
-yellow-point localization as failing when a graph is misparsed—the localization
-and luma-profile interpretation are separate stages.
+The parser now finds the steepest positive rise in the profile first, then
+traces backward to the lowest point before that rise. That bottom is the
+selected dip. It also marks the left shoulder (the highest point between the
+profile start and bottom) and the right point at the start of the steep rise.
+Dip depth is the left-shoulder-to-bottom difference; the bottom-to-rise span
+must be at most 6 pixels, and the steepest rise must be at least 20
+luma/pixel. The minimum dip remains 8 luma. These provisional bounds have not
+been validated. This valley selection is implemented in both the live
+diagnostic and synchronous detector. Updated profiles and labeled-image
+counts have not yet been reviewed; this is not an accuracy claim and does not
+enable the detector by default.
+
+Compare the revised parser with the earlier global-minimum results on the same
+labeled press and hover images. Inspect the dip and rebound markers, including
+the hover false positive and press misses, and report per-image selected
+locations and counts. Do not treat yellow-point localization as failing when a
+graph is misparsed—the localization and luma-profile interpretation are
+separate stages.
 
 #### Recall-first three-ray dip-rise review (2026-10-17)
 
@@ -550,18 +579,15 @@ pairs, two medium plateaus, or one long medium plateau. Only the short
 dip-rise case is in scope now, with one independent short pair sought on each
 of the three rays. Medium and long patterns are deferred.
 
-The image replay implements this as a visual-only overlay. It reuses the
-current profile measurements and provisional bounds: dip depth 8–50 luma,
-steepest rise at least 20 luma/pixel, and the 80% rebound within 6 pixels.
-Red marks the selected dip, yellow marks rebound, and a connector shows
-the measured dip-to-rebound span; each graph labels its own result. The
-per-target summary reports the three-ray OR for both MediaPipe-origin and
-yellow-dot-origin profiles. It does not affect live note decisions. The parser
-still selects one global profile minimum and measures recovery toward the
-average of the final six samples; it has not yet been changed to search among
-multiple local dip/rise pairs. This makes the overlay a first look at the
-recall-first idea, not a completed implementation of a generalized local
-feature parser.
+The image replay implements this as a visual-only overlay. It shows the
+three-ray OR for both MediaPipe-origin and yellow-dot-origin profiles, without
+affecting live note decisions. The current parser anchors on the steepest
+positive rise, traces backward to the lowest point before it, and marks three
+points: the highest left shoulder before the bottom, the bottom, and the start
+of the sharp rise on the right. The provisional bounds are a dip depth of
+8–50 luma, a rise of at least 20 luma/pixel, and no more than 6 pixels from
+bottom to sharp-rise point. It seeks one valley per ray; multiple pairs and
+plateaus remain deferred.
 
 The user accepts extra false positives for now in order to recover more press
 examples. The working plan is to add knuckle or Z-line evidence later to help
@@ -569,11 +595,12 @@ reject false candidates, especially when a raised finger's shadow does not
 reach the expected area. Keep those cues separate while inspecting this
 experiment; do not tune them from the still-image counts.
 
-The labeled still replay was rerun on 2026-10-17 with the 19 available images
+The labeled still replay below was run on 2026-10-17 with the 19 available images
 (11 hover and 11 press target samples). The expected screenshot
 `Screenshot 2026-10-17 at 8.52.44 PM.png` was listed by the directory scan but
 missing on disk, so the rerun used a temporary copy of the available images.
-Using the current bounds independently on each ray:
+Using the then-current global-minimum parser and bounds independently on each
+ray (these counts predate the valley-parser change):
 
 | Profile origin | Center press / hover | Left press / hover | Right press / hover | Any-ray press / hover |
 | :--- | :---: | :---: | :---: | :---: |
@@ -593,12 +620,55 @@ Next session:
    targets, noting which ray qualifies and whether its dip/rebound tracks a
    shadow edge, printed mark, or unrelated profile feature.
 2. Review the eight press misses and four hover candidates separately. Decide
-   whether the issue is ray placement, the global-minimum selection, dip depth,
-   rise strength, or the 6-pixel pairing distance.
-3. If local dip/rise pairing is implemented, keep it diagnostic alongside the
-   current global-minimum parser and rerun the same images before changing the
-   bounds. Do not assume multiple short pairs are needed: the current proposal
-   is one pair per ray.
+   whether the issue is ray placement, first qualifying dip selection, dip
+   depth, rise strength, or the 6-pixel pairing distance.
+3. Compare the revised first-dip parser with saved global-minimum results on
+   the same images before changing bounds. Do not assume multiple short pairs
+   are needed: the current parser seeks one pair per ray.
 4. Use labeled video to assess temporal stability and release behavior. Only
    after the still profiles are understandable should the OR or a later
    knuckle/Z-line combination be evaluated as a note-contact rule.
+
+## Press and release shadow experiments (2026-10-18)
+
+Two candidate approaches are being considered for using the three shadow rays
+to detect contact. Both remain experiments; neither should change note state
+until evaluated on labeled footage.
+
+### A. Shadow press onset, separate release cue
+
+Treat the observed fingernail → small shadow → piano paper pattern as a press
+cue. A separate signal, such as MediaPipe z or another release detector,
+provides the release transition. The working assumption is that this pattern
+is characteristic of a pressed finger; near-sheet hovers may be treated as
+presses because they are close enough to count as contact for this use case.
+Test whether the shadow cue appears consistently at press onset, then measure
+release misses, false releases, and timing for the separate release cue.
+
+### B. Shadow extent with hysteresis
+
+Track how far shadow evidence extends along each of the three rays. The
+hypothesis is that a press makes the shadow retreat from the paper end toward
+the finger joint, reducing detected shadow extent; release restores shadow in
+the opposite direction. Add separate press and release thresholds
+(hysteresis) so small frame-to-frame changes do not toggle contact. Record
+per-ray extent, direction of change, and transitions over time. A missing
+shadow measurement alone is not a release: distinguish a measured decrease
+from unavailable or uncertain evidence.
+
+### Interpreting slight shadow (L)
+
+For the initial shadow press detector, treat L (18–39 luma levels darker than
+the saved paper pixel) as paper. Count only D (at least 40 luma levels darker)
+as shadow evidence. Keep L as its own diagnostic class rather than merging it
+into the stored RGB measurements; it may represent a weak finger shadow, but
+that has not been established yet. When evaluating shadow-extent hysteresis or
+the combined finger-plus-Z experiment, compare D-only evidence with D+L evidence
+on the same labeled clips. Report whether including L improves transitions or
+instead adds noise and false presses. This keeps the initial detector
+conservative while preserving the data needed to revisit the threshold.
+
+Compare both approaches on the same labeled press, hold, and release clips.
+Report press/release TP, FP, and FN, transition delay, lighting/camera setup,
+and cases where the cue is absent or ambiguous. Keep onset and release signals
+separately visible in the debugger while evaluating them.

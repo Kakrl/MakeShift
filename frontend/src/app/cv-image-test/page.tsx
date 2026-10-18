@@ -31,6 +31,8 @@ const SHADOW_RAY_LENGTH_PX = 45;
 const SHADOW_RAY_SIDE_ANGLE = (20 * Math.PI) / 180;
 const NAIL_RGB = [138, 98, 88] as const;
 const NAIL_RGB_TOLERANCE = 30;
+const SHADOW_LUMA_MIN_DROP = 18;
+const DARK_SHADOW_LUMA_DROP = 40;
 const FINGER_LANDMARKS = {
   thumb: 4,
   index: 8,
@@ -43,6 +45,13 @@ type FingerName = keyof typeof FINGER_LANDMARKS;
 interface TargetLabel {
   hand: "left" | "right";
   finger: FingerName;
+}
+
+type ProfileColorClass = "nail" | "paper" | "darkShadow" | "lightShadow" | "other";
+interface RgbRayProfile {
+  label: "center" | "left 20°" | "right 20°";
+  classes: ProfileColorClass[];
+  steps: number[];
 }
 
 interface ImageCaseResult {
@@ -67,6 +76,8 @@ interface ImageCaseResult {
     yellowMeasurement: SynchronousShadowMeasurement | null;
     refinedPoint: Point | null;
     colorPoint: Point | null;
+    rgbProfiles: RgbRayProfile[];
+    yellowRgbProfiles: RgbRayProfile[] | null;
     colorRefinement: {
       area: number;
       confidence: number;
@@ -168,6 +179,114 @@ function canvasFor(image: CanvasImageSource, width: number, height: number) {
   if (!context) throw new Error("Unable to create image canvas");
   context.drawImage(image, 0, 0, width, height);
   return { canvas, context };
+}
+
+function makeRgbRayProfiles(
+  image: ImageData,
+  background: ImageData | null,
+  center: Point,
+): RgbRayProfile[] {
+  const rays = [
+    { label: "center", angle: 0 },
+    { label: "left 20°", angle: -SHADOW_RAY_SIDE_ANGLE },
+    { label: "right 20°", angle: SHADOW_RAY_SIDE_ANGLE },
+  ] as const;
+  return rays.map(({ label, angle }) => {
+    const classes: ProfileColorClass[] = [];
+    const steps: number[] = [];
+    for (let step = 0; step <= SHADOW_RAY_LENGTH_PX; step += 1) {
+      const x = Math.round(center.x + Math.sin(angle) * step);
+      const y = Math.round(center.y + Math.cos(angle) * step);
+      if (x < 0 || x >= image.width || y < 0 || y >= image.height) continue;
+      const offset = (y * image.width + x) * 4;
+      const red = image.data[offset];
+      const green = image.data[offset + 1];
+      const blue = image.data[offset + 2];
+      const nailMatch = NAIL_RGB.every(
+        (channel, index) =>
+          Math.abs([red, green, blue][index] - channel) <= NAIL_RGB_TOLERANCE,
+      ) && red >= green + 30;
+      if (nailMatch) {
+        classes.push("nail");
+        steps.push(step);
+        continue;
+      }
+      let paperMatch = Boolean(background);
+      if (background) {
+        paperMatch = [red, green, blue].every((channel, index) =>
+          Math.abs(channel - background.data[offset + index]) <= 18,
+        );
+      }
+      if (paperMatch) {
+        classes.push("paper");
+      } else if (background) {
+        const luma = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+        const paperLuma = 0.2126 * background.data[offset] +
+          0.7152 * background.data[offset + 1] +
+          0.0722 * background.data[offset + 2];
+        const delta = luma - paperLuma;
+        classes.push(
+          delta <= -DARK_SHADOW_LUMA_DROP
+            ? "darkShadow"
+            : delta <= -SHADOW_LUMA_MIN_DROP
+              ? "lightShadow"
+              : "other",
+        );
+      } else {
+        classes.push("other");
+      }
+      steps.push(step);
+    }
+    return { label, classes, steps };
+  });
+}
+
+function RgbClassRayProfiles({
+  profiles,
+  title,
+}: {
+  profiles: RgbRayProfile[];
+  title: string;
+}) {
+  const names: Record<ProfileColorClass, string> = {
+    nail: "N",
+    paper: "P",
+    darkShadow: "D",
+    lightShadow: "L",
+    other: "O",
+  };
+  const colors: Record<ProfileColorClass, string> = {
+    nail: "var(--color-yellow-strong)",
+    paper: "var(--color-white)",
+    darkShadow: "var(--color-blue)",
+    lightShadow: "var(--color-purple)",
+    other: "var(--color-danger)",
+  };
+  return <div className="space-y-2">
+    <p className="text-sm font-medium">{title} · RGB classes along each ray</p>
+    {profiles.map((profile) => {
+      const runs: Array<{ value: ProfileColorClass; count: number }> = [];
+      for (const value of profile.classes) {
+        const last = runs[runs.length - 1];
+        if (last?.value === value) last.count += 1;
+        else runs.push({ value, count: 1 });
+      }
+      return <div key={profile.label} className="grid grid-cols-[5rem_minmax(0,1fr)] items-center gap-2">
+        <span className="text-xs">{profile.label}</span>
+        <div className="space-y-1">
+          <div className="flex h-4 overflow-hidden rounded border" aria-label={`${profile.label} RGB class samples`}>
+            {profile.classes.map((value, index) => <span
+              key={`${profile.label}-${index}`}
+              title={`${names[value]} · sample ${index + 1}`}
+              style={{ backgroundColor: colors[value], flex: "1 0 0" }}
+            />)}
+          </div>
+          <p className="break-words text-xs">{runs.map((run) => `${names[run.value]}${run.count}`).join(" · ") || "no in-bounds samples"}</p>
+        </div>
+      </div>;
+    })}
+    <p className="text-xs">N = existing nail-color RGB rule · P = within ±18 RGB per channel of the empty-sheet pixel · O = other. These are diagnostic classes, not contact decisions.</p>
+  </div>;
 }
 
 interface LumaDifferenceImage {
@@ -418,6 +537,9 @@ function createDifferencePreview(
   point: Point,
   refinement: ReturnType<typeof refineFingertip>,
   colorRefinement: ReturnType<typeof refineFingertipByColor>,
+  rgbProfiles: RgbRayProfile[],
+  yellowPoint: Point | null,
+  yellowRgbProfiles: RgbRayProfile[] | null,
 ) {
   const sourceSize = SHADOW_CROP_RADIUS * 2;
   const previewScale = 2;
@@ -501,23 +623,60 @@ function createDifferencePreview(
       x: colorRefinement.scan.middle.x,
       y: colorRefinement.scan.bottom.y - VERTICAL_SCAN_DOT_OFFSET_PX,
     };
-    const rayColors = [
-      rootStyle.getPropertyValue("--color-blue").trim(),
-      rootStyle.getPropertyValue("--color-purple").trim(),
-      rootStyle.getPropertyValue("--color-success-strong").trim(),
-    ];
-    const rayAngles = [-SHADOW_RAY_SIDE_ANGLE, 0, SHADOW_RAY_SIDE_ANGLE];
-    rayAngles.forEach((angle, index) => {
-      drawLine(
-        origin,
-        {
-          x: origin.x + Math.sin(angle) * SHADOW_RAY_LENGTH_PX,
-          y: origin.y + Math.cos(angle) * SHADOW_RAY_LENGTH_PX,
-        },
-        rayColors[index],
-      );
-    });
     drawDot(origin, yellow, 6);
+  }
+  const classColors: Record<ProfileColorClass, string> = {
+    nail: rootStyle.getPropertyValue("--color-yellow-strong").trim(),
+    paper: rootStyle.getPropertyValue("--color-white").trim(),
+    darkShadow: rootStyle.getPropertyValue("--color-blue").trim(),
+    lightShadow: rootStyle.getPropertyValue("--color-purple").trim(),
+    other: rootStyle.getPropertyValue("--color-danger").trim(),
+  };
+  const drawClassRays = (
+    origin: Point,
+    profiles: RgbRayProfile[],
+    originColor: string,
+    originLabel: string,
+  ) => {
+    const angleFor = {
+      center: 0,
+      "left 20°": -SHADOW_RAY_SIDE_ANGLE,
+      "right 20°": SHADOW_RAY_SIDE_ANGLE,
+    } as const;
+    for (const ray of profiles) {
+      const angle = angleFor[ray.label];
+      for (let index = 1; index < ray.classes.length; index += 1) {
+        const from = local({
+          x: origin.x + Math.sin(angle) * ray.steps[index - 1],
+          y: origin.y + Math.cos(angle) * ray.steps[index - 1],
+        });
+        const to = local({
+          x: origin.x + Math.sin(angle) * ray.steps[index],
+          y: origin.y + Math.cos(angle) * ray.steps[index],
+        });
+        context.beginPath();
+        context.moveTo(from.x, from.y);
+        context.lineTo(to.x, to.y);
+        context.lineWidth = 6;
+        context.strokeStyle = rootStyle.getPropertyValue("--color-ink").trim();
+        context.stroke();
+        context.lineWidth = 4;
+        context.strokeStyle = classColors[ray.classes[index]];
+        context.stroke();
+      }
+    }
+    drawDot(origin, originColor, 7);
+    const location = local(origin);
+    context.font = "bold 14px sans-serif";
+    context.lineWidth = 4;
+    context.strokeStyle = rootStyle.getPropertyValue("--color-ink").trim();
+    context.strokeText(originLabel, location.x + 7, location.y - 7);
+    context.fillStyle = rootStyle.getPropertyValue("--color-white").trim();
+    context.fillText(originLabel, location.x + 7, location.y - 7);
+  };
+  drawClassRays(point, rgbProfiles, red, "M");
+  if (yellowPoint && yellowRgbProfiles) {
+    drawClassRays(yellowPoint, yellowRgbProfiles, yellow, "Y");
   }
   return canvas.toDataURL();
 }
@@ -758,6 +917,12 @@ export default function CvImageTestPage() {
         backgroundImage.naturalWidth,
         backgroundImage.naturalHeight,
       );
+      const backgroundRgb = backgroundFrame.context.getImageData(
+        0,
+        0,
+        backgroundImage.naturalWidth,
+        backgroundImage.naturalHeight,
+      );
       markerDetector = await MarkerDetector.create();
       const markerResult = markerDetector.detect(backgroundFrame.canvas);
       const markerCenters = [0, 1, 2, 3].map((id) =>
@@ -792,7 +957,7 @@ export default function CvImageTestPage() {
         backgroundReady: Boolean(homography && geometryUsable),
         keyboardLayout: DEFAULT_LAYOUT,
           fingertipRefinement: `The subtraction candidate uses absolute luma difference against the empty-sheet reference. The nail-color candidate searches near the MediaPipe point for RGB pixels within ±${NAIL_RGB_TOLERANCE} independently in each channel of (${NAIL_RGB.join(", ")}), with red at least 30 above green. It selects the nearest connected component, outlines it, and marks its pixel centroid. The displayed confidence is a heuristic based on component area, not a calibrated probability. Both refinements are diagnostic only and do not trigger notes.`,
-        note: "Background differences are diagnostic only; note candidates still use the luma profile.",
+        note: "RGB ray strips are diagnostic only; note candidates still use the luma profile.",
       });
 
       const nextResults: ImageCaseResult[] = [];
@@ -815,6 +980,16 @@ export default function CvImageTestPage() {
         try {
           const image = await loadImage(file);
           const differenceImage = createLumaDifferenceImage(image, backgroundImage);
+          const imageRgb = canvasFor(
+            image,
+            image.naturalWidth,
+            image.naturalHeight,
+          ).context.getImageData(0, 0, image.naturalWidth, image.naturalHeight);
+          const matchingBackground =
+            image.naturalWidth === backgroundRgb.width &&
+            image.naturalHeight === backgroundRgb.height
+              ? backgroundRgb
+              : null;
           result.dimensions = `${image.naturalWidth}x${image.naturalHeight}`;
           result.backgroundDimensionsMatch =
             image.naturalWidth === backgroundImage.naturalWidth &&
@@ -862,6 +1037,8 @@ export default function CvImageTestPage() {
                 yellowMeasurement: null,
                 refinedPoint: null,
                 colorPoint: null,
+                rgbProfiles: [],
+                yellowRgbProfiles: null,
                 colorRefinement: null,
                 refinement: null,
                 refinedMeasurement: null,
@@ -884,6 +1061,8 @@ export default function CvImageTestPage() {
                 yellowMeasurement: null,
                 refinedPoint: null,
                 colorPoint: null,
+                rgbProfiles: [],
+                yellowRgbProfiles: null,
                 colorRefinement: null,
                 refinement: null,
                 refinedMeasurement: null,
@@ -910,10 +1089,23 @@ export default function CvImageTestPage() {
             const yellowMeasurement = yellowPoint
               ? makeMeasurement(image, backgroundImage, yellowPoint)
               : null;
+            const rgbProfiles = makeRgbRayProfiles(
+              imageRgb,
+              matchingBackground,
+              point,
+            );
+            const yellowRgbProfiles = yellowPoint
+              ? makeRgbRayProfiles(imageRgb, matchingBackground, yellowPoint)
+              : null;
             const differencePreviewKey = `${file.name}:${targetIndex}`;
             setSourceCropPreviews((previous) => ({
               ...previous,
-              [differencePreviewKey]: createSourcePreview(image, point, refinement, colorRefinement),
+              [differencePreviewKey]: createSourcePreview(
+                image,
+                point,
+                refinement,
+                colorRefinement,
+              ),
             }));
             setDifferencePreviews((previous) => ({
               ...previous,
@@ -922,6 +1114,9 @@ export default function CvImageTestPage() {
                 point,
                 refinement,
                 colorRefinement,
+                rgbProfiles,
+                yellowPoint,
+                yellowRgbProfiles,
               ),
             }));
             result.targets.push({
@@ -936,6 +1131,8 @@ export default function CvImageTestPage() {
               yellowMeasurement,
               refinedPoint: refinement?.point ?? null,
               colorPoint: colorRefinement?.point ?? null,
+              rgbProfiles,
+              yellowRgbProfiles,
               colorRefinement: colorRefinement ? {
                 area: colorRefinement.area,
                 confidence: colorRefinement.confidence,
@@ -998,7 +1195,7 @@ export default function CvImageTestPage() {
         {results.map((result) => <article className="space-y-2 rounded border p-4" key={result.fileName}>
           <h3 className="font-medium"><span>Expected {result.label.toUpperCase()}</span><VerdictBadge verdict={imageVerdict(result)} /> · {result.fileName} · {result.dimensions ?? "dimensions unavailable"} · subtraction reference {setup ? String(setup.backgroundFile) : "unavailable"} · {result.backgroundDimensionsMatch === null ? "background size unknown" : result.backgroundDimensionsMatch ? "background size matches" : "background size does not match"}</h3>
           {result.error && <p>{result.error}</p>}
-          <p className="text-sm">The subtraction crop shows raw absolute luma difference without display amplification: 0 = unchanged black, 255 = maximum difference white. It uses a {SHADOW_CROP_RADIUS * 2} × {SHADOW_CROP_RADIUS * 2} source-pixel area centered on the rounded MediaPipe point, enlarged 2× with nearest-neighbor scaling. This continuous grayscale view does not distinguish whether a changed pixel is a hand or shadow. The separate {BACKGROUND_DIFFERENCE_THRESHOLD}-luma binary cutoff is used internally to locate the horizontal changed region. Red marks MediaPipe; yellow marks the centered cross-section; blue marks the vertical scan and detected edge; green marks the point placed {TIP_INSET_PX} px above that edge.</p>
+          <p className="text-sm">RGB class strips below show the three 45-pixel rays from each MediaPipe and yellow-dot origin: N is the existing nail-color match, P is within ±18 RGB values per channel of the empty-sheet pixel, and O is other. These diagnostic classes also color the sampled ray segments on the enlarged grayscale subtraction crop; they do not affect contact decisions. The crop shows raw absolute luma difference without display amplification: 0 = unchanged black, 255 = maximum difference white.</p>
           {previews[result.fileName] && result.dimensions && <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(180px,1fr)]">
             <div className="relative w-full max-w-xl">
             <img className="block h-auto w-full" src={previews[result.fileName]} alt={`${result.fileName} with MediaPipe and refined fingertip points`} />
@@ -1020,16 +1217,18 @@ export default function CvImageTestPage() {
           </div>}
           {result.targets.map((target, index) => <div className="overflow-auto" key={`${target.finger}-${index}`}>
             <p><strong>{target.requestedHand} {target.finger}:</strong> Expected {result.label.toUpperCase()} · MediaPipe says {detectorLabel(target.measurement?.state)} <VerdictBadge verdict={targetVerdict(result.label, target.measurement)} />; subtraction point {target.refinedPoint ? `(${target.refinedPoint.x.toFixed(1)}, ${target.refinedPoint.y.toFixed(1)})` : "not found"}; nail-color component center {target.colorPoint ? `(${target.colorPoint.x.toFixed(1)}, ${target.colorPoint.y.toFixed(1)})` : "not found"} · RGB target (${NAIL_RGB.join(", ")}) ± ${NAIL_RGB_TOLERANCE} · heuristic confidence {target.colorRefinement?.confidence.toFixed(2) ?? "unavailable"} · component {target.colorRefinement?.area ?? "unavailable"} px{target.colorRefinement?.failureReason ? ` · ${target.colorRefinement.failureReason}` : ""}; subtraction detector says {detectorLabel(target.refinedMeasurement?.state)} <VerdictBadge verdict={targetVerdict(result.label, target.refinedMeasurement)} />; edges {target.refinement?.leftEdge && target.refinement.rightEdge ? `${target.refinement.leftEdge.x}–${target.refinement.rightEdge.x}` : "unavailable"}; paper boundary {target.refinement?.paperBoundary ? `y=${target.refinement.paperBoundary.y}` : "unavailable"}; key overlap {target.keyIndexes.join(", ") || "none"}; background available {target.refinedMeasurement?.backgroundAvailable ? "yes" : "no"}</p>
+            {target.rgbProfiles.length > 0 && <RgbClassRayProfiles profiles={target.rgbProfiles} title="MediaPipe point" />}
+            {target.yellowRgbProfiles && <RgbClassRayProfiles profiles={target.yellowRgbProfiles} title="Yellow-dot point" />}
             {!target.refinedPoint && <p className="font-medium">No refined point was placed: {target.refinement?.failureReason ?? "the subtraction scan did not return a result"}.</p>}
             {(sourceCropPreviews[`${result.fileName}:${index}`] || differencePreviews[`${result.fileName}:${index}`]) && <div className="grid max-w-5xl gap-4 md:grid-cols-2">
               {sourceCropPreviews[`${result.fileName}:${index}`] && <div className="space-y-1">
-                <p className="text-sm font-medium">Original RGB crop · red MediaPipe, green subtraction, orange nail-color match, yellow contour and dot ({VERTICAL_SCAN_DOT_OFFSET_PX}px above vertical scan end), blue component center, purple RGB-range scans</p>
-                <img className="block h-auto w-full border" src={sourceCropPreviews[`${result.fileName}:${index}`]} alt={`Original RGB crop for ${target.requestedHand} ${target.finger} showing MediaPipe, subtraction and color contour fingertip candidates`} />
+                <p className="text-sm font-medium">Original RGB crop · red MediaPipe, green subtraction point, yellow nail-color contour, purple range scans</p>
+                <img className="block h-auto w-full border" src={sourceCropPreviews[`${result.fileName}:${index}`]} alt={`Original RGB crop for ${target.requestedHand} ${target.finger} showing fingertip refinement overlays`} />
               </div>}
               {differencePreviews[`${result.fileName}:${index}`] && <div className="space-y-1">
-                <p className="text-sm font-medium">Live debugger scale subtraction crop · {SHADOW_CROP_RADIUS * 2} × {SHADOW_CROP_RADIUS * 2} source pixels, enlarged 2×</p>
-                <img className="block h-auto w-full border" src={differencePreviews[`${result.fileName}:${index}`]} alt={`Grayscale luma subtraction crop for ${target.requestedHand} ${target.finger}; red marks MediaPipe and green marks the refined point when found`} />
-                <p className="text-sm">Raw difference scale: 0 = unchanged black; 255 = maximum difference white. <span style={{ color: "var(--color-danger)" }}>Red: MediaPipe</span> · <span style={{ color: "var(--color-yellow-strong)" }}>Yellow: changed region and nail-color ray origin</span> · <span style={{ color: "var(--color-blue)" }}>Blue: vertical scan and edge / left ray</span> · <span style={{ color: "var(--color-purple)" }}>Purple: center ray</span> · <span style={{ color: "var(--color-success-strong)" }}>Green: placed point / right ray</span></p>
+                <p className="text-sm font-medium">Grayscale subtraction crop · {SHADOW_CROP_RADIUS * 2} × {SHADOW_CROP_RADIUS * 2} source pixels, enlarged 2×, with RGB-class ray segments</p>
+                <img className="block h-auto w-full border" src={differencePreviews[`${result.fileName}:${index}`]} alt={`Grayscale subtraction crop for ${target.requestedHand} ${target.finger} with ray segments colored by nail-color, paper, and other RGB classes`} />
+                <p className="text-sm">Raw difference scale: 0 = unchanged black; 255 = maximum difference white. Ray segments: <span style={{ color: "var(--color-yellow-strong)" }}>Yellow N: nail-color match</span> · <span style={{ color: "var(--color-white)" }}>White P: saved paper</span> · <span style={{ color: "var(--color-blue)" }}>Blue D: at least 40 luma levels darker than paper</span> · <span style={{ color: "var(--color-purple)" }}>Purple L: 18–39 levels darker than paper</span> · <span style={{ color: "var(--color-danger)" }}>Red O: other color change</span>.</p>
               </div>}
             </div>}
             {target.refinement && <BoundaryProfile values={target.refinement.lineProfile} boundaryIndex={target.refinement.paperBoundary && target.landmark ? Math.round(target.refinement.paperBoundary.y - target.landmark.y) : null} />}
