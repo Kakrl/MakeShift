@@ -1,69 +1,64 @@
 # CV accuracy and performance TODO
 
-Working checklist based on `CodexThoughts.md` and the current prototype.
-Delete items as they are completed. This document records planned work only;
-it does not establish measured accuracy or latency.
+This checklist records the planned synchronous shadow-contact experiment. It
+does not establish measured accuracy or latency. See
+[`cv_shadow_experiments.md`](cv_shadow_experiments.md) for the current visual
+evidence and limitations.
 
-## Z-calibrated early press prediction
+## Synchronous shadow contact experiment
 
-MediaPipe fingertip z is not currently used by the live contact pipeline.
-The intended role is to predict note-on from calibrated per-finger depth and
-downward movement, then use shadow evidence to confirm the press shortly after
-the sound starts.
+- [x] Add a new, separate shadow detector file (for example,
+  `frontend/src/cv/synchronousShadowDetector.ts`) that owns the new detector
+  logic and measurements. Keep it isolated from the existing
+  `shadowHeuristics.ts` and `shadowWorker.ts` implementations. It consumes the
+  current camera frame, MediaPipe fingertip location, and current
+  knuckle-eligibility result. The live pipeline calls it synchronously
+  immediately after knuckle evaluation so both operate on the same frame; do
+  not queue it in a Web Worker.
+- [x] Implement the current visual candidate shape in the new detector: sample
+  the three short luma rays around the fingertip, smooth the profiles, and
+  report dip depth, steepest rebound, rebound width, and candidate status.
+  Keep thresholds configurable/provisional and expose measurements for debug.
+- [x] Keep the synchronous path limited to its fingertip/ray region; do not
+  perform the legacy worker's full-crop segmentation or masking. The live path
+  now copies at most a 48 × 68 region, while its note decision reads the three
+  ray profiles. Background difference at those ray samples remains diagnostic
+  only.
+- [x] Gate shadow analysis on knuckle eligibility being high, plus the existing
+  key/fingertip validity conditions. Do not spend per-finger shadow work when
+  the knuckle gate is low.
+- [x] Add an independent feature switch for the new detector. Allow the old
+  asynchronous shadow detector to be disabled while the new detector is
+  enabled, so labeled CV runs can isolate and compare the paths.
+- [x] Reuse the valid marker geometry flow to capture the piano-sheet
+  background from the camera frame whenever all required markers are detected
+  and a valid homography is computed. Keep the last captured background when
+  marker detection or homography computation fails. Align/use the reference
+  consistently with the live frame for subtraction; do not let a failed scan
+  replace it.
+- [x] Feed background-subtraction data to the new detector as a per-frame
+  input, while keeping the detector synchronous and its results associated
+  with that same frame. If no valid background has been captured, report the
+  background-dependent measurement as unavailable.
+- [x] Preserve diagnostic-only mode and add overlays/readouts for the sampled
+  region/rays, profile measurements, candidate state, and background
+  availability. Ensure diagnostics alone cannot dispatch notes.
+- [x] Route the new detector's contact evidence into the existing per-finger
+  contact state only when its switch is enabled. Preserve press identity,
+  release behavior, and stale-frame protections; remove the old async shadow
+  path from that mode rather than combining both signals.
+- [x] Run the labeled CV video evaluation with the old shadow detector off and
+  the new synchronous detector on. Record clip/setup conditions, event
+  precision and recall, false/missed presses, release behavior, and timing.
+  Near-sheet hovers are deferred from this first pass and must remain listed as
+  an unevaluated edge case, not counted as solved.
+- [x] Update the shadow experiment notes and verification inventory with the
+  actual coverage and execution evidence. Do not claim general accuracy or
+  latency from a small labeled set or a visual preview.
 
-- [x] Inspect the existing depth calibration capture. It records each
-  fingertip's MediaPipe z alongside the shared knuckle-distance measurement
-  at all five sheet positions. The in-memory samples retain these paired
-  values, but persisted calibration keeps only fitted line coefficients.
-  Existing `zLines` fit fingertip z to fingertip sheet Y; they are a
-  calibrated z-dependent sheet-position boundary, not a metric contact-depth
-  value.
-- [x] Reuse the existing per-finger `zLines` as the calibrated z boundary.
-  The standalone z-boundary heuristic compares observed fingertip sheet Y to
-  the sheet Y predicted from its MediaPipe z. Keep the boundary tolerance at
-  zero for now; tolerance tuning is deferred to the z-motion evaluator.
-- [x] Add a modular z-motion evaluator that receives prior per-finger z
-  samples, that finger's calibrated zLine, and the current fingertip z/sheet
-  position. It reports a prediction only when z has decreased within the
-  supplied history window and crossed the calibrated boundary. Its local
-  `Z_LINE_TOLERANCE` is currently zero and applies to the sheet-position
-  crossing only; it does not alter the shared boundary calculation or motion
-  direction check.
-- [x] Review the saved labeled trials. Treat decreasing MediaPipe z during
-  the move phase as the working downward direction after excluding the first
-  four settling/hover samples. Use direction only; the calibrated zLine is
-  the boundary, so no per-finger movement-delta threshold is planned.
-- [x] Maintain a short, timestamped z history for each fingertip in the live
-  contact pipeline. While key overlap and knuckle eligibility pass, call the
-  evaluator with a 150 ms history window and require two prior samples.
-- [x] Trigger note-on once when the z prediction passes. Require fresh shadow
-  evidence within 150 ms; if confirmation does not arrive, send note-off and
-  cancel the prediction. This path requires both knuckle and shadow techniques
-  enabled. Knuckles and shadows are enabled in the current configuration;
-  z-motion prediction remains disabled by default.
-- [x] Clear the fingertip's z history on tracking loss, key changes, or lost
-  eligibility. Cancel a pending prediction when its gates are lost, then
-  start with fresh z samples after recovery.
-- [ ] Evaluate the predictor across fingers and labeled hover, approach,
-  contact, and release trials. Measure early-trigger timing, unconfirmed
-  predictions, missed presses, and duplicate note-ons before tuning thresholds.
+## Deferred CV follow-ups
 
-## Deferred experiments
-
-- [ ] Consider lower-half-only clustering separately. The upper half currently
-  influences color clusters, so removing it can change segmentation behavior.
-- [ ] Consider motion-based scheduling only after the simpler optimizations;
-  avoid missing fast presses or delaying held-note release.
-- [ ] Observe responsiveness and detection behavior across fast/slow presses,
-  chords, holds, releases, fingers, lighting, and camera distance. Do not infer
-  achieved latency or accuracy from the 20 ms dispatch interval alone.
-
-## Scope constraint
-
-Do not edit tests or `tests/verification_test_inventory.md` as part of this
-requested work.
-
-
-## calibrate for left hand
-
-## a finger should trigger one key maximum
+- [ ] Evaluate very near-sheet hovers after the initial detector comparison.
+- [ ] Measure synchronous detector cost and dropped frames on representative
+  camera sessions after the compact crop change. If still costly, consider
+  sampling only ray pixels directly from the live and saved-background frames.

@@ -27,11 +27,17 @@ import {
 } from "./zMotionPrediction";
 import type {
   ShadowContactEvaluation,
+  ShadowContactState,
   ShadowMeasurement,
   ShadowObservation,
   ShadowWorkerResponse,
 } from "./shadowHeuristics";
 import type { Point } from "./types";
+import {
+  analyzeSynchronousShadow,
+  SYNCHRONOUS_SHADOW_CROP,
+  type SynchronousShadowMeasurement,
+} from "./synchronousShadowDetector";
 
 export const SHADOW_CROP_RADIUS = 70;
 const SHADOW_INTERVAL_MS = 10;
@@ -41,6 +47,8 @@ export interface ContactTechniques {
   shadows: boolean;
   /** Requires both knuckles and shadows; off when omitted by older configs. */
   zMotion?: boolean;
+  /** Same-frame experimental detector; independent from the legacy worker. */
+  synchronousShadows?: boolean;
 }
 
 // Change these independently to debug either technique. Key overlap is required.
@@ -49,10 +57,12 @@ export const CONTACT_TECHNIQUES: Readonly<ContactTechniques> = {
   knuckles: false,
   shadows: false,
   zMotion: false,
+  synchronousShadows: true,
 };
 
 export interface ContactPipelineFrame {
   video: HTMLVideoElement | null;
+  background?: HTMLCanvasElement | null;
   fingertips: readonly Fingertip[];
   hands: readonly HandObservation[];
   whiteKeys: Point[][] | null;
@@ -62,7 +72,11 @@ export interface ContactPipelineFrame {
 
 interface PipelineCallbacks {
   onContactsChanged: (refreshDebug?: boolean) => void;
-  onShadowCameraPreview: (crop: HTMLCanvasElement | null, center: Point) => void;
+  onShadowCameraPreview: (
+    crop: HTMLCanvasElement | null,
+    center: Point,
+    origin: Point,
+  ) => void;
   onShadowPreview: (
     observation: ShadowObservation,
     contact: ShadowContactEvaluation,
@@ -79,6 +93,7 @@ export class LiveContactPipeline {
   private readonly motion = new Map<string, FingerVelocity>();
   readonly observations = new Map<string, ShadowObservation>();
   readonly shadowContacts = new Map<string, ShadowContactEvaluation>();
+  readonly synchronousMeasurements = new Map<string, SynchronousShadowMeasurement>();
   private readonly measurements = new Map<string, ShadowMeasurement>();
   private readonly zHistories = new Map<string, ZMotionSample[]>();
   private readonly zPredictionLatched = new Set<string>();
@@ -87,9 +102,12 @@ export class LiveContactPipeline {
   private disposed = false;
   private inFlight = false;
   private cropCanvas: HTMLCanvasElement | null = null;
+  private synchronousCropCanvas: HTMLCanvasElement | null = null;
   private lastFrameAtMs = -Infinity;
   private revision = 0;
   private previewFingerId: string | null = null;
+  private shadowDiagnosticsOnly = false;
+  private synchronousDiagnosticsOnly = false;
 
   readonly techniques: Readonly<ContactTechniques>;
 
@@ -102,40 +120,8 @@ export class LiveContactPipeline {
   }
 
   start() {
-    if (this.techniques.shadows)
-      try {
-        const worker = new Worker(
-          new URL("./shadowWorker.ts", import.meta.url),
-          {
-            type: "module",
-          },
-        );
-        this.worker = worker;
-        worker.onmessage = ({ data }: MessageEvent<ShadowWorkerResponse>) =>
-          this.receiveShadows(data);
-        worker.onerror = (event) => {
-          if (this.disposed) return;
-          worker.terminate();
-          this.worker = null;
-          this.inFlight = false;
-          this.measurements.clear();
-          this.observations.clear();
-          this.shadowContacts.clear();
-          this.zHistories.clear();
-          this.zPredictionLatched.clear();
-          this.contacts.clear();
-          this.pressVelocities.clear();
-          this.motion.clear();
-          this.callbacks.onContactsChanged();
-          this.callbacks.onError(
-            event.message || "Worker failed without an error message",
-          );
-        };
-      } catch (error) {
-        this.callbacks.onError(
-          error instanceof Error ? error.message : "Unable to start worker",
-        );
-      }
+    if (this.techniques.shadows || this.shadowDiagnosticsOnly)
+      this.startShadowWorker();
     // Releases and stale-contact handling never wait for the worker or React.
     this.timer = setInterval(() => {
       if (this.disposed) return;
@@ -148,13 +134,76 @@ export class LiveContactPipeline {
         if (!finger) continue;
         finger.contact = previous;
         const next = finger.checkState(gate, now, undefined, {
-          shadowsEnabled: this.techniques.shadows,
+          shadowsEnabled: this.techniques.shadows ||
+            this.techniques.synchronousShadows,
         });
         this.setContact(id, next, now);
         changed ||= next.state !== previous.state;
       }
       if (changed) this.callbacks.onContactsChanged(true);
     }, 20);
+  }
+
+  /** Enable image analysis for the debugger without using it for note state. */
+  setShadowDiagnosticsOnly(enabled: boolean) {
+    if (this.techniques.shadows || this.shadowDiagnosticsOnly === enabled)
+      return;
+    this.shadowDiagnosticsOnly = enabled;
+    this.lastFrameAtMs = -Infinity;
+    if (enabled) {
+      this.startShadowWorker();
+      return;
+    }
+    this.worker?.terminate();
+    this.worker = null;
+    this.inFlight = false;
+    this.measurements.clear();
+    this.observations.clear();
+    this.shadowContacts.clear();
+    this.callbacks.onContactsChanged(true);
+  }
+
+  /** Enable same-frame analysis for inspection without changing note state. */
+  setSynchronousShadowDiagnosticsOnly(enabled: boolean) {
+    this.synchronousDiagnosticsOnly = enabled;
+    if (!enabled && !this.techniques.synchronousShadows)
+      this.synchronousMeasurements.clear();
+  }
+
+  private startShadowWorker() {
+    if (this.worker || this.disposed) return;
+    try {
+      const worker = new Worker(new URL("./shadowWorker.ts", import.meta.url), {
+        type: "module",
+      });
+      this.worker = worker;
+      worker.onmessage = ({ data }: MessageEvent<ShadowWorkerResponse>) =>
+        this.receiveShadows(data);
+      worker.onerror = (event) => {
+        if (this.disposed) return;
+        worker.terminate();
+        this.worker = null;
+        this.inFlight = false;
+        this.measurements.clear();
+        this.observations.clear();
+        this.shadowContacts.clear();
+        this.zHistories.clear();
+        this.zPredictionLatched.clear();
+        if (this.techniques.shadows) {
+          this.contacts.clear();
+          this.pressVelocities.clear();
+          this.motion.clear();
+        }
+        this.callbacks.onContactsChanged();
+        this.callbacks.onError(
+          event.message || "Worker failed without an error message",
+        );
+      };
+    } catch (error) {
+      this.callbacks.onError(
+        error instanceof Error ? error.message : "Unable to start worker",
+      );
+    }
   }
 
   reset() {
@@ -167,6 +216,7 @@ export class LiveContactPipeline {
     this.measurements.clear();
     this.observations.clear();
     this.shadowContacts.clear();
+    this.synchronousMeasurements.clear();
     this.zHistories.clear();
     this.zPredictionLatched.clear();
     // Keep revisions monotonic so pending results cannot enter a new session.
@@ -181,7 +231,7 @@ export class LiveContactPipeline {
     this.reset();
   }
 
-  /** Main pipeline: overlap -> knuckles -> asynchronous shadow check. */
+  /** Main pipeline: overlap -> knuckles -> optional same-frame shadow check. */
   processFrame(frame: ContactPipelineFrame): boolean {
     if (this.disposed) return false;
     const now = this.now();
@@ -228,7 +278,8 @@ export class LiveContactPipeline {
         hand.landmarks[fingertip.landmarkIndex] &&
         (!this.techniques.knuckles ||
           (handCalibration && distance !== null && screenY !== null)) &&
-        (!this.techniques.shadows || this.worker),
+        (!(this.techniques.shadows || this.shadowDiagnosticsOnly) ||
+          this.worker),
       );
 
       // 1. Which key is under the fingertip?
@@ -327,22 +378,56 @@ export class LiveContactPipeline {
         this.shadowContacts.delete(fingertip.id);
         this.measurements.delete(fingertip.id);
         this.observations.delete(fingertip.id);
+        this.synchronousMeasurements.delete(fingertip.id);
       }
 
       this.gates.set(fingertip.id, gate);
       const finger = this.fingers.get(fingertip.id) ?? new Finger(fingertip.id);
       this.fingers.set(fingertip.id, finger);
       if (gateChanged) finger.reset();
+      const useSynchronousShadow = Boolean(
+        this.techniques.synchronousShadows || this.synchronousDiagnosticsOnly,
+      );
+      let synchronousObservation:
+        | { state: ShadowContactState; frameAtMs: number }
+        | undefined;
+      let synchronousSample: ReturnType<typeof this.measureSynchronousShadow> = null;
+      if (
+        useSynchronousShadow &&
+        keyOverlap &&
+        knuckleEligible &&
+        frame.video &&
+        frame.video.readyState >= 2
+      ) {
+        synchronousSample = this.measureSynchronousShadow(frame, fingertip);
+        if (synchronousSample) {
+          this.synchronousMeasurements.set(fingertip.id, synchronousSample.measurement);
+          synchronousObservation = {
+            state: synchronousSample.measurement.state,
+            frameAtMs: now,
+          };
+        } else {
+          this.synchronousMeasurements.delete(fingertip.id);
+        }
+      }
       const contact = finger.checkState(
         gate,
         now,
-        undefined,
+        this.techniques.synchronousShadows
+          ? synchronousObservation
+          : undefined,
         {
-          shadowsEnabled: this.techniques.shadows,
+          shadowsEnabled: this.techniques.shadows ||
+            this.techniques.synchronousShadows,
           zMotionPredicted,
         },
       );
       this.setContact(fingertip.id, contact, now);
+
+      if (useSynchronousShadow && fingertip.id === this.previewFingerId) {
+        const sample = synchronousSample ?? this.makeSynchronousCrop(frame, fingertip);
+        this.callbacks.onShadowCameraPreview(sample.crop, sample.center, sample.origin);
+      }
 
     }
 
@@ -357,13 +442,93 @@ export class LiveContactPipeline {
       this.zPredictionLatched,
       this.motion,
       this.pressVelocities,
+      this.synchronousMeasurements,
     ]) {
       for (const id of map.keys()) if (!activeIds.has(id)) map.delete(id);
     }
     this.callbacks.onContactsChanged();
 
-    // 3. Check shadows. Fresh results update contact asynchronously below.
-    return this.techniques.shadows && this.checkShadows(frame, now);
+    // The legacy worker runs only when its independent switch is active.
+    return (
+      (this.techniques.shadows || this.shadowDiagnosticsOnly) &&
+      this.checkShadows(frame, now)
+    );
+  }
+
+  private measureSynchronousShadow(
+    frame: ContactPipelineFrame,
+    fingertip: Fingertip,
+  ) {
+    const sample = this.makeSynchronousCrop(frame, fingertip);
+    if (!sample.crop) return null;
+    const context = sample.crop.getContext("2d", { willReadFrequently: true });
+    if (!context) return null;
+    const image = context.getImageData(0, 0, sample.crop.width, sample.crop.height);
+    let background: ImageData | null = null;
+    const source = frame.background;
+    if (source && source.width === frame.video?.videoWidth &&
+      source.height === frame.video?.videoHeight &&
+      sample.origin.x + sample.crop.width <= source.width &&
+      sample.origin.y + sample.crop.height <= source.height) {
+      const backgroundContext = source.getContext("2d", { willReadFrequently: true });
+      background = backgroundContext?.getImageData(
+        sample.origin.x,
+        sample.origin.y,
+        sample.crop.width,
+        sample.crop.height,
+      ) ?? null;
+    }
+    return {
+      ...sample,
+      measurement: analyzeSynchronousShadow(image, sample.center, background),
+    };
+  }
+
+  private makeSynchronousCrop(
+    frame: ContactPipelineFrame,
+    fingertip: Fingertip,
+  ) {
+    const video = frame.video;
+    if (!video) return { crop: null, center: { x: 0, y: 0 }, origin: { x: 0, y: 0 } };
+    // This detector only needs enough context for the fingertip and its three
+    // 45-pixel rays. Keep it separate from the legacy worker's larger crop.
+    const tipX = Math.round(fingertip.point.x);
+    const tipY = Math.round(fingertip.point.y);
+    const virtualLeft = tipX - SYNCHRONOUS_SHADOW_CROP.halfWidth;
+    const virtualTop = tipY - SYNCHRONOUS_SHADOW_CROP.aboveTip;
+    const left = Math.max(0, virtualLeft);
+    const top = Math.max(0, virtualTop);
+    const right = Math.min(
+      video.videoWidth,
+      tipX + SYNCHRONOUS_SHADOW_CROP.halfWidth,
+    );
+    const bottom = Math.min(
+      video.videoHeight,
+      tipY + SYNCHRONOUS_SHADOW_CROP.belowTip,
+    );
+    const width = Math.max(0, right - left);
+    const height = Math.max(0, bottom - top);
+    const crop = this.synchronousCropCanvas ?? document.createElement("canvas");
+    this.synchronousCropCanvas = crop;
+    if (crop.width !== width) crop.width = width;
+    if (crop.height !== height) crop.height = height;
+    if (width > 0 && height > 0)
+      crop.getContext("2d", { willReadFrequently: true })?.drawImage(
+        video,
+        left,
+        top,
+        width,
+        height,
+        0,
+        0,
+        width,
+        height,
+      );
+    return {
+      crop: width > 0 && height > 0 ? crop : null,
+      center: { x: fingertip.point.x - left, y: fingertip.point.y - top },
+      origin: { x: left, y: top },
+    };
   }
 
   private checkShadows(
@@ -381,10 +546,13 @@ export class LiveContactPipeline {
       );
     });
     const previewFinger = frame.fingertips.find(
-      (finger) => finger.id === this.previewFingerId,
+      (finger) =>
+        finger.id === this.previewFingerId &&
+        (this.gates.get(finger.id)?.keyIndexes.length ?? 0) > 0,
     );
-    // The selected debug finger may be sampled off-key for preview only;
-    // its gate still prevents this diagnostic result from activating contact.
+    // MediaPipe must place the selected debug fingertip over a key before the
+    // diagnostic shadow crop is sampled. Shadow results still cannot activate
+    // contact while diagnostics-only mode is enabled.
     if (
       previewFinger &&
       frame.hands[previewFinger.handIndex] &&
@@ -438,6 +606,7 @@ export class LiveContactPipeline {
         this.callbacks.onShadowCameraPreview(
           width > 0 && height > 0 ? canvas : null,
           center,
+          { x: left, y: top },
         );
       return {
         id: finger.id,
@@ -481,6 +650,13 @@ export class LiveContactPipeline {
       this.shadowContacts.set(id, contact);
       this.measurements.set(id, observation.measurement);
       this.observations.set(id, observation);
+      if (
+        (this.shadowDiagnosticsOnly && !this.techniques.shadows) ||
+        this.techniques.synchronousShadows
+      ) {
+        accepted.push(result);
+        continue;
+      }
       const finger = this.fingers.get(id);
       if (!finger) continue;
       finger.contact = this.contacts.get(id) ?? null;

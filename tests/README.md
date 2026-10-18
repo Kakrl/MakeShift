@@ -382,7 +382,8 @@ No test implementation requires an exception to this layout.
 | Frontend unit (Vitest) | `cd frontend && npx vitest run` | `npm ci` in `frontend/` |
 | Browser audio smoke | `cd frontend && npm run test:audio-browser` | Production server on `MAKE_SHIFT_URL` (default `http://127.0.0.1:3000`); `AUDIO_BROWSER_CHANNEL=chromium` for Playwright Chromium (default `msedge`) |
 | Deployment smoke | `cd frontend && npm run test:deployment` | Production server or Vercel URL in `MAKE_SHIFT_URL`; `npx playwright install chromium`; network for jsDelivr WASM; `EXPECT_DATABASE=ok` requires Supabase secrets (`infisical run`) |
-| CV video replay | `cd frontend && npm run test:cv-video:auto` (all checked-in clips, sequentially) | Builds/starts production app once; Playwright Chromium installed once where supported (Apple Silicon Mac uses installed Chrome); optional `-- --clip N` or `-- --browser chrome`; per-clip and combined reports saved under `frontend/test-results/cv-video/` |
+| CV video replay | `cd frontend && npm run test:cv-video:auto` (all checked-in clips, sequentially) | Builds/starts production app once; Playwright Chromium installed once where supported (Apple Silicon Mac uses installed Chrome); optional `CV_TECHNIQUE=synchronous-shadow` for the experimental same-frame detector, `-- --clip N` or `-- --browser chrome`; per-clip and combined reports saved under `frontend/test-results/cv-video/` |
+| CV labeled image cases | `cd frontend && npm run test:cv-images:auto` | Put an empty-sheet `background.png` and labeled PNG/JPG cases in `images_test_cases/`; builds/starts production app, runs MediaPipe, ArUco geometry, fingertip profile and sparse background comparison; writes JSON under `frontend/test-results/cv-image-cases/`; see [image replay](../docs/cv_image_tests.md) |
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
 | MIDI production download | `cd frontend && npm run test:midi-browser` | Running production server; Playwright and Edge; optional MAKE_SHIFT_URL / MIDI_BROWSER_CHANNEL |
 | Pipeline profiling | `cd frontend && npm run test:performance-browser` | Production server on port 3100, Playwright + Edge; synthetic camera; local only |
@@ -443,6 +444,52 @@ With knuckles enabled and shadows disabled, the replay completed at 28.3 FPS
 0 TP / 6 FP / 8 FN (0% precision and recall). This did not recover more
 labeled presses than the combined gates on this clip. The complete report is
 [`cv_automated_test_1.knuckles-only.results.json`](automation/CV%20Test%20Videos/cv_automated_test_1.knuckles-only.results.json).
+
+### Synchronous shadow detector experiment (2026-10-17)
+
+Ran all four checked-in labeled MOV/sidecar pairs with
+`CV_TECHNIQUE=synchronous-shadow npm run test:cv-video:auto`. The replay
+enabled knuckle eligibility, disabled the legacy asynchronous shadow worker,
+and captured the same-coordinate background on valid marker/homography
+acquisition. All four runs used MediaPipe GPU on an Apple M2 and captured a
+background. The fast ordered replay processed 1,434 frames; it does not measure
+live frame drops or physical latency.
+
+- Presses: **1 TP / 5 FP / 44 FN** (16.7% precision, 2.2% recall).
+- Releases: **3 TP / 3 FP / 42 FN** (50% precision, 6.7% recall).
+- The detector analyzed 152 eligible fingertip samples and marked 15 as
+  candidates. Clips 3 and 4 had only 3 and 13 eligible samples, respectively,
+  under the knuckle/key gates.
+- Contact processing on the 84 frames with at least one sample had a median
+  of 14.3 ms, p95 of 43.8 ms, and maximum of 54.8 ms. This includes controller
+  work for the frame and is not an audio-latency measurement.
+
+The combined end-to-end result is poor and the sampled-frame cost is high and
+variable. Keep the feature off by default. Inspect the candidate profile and
+gate behavior on labeled frames before adjusting thresholds; very near-sheet
+hover remains deferred. The complete per-clip reports and summary are saved in
+`frontend/test-results/cv-video/` locally; these ignored reports are not
+committed. The Vitest detector/pipeline cases, lint, type check, contrast audit,
+and production build passed locally. Actions evidence remains pending.
+
+Then ran all four clips with knuckle gating disabled using
+`CV_TECHNIQUE=synchronous-shadow-no-knuckles`, the legacy worker off, and the
+current compact crop. MediaPipe GPU ran on an Apple M2; all clips captured a
+background.
+
+- Presses: **10 TP / 43 FP / 35 FN** (18.9% precision, 22.2% recall).
+- Releases: **10 TP / 43 FP / 35 FN** (18.9% precision, 22.2% recall).
+- The detector analyzed 1,747 eligible fingertip samples and marked 116 as
+  candidates.
+- Contact processing on 634 sampled frames had a 30.0 ms median, 49.5 ms p95,
+  and 70.0 ms maximum. Ordered replay throughput was 19.5 FPS; this is not live
+  camera frame rate.
+
+Disabling knuckles increased recall against the earlier gated replay but also
+created many more false transitions. This is not a strict one-variable timing
+comparison because the no-knuckle run used the compact-crop implementation.
+Per-clip reports are in the ignored local
+`frontend/test-results/cv-video/no-knuckles-2026-10-17/` directory.
 
 ## Per-finger contact state verification
 

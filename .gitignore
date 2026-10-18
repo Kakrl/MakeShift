@@ -17,6 +17,9 @@ Testing/
 docs/cv_local_plan.md
 # Generated frontend test evidence
 frontend/test-results/
+images_test_cases
+experiment
+Paper_piano__Shadow_analysis_based_touch_interaction.pdf
 
 .vscode
 

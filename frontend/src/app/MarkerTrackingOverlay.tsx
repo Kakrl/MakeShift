@@ -40,6 +40,7 @@ import {
   SHADOW_PRESS_AREA_RATIO,
 } from "../cv/shadowHeuristics";
 import type { ShadowContactState, ShadowState } from "../cv/shadowHeuristics";
+import type { SynchronousShadowMeasurement } from "../cv/synchronousShadowDetector";
 import { MarkerDetector } from "../cv/markerDetector";
 import { MarkerGeometryPolicy } from "../cv/markerGeometryPolicy";
 import {
@@ -67,6 +68,42 @@ const PAGE_CORNERS: Point[] = [
 const KNUCKLE_LANDMARK_INDICES = [5, 9, 13, 17] as const;
 const SHADOW_PREVIEW_RADIUS = SHADOW_CROP_RADIUS;
 const SHADOW_PREVIEW_SIZE = 280;
+const SHOW_EXTRA_SHADOW_DEBUG_OVERLAYS = false;
+const PROFILE_SIDE_ANGLE = (20 * Math.PI) / 180;
+const PROFILE_LUMA_GROUP_GAP = 12;
+const PROFILE_GROUP_COLOR_TOKENS = [
+  "--color-red-light",
+  "--color-info",
+  "--color-green-light",
+];
+const PROFILE_REBOUND_MIN_RISE = 20;
+const PROFILE_REBOUND_MAX_WIDTH = 6;
+const PROFILE_REBOUND_FRACTION = 0.8;
+const PROFILE_REBOUND_MIN_DIP = 8;
+const PROFILE_REBOUND_MAX_DIP = 50;
+
+function getProfileGroupColors(element: HTMLElement) {
+  const style = getComputedStyle(element);
+  return PROFILE_GROUP_COLOR_TOKENS.map((token) =>
+    style.getPropertyValue(token).trim(),
+  );
+}
+
+function drawGrayShadowArc(
+  context: CanvasRenderingContext2D,
+  center: Point,
+  scale = 1,
+) {
+  context.save();
+  context.strokeStyle = getComputedStyle(context.canvas)
+    .getPropertyValue("--color-ink-muted")
+    .trim();
+  context.lineWidth = 2 / scale;
+  context.beginPath();
+  context.ellipse(center.x, center.y + 20, 42, 25, 0, 0, Math.PI);
+  context.stroke();
+  context.restore();
+}
 
 function drawShadowSamplingGuides(
   context: CanvasRenderingContext2D,
@@ -91,14 +128,806 @@ function drawShadowSamplingGuides(
   context.lineTo(x + SHADOW_PREVIEW_RADIUS, y + SHADOW_CUTOFF_OFFSET_Y);
   context.stroke();
   context.setLineDash([]);
-  context.strokeStyle = style.getPropertyValue("--color-white").trim();
+  context.strokeStyle = style.getPropertyValue("--color-ink").trim();
+  context.lineWidth = 4 / scale;
   context.beginPath();
   context.moveTo(center.x - 4 / scale, center.y);
   context.lineTo(center.x + 4 / scale, center.y);
   context.moveTo(center.x, center.y - 4 / scale);
   context.lineTo(center.x, center.y + 4 / scale);
   context.stroke();
+  context.strokeStyle = style.getPropertyValue("--color-white").trim();
+  context.lineWidth = 1.5 / scale;
+  context.stroke();
+  context.strokeStyle = style.getPropertyValue("--color-red-light").trim();
+  context.lineWidth = 2 / scale;
+  context.setLineDash([4 / scale, 3 / scale]);
+  context.strokeRect(center.x - 22, center.y - 16, 44, 36);
+  context.strokeStyle = style.getPropertyValue("--color-ink-muted").trim();
+  context.beginPath();
+  context.ellipse(center.x, center.y + 20, 42, 25, 0, 0, Math.PI);
+  context.stroke();
   context.restore();
+}
+
+function drawShadowContourPreview(
+  context: CanvasRenderingContext2D,
+  boundary: Uint16Array | null,
+  maskSize: number,
+) {
+  const { canvas } = context;
+  const scaleX = canvas.width / maskSize;
+  const scaleY = canvas.height / maskSize;
+  const tip = { x: maskSize / 2, y: maskSize / 2 };
+  const style = getComputedStyle(canvas);
+  let closest: { x: number; y: number; distanceSquared: number } | null = null;
+  context.save();
+  context.fillStyle = style.getPropertyValue("--color-purple").trim();
+  for (const index of boundary ?? []) {
+    const x = index % maskSize;
+    const y = Math.floor(index / maskSize);
+    context.beginPath();
+    context.arc((x + 0.5) * scaleX, (y + 0.5) * scaleY, 3, 0, Math.PI * 2);
+    context.fill();
+    if (y < tip.y) continue;
+    const distanceSquared = (x - tip.x) ** 2 + (y - tip.y) ** 2;
+    if (!closest || distanceSquared < closest.distanceSquared)
+      closest = { x, y, distanceSquared };
+  }
+  if (closest) {
+    context.beginPath();
+    context.moveTo(tip.x * scaleX, tip.y * scaleY);
+    context.lineTo(closest.x * scaleX, closest.y * scaleY);
+    context.strokeStyle = style.getPropertyValue("--color-ink").trim();
+    context.lineWidth = 7;
+    context.stroke();
+    context.strokeStyle = style.getPropertyValue("--color-green").trim();
+    context.lineWidth = 4;
+    context.stroke();
+    context.fillStyle = style.getPropertyValue("--color-green").trim();
+    context.beginPath();
+    context.arc(closest.x * scaleX, closest.y * scaleY, 5, 0, Math.PI * 2);
+    context.fill();
+    const midpointX = ((tip.x + closest.x) / 2) * scaleX;
+    const midpointY = ((tip.y + closest.y) / 2) * scaleY;
+    const label = `${Math.sqrt(closest.distanceSquared).toFixed(1)} px`;
+    context.font = "bold 12px sans-serif";
+    const labelWidth = context.measureText(label).width + 8;
+    context.fillStyle = style.getPropertyValue("--color-ink").trim();
+    context.fillRect(midpointX + 4, midpointY - 15, labelWidth, 18);
+    context.fillStyle = style.getPropertyValue("--color-green-light").trim();
+    context.fillText(label, midpointX + 8, midpointY - 2);
+  }
+  context.restore();
+  return closest ? Math.sqrt(closest.distanceSquared) : null;
+}
+
+function drawTipGradientCandidates(
+  context: CanvasRenderingContext2D,
+  crop: HTMLCanvasElement,
+  center: Point,
+) {
+  const source = crop.getContext("2d", { willReadFrequently: true });
+  if (!source || crop.width < 3 || crop.height < 3)
+    return { nearby: 0, belowTip: 0, points: [] as Point[] };
+  const pixels = source.getImageData(0, 0, crop.width, crop.height).data;
+  const lumaAt = (x: number, y: number) => {
+    const offset = (y * crop.width + x) * 4;
+    return (
+      0.2126 * pixels[offset] +
+      0.7152 * pixels[offset + 1] +
+      0.0722 * pixels[offset + 2]
+    );
+  };
+  const style = getComputedStyle(context.canvas);
+  context.save();
+  context.strokeStyle = style.getPropertyValue("--color-accent").trim();
+  context.lineWidth = 1;
+  context.setLineDash([3, 2]);
+  context.strokeRect(center.x - 16, center.y + 4, 32, 16);
+  context.restore();
+  context.fillStyle = style.getPropertyValue("--color-red").trim();
+  let nearby = 0;
+  let belowTip = 0;
+  const points: Point[] = [];
+  for (
+    let y = Math.max(1, Math.floor(center.y) - 14);
+    y < Math.min(crop.height - 1, Math.ceil(center.y) + 28);
+    y += 1
+  ) {
+    for (
+      let x = Math.max(1, Math.floor(center.x) - 22);
+      x < Math.min(crop.width - 1, Math.ceil(center.x) + 22);
+      x += 1
+    ) {
+      const gx =
+        -lumaAt(x - 1, y - 1) +
+        lumaAt(x + 1, y - 1) -
+        2 * lumaAt(x - 1, y) +
+        2 * lumaAt(x + 1, y) -
+        lumaAt(x - 1, y + 1) +
+        lumaAt(x + 1, y + 1);
+      const gy =
+        -lumaAt(x - 1, y - 1) -
+        2 * lumaAt(x, y - 1) -
+        lumaAt(x + 1, y - 1) +
+        lumaAt(x - 1, y + 1) +
+        2 * lumaAt(x, y + 1) +
+        lumaAt(x + 1, y + 1);
+      const magnitude = Math.abs(gx) + Math.abs(gy);
+      const nearTip = (x - center.x) ** 2 + (y - center.y) ** 2 <= 24 ** 2;
+      if (nearTip && magnitude >= 260) {
+        nearby += 1;
+        points.push({ x, y });
+        if (
+          x >= center.x - 16 &&
+          x <= center.x + 16 &&
+          y >= center.y + 4 &&
+          y <= center.y + 20
+        )
+          belowTip += 1;
+        context.fillRect(x - 0.6, y - 0.6, 1.2, 1.2);
+      }
+    }
+  }
+  return { nearby, belowTip, points };
+}
+
+function drawGradientContourOverlap(
+  context: CanvasRenderingContext2D,
+  gradientPoints: Point[],
+  boundary: Uint16Array | null,
+  maskSize: number,
+) {
+  if (!boundary?.length || gradientPoints.length === 0) return false;
+  const boundaryPixels = new Set(boundary);
+  let overlap: Point | null = null;
+  for (const point of gradientPoints) {
+    const x = Math.round(point.x);
+    const y = Math.round(point.y);
+    for (let dy = -2; dy <= 2 && !overlap; dy += 1) {
+      for (let dx = -2; dx <= 2; dx += 1) {
+        if (dx * dx + dy * dy > 4) continue;
+        const bx = x + dx;
+        const by = y + dy;
+        if (
+          bx >= 0 &&
+          bx < maskSize &&
+          by >= 0 &&
+          by < maskSize &&
+          boundaryPixels.has(by * maskSize + bx)
+        ) {
+          overlap = { x: point.x + dx / 2, y: point.y + dy / 2 };
+          break;
+        }
+      }
+    }
+    if (overlap) break;
+  }
+  if (!overlap) return false;
+  const scaleX = context.canvas.width / maskSize;
+  const scaleY = context.canvas.height / maskSize;
+  context.save();
+  context.beginPath();
+  context.arc(overlap.x * scaleX, overlap.y * scaleY, 10, 0, Math.PI * 2);
+  context.fillStyle = getComputedStyle(context.canvas)
+    .getPropertyValue("--color-pink")
+    .trim();
+  context.strokeStyle = getComputedStyle(context.canvas)
+    .getPropertyValue("--color-ink")
+    .trim();
+  context.lineWidth = 3;
+  context.fill();
+  context.stroke();
+  context.restore();
+  return true;
+}
+
+function drawFingerOutlineCandidate(
+  context: CanvasRenderingContext2D,
+  crop: HTMLCanvasElement,
+  center: Point,
+) {
+  const source = crop.getContext("2d", { willReadFrequently: true });
+  if (!source || crop.width < 3 || crop.height < 3) return null;
+  const pixels = source.getImageData(0, 0, crop.width, crop.height).data;
+  const lumaAt = (x: number, y: number) => {
+    const offset = (y * crop.width + x) * 4;
+    return (
+      0.2126 * pixels[offset] +
+      0.7152 * pixels[offset + 1] +
+      0.0722 * pixels[offset + 2]
+    );
+  };
+  const gradientAt = (x: number, y: number) => {
+    if (x <= 0 || x >= crop.width - 1 || y <= 0 || y >= crop.height - 1)
+      return 0;
+    const gx =
+      -lumaAt(x - 1, y - 1) +
+      lumaAt(x + 1, y - 1) -
+      2 * lumaAt(x - 1, y) +
+      2 * lumaAt(x + 1, y) -
+      lumaAt(x - 1, y + 1) +
+      lumaAt(x + 1, y + 1);
+    const gy =
+      -lumaAt(x - 1, y - 1) -
+      2 * lumaAt(x, y - 1) -
+      lumaAt(x + 1, y - 1) +
+      lumaAt(x - 1, y + 1) +
+      2 * lumaAt(x, y + 1) +
+      lumaAt(x + 1, y + 1);
+    return Math.abs(gx) + Math.abs(gy);
+  };
+
+  const angleCount = 49;
+  const minRadius = 5;
+  const maxRadius = 36;
+  const radiusCount = maxRadius - minRadius + 1;
+  const scores = Array.from({ length: angleCount }, () =>
+    new Float64Array(radiusCount),
+  );
+  for (let angleIndex = 0; angleIndex < angleCount; angleIndex += 1) {
+    const angle = Math.PI - (Math.PI * angleIndex) / (angleCount - 1);
+    for (let radiusIndex = 0; radiusIndex < radiusCount; radiusIndex += 1) {
+      const radius = minRadius + radiusIndex;
+      const x = Math.round(center.x + radius * Math.cos(angle));
+      const y = Math.round(center.y + radius * Math.sin(angle));
+      if (x <= 0 || x >= crop.width - 1 || y <= 0 || y >= crop.height - 1)
+        continue;
+      scores[angleIndex][radiusIndex] = gradientAt(x, y);
+    }
+  }
+
+  // Pick the strongest edge path while penalizing sudden radius jumps.
+  const smoothnessPenalty = 28;
+  const paths = Array.from({ length: angleCount }, () =>
+    new Int16Array(radiusCount),
+  );
+  let previous = scores[0].slice();
+  for (let angleIndex = 1; angleIndex < angleCount; angleIndex += 1) {
+    const current = new Float64Array(radiusCount);
+    for (let radiusIndex = 0; radiusIndex < radiusCount; radiusIndex += 1) {
+      let bestScore = -Infinity;
+      let bestPrevious = 0;
+      for (
+        let previousIndex = 0;
+        previousIndex < radiusCount;
+        previousIndex += 1
+      ) {
+        const score =
+          previous[previousIndex] -
+          smoothnessPenalty * Math.abs(radiusIndex - previousIndex);
+        if (score > bestScore) {
+          bestScore = score;
+          bestPrevious = previousIndex;
+        }
+      }
+      current[radiusIndex] = scores[angleIndex][radiusIndex] + bestScore;
+      paths[angleIndex][radiusIndex] = bestPrevious;
+    }
+    previous = current;
+  }
+
+  let radiusIndex = 0;
+  for (let index = 1; index < radiusCount; index += 1)
+    if (previous[index] > previous[radiusIndex]) radiusIndex = index;
+  const selected = new Int16Array(angleCount);
+  for (let angleIndex = angleCount - 1; angleIndex >= 0; angleIndex -= 1) {
+    selected[angleIndex] = radiusIndex;
+    if (angleIndex > 0) radiusIndex = paths[angleIndex][radiusIndex];
+  }
+
+  const points = Array.from({ length: angleCount }, (_, angleIndex) => {
+    const angle = Math.PI - (Math.PI * angleIndex) / (angleCount - 1);
+    const radius = minRadius + selected[angleIndex];
+    return {
+      x: center.x + radius * Math.cos(angle),
+      y: center.y + radius * Math.sin(angle),
+    };
+  });
+  const meanGradient = points.reduce((sum, point) => {
+    return sum + gradientAt(Math.round(point.x), Math.round(point.y));
+  }, 0) / points.length;
+
+  context.save();
+  context.beginPath();
+  context.moveTo(points[0].x, points[0].y);
+  for (let index = 1; index < points.length; index += 1)
+    context.lineTo(points[index].x, points[index].y);
+  context.strokeStyle = getComputedStyle(context.canvas)
+    .getPropertyValue("--color-ink")
+    .trim();
+  context.lineWidth = 4;
+  context.stroke();
+  context.strokeStyle = getComputedStyle(context.canvas)
+    .getPropertyValue("--color-green-light")
+    .trim();
+  context.lineWidth = 2.5;
+  context.stroke();
+  context.restore();
+  return meanGradient;
+}
+
+function drawBackgroundDeltaPreview(
+  background: HTMLCanvasElement,
+  differenceSource: HTMLCanvasElement,
+  differencePreview: HTMLCanvasElement,
+  crop: HTMLCanvasElement,
+  origin: Point,
+  center: Point,
+) {
+  const backgroundContext = background.getContext("2d", {
+    willReadFrequently: true,
+  });
+  const currentContext = crop.getContext("2d", { willReadFrequently: true });
+  const sourceContext = differenceSource.getContext("2d");
+  const previewContext = differencePreview.getContext("2d");
+  if (!backgroundContext || !currentContext || !sourceContext || !previewContext)
+    return null;
+  if (
+    background.width === 0 ||
+    background.height === 0 ||
+    origin.x < 0 ||
+    origin.y < 0 ||
+    origin.x + crop.width > background.width ||
+    origin.y + crop.height > background.height
+  )
+    return null;
+
+  const baseline = backgroundContext.getImageData(
+    origin.x,
+    origin.y,
+    crop.width,
+    crop.height,
+  ).data;
+  const current = currentContext.getImageData(0, 0, crop.width, crop.height).data;
+  if (differenceSource.width !== crop.width)
+    differenceSource.width = crop.width;
+  if (differenceSource.height !== crop.height)
+    differenceSource.height = crop.height;
+  const delta = sourceContext.createImageData(crop.width, crop.height);
+  let changedPixels = 0;
+  for (let offset = 0; offset < current.length; offset += 4) {
+    const currentLuma =
+      0.2126 * current[offset] +
+      0.7152 * current[offset + 1] +
+      0.0722 * current[offset + 2];
+    const backgroundLuma =
+      0.2126 * baseline[offset] +
+      0.7152 * baseline[offset + 1] +
+      0.0722 * baseline[offset + 2];
+    const difference = Math.abs(currentLuma - backgroundLuma);
+    const value = Math.max(0, Math.min(255, (difference - 6) * 3));
+    if (difference >= 12) changedPixels += 1;
+    delta.data[offset] = value;
+    delta.data[offset + 1] = value;
+    delta.data[offset + 2] = value;
+    delta.data[offset + 3] = 255;
+  }
+  sourceContext.putImageData(delta, 0, 0);
+  const cropLeft = Math.round(center.x) - SHADOW_CROP_RADIUS;
+  const cropTop = Math.round(center.y) - SHADOW_CROP_RADIUS;
+  const scale = differencePreview.width / (SHADOW_CROP_RADIUS * 2);
+  previewContext.clearRect(
+    0,
+    0,
+    differencePreview.width,
+    differencePreview.height,
+  );
+  previewContext.imageSmoothingEnabled = false;
+  previewContext.drawImage(
+    differenceSource,
+    -cropLeft * scale,
+    -cropTop * scale,
+    crop.width * scale,
+    crop.height * scale,
+  );
+  previewContext.save();
+  previewContext.scale(scale, scale);
+  const arcAnchor = {
+    x: SHADOW_PREVIEW_RADIUS,
+    y: SHADOW_PREVIEW_RADIUS + SHADOW_CUTOFF_OFFSET_Y,
+  };
+  drawGrayShadowArc(previewContext, arcAnchor, scale);
+  previewContext.restore();
+  return { changedPixels, totalPixels: crop.width * crop.height };
+}
+
+interface ShadowProfileRay {
+  label: string;
+  target: Point;
+  values: number[];
+  smoothedValues: number[];
+  groups: number[];
+  branches: number[];
+  minimumIndex: number | null;
+  reboundIndex: number | null;
+  dipDepth: number | null;
+  steepestRise: number | null;
+  reboundWidth: number | null;
+  sharpRebound: boolean;
+}
+
+function smoothLumaProfile(values: readonly number[]) {
+  return values.map((value, index) => {
+    const start = Math.max(0, index - 1);
+    const end = Math.min(values.length - 1, index + 1);
+    let sum = 0;
+    for (let sample = start; sample <= end; sample += 1)
+      sum += values[sample];
+    return sum / (end - start + 1);
+  });
+}
+
+function measureSharpRebound(values: readonly number[]) {
+  if (values.length < 12) {
+    return {
+      minimumIndex: null,
+      reboundIndex: null,
+      dipDepth: null,
+      steepestRise: null,
+      reboundWidth: null,
+      sharpRebound: false,
+    };
+  }
+  const tailStart = values.length - 6;
+  const paperLevel =
+    values.slice(tailStart).reduce((sum, value) => sum + value, 0) /
+    (values.length - tailStart);
+  let minimumIndex = 2;
+  for (let index = 3; index < tailStart - 1; index += 1)
+    if (values[index] < values[minimumIndex]) minimumIndex = index;
+
+  const leftStart = Math.max(0, minimumIndex - 6);
+  const leftEnd = Math.max(leftStart + 1, minimumIndex - 1);
+  const leftShoulder =
+    values.slice(leftStart, leftEnd).reduce((sum, value) => sum + value, 0) /
+    (leftEnd - leftStart);
+  const minimum = values[minimumIndex];
+  const dipDepth = leftShoulder - minimum;
+  const rise = paperLevel - minimum;
+  if (rise <= 0) {
+    return {
+      minimumIndex,
+      reboundIndex: null,
+      dipDepth,
+      steepestRise: null,
+      reboundWidth: null,
+      sharpRebound: false,
+    };
+  }
+  const target = minimum + rise * PROFILE_REBOUND_FRACTION;
+  let reboundIndex: number | null = null;
+  let steepestRise = 0;
+  for (let index = minimumIndex + 1; index < values.length; index += 1) {
+    steepestRise = Math.max(
+      steepestRise,
+      values[index] - values[index - 1],
+    );
+    if (values[index] >= target) {
+      reboundIndex = index;
+      break;
+    }
+  }
+  const reboundWidth =
+    reboundIndex === null ? null : reboundIndex - minimumIndex;
+  return {
+    minimumIndex,
+    reboundIndex,
+    dipDepth,
+    steepestRise,
+    reboundWidth,
+    sharpRebound:
+      steepestRise >= PROFILE_REBOUND_MIN_RISE &&
+      reboundWidth !== null &&
+      reboundWidth <= PROFILE_REBOUND_MAX_WIDTH,
+  };
+}
+
+/** Cluster the small one-dimensional ray, then merge indistinct luma levels. */
+function groupRayLuma(values: readonly number[]) {
+  if (!values.length) return { groups: [], branches: [] };
+  let centers = [
+    Math.min(...values),
+    values[Math.floor((values.length - 1) / 2)],
+    Math.max(...values),
+  ];
+  for (let iteration = 0; iteration < 5; iteration += 1) {
+    const sums = [0, 0, 0];
+    const counts = [0, 0, 0];
+    values.forEach((value) => {
+      let nearest = 0;
+      for (let index = 1; index < centers.length; index += 1)
+        if (
+          Math.abs(value - centers[index]) <
+          Math.abs(value - centers[nearest])
+        )
+          nearest = index;
+      sums[nearest] += value;
+      counts[nearest] += 1;
+    });
+    centers = centers.map((center, index) =>
+      counts[index] ? sums[index] / counts[index] : center,
+    );
+  }
+  const orderedCenters = [...centers].sort((a, b) => a - b);
+  const mergedCenters: number[] = [];
+  orderedCenters.forEach((center) => {
+    if (
+      mergedCenters.length &&
+      center - mergedCenters[mergedCenters.length - 1] < PROFILE_LUMA_GROUP_GAP
+    ) {
+      mergedCenters[mergedCenters.length - 1] =
+        (mergedCenters[mergedCenters.length - 1] + center) / 2;
+    } else mergedCenters.push(center);
+  });
+  const groups = values.map((value) => {
+    let nearest = 0;
+    for (let index = 1; index < mergedCenters.length; index += 1)
+      if (
+        Math.abs(value - mergedCenters[index]) <
+        Math.abs(value - mergedCenters[nearest])
+      )
+        nearest = index;
+    return nearest;
+  });
+  const branches: number[] = [];
+  let previous = -1;
+  groups.forEach((group) => {
+    if (group !== previous) branches.push(0);
+    branches[branches.length - 1] += 1;
+    previous = group;
+  });
+  return { groups, branches };
+}
+
+function getBrightnessProfileTargets(center: Point) {
+  const intersectArc = (angle: number) => {
+    const ellipseValue = (distance: number) => {
+      const x = Math.sin(angle) * distance;
+      const y = Math.cos(angle) * distance;
+      return (x / 42) ** 2 + ((y - 20) / 25) ** 2;
+    };
+    let low = 0;
+    let high = 70;
+    for (let iteration = 0; iteration < 16; iteration += 1) {
+      const middle = (low + high) / 2;
+      if (ellipseValue(middle) < 1) low = middle;
+      else high = middle;
+    }
+    const distance = (low + high) / 2;
+    return {
+      x: center.x + Math.sin(angle) * distance,
+      y: center.y + Math.cos(angle) * distance,
+    };
+  };
+  return [
+    { label: "center", target: intersectArc(0) },
+    { label: "left 20°", target: intersectArc(-PROFILE_SIDE_ANGLE) },
+    { label: "right 20°", target: intersectArc(PROFILE_SIDE_ANGLE) },
+  ];
+}
+
+function drawShadowArcLines(
+  cameraPreview: HTMLCanvasElement,
+  rays: readonly ShadowProfileRay[],
+) {
+  const context = cameraPreview.getContext("2d");
+  if (!context) return;
+  const scale = cameraPreview.width / (SHADOW_PREVIEW_RADIUS * 2);
+  const style = getComputedStyle(cameraPreview);
+  const groupColors = getProfileGroupColors(cameraPreview);
+  const troughColor = style.getPropertyValue("--color-orange-light").trim();
+  const reboundColor = style.getPropertyValue("--color-yellow-light").trim();
+  const start = {
+    x: SHADOW_PREVIEW_RADIUS * scale,
+    y: (SHADOW_PREVIEW_RADIUS + SHADOW_CUTOFF_OFFSET_Y) * scale,
+  };
+  context.save();
+  context.lineCap = "round";
+  for (const [rayIndex, ray] of rays.entries()) {
+    const dx = (ray.target.x - SHADOW_PREVIEW_RADIUS) * scale;
+    const dy = (ray.target.y - SHADOW_PREVIEW_RADIUS) * scale;
+    for (let index = 1; index < ray.values.length; index += 1) {
+      const denominator = Math.max(1, ray.values.length - 1);
+      context.lineWidth = 2.5 / scale;
+      context.strokeStyle = groupColors[ray.groups[index] ?? 0];
+      context.beginPath();
+      context.moveTo(
+        start.x + (dx * (index - 1)) / denominator,
+        start.y + (dy * (index - 1)) / denominator,
+      );
+      context.lineTo(
+        start.x + (dx * index) / denominator,
+        start.y + (dy * index) / denominator,
+      );
+      context.stroke();
+    }
+    if (rayIndex === 0 && ray.minimumIndex !== null) {
+      const denominator = Math.max(1, ray.values.length - 1);
+      const mark = (index: number, color: string) => {
+        const x = start.x + (dx * index) / denominator;
+        const y = start.y + (dy * index) / denominator;
+        context.beginPath();
+        context.arc(x, y, 4 / scale, 0, Math.PI * 2);
+        context.fillStyle = color;
+        context.fill();
+      };
+      mark(ray.minimumIndex, troughColor);
+      if (ray.reboundIndex !== null)
+        mark(ray.reboundIndex, reboundColor);
+    }
+  }
+  context.fillStyle = groupColors[1];
+  context.beginPath();
+  context.arc(start.x, start.y, 4 / scale, 0, Math.PI * 2);
+  context.fill();
+  context.restore();
+}
+
+function drawShadowLineProfile(
+  profileCanvas: HTMLCanvasElement,
+  crop: HTMLCanvasElement,
+  center: Point,
+  cropOffset: Point,
+) {
+  const chart = profileCanvas.getContext("2d");
+  const currentContext = crop.getContext("2d", { willReadFrequently: true });
+  if (!chart || !currentContext) return null;
+
+  const current = currentContext.getImageData(0, 0, crop.width, crop.height).data;
+  const targets = getBrightnessProfileTargets(center);
+  const rays: ShadowProfileRay[] = targets.map(({ label, target }) => {
+    const length = Math.hypot(target.x - center.x, target.y - center.y);
+    const values: number[] = [];
+    const steps = Math.ceil(length);
+    for (let step = 0; step <= steps; step += 1) {
+      const ratio = step / steps;
+      const x = Math.round(
+        center.x + (target.x - center.x) * ratio + cropOffset.x,
+      );
+      const y = Math.round(
+        center.y + (target.y - center.y) * ratio + cropOffset.y,
+      );
+      if (x < 0 || x >= crop.width || y < 0 || y >= crop.height) continue;
+      const offset = (y * crop.width + x) * 4;
+      values.push(
+        0.2126 * current[offset] +
+          0.7152 * current[offset + 1] +
+          0.0722 * current[offset + 2],
+      );
+    }
+    const smoothedValues = smoothLumaProfile(values);
+    const { groups, branches } = groupRayLuma(smoothedValues);
+    return {
+      label,
+      target,
+      values,
+      smoothedValues,
+      groups,
+      branches,
+      ...measureSharpRebound(smoothedValues),
+    };
+  });
+
+  const style = getComputedStyle(profileCanvas);
+  const groupColors = getProfileGroupColors(profileCanvas);
+  const ink = style.getPropertyValue("--color-white").trim();
+  const seriesColors = groupColors;
+  const left = 24;
+  const top = 20;
+  const width = profileCanvas.width - 32;
+  const height = profileCanvas.height - 80;
+  chart.clearRect(0, 0, profileCanvas.width, profileCanvas.height);
+  chart.fillStyle = style.getPropertyValue("--color-surface-dark").trim();
+  chart.fillRect(0, 0, profileCanvas.width, profileCanvas.height);
+  chart.strokeStyle = "rgba(255,255,255,0.25)";
+  chart.lineWidth = 1;
+  chart.beginPath();
+  chart.moveTo(left, top);
+  chart.lineTo(left, top + height);
+  chart.lineTo(left + width, top + height);
+  chart.stroke();
+  chart.font = "9px sans-serif";
+  const rayDisplayNames = ["C", "L20°", "R20°"];
+  rays.forEach((ray, index) => {
+    chart.fillStyle = seriesColors[index];
+    const levels = Math.max(...ray.groups, -1) + 1;
+    const shownRuns = ray.branches.slice(0, 3).join("/");
+    const extraRuns = ray.branches.length > 3 ? "+" : "";
+    chart.fillText(
+      `${rayDisplayNames[index]} ${levels}L ${shownRuns}${extraRuns}`,
+      left + index * 92,
+      11,
+    );
+  });
+  rays.forEach((ray) => {
+    chart.strokeStyle = "rgba(255,255,255,0.35)";
+    chart.lineWidth = 1;
+    chart.beginPath();
+    ray.values.forEach((value, index) => {
+      const x = left + (index / Math.max(1, ray.values.length - 1)) * width;
+      const y = top + height - (value / 255) * height;
+      if (index === 0) chart.moveTo(x, y);
+      else chart.lineTo(x, y);
+    });
+    chart.stroke();
+    chart.lineWidth = 2;
+    ray.smoothedValues.forEach((value, index) => {
+      if (index === 0) return;
+      const denominator = Math.max(1, ray.smoothedValues.length - 1);
+      const x1 = left + ((index - 1) / denominator) * width;
+      const x2 = left + (index / denominator) * width;
+      const y1 = top + height - (ray.smoothedValues[index - 1] / 255) * height;
+      const y2 = top + height - (value / 255) * height;
+      chart.strokeStyle = groupColors[ray.groups[index] ?? 0];
+      chart.beginPath();
+      chart.moveTo(x1, y1);
+      chart.lineTo(x2, y2);
+      chart.stroke();
+    });
+    if (ray.label === "center" && ray.minimumIndex !== null) {
+      const denominator = Math.max(1, ray.smoothedValues.length - 1);
+      const mark = (index: number, color: string) => {
+        const x = left + (index / denominator) * width;
+        const y = top + height - (ray.smoothedValues[index] / 255) * height;
+        chart.beginPath();
+        chart.arc(x, y, 3, 0, Math.PI * 2);
+        chart.fillStyle = color;
+        chart.fill();
+      };
+      mark(ray.minimumIndex, style.getPropertyValue("--color-orange-light").trim());
+      if (ray.reboundIndex !== null)
+        mark(ray.reboundIndex, style.getPropertyValue("--color-yellow-light").trim());
+    }
+  });
+  chart.fillStyle = ink;
+  chart.font = "10px sans-serif";
+  chart.fillText("255", 1, top + 4);
+  chart.fillText("0", 10, top + height);
+  chart.fillText("tip", left, profileCanvas.height - 3);
+  chart.fillText("arc", left + width - 24, profileCanvas.height - 3);
+  const centerRay = rays[0];
+  chart.font = "8px sans-serif";
+  const dipDepth = centerRay?.dipDepth;
+  const dipTooDeep =
+    centerRay?.sharpRebound === true &&
+    dipDepth !== null &&
+    dipDepth !== undefined &&
+    dipDepth > PROFILE_REBOUND_MAX_DIP;
+  const dipTooShallow =
+    centerRay?.sharpRebound === true &&
+    dipDepth !== null &&
+    dipDepth !== undefined &&
+    dipDepth < PROFILE_REBOUND_MIN_DIP;
+  const sharpReboundCandidate =
+    centerRay?.sharpRebound === true &&
+    dipDepth !== null &&
+    dipDepth !== undefined &&
+    dipDepth >= PROFILE_REBOUND_MIN_DIP &&
+    dipDepth <= PROFILE_REBOUND_MAX_DIP;
+  chart.fillStyle = sharpReboundCandidate
+    ? style.getPropertyValue("--color-orange-light").trim()
+    : dipTooDeep
+      ? style.getPropertyValue("--color-red-light").trim()
+      : ink;
+  chart.fillText(
+    centerRay?.minimumIndex !== null && centerRay?.minimumIndex !== undefined
+      ? `${sharpReboundCandidate ? "SHARP REBOUND CANDIDATE" : dipTooDeep ? "DIP TOO DEEP" : dipTooShallow ? "DIP TOO SHALLOW" : "CENTER REBOUND"} · dip ${centerRay.dipDepth?.toFixed(0) ?? "—"} · rise ${centerRay.steepestRise?.toFixed(0) ?? "—"}/px · 80% ${centerRay.reboundWidth ?? "—"}px`
+      : "CENTER REBOUND · unavailable",
+    left,
+    height + 21,
+  );
+  chart.font = "9px sans-serif";
+  chart.fillStyle = "rgba(255,255,255,0.7)";
+  chart.fillText("raw", left, height + 39);
+  chart.fillStyle = groupColors[0];
+  chart.fillText("dark", left + 28, height + 39);
+  chart.fillStyle = groupColors[1];
+  chart.fillText("mid", left + 66, height + 39);
+  chart.fillStyle = groupColors[2];
+  chart.fillText("bright", left + 96, height + 39);
+  return { rays };
 }
 
 interface FingerDebugState {
@@ -121,6 +950,7 @@ interface FingerDebugState {
   shadowContact: ShadowContactState;
   shadowPeakArea: number | null;
   shadowAreaRatio: number | null;
+  synchronousShadow: SynchronousShadowMeasurement | null;
 }
 
 export type ContactFrameHandler = (
@@ -160,18 +990,45 @@ export default function MarkerTrackingOverlay({
   const [markerDetection, setMarkerDetection] =
     useState<MarkerDetectionResult | null>(null);
   const processingCanvasRef = useRef<HTMLCanvasElement>(null);
+  const markerBackgroundFrameRef = useRef<HTMLCanvasElement | null>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const shadowBackgroundRef = useRef<HTMLCanvasElement>(null);
+  const shadowDifferenceSourceRef = useRef<HTMLCanvasElement>(null);
+  const shadowDifferencePreviewRef = useRef<HTMLCanvasElement>(null);
+  const shadowLineProfileRef = useRef<HTMLCanvasElement>(null);
   const shadowPreviewCanvasRef = useRef<HTMLCanvasElement>(null);
   const shadowMaskCanvasRef = useRef<HTMLCanvasElement>(null);
   const shadowMaskSourceRef = useRef<HTMLCanvasElement>(null);
+  const shadowBoundaryRef = useRef<Uint16Array | null>(null);
+  const shadowGradientPointsRef = useRef<Point[]>([]);
   const pipelineRef = useRef<LiveContactPipeline | null>(null);
   const [shadowWorkerError, setShadowWorkerError] = useState<string | null>(
     null,
   );
   const [shadowMaskCount, setShadowMaskCount] = useState(0);
-  const [shadowPreviewMode, setShadowPreviewMode] = useState<"mask" | "camera">(
-    "mask",
-  );
+  const [capturedBackground, setCapturedBackground] = useState<{
+    stream: MediaStream | null;
+    cameraReady: boolean;
+  } | null>(null);
+  const [shadowDifferenceStats, setShadowDifferenceStats] = useState<{
+    changedPixels: number;
+    totalPixels: number;
+  } | null>(null);
+  const [shadowDiagnosticsOnly, setShadowDiagnosticsOnly] = useState(false);
+  const [synchronousShadowDiagnosticsOnly, setSynchronousShadowDiagnosticsOnly] = useState(false);
+  const [shadowGapPixels, setShadowGapPixels] = useState<number | null>(null);
+  const [shadowGradientCounts, setShadowGradientCounts] = useState({
+    nearby: 0,
+    belowTip: 0,
+  });
+  const [shadowOutlineGradientScore, setShadowOutlineGradientScore] =
+    useState<number | null>(null);
+  const [shadowPreviewMode, setShadowPreviewMode] = useState<
+    "mask" | "camera" | "difference"
+  >("camera");
+  const shadowBackgroundCaptured =
+    capturedBackground?.stream === stream &&
+    capturedBackground.cameraReady === cameraReady;
   const homographyRef = useRef<Homography | null>(null);
   const projectedPianoCornersRef = useRef<Point[] | null>(null);
   const projectedWhiteKeysRef = useRef<Point[][] | null>(null);
@@ -195,7 +1052,8 @@ export default function MarkerTrackingOverlay({
   );
   const [fingerDebug, setFingerDebug] = useState<FingerDebugState[]>([]);
   const shadowPreviewFinger =
-    !showVisualDebug || !CONTACT_TECHNIQUES.shadows
+    !showVisualDebug ||
+    !(CONTACT_TECHNIQUES.shadows || CONTACT_TECHNIQUES.synchronousShadows || shadowDiagnosticsOnly || synchronousShadowDiagnosticsOnly)
       ? undefined
       : (fingertips.find(
           (finger) =>
@@ -254,6 +1112,28 @@ export default function MarkerTrackingOverlay({
   }, [showVisualDebug]);
 
   useEffect(() => {
+    const background = shadowBackgroundRef.current;
+    if (background) {
+      background.width = 0;
+      background.height = 0;
+    }
+    markerBackgroundFrameRef.current = null;
+    queueMicrotask(() => setCapturedBackground(null));
+  }, [stream, cameraReady]);
+
+  useEffect(() => {
+    pipelineRef.current?.setShadowDiagnosticsOnly(
+      showVisualDebug && shadowDiagnosticsOnly,
+    );
+  }, [showVisualDebug, shadowDiagnosticsOnly]);
+
+  useEffect(() => {
+    pipelineRef.current?.setSynchronousShadowDiagnosticsOnly(
+      showVisualDebug && synchronousShadowDiagnosticsOnly,
+    );
+  }, [showVisualDebug, synchronousShadowDiagnosticsOnly]);
+
+  useEffect(() => {
     onKeyTransitionsRef.current = onKeyTransitions;
   }, [onKeyTransitions]);
 
@@ -271,6 +1151,7 @@ export default function MarkerTrackingOverlay({
           current.map((finger) => {
             const observation = pipeline.observations.get(finger.id);
             const contact = pipeline.shadowContacts.get(finger.id);
+            const synchronousShadow = pipeline.synchronousMeasurements.get(finger.id);
             return {
               ...finger,
               state: pipeline.contacts.get(finger.id)?.state ?? "unavailable",
@@ -286,11 +1167,12 @@ export default function MarkerTrackingOverlay({
                     shadowAreaRatio: contact?.areaRatio ?? null,
                   }
                 : {}),
+              synchronousShadow: synchronousShadow ?? null,
             };
           }),
         );
       },
-      onShadowCameraPreview: (crop, center) => {
+      onShadowCameraPreview: (crop, center, origin) => {
         if (!showVisualDebugRef.current) return;
         const previewCanvas = shadowPreviewCanvasRef.current;
         const previewContext = previewCanvas?.getContext("2d");
@@ -310,15 +1192,94 @@ export default function MarkerTrackingOverlay({
         );
         previewContext.save();
         previewContext.scale(scale, scale);
-        drawShadowSamplingGuides(
-          previewContext,
-          {
-            x: center.x - cropLeft,
-            y: center.y - cropTop,
-          },
-          scale,
-        );
+        const arcAnchor = {
+          x: SHADOW_PREVIEW_RADIUS,
+          y: SHADOW_PREVIEW_RADIUS + SHADOW_CUTOFF_OFFSET_Y,
+        };
+        drawGrayShadowArc(previewContext, arcAnchor, scale);
+        if (SHOW_EXTRA_SHADOW_DEBUG_OVERLAYS) {
+          drawShadowSamplingGuides(previewContext, arcAnchor, scale);
+          const gradientCounts = drawTipGradientCandidates(
+            previewContext,
+            crop,
+            arcAnchor,
+          );
+          shadowGradientPointsRef.current = gradientCounts.points;
+          const outlineGradientScore = drawFingerOutlineCandidate(
+            previewContext,
+            crop,
+            arcAnchor,
+          );
+          setShadowOutlineGradientScore((current) =>
+            current === outlineGradientScore ? current : outlineGradientScore,
+          );
+          setShadowGradientCounts((current) =>
+            current.nearby === gradientCounts.nearby &&
+            current.belowTip === gradientCounts.belowTip
+              ? current
+              : gradientCounts,
+          );
+        }
         previewContext.restore();
+        if (SHOW_EXTRA_SHADOW_DEBUG_OVERLAYS && shadowBoundaryRef.current) {
+          const gap = drawShadowContourPreview(
+            previewContext,
+            shadowBoundaryRef.current,
+            SHADOW_PREVIEW_RADIUS * 2,
+          );
+          setShadowGapPixels((current) => (current === gap ? current : gap));
+        }
+        if (SHOW_EXTRA_SHADOW_DEBUG_OVERLAYS)
+          drawGradientContourOverlap(
+            previewContext,
+            shadowGradientPointsRef.current,
+            shadowBoundaryRef.current,
+            SHADOW_PREVIEW_RADIUS * 2,
+          );
+        const lineProfile = shadowLineProfileRef.current;
+        const profile =
+          lineProfile && crop
+            ? drawShadowLineProfile(
+                lineProfile,
+                crop,
+                arcAnchor,
+                { x: cropLeft, y: cropTop },
+              )
+            : null;
+        const rays = profile?.rays ?? [];
+        drawShadowArcLines(
+          previewCanvas,
+          rays,
+        );
+        const background = shadowBackgroundRef.current;
+        const differenceSource = shadowDifferenceSourceRef.current;
+        const differencePreview = shadowDifferencePreviewRef.current;
+        if (background && differenceSource && differencePreview && crop) {
+          const stats = drawBackgroundDeltaPreview(
+            background,
+            differenceSource,
+            differencePreview,
+            crop,
+            origin,
+            center,
+          );
+          setShadowDifferenceStats((current) =>
+            current?.changedPixels === stats?.changedPixels &&
+            current?.totalPixels === stats?.totalPixels
+              ? current
+              : stats,
+          );
+          if (!stats) {
+            differencePreview
+              .getContext("2d")
+              ?.clearRect(0, 0, differencePreview.width, differencePreview.height);
+          } else {
+            drawShadowArcLines(
+              differencePreview,
+              rays,
+            );
+          }
+        }
       },
       onShadowPreview: (observation, contact) => {
         if (!showVisualDebugRef.current || !observation.mask) return;
@@ -327,6 +1288,7 @@ export default function MarkerTrackingOverlay({
         const maskContext = maskCanvas?.getContext("2d");
         if (!maskCanvas || !source || !maskContext) return;
         const mask = observation.mask;
+        shadowBoundaryRef.current = observation.contour?.boundary ?? null;
         if (source.width !== mask.width) source.width = mask.width;
         if (source.height !== mask.height) source.height = mask.height;
         const sourceContext = source.getContext("2d");
@@ -349,7 +1311,7 @@ export default function MarkerTrackingOverlay({
           .getPropertyValue(
             contact?.state === "press candidate"
               ? "--color-success"
-              : "--color-info",
+              : "--color-purple",
           )
           .trim();
         for (const index of observation.contour?.boundary ?? []) {
@@ -371,6 +1333,23 @@ export default function MarkerTrackingOverlay({
         maskContext.lineTo(maskCanvas.width, cutoffY);
         maskContext.stroke();
         maskContext.restore();
+        const cameraPreview = shadowPreviewCanvasRef.current;
+        const cameraContext = cameraPreview?.getContext("2d");
+        if (SHOW_EXTRA_SHADOW_DEBUG_OVERLAYS && cameraContext)
+          setShadowGapPixels(
+            drawShadowContourPreview(
+              cameraContext,
+              shadowBoundaryRef.current,
+              mask.width,
+            ),
+          );
+        if (SHOW_EXTRA_SHADOW_DEBUG_OVERLAYS && cameraContext)
+          drawGradientContourOverlap(
+            cameraContext,
+            shadowGradientPointsRef.current,
+            shadowBoundaryRef.current,
+            mask.width,
+          );
         setShadowMaskCount((count) => count + 1);
       },
       onError: (message) => {
@@ -458,6 +1437,16 @@ export default function MarkerTrackingOverlay({
                     performance.now() - detectionStartedAt,
                   );
                   markerDetectionRef.current = detection;
+                  if (detection.missingIds.length === 0) {
+                    const snapshot = markerBackgroundFrameRef.current ??
+                      document.createElement("canvas");
+                    markerBackgroundFrameRef.current = snapshot;
+                    if (snapshot.width !== processingCanvas.width)
+                      snapshot.width = processingCanvas.width;
+                    if (snapshot.height !== processingCanvas.height)
+                      snapshot.height = processingCanvas.height;
+                    snapshot.getContext("2d")?.drawImage(processingCanvas, 0, 0);
+                  }
                   setMarkerDetection(detection);
                 } catch {
                   markerDetectionRef.current = null;
@@ -555,6 +1544,19 @@ export default function MarkerTrackingOverlay({
       }
     }
 
+    if (homography && projectedPianoCorners && projectedWhiteKeys) {
+      const backgroundFrame = markerBackgroundFrameRef.current;
+      const backgroundCanvas = shadowBackgroundRef.current;
+      if (backgroundFrame && backgroundCanvas) {
+        if (backgroundCanvas.width !== backgroundFrame.width)
+          backgroundCanvas.width = backgroundFrame.width;
+        if (backgroundCanvas.height !== backgroundFrame.height)
+          backgroundCanvas.height = backgroundFrame.height;
+        backgroundCanvas.getContext("2d")?.drawImage(backgroundFrame, 0, 0);
+        queueMicrotask(() => setCapturedBackground({ stream, cameraReady }));
+      }
+    }
+
     const valid = onCalibrationObservation(saved, camera, corners);
     if (!valid && !debugShowSheetWithoutCalibration) return;
     if (
@@ -590,6 +1592,7 @@ export default function MarkerTrackingOverlay({
     const detectionStartedAt = pipelineMetrics.enabled ? performance.now() : null;
     const capturedShadowFrame = pipeline.processFrame({
       video,
+      background: shadowBackgroundRef.current,
       fingertips,
       hands,
       whiteKeys: projectedWhiteKeysRef.current,
@@ -609,6 +1612,7 @@ export default function MarkerTrackingOverlay({
         if (!hand || fingerIndex < 0 || !gate) continue;
         const shadowObservation = pipeline.observations.get(fingertip.id);
         const shadowContact = pipeline.shadowContacts.get(fingertip.id);
+        const synchronousShadow = pipeline.synchronousMeasurements.get(fingertip.id);
         nextDebug.push({
           id: fingertip.id,
           handIndex: fingertip.handIndex,
@@ -636,6 +1640,7 @@ export default function MarkerTrackingOverlay({
           shadowContact: shadowContact?.state ?? "unknown",
           shadowPeakArea: shadowContact?.peakArea ?? null,
           shadowAreaRatio: shadowContact?.areaRatio ?? null,
+          synchronousShadow: synchronousShadow ?? null,
         });
       }
 
@@ -834,9 +1839,7 @@ export default function MarkerTrackingOverlay({
         depthCalibration &&
         videoRef.current?.videoHeight
       ) {
-        const zLineColor = colors
-          .getPropertyValue("--color-accent-light")
-          .trim();
+        const zLineColors = ["#00aaff", "#ff3b30", "#00c853"];
         fingertips.forEach((fingertip) => {
           const fingerIndex = [4, 8, 12, 16, 20].indexOf(
             fingertip.landmarkIndex,
@@ -861,6 +1864,7 @@ export default function MarkerTrackingOverlay({
 
           const screenY = predictedSheetY * videoRef.current!.videoHeight;
           context.save();
+          const zLineColor = zLineColors[fingerIndex % zLineColors.length];
           context.strokeStyle = zLineColor;
           context.fillStyle = zLineColor;
           context.lineWidth = 2;
@@ -912,6 +1916,13 @@ export default function MarkerTrackingOverlay({
       <canvas ref={processingCanvasRef} className="hidden" />
       {showVisualDebug && (
         <>
+          <canvas
+            ref={shadowBackgroundRef}
+            width={0}
+            height={0}
+            className="hidden"
+          />
+          <canvas ref={shadowDifferenceSourceRef} className="hidden" />
           <canvas ref={shadowMaskSourceRef} className="hidden" />
           <div className="absolute left-4 top-4 rounded bg-black/70 px-3 py-2 text-sm text-white">
             {markerDetection === null
@@ -925,12 +1936,39 @@ export default function MarkerTrackingOverlay({
             <div className="mb-2">
               Techniques: knuckles {CONTACT_TECHNIQUES.knuckles ? "on" : "off"}{" "}
               · shadows {CONTACT_TECHNIQUES.shadows ? "on" : "off"}{" "}
+              · sync shadows {CONTACT_TECHNIQUES.synchronousShadows ? "on" : "off"}{" "}
               · z motion {CONTACT_TECHNIQUES.zMotion ? "on" : "off"}
             </div>
-            {CONTACT_TECHNIQUES.shadows && (
+            {!CONTACT_TECHNIQUES.shadows && (
+              <label className="mb-2 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={shadowDiagnosticsOnly}
+                  onChange={(event) => {
+                    const enabled = event.currentTarget.checked;
+                    setShadowDiagnosticsOnly(enabled);
+                    if (!enabled) setShadowGapPixels(null);
+                  }}
+                />
+                Shadow image analysis only (does not use shadow to trigger notes)
+              </label>
+            )}
+            {!CONTACT_TECHNIQUES.synchronousShadows && (
+              <label className="mb-2 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={synchronousShadowDiagnosticsOnly}
+                  onChange={(event) =>
+                    setSynchronousShadowDiagnosticsOnly(event.currentTarget.checked)
+                  }
+                />
+                Synchronous shadow analysis only (same frame, no note events)
+              </label>
+            )}
+            {(CONTACT_TECHNIQUES.shadows || CONTACT_TECHNIQUES.synchronousShadows || shadowDiagnosticsOnly || synchronousShadowDiagnosticsOnly) && (
               <div className="mb-3 border-b border-white/20 pb-2">
                 <div className="mb-1 font-bold">
-                  Index k-means preview
+                  Shadow analysis preview
                   {shadowPreviewFinger
                     ? ` (H${shadowPreviewFinger.handIndex})`
                     : ""}
@@ -940,9 +1978,18 @@ export default function MarkerTrackingOverlay({
                     ? `Mask unavailable: ${shadowWorkerError}`
                     : !shadowPreviewFinger
                       ? "Show your index finger to start the mask."
-                      : shadowMaskCount === 0
+                      : synchronousShadowDiagnosticsOnly || CONTACT_TECHNIQUES.synchronousShadows
+                        ? `Synchronous profile active · ${shadowBackgroundCaptured ? "sheet background ready" : "waiting for a valid marker capture"}`
+                        : shadowMaskCount === 0
                         ? "Waiting for the first mask…"
                         : `Mask active · ${shadowMaskCount} frames received`}
+                </div>
+                <div className="mb-2 flex items-center gap-2">
+                  <span>
+                    {shadowBackgroundCaptured
+                      ? "Background captured with valid marker geometry"
+                      : "Waiting for complete markers and a valid homography"}
+                  </span>
                 </div>
                 <div className="mb-2 flex gap-2">
                   <button
@@ -961,6 +2008,14 @@ export default function MarkerTrackingOverlay({
                   >
                     Camera
                   </button>
+                  <button
+                    type="button"
+                    aria-pressed={shadowPreviewMode === "difference"}
+                    onClick={() => setShadowPreviewMode("difference")}
+                    className={`rounded px-2 py-1 ${shadowPreviewMode === "difference" ? "bg-white text-ink" : "bg-surface-dark text-white"}`}
+                  >
+                    Background delta
+                  </button>
                 </div>
                 <canvas
                   ref={shadowMaskCanvasRef}
@@ -976,13 +2031,76 @@ export default function MarkerTrackingOverlay({
                   aria-label="Magnified camera view of the index fingertip crop used for k-means"
                   className={`${shadowPreviewMode === "camera" ? "block" : "hidden"} h-auto max-w-full bg-surface-dark`}
                 />
+                <canvas
+                  ref={shadowDifferencePreviewRef}
+                  width={SHADOW_PREVIEW_SIZE}
+                  height={SHADOW_PREVIEW_SIZE}
+                  aria-label="Grayscale pixel difference between the current fingertip crop and the captured empty-sheet background"
+                  className={`${shadowPreviewMode === "difference" ? "block" : "hidden"} h-auto max-w-full bg-surface-dark`}
+                />
+                <canvas
+                  ref={shadowLineProfileRef}
+                  width={280}
+                  height={168}
+                  aria-label="Raw and smoothed brightness profiles with a diagnostic sharp-rebound measurement on the center line"
+                  className={`${shadowPreviewMode === "camera" ? "block" : "hidden"} mt-1 h-auto max-w-full`}
+                />
                 <div className="mt-1">
-                  Black: darkest color group. White: other groups.
+                  {shadowPreviewMode === "mask"
+                    ? "Black: darkest color group. White: other groups."
+                    : shadowPreviewMode === "difference"
+                      ? "Black: little changed from the saved sheet. White: pixels that changed (hand or shadow)."
+                      : "Camera crop with hand and shadow overlays."}
                 </div>
-                <div>
-                  Above purple dashed line: ignored. Outline: blue hover, green
-                  candidate.
-                </div>
+                {shadowPreviewMode === "difference" && (
+                  <div>
+                    {shadowBackgroundCaptured
+                      ? `Changed pixels: ${shadowDifferenceStats?.changedPixels ?? "waiting"} / ${shadowDifferenceStats?.totalPixels ?? "—"} (difference ≥ 12 luma).`
+                      : "Capture an empty-sheet background to enable the difference view."}
+                  </div>
+                )}
+                {shadowPreviewMode === "difference" && (
+                  <div>
+                    The piano print should mostly disappear. Hand movement,
+                    shadow, camera movement, and exposure changes can all appear
+                    as differences. The gray arc and colored segments show the
+                    same three grouped sample paths as the camera view.
+                  </div>
+                )}
+                {SHOW_EXTRA_SHADOW_DEBUG_OVERLAYS && shadowPreviewMode !== "difference" && <div>
+                  Above purple dashed line: ignored. Mask contour: purple when
+                  hovering, green when a candidate.
+                </div>}
+                {SHOW_EXTRA_SHADOW_DEBUG_OVERLAYS && shadowPreviewMode === "camera" && <div>
+                  The cross stays centered because the crop follows the tip.
+                </div>}
+                {SHOW_EXTRA_SHADOW_DEBUG_OVERLAYS && shadowPreviewMode === "camera" && <div>
+                  Red gradients: {shadowGradientCounts.nearby} nearby ·{" "}
+                  {shadowGradientCounts.belowTip} inside the blue band.
+                </div>}
+                {SHOW_EXTRA_SHADOW_DEBUG_OVERLAYS && shadowPreviewMode === "camera" && <div>
+                  Large pink dot: a red gradient candidate lies within 2 pixels
+                  of the purple contour. This marks visual overlap only.
+                </div>}
+                {SHOW_EXTRA_SHADOW_DEBUG_OVERLAYS && shadowPreviewMode === "camera" && <div>
+                  Green arc: smooth path through strong gradients below the blue
+                  line · mean edge strength {shadowOutlineGradientScore?.toFixed(0) ?? "n/a"}.
+                </div>}
+                {SHOW_EXTRA_SHADOW_DEBUG_OVERLAYS && shadowPreviewMode === "camera" && <div>
+                  Shadow gap proxy: {shadowGapPixels?.toFixed(1) ?? "n/a"} px.
+                </div>}
+                {shadowPreviewMode !== "mask" && <div>
+                  Each line samples luma and groups it into up to three levels.
+                  Red is darkest, blue is middle, and green is brightest. The
+                  labels show distinct levels and run lengths in pixels. The
+                  gray curve is raw luma; the colored curve is smoothed. Orange
+                  marks the center-line minimum and yellow marks its 80% rebound
+                  point. Candidate means an 8–50 luma drop from the local
+                  shoulder to the minimum, followed by a rise of at least 20
+                  luma/pixel reaching 80% within 6 pixels. A deeper dip is
+                  labeled too deep. This is diagnostic only and does not
+                  trigger notes.
+                </div>}
                 <div className="mt-1 font-bold">
                   Contour area: {shadowPreviewDebug?.shadowContourArea ?? "n/a"}{" "}
                   pixels
@@ -1061,7 +2179,18 @@ export default function MarkerTrackingOverlay({
                     {CONTACT_TECHNIQUES.shadows
                       ? finger.shadowContact
                       : "disabled"}
+                    {" "}· sync shadow={finger.synchronousShadow?.state ?? "unavailable"}
                   </div>
+                  {finger.synchronousShadow && (
+                    <div>
+                      dip={finger.synchronousShadow.rays[0]?.dipDepth?.toFixed(0) ?? "n/a"}
+                      · rise={finger.synchronousShadow.rays[0]?.steepestRise?.toFixed(0) ?? "n/a"}/px
+                      · 80%={finger.synchronousShadow.rays[0]?.reboundWidth ?? "n/a"}px
+                      · background={finger.synchronousShadow.backgroundAvailable
+                        ? `${finger.synchronousShadow.changedPixels ?? 0} changed`
+                        : "unavailable"}
+                    </div>
+                  )}
                   {finger.shadowStrength === null
                     ? ""
                     : ` (area ${finger.shadowContourArea ?? "n/a"} px, dark ${((finger.shadowDarkArea ?? 0) * 100).toFixed(0)}%, Δ${

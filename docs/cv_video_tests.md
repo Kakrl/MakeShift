@@ -48,6 +48,36 @@ once with `cd frontend && npx playwright install chromium`. Pass
 
 For custom clips, use the manual steps below.
 
+To inspect a replay manually, launch Playwright visibly and enable the frame
+controls. For example, open clip 1 with synchronous shadows and no knuckle
+gate:
+
+```sh
+cd frontend
+CV_TECHNIQUE=synchronous-shadow-no-knuckles \
+CV_HEADFUL=1 CV_MANUAL_STEP=1 \
+npm run test:cv-video:auto -- --clip 1
+```
+
+Chromium opens with the source video and overlays the projected keys. Pressed
+keys are filled red; fingertip dots are green for shadow candidates, blue when
+eligible, red when active, and muted otherwise. Use **Pause/Resume**, **Next
+frame**, **Previous frame**, **Capture hover**, and **Capture press** to navigate
+and save the current raw video frame as a labeled PNG without the diagnostic
+overlay. Each capture opens a form to select one or more fingers on the left
+and/or right hand. The whole frame is saved to retain hand joints for future
+knuckle tests; filenames include the hover/press label, selected fingers, frame
+number, and video timestamp. By default, the Playwright runner saves captures
+directly in the repository root with their suggested filenames; set
+`CV_CAPTURE_DIR` to choose another folder.
+Previous/Next browse cached results
+when moving within already processed frames; resuming catches up to the latest
+processed frame before running new frames, so the contact pipeline keeps its
+correct temporal state. The status shows the frame number, active key indices,
+and shadow-candidate count. The existing paced mode remains available with
+`CV_HEADFUL=1 CV_FRAME_DELAY_MS=33`; visual replay delay affects total duration
+and FPS, so use the regular headless run for throughput measurements.
+
 Start the production app in one terminal:
 
 ```sh
@@ -71,6 +101,14 @@ browser is unavailable but Google Chrome is installed, set
 `CV_BROWSER_CHANNEL=chrome`. Set `CV_RESULT_FILE=/path/to/result.json` to save
 the report; otherwise it is printed to the terminal.
 
+To evaluate the synchronous shadow experiment, set
+`CV_TECHNIQUE=synchronous-shadow` for the same command. This replay enables the
+knuckle and synchronous-shadow gates, keeps the legacy shadow worker off, and
+captures a same-coordinate background when a complete marker set produces a
+valid homography. Set `CV_TECHNIQUE=synchronous-shadow-no-knuckles` to run the
+synchronous detector with knuckle gating disabled. Omit the variable for the
+existing overlap-only replay.
+
 ## Read the report
 
 The replay pauses the video, seeks through frames in order, and advances the
@@ -78,8 +116,15 @@ contact pipeline's clock using video time. It requests the MediaPipe GPU
 delegate and falls back to CPU if GPU initialization fails. The report records
 the selected delegate and WebGL renderer. ArUco detection follows the live
 250 ms acquisition / 10 s recheck cadence, retaining the last usable key
-geometry between scans. The replay starts the shadow worker when shadows are
-enabled and uses replay time for asynchronous shadow results.
+geometry between scans. The default replay uses overlap-only contact. The
+legacy shadow worker starts only when its switch is enabled and uses replay
+time for asynchronous results. The synchronous-shadow experiments are selected
+with `CV_TECHNIQUE=synchronous-shadow` or
+`CV_TECHNIQUE=synchronous-shadow-no-knuckles` as described above.
+
+For the synchronous-shadow replay, per-frame contact-pipeline timing includes
+its synchronous image sampling and background-difference work. This remains a
+fast ordered replay and does not measure live frame drops.
 
 The report includes every detected transition, matched and unmatched expected
 and predicted events, and scores presses and releases separately. It also
@@ -89,8 +134,8 @@ complete output with `CV_RESULT_FILE` to inspect all frames and transitions.
 
 The current score matches transitions by key and press/release type. Although
 the sidecar records hand and finger, finger attribution is not scored yet. The
-replay uses the app's current contact-technique defaults; knuckle and shadow
-gates are disabled there. This runner is the fast ordered accuracy run. It does
+default replay has knuckle and shadow gates disabled. This runner is the fast
+ordered accuracy run. It does
 not currently measure normal-speed frame drops or physical press-to-sound
 latency. Check the [full measurement plan](cv_automated_testing.md) before
 interpreting results.

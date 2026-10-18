@@ -159,6 +159,10 @@ try {
           inferenceMs: perf.inferenceMs,
           markerDetectionCount: perf.markerDetectionCount,
           shadowSamplesSubmitted: perf.shadowSamplesSubmitted,
+          synchronousShadowSamples: perf.synchronousShadowSamples,
+          synchronousShadowCandidates: perf.synchronousShadowCandidates,
+          backgroundCaptured: perf.backgroundCaptured,
+          synchronousContactMs: perf.synchronousContactMs,
         },
       };
     }),

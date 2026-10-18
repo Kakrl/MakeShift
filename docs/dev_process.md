@@ -30,6 +30,7 @@ MakeShift/
 │       └── __init__.py
 ├── docs/
 │   ├── architecture.md              # browser target, tooling, delivery boundaries
+│   ├── cv_image_tests.md             # labeled still-image shadow diagnostic replay
 │   ├── cv_automated_testing.md       # working plan for labeled CV recordings and metrics
 │   ├── cv_video_tests.md             # quick guide for preparing and running CV video tests
 │   ├── cv_knuckle_boundary.md        # current knuckle eligibility heuristic and review questions
@@ -61,6 +62,7 @@ MakeShift/
 │   │   └── models/                  # MediaPipe hand landmarker model
 │   ├── src/
 │   │   ├── app/
+│   │   │   ├── cv-image-test/       # labeled still-image shadow diagnostics
 │   │   │   ├── api/health/          # recordings database health route
 │   │   │   ├── audio/                  # browser owner and Audio check page
 │   │   │   ├── about/
@@ -112,6 +114,8 @@ MakeShift/
 │   ├── automation/
 │   │   └── rca.test.cjs             # RCA parser, validation, publication tests
 │   ├── frontend/
+│   │   ├── cvImageCases.browser.mjs # Playwright runner for labeled still-image CV cases
+│   │   ├── runCvImageCases.mjs      # builds app and runs the still-image CV replay
 │   │   ├── performanceMetrics.test.ts # bounded aggregation, clocks and resource counts
 │   │   ├── performanceResources.test.tsx # camera provider lifecycle accounting
 │   │   ├── performanceMetrics.browser.mjs # profiles and paired overhead
