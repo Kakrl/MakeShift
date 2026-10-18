@@ -184,9 +184,10 @@ describe("home page", () => {
   it("persists edited tempo and metronome across a remount", () => {
     saveCalibration();
     renderHome();
-    expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("120");
+    expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("60");
     expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("true");
     fireEvent.change(screen.getByLabelText("Set Tempo"), { target: { value: "175" } });
+    fireEvent.blur(screen.getByLabelText("Set Tempo"));
     fireEvent.click(screen.getByLabelText("Toggle metronome"));
     cleanup();
     renderHome();
@@ -205,7 +206,7 @@ describe("home page", () => {
   ])("uses defaults for invalid stored settings: %s", (raw) => {
     localStorage.setItem(storageKey("playback-settings", 1), raw);
     renderHome();
-    expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("120");
+    expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("60");
     expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("true");
   });
 
@@ -215,7 +216,7 @@ describe("home page", () => {
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe(String(tempo));
   });
 
-  it("clamps input and keeps controls usable when settings storage fails", () => {
+  it("validates committed input and keeps controls usable when settings storage fails", () => {
     // Calibration still loads; only the playback settings storage fails.
     saveCalibration();
     const read = window.localStorage.getItem.bind(window.localStorage);
@@ -227,11 +228,63 @@ describe("home page", () => {
     renderHome();
     const input = screen.getByLabelText("Set Tempo") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "350" } });
-    expect(input.value).toBe("300");
+    fireEvent.blur(input);
+    expect(input.value).toBe("60");
+    expect(input.getAttribute("aria-invalid")).toBe("true");
     fireEvent.change(input, { target: { value: "10" } });
-    expect(input.value).toBe("20");
+    fireEvent.blur(input);
+    expect(input.value).toBe("60");
+    fireEvent.change(input, { target: { value: "90" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(input.getAttribute("aria-invalid")).toBe("false");
     fireEvent.click(screen.getByLabelText("Toggle metronome"));
     expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("allows intermediate digits and empty input without changing saved tempo", () => {
+    saveCalibration(); renderHome();
+    const input = screen.getByLabelText("Set Tempo") as HTMLInputElement;
+    const key = storageKey("playback-settings", 1);
+    for (const value of ["", "1", "12", "120"]) {
+      fireEvent.change(input, { target: { value } });
+      expect(input.value).toBe(value);
+      expect(JSON.parse(localStorage.getItem(key)!).tempo).toBe(60);
+    }
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(JSON.parse(localStorage.getItem(key)!).tempo).toBe(120);
+  });
+
+  it.each(["", "19", "301", "120.5"])("rejects committed invalid tempo %s and Escape restores active value", value => {
+    saveCalibration(); renderHome();
+    const input = screen.getByLabelText("Set Tempo") as HTMLInputElement;
+    fireEvent.change(input, { target: { value } });
+    fireEvent.blur(input);
+    expect(input.value).toBe("60");
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(screen.getByText("Enter a whole number from 20 to 300 BPM. Tempo unchanged.")).toBeTruthy();
+    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!).tempo).toBe(60);
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(input.value).toBe("60");
+    expect(input.getAttribute("aria-invalid")).toBe("false");
+  });
+
+  it("restores the applied tempo after an invalid Enter commit", () => {
+    saveCalibration(); renderHome();
+    const input = screen.getByLabelText("Set Tempo") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "90" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.change(input, { target: { value: "350" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(input.value).toBe("90");
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!).tempo).toBe(90);
+  });
+
+  it.each([20, 300])("commits boundary tempo %s on blur", value => {
+    saveCalibration(); renderHome();
+    const input = screen.getByLabelText("Set Tempo") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: String(value) } }); fireEvent.blur(input);
+    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!).tempo).toBe(value);
   });
 
   it("shows the welcome modal on the first visit only", () => {
@@ -334,8 +387,8 @@ describe("home page", () => {
       fireEvent.click(screen.getByLabelText("Start recording"));
     });
     expect(screen.getByText("1")).toBeTruthy();
-    // One 4/4 measure at 120 BPM. Each beat schedules the next after a render.
-    for (let beat = 0; beat < 4; beat++) act(() => vi.advanceTimersByTime(500));
+    // One 4/4 measure at the default 60 BPM. Each beat schedules the next after a render.
+    for (let beat = 0; beat < 4; beat++) act(() => vi.advanceTimersByTime(1000));
     expect(screen.getByText("Recording started")).toBeTruthy();
 
     const write = quota ? vi.spyOn(window.localStorage, "setItem").mockImplementation(() => {
@@ -371,7 +424,7 @@ describe("home page", () => {
     await act(async () => {
       fireEvent.click(screen.getByLabelText("Start recording"));
     });
-    for (let beat = 0; beat < 4; beat++) act(() => vi.advanceTimersByTime(500));
+    for (let beat = 0; beat < 4; beat++) act(() => vi.advanceTimersByTime(1000));
     fireEvent.click(screen.getByLabelText("Stop recording"));
     return screen.getByRole("dialog", { name: "Would you like to save your recording?" });
   }
