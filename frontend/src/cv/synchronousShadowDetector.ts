@@ -29,6 +29,8 @@ export interface SynchronousShadowOptions {
   maxReboundWidth?: number;
   /** A difference below this luma value counts as unchanged background. */
   backgroundDifferenceThreshold?: number;
+  /** Pixel origin of the crop within a full-frame background image. */
+  backgroundOrigin?: Point;
 }
 
 const SIDE_ANGLE = (20 * Math.PI) / 180;
@@ -175,8 +177,9 @@ export function analyzeSynchronousShadow(
   let changedPixels: number | null = null;
   let meanBackgroundDifference: number | null = null;
   const backgroundAvailable = Boolean(
-    background && background.width === image.width &&
-      background.height === image.height,
+    background &&
+      background.width >= (options.backgroundOrigin?.x ?? 0) + image.width &&
+      background.height >= (options.backgroundOrigin?.y ?? 0) + image.height,
   );
   if (backgroundAvailable && background) {
     let totalDifference = 0;
@@ -191,7 +194,12 @@ export function analyzeSynchronousShadow(
         if (x < 0 || x >= image.width || y < 0 || y >= image.height) continue;
         const difference = Math.abs(
           lumaAt(image.data, image.width, x, y) -
-            lumaAt(background.data, background.width, x, y),
+            lumaAt(
+              background.data,
+              background.width,
+              x + (options.backgroundOrigin?.x ?? 0),
+              y + (options.backgroundOrigin?.y ?? 0),
+            ),
         );
         totalDifference += difference;
         total += 1;

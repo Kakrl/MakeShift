@@ -116,7 +116,7 @@ export default function CVOverlayCoordinator({
       <HandTrackingOverlay
         videoRef={videoRef}
         onLandmarks={handleLandmarks}
-        showVisualDebug={DEBUG_FLAGS.visualDebug}
+        showHandTrackingDebug={DEBUG_FLAGS.handTrackingDebug}
         onTrackingFailure={trackingFailed}
       />
     </>

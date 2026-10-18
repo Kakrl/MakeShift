@@ -20,28 +20,28 @@ export default function HandTrackingOverlay({
   videoRef,
   onTrackingFailure,
   onLandmarks,
-  showVisualDebug = false,
-  showStatus = showVisualDebug,
+  showHandTrackingDebug = false,
+  showStatus = showHandTrackingDebug,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   onTrackingFailure?: () => void;
   onLandmarks?: (hands: readonly HandObservation[]) => void;
-  showVisualDebug?: boolean;
+  showHandTrackingDebug?: boolean;
   showStatus?: boolean;
 }) {
   const [status, setStatus] = useState("Loading MediaPipe…");
   const [handCount, setHandCount] = useState(0);
   const [fps, setFps] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const showVisualDebugRef = useRef(showVisualDebug);
+  const showHandTrackingDebugRef = useRef(showHandTrackingDebug);
 
   useEffect(() => {
-    showVisualDebugRef.current = showVisualDebug;
-    if (!showVisualDebug) {
+    showHandTrackingDebugRef.current = showHandTrackingDebug;
+    if (!showHandTrackingDebug) {
       const canvas = canvasRef.current;
       canvas?.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
     }
-  }, [showVisualDebug]);
+  }, [showHandTrackingDebug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,7 +59,7 @@ export default function HandTrackingOverlay({
 
       if (fpsStartTimestamp === 0) fpsStartTimestamp = timestamp;
       fpsFrameCount += 1;
-      if (showVisualDebugRef.current && timestamp - fpsStartTimestamp >= 1000) {
+      if (showHandTrackingDebugRef.current && timestamp - fpsStartTimestamp >= 1000) {
         setFps(
           Math.round(
             (fpsFrameCount * 1000) / (timestamp - fpsStartTimestamp),
@@ -80,7 +80,7 @@ export default function HandTrackingOverlay({
           canvas.height = video.videoHeight;
         }
 
-        const context = showVisualDebugRef.current ? canvas.getContext("2d") : null;
+        const context = showHandTrackingDebugRef.current ? canvas.getContext("2d") : null;
         const inferenceStartedAt = pipelineMetrics.enabled ? performance.now() : null;
         let result;
         try {
@@ -121,7 +121,7 @@ export default function HandTrackingOverlay({
         );
         onLandmarks?.(hands);
 
-        if (showVisualDebugRef.current && result && result.landmarks.length !== lastHandCount) {
+        if (showHandTrackingDebugRef.current && result && result.landmarks.length !== lastHandCount) {
           lastHandCount = result.landmarks.length;
           setHandCount(lastHandCount);
         }

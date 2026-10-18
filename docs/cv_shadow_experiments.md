@@ -304,6 +304,18 @@ count and mean luma difference when a same-sized background is available;
 these values are diagnostic only and do not affect the current rebound-based
 candidate decision.
 
+When the visual debugger is visible, the full-frame background pixels are
+cached when the saved background changes. Synchronous samples use that cache
+for the ray comparison. Normal playing skips both the cache read and the
+diagnostic background comparison, including its per-fingertip pixel read.
+
+Live synchronous sampling groups key-overlapping fingertips by hand. It draws
+and reads one bounding region per hand, then samples each fingertip's rays
+from that shared `ImageData`. The rectangle can include empty pixels between
+fingertips, but batching it avoids a separate draw and read for every finger.
+The selected preview fingertip keeps its own small crop while the visual
+debugger is open.
+
 Three synthetic profile/background unit cases and two mocked pipeline cases
 pass locally. A labeled replay now exercises the browser contact wiring. On
 2026-10-17, all four checked-in videos were run with GPU MediaPipe on an Apple
@@ -371,10 +383,12 @@ At the time of this observation, the profile preview appeared to keep up at
 The synchronous detector does not need to repeat the legacy worker's crop
 segmentation or masking. Its note decision uses three short luma profiles. The
 background difference is diagnostic only and is not required for note state.
-The first implementation nevertheless copied and compared a 140 × 140 crop
-for every eligible fingertip on every frame, which could add avoidable main
-thread work. The synchronous path now uses a compact fingertip-and-rays crop;
-the legacy worker retains its independent larger crop.
+The first implementation copied and compared a 140 × 140 crop for every
+eligible fingertip on every frame, which could add avoidable main thread work.
+The synchronous path now batches fingertips into per-hand bounding crops,
+caches the full-frame background on capture, and skips background comparison
+while the visual debugger is hidden; the legacy worker retains its independent
+larger crop.
 
 #### Compact fingertip-and-rays region
 

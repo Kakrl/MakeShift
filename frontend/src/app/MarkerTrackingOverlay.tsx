@@ -795,6 +795,7 @@ export default function MarkerTrackingOverlay({
     useState<MarkerDetectionResult | null>(null);
   const processingCanvasRef = useRef<HTMLCanvasElement>(null);
   const markerBackgroundFrameRef = useRef<HTMLCanvasElement | null>(null);
+  const shadowBackgroundPixelsRef = useRef<ImageData | null>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const shadowBackgroundRef = useRef<HTMLCanvasElement>(null);
   const shadowDifferenceSourceRef = useRef<HTMLCanvasElement>(null);
@@ -922,6 +923,7 @@ export default function MarkerTrackingOverlay({
       background.height = 0;
     }
     markerBackgroundFrameRef.current = null;
+    shadowBackgroundPixelsRef.current = null;
     queueMicrotask(() => setCapturedBackground(null));
   }, [stream, cameraReady]);
 
@@ -1358,6 +1360,11 @@ export default function MarkerTrackingOverlay({
         if (backgroundCanvas.height !== backgroundFrame.height)
           backgroundCanvas.height = backgroundFrame.height;
         backgroundCanvas.getContext("2d")?.drawImage(backgroundFrame, 0, 0);
+        shadowBackgroundPixelsRef.current = showVisualDebugRef.current
+          ? backgroundFrame
+              .getContext("2d", { willReadFrequently: true })
+              ?.getImageData(0, 0, backgroundFrame.width, backgroundFrame.height) ?? null
+          : null;
         queueMicrotask(() => setCapturedBackground({ stream, cameraReady }));
       }
     }
@@ -1397,7 +1404,7 @@ export default function MarkerTrackingOverlay({
     const detectionStartedAt = pipelineMetrics.enabled ? performance.now() : null;
     const capturedShadowFrame = pipeline.processFrame({
       video,
-      background: shadowBackgroundRef.current,
+      background: showVisualDebug ? shadowBackgroundPixelsRef.current : null,
       fingertips,
       hands,
       whiteKeys: projectedWhiteKeysRef.current,

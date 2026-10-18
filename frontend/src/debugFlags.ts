@@ -2,7 +2,9 @@
 export const DEBUG_FLAGS = {
   pipelineDiagnostics: process.env.NEXT_PUBLIC_PIPELINE_DIAGNOSTICS === "1",
   // Preserve main's current CV debugging behavior until its owner changes it.
-  visualDebug: true,
+  visualDebug: false,
+  // Keep the hand landmarks and FPS panel independent from the CV debugger.
+  handTrackingDebug: false,
   showZLines: true,
   showSheetWithoutCalibration: true,
   // Set true to print calibration hand landmarks in the browser console.

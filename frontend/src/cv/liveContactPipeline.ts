@@ -62,12 +62,18 @@ export const CONTACT_TECHNIQUES: Readonly<ContactTechniques> = {
 
 export interface ContactPipelineFrame {
   video: HTMLVideoElement | null;
-  background?: HTMLCanvasElement | null;
+  /** Cached full-frame pixels, supplied only while visual diagnostics are open. */
+  background?: ImageData | null;
   fingertips: readonly Fingertip[];
   hands: readonly HandObservation[];
   whiteKeys: Point[][] | null;
   calibration: PersistedDepthCalibration | null;
   previewFingerId: string | null;
+}
+
+interface SynchronousImageRegion {
+  image: ImageData;
+  origin: Point;
 }
 
 interface PipelineCallbacks {
@@ -238,6 +244,10 @@ export class LiveContactPipeline {
     this.previewFingerId = frame.previewFingerId;
     const activeIds = new Set<string>();
     const knuckleDistances = new Map<number, number | null>();
+    const synchronousRegions = new Map<number, SynchronousImageRegion | null>();
+    const useSynchronousShadow = Boolean(
+      this.techniques.synchronousShadows || this.synchronousDiagnosticsOnly,
+    );
 
     for (const fingertip of frame.fingertips) {
       const hand = frame.hands[fingertip.handIndex];
@@ -385,13 +395,10 @@ export class LiveContactPipeline {
       const finger = this.fingers.get(fingertip.id) ?? new Finger(fingertip.id);
       this.fingers.set(fingertip.id, finger);
       if (gateChanged) finger.reset();
-      const useSynchronousShadow = Boolean(
-        this.techniques.synchronousShadows || this.synchronousDiagnosticsOnly,
-      );
       let synchronousObservation:
         | { state: ShadowContactState; frameAtMs: number }
         | undefined;
-      let synchronousSample: ReturnType<typeof this.measureSynchronousShadow> = null;
+      let synchronousMeasurement: SynchronousShadowMeasurement | null = null;
       if (
         useSynchronousShadow &&
         keyOverlap &&
@@ -399,11 +406,18 @@ export class LiveContactPipeline {
         frame.video &&
         frame.video.readyState >= 2
       ) {
-        synchronousSample = this.measureSynchronousShadow(frame, fingertip);
-        if (synchronousSample) {
-          this.synchronousMeasurements.set(fingertip.id, synchronousSample.measurement);
+        const region = this.getSynchronousRegion(
+          frame,
+          fingertip,
+          synchronousRegions,
+        );
+        synchronousMeasurement = region
+          ? this.measureSynchronousShadow(frame, region, fingertip)
+          : null;
+        if (synchronousMeasurement) {
+          this.synchronousMeasurements.set(fingertip.id, synchronousMeasurement);
           synchronousObservation = {
-            state: synchronousSample.measurement.state,
+            state: synchronousMeasurement.state,
             frameAtMs: now,
           };
         } else {
@@ -425,7 +439,7 @@ export class LiveContactPipeline {
       this.setContact(fingertip.id, contact, now);
 
       if (useSynchronousShadow && fingertip.id === this.previewFingerId) {
-        const sample = synchronousSample ?? this.makeSynchronousCrop(frame, fingertip);
+        const sample = this.makeSynchronousCrop(frame, fingertip);
         this.callbacks.onShadowCameraPreview(sample.crop, sample.center, sample.origin);
       }
 
@@ -455,33 +469,94 @@ export class LiveContactPipeline {
     );
   }
 
-  private measureSynchronousShadow(
+  private getSynchronousRegion(
     frame: ContactPipelineFrame,
     fingertip: Fingertip,
+    cache: Map<number, SynchronousImageRegion | null>,
   ) {
-    const sample = this.makeSynchronousCrop(frame, fingertip);
-    if (!sample.crop) return null;
-    const context = sample.crop.getContext("2d", { willReadFrequently: true });
-    if (!context) return null;
-    const image = context.getImageData(0, 0, sample.crop.width, sample.crop.height);
-    let background: ImageData | null = null;
-    const source = frame.background;
-    if (source && source.width === frame.video?.videoWidth &&
-      source.height === frame.video?.videoHeight &&
-      sample.origin.x + sample.crop.width <= source.width &&
-      sample.origin.y + sample.crop.height <= source.height) {
-      const backgroundContext = source.getContext("2d", { willReadFrequently: true });
-      background = backgroundContext?.getImageData(
-        sample.origin.x,
-        sample.origin.y,
-        sample.crop.width,
-        sample.crop.height,
-      ) ?? null;
+    const cached = cache.get(fingertip.handIndex);
+    if (cached !== undefined) return cached;
+
+    const video = frame.video;
+    if (!video) {
+      cache.set(fingertip.handIndex, null);
+      return null;
     }
-    return {
-      ...sample,
-      measurement: analyzeSynchronousShadow(image, sample.center, background),
+    const handFingertips = frame.fingertips.filter((candidate) =>
+      candidate.handIndex === fingertip.handIndex &&
+      checkKeyOverlap(candidate, frame.whiteKeys).length > 0,
+    );
+    if (handFingertips.length === 0) {
+      cache.set(fingertip.handIndex, null);
+      return null;
+    }
+
+    const points = handFingertips.map(({ point }) => ({
+      x: Math.round(point.x),
+      y: Math.round(point.y),
+    }));
+    const left = Math.max(
+      0,
+      Math.min(...points.map(({ x }) => x - SYNCHRONOUS_SHADOW_CROP.halfWidth)),
+    );
+    const top = Math.max(
+      0,
+      Math.min(...points.map(({ y }) => y - SYNCHRONOUS_SHADOW_CROP.aboveTip)),
+    );
+    const right = Math.min(
+      video.videoWidth,
+      Math.max(...points.map(({ x }) => x + SYNCHRONOUS_SHADOW_CROP.halfWidth)),
+    );
+    const bottom = Math.min(
+      video.videoHeight,
+      Math.max(...points.map(({ y }) => y + SYNCHRONOUS_SHADOW_CROP.belowTip)),
+    );
+    const width = Math.max(0, right - left);
+    const height = Math.max(0, bottom - top);
+    if (width === 0 || height === 0) {
+      cache.set(fingertip.handIndex, null);
+      return null;
+    }
+    const crop = this.synchronousCropCanvas ?? document.createElement("canvas");
+    this.synchronousCropCanvas = crop;
+    if (crop.width !== width) crop.width = width;
+    if (crop.height !== height) crop.height = height;
+    if (width > 0 && height > 0)
+      crop.getContext("2d", { willReadFrequently: true })?.drawImage(
+        video,
+        left,
+        top,
+        width,
+        height,
+        0,
+        0,
+        width,
+        height,
+      );
+    const context = crop.getContext("2d", { willReadFrequently: true });
+    if (!context) {
+      cache.set(fingertip.handIndex, null);
+      return null;
+    }
+    const image = context.getImageData(0, 0, width, height);
+    const region = { image, origin: { x: left, y: top } };
+    cache.set(fingertip.handIndex, region);
+    return region;
+  }
+
+  private measureSynchronousShadow(
+    frame: ContactPipelineFrame,
+    region: SynchronousImageRegion,
+    fingertip: Fingertip,
+  ) {
+    const center = {
+      x: fingertip.point.x - region.origin.x,
+      y: fingertip.point.y - region.origin.y,
     };
+    const background = frame.background ?? null;
+    return analyzeSynchronousShadow(region.image, center, background, {
+      backgroundOrigin: region.origin,
+    });
   }
 
   private makeSynchronousCrop(
@@ -490,8 +565,7 @@ export class LiveContactPipeline {
   ) {
     const video = frame.video;
     if (!video) return { crop: null, center: { x: 0, y: 0 }, origin: { x: 0, y: 0 } };
-    // This detector only needs enough context for the fingertip and its three
-    // 45-pixel rays. Keep it separate from the legacy worker's larger crop.
+    // Keep the selected preview crop small and separate from the hand batch.
     const tipX = Math.round(fingertip.point.x);
     const tipY = Math.round(fingertip.point.y);
     const virtualLeft = tipX - SYNCHRONOUS_SHADOW_CROP.halfWidth;
