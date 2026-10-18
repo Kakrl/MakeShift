@@ -21,6 +21,12 @@ try {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(process.env.MAKE_SHIFT_URL || "http://127.0.0.1:3000");
+  // Takes live in the songs dialog: My recordings, then the take's own view.
+  const openTake = async (name) => {
+    await page.getByRole("button", { name: "My recordings", exact: true }).click();
+    await page.getByRole("dialog", { name: "Songs" }).getByRole("button", { name: new RegExp(`^${name}`) }).click();
+  };
+  await openTake("Export regression");
   for (let attempt = 0; attempt < 2; attempt++) {
     const pending = page.waitForEvent("download", { timeout: 10000 });
     await page.getByRole("button", { name: "Download MIDI", exact: true }).click();
@@ -49,10 +55,10 @@ try {
   }
   assert.deepEqual(errors, []);
   await page.getByRole("button", { name: "Rename", exact: true }).click();
-  await page.getByLabel("Name", { exact: true }).fill("Renamed take");
-  await page.getByRole("button", { name: "Save name", exact: true }).click();
+  await page.getByLabel("Recording name", { exact: true }).fill("Renamed take");
+  await page.getByLabel("Recording name", { exact: true }).press("Enter");
   await page.reload();
-  await page.getByRole("listitem", { name: "Renamed take", exact: true }).waitFor();
+  await openTake("Renamed take");
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   await page.reload();

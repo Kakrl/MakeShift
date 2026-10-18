@@ -92,12 +92,10 @@ vi.mock("../../frontend/src/cv/markerDetector", () => ({
   },
 }));
 vi.mock("next/dynamic", async () => {
-  const { default: ProfilePanel } = await import("../../frontend/src/app/midi/DeviceProfilePanel");
   const { default: LibraryPanel } = await import("../../frontend/src/app/midi/RecordingsLibraryPanel");
   return {
     default: (loader: () => unknown) => {
       const source = loader.toString();
-      if (source.includes("DeviceProfilePanel")) return ProfilePanel;
       if (source.includes("RecordingsLibraryPanel")) return LibraryPanel;
       if (source.includes("CVOverlayCoordinator")) {
         return function CoordinatorFixture(props: ComponentProps<typeof Coordinator>) {
@@ -381,7 +379,7 @@ it("uses the real page/coordinator/marker transitions to capture held keys after
   expect(notes[1]).toMatchObject({ pitch: notes[0].pitch, startMs: 500, durationMs: 250 });
   expect(notes[2]).toMatchObject({ startMs: 500, durationMs: 250 });
   expect(notes[2].pitch).not.toBe(notes[0].pitch);
-  expect(host.textContent).toContain("Download MIDI");
+  expect(host.textContent).toContain("1 recording");
   expect(button("Start recording").disabled).toBe(false);
 });
 
@@ -433,7 +431,7 @@ it("cancels an initial count-in without making a take", async () => {
   await click(button("Stop recording"));
   await countIn();
   expect(fixtures.takes).toEqual([]);
-  expect(host.textContent).not.toContain("Download MIDI");
+  expect(host.textContent).toContain("No recordings yet.");
   expect(button("Start recording").disabled).toBe(false);
 });
 
@@ -498,6 +496,9 @@ it("backgrounding releases the session and closes the recording", async () => {
   expect(fixtures.takes).toHaveLength(1);
   expect(button("Start recording").disabled).toBe(true);
   expect(host.textContent).toContain("background");
+  // Kept without the save question: the person never chose to stop.
+  expect(document.body.textContent).toContain("1 recording");
+  expect(document.body.textContent).not.toContain("Would you like to save");
 });
 
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { createElement } from "react";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Regression coverage for #112: merge 30706c4 dropped the home page modals and
@@ -52,12 +52,10 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push, back: vi.fn() }) }
 // set instead of running CV.
 const calibration = vi.hoisted(() => ({ valid: false }));
 vi.mock("next/dynamic", async () => {
-  const { default: ProfilePanel } = await import("../../frontend/src/app/midi/DeviceProfilePanel");
   const { default: LibraryPanel } = await import("../../frontend/src/app/midi/RecordingsLibraryPanel");
   const { useEffect } = await import("react");
   return {
     default: (loader: () => unknown) =>
-      loader.toString().includes("DeviceProfilePanel") ? ProfilePanel :
       loader.toString().includes("RecordingsLibraryPanel") ? LibraryPanel :
       function CoordinatorStub({ session }: { session: LiveSession }) {
         useEffect(() => {
@@ -123,15 +121,24 @@ describe("home page", () => {
     const take = { id: "one", name: "First", bpm: 120, createdAt: "2026-10-03T00:00:00Z", notes: [] };
     localStorage.setItem("makeshift:recordings:v1", JSON.stringify([take, { ...take, id: "two", name: "Second" }]));
     renderHome();
-    fireEvent.click(screen.getAllByText("Rename")[0]);
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Renamed" } });
-    fireEvent.click(screen.getByText("Save name"));
+    expect(screen.getByText("2 recordings")).toBeTruthy();
+    // Takes live in the songs dialog's My recordings tab.
+    fireEvent.click(screen.getByRole("button", { name: "My recordings" }));
+    fireEvent.click(screen.getByRole("button", { name: /^First/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    const field = screen.getByLabelText("Recording name");
+    fireEvent.change(field, { target: { value: "Renamed" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    // Back to the list (the dialog's back key shares the sidebar button's name).
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Songs" })).getByRole("button", { name: "My recordings" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Second/ }));
     vi.spyOn(window, "confirm").mockReturnValue(true);
-    fireEvent.click(screen.getAllByText("Delete")[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     cleanup(); renderHome();
-    expect(screen.getByText("Renamed")).toBeTruthy();
-    expect(screen.queryByText("Second")).toBeNull();
-    expect(screen.getAllByText("Download MIDI")).toHaveLength(1);
+    expect(screen.getByText("1 recording")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "My recordings" }));
+    expect(screen.getByRole("button", { name: /^Renamed/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Second/ })).toBeNull();
   });
 
   beforeEach(() => {
@@ -146,6 +153,7 @@ describe("home page", () => {
     cleanup();
     vi.restoreAllMocks();
     vi.useRealTimers();
+    window.history.replaceState(null, "", "/");
   });
 
   it("restores saved preferences without overwriting them on initial render", () => {
@@ -334,20 +342,122 @@ describe("home page", () => {
       throw new DOMException("full", "QuotaExceededError");
     }) : null;
     fireEvent.click(screen.getByLabelText("Stop recording"));
-    expect(screen.getByText("Recording Complete!")).toBeTruthy();
-    fireEvent.click(screen.getByText("Dismiss"));
+    // The take is kept already; closing the question leaves it in Recordings.
+    const review = screen.getByRole("dialog", { name: "Would you like to save your recording?" });
+    fireEvent.click(within(review).getByRole("button", { name: "Close" }));
 
     if (quota) {
       expect(screen.getByText(/Storage is full/)).toBeTruthy();
-      expect(screen.getByText(/Not saved/)).toBeTruthy();
+      expect(screen.getByText(/not saved/i)).toBeTruthy();
       write!.mockRestore();
       fireEvent.click(screen.getByText("Retry saving"));
-      expect(screen.queryByText(/Not saved/)).toBeNull();
+      expect(screen.queryByText(/not saved/i)).toBeNull();
     }
     cleanup(); renderHome();
-    expect(screen.getByText("Download MIDI")).toBeTruthy();
+    expect(screen.getByText("1 recording")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "My recordings" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Untitled recording/ }));
     vi.spyOn(window, "confirm").mockReturnValue(true);
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
-    expect(screen.queryByText("Download MIDI")).toBeNull();
+    expect(screen.getByText("No recordings yet.")).toBeTruthy();
+  });
+
+  async function recordTake() {
+    localStorage.setItem("hasVisited", "true");
+    calibration.valid = true;
+    localStorage.setItem(CALIBRATION_KEY, JSON.stringify(validCalibration()));
+    renderHome();
+    fireEvent.click(screen.getByLabelText("Toggle metronome"));
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText("Start recording"));
+    });
+    for (let beat = 0; beat < 4; beat++) act(() => vi.advanceTimersByTime(500));
+    fireEvent.click(screen.getByLabelText("Stop recording"));
+    return screen.getByRole("dialog", { name: "Would you like to save your recording?" });
+  }
+
+  it("asks to save after Stop and saves privately under a new name without asking for a name", async () => {
+    const review = await recordTake();
+    fireEvent.click(within(review).getByRole("button", { name: "Yes, save it" }));
+
+    const details = screen.getByRole("dialog", { name: "Save your recording" });
+    fireEvent.change(within(details).getByLabelText("Recording name"), { target: { value: "Song for Mom" } });
+    expect(within(details).getByRole("radio", { name: /Only me/ })).toHaveProperty("checked", true);
+    expect(within(details).queryByLabelText("Your name")).toBeNull();
+    fireEvent.click(within(details).getByRole("button", { name: "Save" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "My recordings" }));
+    const card = screen.getByRole("button", { name: /^Song for Mom/ });
+    expect(within(card).getByText("Only me")).toBeTruthy();
+  });
+
+  it("saves and shares to everyone, then shows the link", async () => {
+    // The dev demo take has notes; a take with none can only stay private.
+    window.history.replaceState(null, "", "/?dev=1&demo=take");
+    localStorage.setItem("hasVisited", "true");
+    renderHome();
+    const review = screen.getByRole("dialog", { name: "Would you like to save your recording?" });
+    fireEvent.click(within(review).getByRole("button", { name: "Yes, save it" }));
+    const details = screen.getByRole("dialog", { name: "Save your recording" });
+    fireEvent.change(within(details).getByLabelText("Recording name"), { target: { value: "Twinkle" } });
+    fireEvent.click(within(details).getByRole("radio", { name: /Everyone/ }));
+    fireEvent.change(within(details).getByLabelText("Your name"), { target: { value: "Jo" } });
+    // The mock upload waits like a network call.
+    await act(async () => {
+      fireEvent.click(within(details).getByRole("button", { name: "Save and share" }));
+      await vi.advanceTimersByTimeAsync(400);
+    });
+
+    const done = screen.getByRole("dialog", { name: "Your song is shared!" });
+    expect(within(done).getByText(/\/play\//)).toBeTruthy();
+    fireEvent.click(within(done).getByRole("button", { name: "Done" }));
+    fireEvent.click(screen.getByRole("button", { name: "My recordings" }));
+    // The name shared under becomes the profile's sharing name (#125),
+    // shown and edited in My recordings.
+    const profile = screen.getByRole("region", { name: "Sharing name" });
+    expect(within(profile).getByText("Jo")).toBeTruthy();
+    const card = screen.getByRole("button", { name: /^Twinkle/ });
+    expect(within(card).getByText("Shared")).toBeTruthy();
+
+    // Deleting a shared take stops its share too, so no link is left orphaned.
+    fireEvent.click(card);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+      await vi.advanceTimersByTimeAsync(400);
+    });
+    expect(localStorage.getItem("makeshift:mock-shared-recordings:v1")).not.toContain("Twinkle");
+    expect(localStorage.getItem("makeshift:take-shares:v1")).not.toContain("demo-take");
+  });
+
+  it("asks for the sharing name only until it is set", async () => {
+    localStorage.setItem("makeshift:profile:v1", JSON.stringify({ deviceId: "device-1", displayName: "Jo" }));
+    window.history.replaceState(null, "", "/?dev=1&demo=take");
+    localStorage.setItem("hasVisited", "true");
+    renderHome();
+    fireEvent.click(screen.getByRole("button", { name: "Yes, save it" }));
+    const details = screen.getByRole("dialog", { name: "Save your recording" });
+    fireEvent.change(within(details).getByLabelText("Recording name"), { target: { value: "Twinkle" } });
+    fireEvent.click(within(details).getByRole("radio", { name: /Everyone/ }));
+    expect(within(details).queryByLabelText("Your name")).toBeNull();
+    expect(within(details).getByText("Jo")).toBeTruthy();
+    expect(within(details).getByRole("button", { name: "Save and share" })).toHaveProperty("disabled", false);
+  });
+
+  it("keeps an empty take private", async () => {
+    const review = await recordTake();
+    fireEvent.click(within(review).getByRole("button", { name: "Yes, save it" }));
+    const details = screen.getByRole("dialog", { name: "Save your recording" });
+    expect(within(details).getByRole("radio", { name: /Everyone/ })).toHaveProperty("disabled", true);
+    expect(within(details).getByText("Play a note first to share")).toBeTruthy();
+  });
+
+  it("deletes the take when the player says no", async () => {
+    const review = await recordTake();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    fireEvent.click(within(review).getByRole("button", { name: "No, delete it" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByText("No recordings yet.")).toBeTruthy();
   });
 });
