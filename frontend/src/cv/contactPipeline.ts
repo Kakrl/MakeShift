@@ -1,4 +1,4 @@
-import { getKeyCollisions, type Fingertip } from "./collision";
+import { getPianoKeyCollisions, type Fingertip } from "./collision";
 import {
   getKnuckleBoundaryY,
   type DepthFinger,
@@ -26,9 +26,10 @@ interface KnuckleEligibilityInput {
 export function checkKeyOverlap(
   fingertip: Fingertip,
   whiteKeys: Point[][] | null,
+  blackKeys: Point[][] | null = null,
 ) {
   return whiteKeys
-    ? getKeyCollisions([fingertip], whiteKeys, 8).map(
+    ? getPianoKeyCollisions([fingertip], whiteKeys, blackKeys ?? [], 8).map(
         ({ keyIndex }) => keyIndex,
       )
     : [];

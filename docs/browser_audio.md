@@ -28,10 +28,10 @@ can be closed even while its module is loading.
 
 Ten voice records are preallocated. For MIDI note n, frequency is
 `440 * 2 ** ((n - 69) / 12)` Hz at the actual worklet sample rate.
-The legacy comparison mode uses a sine wave with peak amplitude `0.08 * velocity`; velocity
+The legacy comparison mode uses a sine wave with peak amplitude `0.095 * velocity ** 1.5`; velocity
 must be finite and in (0, 1]. Invalid notes/velocities are rejected rather than
-clamped. A threefold velocity gives threefold amplitude (about 9.54 dB).
-Ten full-velocity in-phase voices peak at 0.8; the final mix also clamps to
+clamped. A threefold velocity gives 5.196-fold amplitude (about 14.31 dB). The curve is applied once at onset; estimator and MIDI values remain unchanged.
+Ten full-velocity in-phase voices are bounded by 0.95 even at sustain 1; the final mix also clamps to
 [-1, 1]. Frequencies at or above Nyquist are silent rather than aliased.
 
 ### ADSR contract (#27)
@@ -73,11 +73,11 @@ Free slots are reused first; otherwise the oldest press is immediately replaced,
 even during release. Stealing resets phase/level and starts a new attack without
 changing other voices. A late note-off for the stolen press cannot release its
 replacement. This hard cut can click: the removed single-voice contribution is
-bounded by 0.08. It is tested as a hard transition, not a seamless crossfade.
+bounded by 0.095. It is tested as a hard transition, not a seamless crossfade.
 Reset and terminal release-all retain their immediate-silence safety semantics.
 
 The envelope scales the sine oscillator; envelopes alone do not provide realistic
-piano timbre. Steady amplitude is now `0.08 * velocity * 0.7` by default.
+piano timbre. Steady amplitude is now `0.095 * velocity ** 1.5 * 0.7` by default.
 
 Rendering visits at most ten voices per sample, allocates no buffers or voice
 objects, and performs no logging, waiting, network access, or React updates.
@@ -167,8 +167,7 @@ above 0.45 times the actual sample rate are culled before oscillation. The
 fundamental weight is 1; higher partials start at
 `(0.22 + 0.35*velocity)/k^1.6`. Weights are normalized by their sum. Partial k
 decays additionally with time constant `(0.24 + 0.35*(1-r))/(k-1)` seconds;
-the fundamental has no additional decay. Peak excitation gain is 0.08 times
-velocity. Ten-note output is tested without mix clipping; stealing additionally
+the fundamental has no additional decay. Peak excitation gain is 0.095 times velocity to the power 1.5 (#209). Ten-note output is tested without mix clipping; stealing additionally
 ramps the previous slot's last output to zero over 3 ms while the new voice
 attacks. This bounded correction avoids a hard cut but is not a full waveform
 crossfade. Filter states and partial phases reset on reuse. Emergency Stop,
@@ -201,3 +200,9 @@ No licensed reference recordings have been incorporated. Listening/reference
 tuning and physical latency remain pending in the dated manual report.
 The sample-pool proposal #22 is deferred: this bounded procedural approximation
 needs no sample downloads; sampling, resonance and pedal modeling remain separate.
+
+## Velocity tuning (#209)
+
+The previous peak was 0.08 times velocity. The new power curve uses more headroom for strong strikes and widens soft-to-loud contrast without render-loop allocations. Maximum excitation gain increases 1.49 dB. The legacy sine mix retains 0.45 dB headroom; piano output additionally includes its filter and steal correction and is verified separately. The user confirmed velocity audibility before the piano merge; listening to the combined piano/velocity implementation remains pending. Register balancing and estimator thresholds are unchanged.
+
+See the [dated verification/listening report](../tests/manual/2026-10-14_209-velocity.md) for before/after digital levels and the pending hardware procedure. Digital RMS does not establish acoustic SPL or physical latency.

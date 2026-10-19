@@ -2,6 +2,7 @@ import { DEFAULT_LAYOUT, usableLayout, type KeyboardLayout } from "./keyboardLay
 type NoteName = "C" | "D" | "E" | "F" | "G" | "A" | "B";
 
 const WHITE_OFFSETS = [0, 2, 4, 5, 7, 9, 11] as const;
+const BLACK_OFFSETS = [1, 3, 6, 8, 10] as const;
 
 /** Leftmost printed C is startingMidi; shared final C is included once. */
 export function keyIndexToMidi(keyIndex: number, layout: KeyboardLayout = DEFAULT_LAYOUT): number | null {
@@ -10,6 +11,36 @@ export function keyIndexToMidi(keyIndex: number, layout: KeyboardLayout = DEFAUL
   const pitch = layout.startingMidi + Math.floor(keyIndex / 7) * 12 +
     WHITE_OFFSETS[keyIndex % 7];
   return pitch <= 127 ? pitch : null;
+}
+
+/** Map a black-key index within the layout to its chromatic MIDI pitch. */
+export function blackKeyIndexToMidi(
+  blackKeyIndex: number,
+  layout: KeyboardLayout = DEFAULT_LAYOUT,
+): number | null {
+  if (
+    !usableLayout(layout) ||
+    !Number.isInteger(blackKeyIndex) ||
+    blackKeyIndex < 0 ||
+    blackKeyIndex >= layout.octaves * BLACK_OFFSETS.length
+  )
+    return null;
+
+  const octave = Math.floor(blackKeyIndex / BLACK_OFFSETS.length);
+  const offset = BLACK_OFFSETS[blackKeyIndex % BLACK_OFFSETS.length];
+  const pitch = layout.startingMidi + octave * 12 + offset;
+  return pitch <= 127 ? pitch : null;
+}
+
+/** Map flattened piano region indexes: white keys first, then black keys. */
+export function pianoKeyIndexToMidi(
+  keyIndex: number,
+  layout: KeyboardLayout = DEFAULT_LAYOUT,
+): number | null {
+  if (!usableLayout(layout) || !Number.isInteger(keyIndex) || keyIndex < 0)
+    return null;
+  if (keyIndex < layout.whiteKeys) return keyIndexToMidi(keyIndex, layout);
+  return blackKeyIndexToMidi(keyIndex - layout.whiteKeys, layout);
 }
 
 export function midiToPitch(midi: number): string {
