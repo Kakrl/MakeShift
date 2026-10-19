@@ -1,5 +1,21 @@
 # MakeShift Testing
 
+## Manual MIDI export verification (issue #107, 2026-10-17)
+
+Harry Deng reports completing normal calibration, recording a C3-C4 scale,
+stopping and downloading Cmaj.mid on Windows 11 using localhost development
+mode. REAPER 7.82 imported and played the file successfully. Independent
+comparison with the captured Cmaj data matched all 15 exported notes, including
+seven unintended detections during hand movement to Stop. Pitch, converted
+velocity, and rounded start/end ticks match exactly; maximum duration rounding
+difference is 3.675 ms at 120 BPM/128 PPQ. No unclosed notes were found.
+
+[Manual report and evidence](manual/2026-10-17_4.2.3.md) distinguish successful
+export from detection accuracy, initial readiness delay, quiet low-note output,
+unconfirmed exact device checkout, and omitted intentional manual chord test.
+Reviewer sign-off is pending. No application code or test implementation changed.
+
+
 ## Piano timbre verification (issue #175)
 
 CI timeout follow-up 2026-10-14: the [frontend job at e6de2fa](https://github.com/Kakrl/MakeShift/actions/runs/38662133296/job/116185643600)
