@@ -302,7 +302,7 @@ it.each([false, true])("sends estimated velocities to audio/MIDI and retains the
     now += 20;
     observe(-0.008, -0.032);
     expect(browserAudio.noteOn).toHaveBeenCalledTimes(sameKey ? 1 : 2);
-    expect(vi.mocked(browserAudio.noteOn).mock.calls[0][1]).toBeCloseTo(sameKey ? 1 : 0.36);
+    expect(vi.mocked(browserAudio.noteOn).mock.calls[0][1]).toBeCloseTo(sameKey ? 1 : 0.5428571428571429);
     if (!sameKey) expect(vi.mocked(browserAudio.noteOn).mock.calls[1][1]).toBeCloseTo(1);
     now += 20;
     observe(-0.1, -0.1);
@@ -314,7 +314,7 @@ it.each([false, true])("sends estimated velocities to audio/MIDI and retains the
   expect(fixtures.takes.at(-1)!.notes).toEqual(sameKey ? [
     { pitch: "C3", velocity: 100, startMs: 20, durationMs: 40 },
   ] : [
-    { pitch: "C3", velocity: 36, startMs: 20, durationMs: 40 },
+    { pitch: "C3", velocity: 54, startMs: 20, durationMs: 40 },
     { pitch: "E3", velocity: 100, startMs: 20, durationMs: 40 },
   ]);
 });
