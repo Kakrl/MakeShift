@@ -6,7 +6,13 @@ AudioWorklet synthesis, MIDI recording/export, and feedback run on the user's
 device. Vercel hosts the application/assets; no per-note network or WebRTC
 transport is required.
 
-The initial browser synthesizer uses JavaScript in an AudioWorklet. The existing
+The browser piano uses preloaded local recordings in a JavaScript AudioWorklet
+(#210), superseding the initial procedural synth. Nineteen attributed Salamander
+recordings, stereo playback, fixed ten-voice headroom and the selected +6 dB bass
+curve are in scope; additional dynamic layers and pedal/resonance modeling are
+not included. Readiness includes loading/decoding, while playing has no per-note
+network dependency. See [the sampled playback contract](browser_audio.md#sampled-production-piano-and-register-balance-210).
+The existing
 C++/PortAudio implementation remains a native reference. WebAssembly is optional
 future work justified by measurements or DSP reuse, not a prerequisite.
 Calibration validity, session cleanup, pitch correctness and measured

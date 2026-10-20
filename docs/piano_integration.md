@@ -1,5 +1,11 @@
 # Browser piano integration
 
+Live CV and recording playback now share the sampled stereo piano owner (#210),
+using 19 preloaded local Salamander recordings and the selected +6 dB bass
+curve. Readiness waits for decoding and worklet preparation. Pitch, velocity,
+press/session identities and MIDI capture remain on the existing event path;
+playing notes never loads recordings. See [the audio contract and limits](browser_audio.md#sampled-production-piano-and-register-balance-210).
+
 Part of [#28](https://github.com/Kakrl/MakeShift/issues/28), built on #24.
 The default sheet has eight white keys, MIDI 48–60 (C3–C4). Issue #36 adds
 one/two/three-octave white-key layouts, with 8/15/22 keys and a configurable

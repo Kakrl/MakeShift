@@ -1,10 +1,25 @@
 # Pipeline performance diagnostics
 
+The live audio renderer now uses preloaded stereo recordings (#210). The
+modal benchmark below remains historical and its runner still compares
+procedural `Synth` variants; it does not profile `SampledPiano`.
+At 48 kHz, the 19-recording bank contains 111,179,616 bytes of stereo Float32
+PCM. The owner and worklet each retain a copy (about 212 MiB combined), plus
+transient decoded buffers during startup; PCM memory scales with sample rate.
+Local Edge 155.0.4283.62 initialization took 976, 1119 and 1052 ms across
+verification runs,
+including loading/decoding/copying/readiness. These are startup
+observations, not a distribution or per-note latency measurement.
+Rendering uses ten fixed voices, interpolation and gain envelopes with no
+sample loads or allocations per block. Actual worklet deadline/dropout stress
+under simultaneous live CV and physical latency remain unverified. See
+[the sampled-piano record](../tests/manual/2026-10-19_210-register-balance.md).
+
 ## Piano paired DSP profile (#175, 2026-10-13)
 
 Run `node ../tests/frontend/pianoProfile.browser.mjs` from frontend against
 a production server, setting MAKE_SHIFT_URL and AUDIO_BROWSER_CHANNEL.
-This compares the exact legacy sine and default piano renderers in alternating
+This compares the exact legacy sine and former modal piano renderers in alternating
 order on the browser main thread. It does not measure AudioWorklet deadlines,
 device dropouts, event handling, simultaneous live CV, or physical latency.
 The configured block is 128 samples; it is not a measured device quantum.

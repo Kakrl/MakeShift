@@ -1,5 +1,19 @@
 # MakeShift Testing
 
+## Sampled production piano verification (issue #210)
+
+The live renderer now preloads 19 attributed stereo Salamander recordings and
+uses the selected +6 dB bass curve with RMS normalization. Carl Xu preferred
+that sampled sound in the local matched-velocity prototype; the +4 dB modal
+experiment was rejected and is not shipped. Historical modal/sine results below
+remain scoped to their original renderers.
+
+New sampler/preparation/asset/loader regressions and expanded owner/browser
+checks cover stereo, gain/headroom, velocity/pitch, identities, release/stealing,
+loading/readiness/cancellation/retry, offline playing and cleanup. See the
+[dated listening/verification record](manual/2026-10-19_210-register-balance.md)
+for actual results, memory/startup measurements and remaining hardware gaps.
+
 ## Piano timbre verification (issue #175)
 
 CI timeout follow-up 2026-10-14: the [frontend job at e6de2fa](https://github.com/Kakrl/MakeShift/actions/runs/38662133296/job/116185643600)
@@ -341,6 +355,7 @@ tests/
 │   ├── browserAudio.browser.mjs  # production browser graph check
 │   ├── cameraLayout.browser.mjs  # home camera feed 16:9 across viewports
 │   ├── deployment.browser.mjs    # production assets, camera recovery, offline playing
+│   ├── sampledPiano.test.ts         # sample bank, stereo renderer, assets and loader
 │   ├── homePage.test.ts              # home page modals and overlays (jsdom)
 │   ├── supabaseHealth.test.ts    # /api/health database check
 │   ├── noteEvents.test.ts            # shared event validation, sessions and clocks
@@ -766,8 +781,8 @@ defect report is filed.
 | D20 | High | UI | (Req 3.1, 3.2, 4.2, 6.2) Merge `30706c4` (PR #98) resolved `page.tsx` by keeping the branch's older JSX, dropping the welcome and Calibration intro modals, count-in overlay, Recording Complete banner, Delete confirmation, calibration prompt, `CameraStatusOverlay`, and the aria-live region. The home Calibration tab and Delete button did nothing. ESLint flagged the orphaned state only as warnings | `frontend/src/app/page.tsx` | [#112](https://github.com/Kakrl/MakeShift/issues/112) | Fixed in [#113](https://github.com/Kakrl/MakeShift/pull/113) |
 | D22 | Medium | Calibration | Final depth sheet-check exception removed capture/Next controls. Reset collector/index on exception so all five depth positions can be retried. | `frontend/src/app/calibration/page.tsx` | [#178](https://github.com/Kakrl/MakeShift/issues/178) | Fixed in PR #177; local 6.2.3 regression passed; CI/merge pending |
 | D21 | High | Calibration | (Req 6.2, 1.1, 2.1) #148 replaced the reachable result capture with depth buttons and navigated before validation/save. Final depth capture now creates the primary result; completion retains its model and saves both records before navigation. 6.2.3's expected failures are restored as passing regressions. | `frontend/src/app/calibration/page.tsx` | [#162](https://github.com/Kakrl/MakeShift/issues/162) | Fix verified locally 2026-10-06; review/merge and physical check pending |
-
 | D23 | Medium | Audio | (Req 2.4, related 2.2) User reports high-velocity strikes are not loud enough and wants more apparent velocity dynamics. Listening report 2026-10-14; cause and hardware verification pending. | `frontend/src/cv/fingerVelocity.ts`, `frontend/public/audio/synth.js` | [#209](https://github.com/Kakrl/MakeShift/issues/209) | DSP tuning implemented locally; [verification and listening limits](manual/2026-10-14_209-velocity.md); user confirmed audible velocity changes locally 2026-10-14; measured trials/chord distortion checks pending |
+| D24 | Medium | Audio | (Req 2.2, related 2.4) Higher notes dominated the procedural sound; +4 dB gain was insufficient. User selected sampled Salamander piano at +6 dB after RMS normalization. | `frontend/public/audio/sampled-piano.js`, `frontend/src/app/audio/pianoSamples.ts` | [#210](https://github.com/Kakrl/MakeShift/issues/210) | Sampled production implemented; [software and qualitative prototype evidence](manual/2026-10-19_210-register-balance.md); production hardware listening and review/merge pending |
 
 ## Root Cause Analysis Log
 
