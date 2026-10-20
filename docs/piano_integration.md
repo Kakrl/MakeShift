@@ -47,8 +47,12 @@ relative z is a motion cue, not calibrated paper distance or physical force
 
 At contact onset the pipeline consumes the largest speed observed in the past
 100 ms. Speeds up to 0.5 palm lengths/s map to soft velocity 0.2; speed increases
-linearly to velocity 1 at 8 palm lengths/s, with saturation beyond that. The
-history has 24 fixed slots; samples less than 5 ms apart are ignored. Missing
+linearly to velocity 1 at 4 palm lengths/s, with saturation beyond that. This
+lowers the former 8 palm lengths/s endpoint to make loud notes easier to reach.
+At 2 palm lengths/s velocity is now about 0.543 (previously 0.36); velocity 0.75
+is reached at about 2.91 rather than 5.66 palm lengths/s. The stationary/noise
+floor and soft 0.2 fallback are retained. Full-velocity output gain is unchanged.
+The history has 24 fixed slots; samples less than 5 ms apart are ignored. Missing
 or invalid landmarks, degenerate palm scale, backward time, a gap over 150 ms,
 source changes, finger disappearance and session reset discard old history.
 Missing usable speed gives a soft 0.2 note rather than a spurious loud attack.

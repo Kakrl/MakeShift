@@ -248,8 +248,12 @@ levels before bass shaping, not universal perceived loudness. It never adjusts
 one held note's gain in response to other active voices. Near-silent leading
 frames are skipped at 0.2% of recording peak with a 1 ms margin.
 
-Velocity multiplies gain by `velocity ** 1.5`; the CV estimate, shared events
-and recorded MIDI velocities are unchanged. There is one recorded dynamic
+Velocity multiplies gain by `velocity ** 1.5`. The live motion mapping now reaches
+velocity 1 at 4 palm lengths/s (formerly 8), making loud notes easier to reach
+without increasing maximum output. Its 0.5 palm lengths/s noise floor and soft
+velocity 0.2 remain. Shared events pass that normalized onset velocity unchanged;
+new recordings capture it through the existing MIDI conversion, while saved
+recordings retain their original velocities. There is one recorded dynamic
 layer: velocity changes amplitude, not recorded hammer timbre. Multi-layer
 samples, pedal resonance, release-noise samples and reverb remain future work.
 

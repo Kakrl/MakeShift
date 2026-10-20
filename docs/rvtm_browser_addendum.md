@@ -123,7 +123,10 @@ measurements and listening evidence remain pending.
 
 Requirement 2.2 now uses a locally preloaded stereo Salamander piano as the live
 default (#210), replacing procedural modal timbre. Related 2.4 keeps the existing
-velocity exponent and unchanged shared/MIDI velocity values. Register tuning
+velocity exponent and shared/MIDI event contract. The live motion mapping now
+reaches full velocity at 4 rather than 8 palm lengths/s, retaining the 0.5
+noise floor and soft 0.2 fallback; newly captured velocities rise accordingly,
+while saved takes retain their values. Register tuning
 uses RMS-normalized recordings and a bounded +6 dB bass curve selected through
 user listening; it is not a new universal equal-loudness or acoustic SPL claim.
 One recorded dynamic layer is in scope; further layers, pedal resonance and

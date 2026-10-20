@@ -8,6 +8,12 @@ that sampled sound in the local matched-velocity prototype; the +4 dB modal
 experiment was rejected and is not shipped. Historical modal/sine results below
 remain scoped to their original renderers.
 
+Follow-up: full live velocity now requires 4 instead of 8 palm lengths/s.
+Moderate 2 palm lengths/s motion maps to about 0.543 rather than 0.36 (MIDI 54
+instead of 36); the soft/noise floor, onset latch and maximum sample gain stay
+the same. The estimator-to-sampled-output and recording regressions cover this
+more responsive mapping; physical listening of the new threshold is pending.
+
 New sampler/preparation/asset/loader regressions and expanded owner/browser
 checks cover stereo, gain/headroom, velocity/pitch, identities, release/stealing,
 loading/readiness/cancellation/retry, offline playing and cleanup. See the

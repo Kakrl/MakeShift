@@ -11,7 +11,10 @@ The browser piano uses preloaded local recordings in a JavaScript AudioWorklet
 recordings, stereo playback, fixed ten-voice headroom and the selected +6 dB bass
 curve are in scope; additional dynamic layers and pedal/resonance modeling are
 not included. Readiness includes loading/decoding, while playing has no per-note
-network dependency. See [the sampled playback contract](browser_audio.md#sampled-production-piano-and-register-balance-210).
+network dependency. The live velocity mapping reaches full strength at 4 palm
+lengths/s instead of 8, retaining the existing noise/soft floor and sampled
+gain exponent; requirement 2.4 and physical verification targets are unchanged.
+See [the sampled playback contract](browser_audio.md#sampled-production-piano-and-register-balance-210).
 The existing
 C++/PortAudio implementation remains a native reference. WebAssembly is optional
 future work justified by measurements or DSP reuse, not a prerequisite.

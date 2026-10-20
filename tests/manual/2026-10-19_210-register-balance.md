@@ -118,6 +118,35 @@ two-second holds. Listen for bass/treble masking, distortion at maximum-velocity
 ten-note chords, repeated notes, release and Stop/restart behavior. Record
 individual outcomes; do not infer physical acceptance from graph output.
 
+## Easier live velocity follow-up
+
+The user requested less motion to reach louder notes after the sampled-piano
+integration. The live estimator now reaches velocity 1 at 4 rather than
+8 palm lengths/s; the 0.5 palm lengths/s noise floor and soft/fallback 0.2
+velocity are unchanged. At 2 palm lengths/s velocity rises from 0.36 to about
+0.542857; velocity 0.75 is reached at 2.90625 instead of 5.65625 palm lengths/s.
+No change is made to the +6 dB bass curve, sample normalization, maximum voice
+gain, velocity exponent, detection thresholds or press/session timing.
+
+The updated landmark-motion fixture checks the stronger onset through the
+production sampler using synthetic PCM: the same moderate movement produces
+about 5.35 dB more digital output than its prior velocity. Slow/fast ordering
+and a >5 dB separation remain. Overlay integration records 54 rather than 36
+for that moderate strike while preserving the simultaneous strong strike at
+100, held-note durations and no hold retriggers. Existing takes are unchanged.
+New boundary/sweep regression checks soft control, strict monotonicity,
+velocity 0.75 at the lower speed and saturation at 4. User hardware/listening
+acceptance of this threshold remains pending.
+
+Follow-up verification on 2026-10-19: lint, TypeScript, 553 Vitest cases (one
+existing skip), all 37 contrast pairs and production build passed. Deployment,
+keyboard-layout and audio browser runners passed in Edge 155.0.4283.62 against
+the rebuilt app at port 3214. Actual PCM peak and decoded memory stayed at
+0.28647268 and 111,179,616 bytes; one enable took 1082 ms. These fixed-velocity
+browser graph checks do not establish attainable real-camera motion or human
+acceptance of the new sensitivity. Chromium remains unavailable as above;
+new Actions execution is pending.
+
 ## Defects and sign-off
 
 No separate defect raised; #210 tracks the sound change. Carl Xu selected the
