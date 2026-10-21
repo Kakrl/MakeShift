@@ -1,10 +1,11 @@
-// Mock shared recordings (#203). Stands in for the recordings API (#119,
-// #122, #128) with the same #117 request and response shapes, so wiring the
-// real routes only replaces this module. Fixtures are fixed; shares made in
-// the browser are kept in localStorage so a copied link opens in a new tab.
-// Append `?mock=empty` or `?mock=error` to a page URL to see those states.
+// Mock shared recordings (#203), with the same #117 shapes as the real
+// recordings API. Append `?mock=1` to a page URL to use these fixtures
+// instead of the API, or `?mock=empty` / `?mock=error` for those states.
+// Shares made in the browser are kept in localStorage so a copied link
+// opens in a new tab.
 import type { RecordedNote, Recording } from "../midi/midiUtils";
 import {
+  RECORDING_LIST_PAGE_SIZE,
   recordingDurationMs,
   validateUpload,
   type RecordingListResponse,
@@ -14,19 +15,19 @@ import {
   type UploadRecordingResponse,
 } from "../../lib/recordings";
 import { readStored, writeStored, type StorageAccess } from "../../lib/storage";
-import { loadOrCreateProfile, saveProfile } from "../../lib/deviceProfile";
+import { ShareNotFoundError, type ShareStore } from "./shareApi";
 
-export const PAGE_SIZE = 6;
 const STORAGE_NAME = "mock-shared-recordings";
 const STORAGE_VERSION = 1;
 const LATENCY_MS = 350;
 
 export type MockMode = "normal" | "empty" | "error";
 
-/** Reads `?mock=` from the current URL. */
-export function mockMode(): MockMode {
-  if (typeof window === "undefined") return "normal";
+/** Reads `?mock=` from the current URL; null means use the real API. */
+export function mockMode(): MockMode | null {
+  if (typeof window === "undefined") return null;
   const value = new URLSearchParams(window.location.search).get("mock");
+  if (value === null) return null;
   return value === "empty" || value === "error" ? value : "normal";
 }
 
@@ -138,8 +139,8 @@ function summarize(recording: SharedRecording): RecordingSummary {
 export function createMockShareStore(
   storage?: StorageAccess,
   latencyMs = LATENCY_MS,
-  mode: () => MockMode = mockMode,
-) {
+  mode: () => MockMode = () => mockMode() ?? "normal",
+): ShareStore {
   const loadShares = () =>
     readStored<StoredShare[]>(STORAGE_NAME, STORAGE_VERSION, [], isStoredShares, storage);
 
@@ -163,7 +164,7 @@ export function createMockShareStore(
       return respond(() => {
         const recordings = all();
         const start = cursor ? Number(cursor) : 0;
-        const end = start + PAGE_SIZE;
+        const end = start + RECORDING_LIST_PAGE_SIZE;
         const page = recordings.slice(start, end).map(summarize);
         return {
           recordings: page,
@@ -220,54 +221,6 @@ export function createMockShareStore(
   };
 }
 
-/** The share is already gone (a 404), so there is nothing left to stop. */
-export class ShareNotFoundError extends Error {
-  constructor() {
-    super("Recording not found.");
-    this.name = "ShareNotFoundError";
-  }
-}
-
-export const mockShareStore = createMockShareStore();
-
-// Which local takes are shared. #133 keeps the returned id and delete token
-// next to the take, so stopping a share works after a reload.
-const TAKE_SHARES_NAME = "take-shares";
-const TAKE_SHARES_VERSION = 1;
-export type TakeShare = UploadRecordingResponse;
-type TakeShares = Record<string, TakeShare>;
-
-function isTakeShares(value: unknown): value is TakeShares {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.values(value).every(
-      (share) =>
-        typeof share === "object" &&
-        share !== null &&
-        typeof share.id === "string" &&
-        typeof share.deleteToken === "string",
-    )
-  );
-}
-
-export function loadTakeShares(storage?: StorageAccess): TakeShares {
-  return readStored(TAKE_SHARES_NAME, TAKE_SHARES_VERSION, {}, isTakeShares, storage);
-}
-
-export function saveTakeShare(
-  takeId: string,
-  share: TakeShare | null,
-  storage?: StorageAccess,
-): TakeShares {
-  const next = { ...loadTakeShares(storage) };
-  if (share) next[takeId] = share;
-  else delete next[takeId];
-  writeStored(TAKE_SHARES_NAME, TAKE_SHARES_VERSION, next, storage);
-  return next;
-}
-
 /**
  * Dev-only stand-in for a just-finished take (`?dev=1&demo=take`), so the
  * post-recording share prompt can be seen without a sheet or camera. The id
@@ -281,60 +234,4 @@ export function demoTake(): Recording {
     createdAt: new Date().toISOString(),
     notes: song(100, TWINKLE, TWINKLE_CHORDS),
   };
-}
-
-/** The sharing name from the device profile (#125), shown in the sidebar too. */
-export const loadShareName = () => loadOrCreateProfile().profile.displayName;
-
-/**
- * Uploads a local take under a title and display name, from this device's
- * profile ID, and keeps the name as the profile's sharing name.
- */
-export async function uploadTake(
-  take: Recording,
-  title: string,
-  authorName: string,
-): Promise<TakeShare> {
-  const share = await mockShareStore.upload({
-    title,
-    authorName,
-    deviceId: loadOrCreateProfile().profile.deviceId,
-    bpm: take.bpm,
-    notes: take.notes,
-  });
-  const { profile } = loadOrCreateProfile();
-  if (profile.displayName !== authorName.trim()) saveProfile({ ...profile, displayName: authorName });
-  return share;
-}
-
-/** A local take in the shared shape, so the shared player can preview it. */
-export function asSharedRecording(take: Recording): SharedRecording {
-  return {
-    id: take.id,
-    title: take.name,
-    authorName: "",
-    bpm: take.bpm,
-    durationMs: recordingDurationMs(take.notes),
-    noteCount: take.notes.length,
-    createdAt: take.createdAt,
-    notes: take.notes,
-  };
-}
-
-export function shareUrl(id: string): string {
-  const origin = typeof window === "undefined" ? "" : window.location.origin;
-  return `${origin}/play/${id}`;
-}
-
-export function formatDuration(ms: number): string {
-  const seconds = Math.round(ms / 1000);
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-}
-
-export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }

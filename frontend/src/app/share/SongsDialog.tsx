@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { RECORDING_LIMITS, recordingDurationMs, type RecordingSummary, type SharedRecording } from "../../lib/recordings";
 import { downloadMidi, type Recording } from "../midi/midiUtils";
 import type { LibraryEntry } from "../midi/recordingsLibrary";
+import type { WriteResult } from "../../lib/storage";
 import { rainbow } from "../rainbow";
 import { useDialogFocus } from "../useDialogFocus";
 import CopyLinkButton from "./CopyLinkButton";
@@ -16,12 +17,13 @@ import {
   formatDate,
   formatDuration,
   loadShareName,
-  mockShareStore,
   PAGE_SIZE,
+  shareStore,
   shareUrl,
   uploadTake,
+  type KeepShare,
   type TakeShare,
-} from "./mockShareStore";
+} from "./shareStore";
 
 export type SongsTab = "shared" | "mine";
 
@@ -30,9 +32,9 @@ export type MyRecordings = {
   entries: LibraryEntry[];
   shares: Record<string, TakeShare>;
   rename(id: string, name: string): boolean;
-  /** Asks first; false when the person backs out. */
-  remove(id: string): boolean;
-  shared(id: string, share: TakeShare): void;
+  /** Asks first, and stops any share before deleting; false when the person backs out or it fails. */
+  remove(id: string): Promise<boolean>;
+  keepShare(id: string, share: TakeShare | null): WriteResult;
   /** Asks first; false when the person backs out or it fails. */
   stopSharing(id: string): Promise<boolean>;
   /** The last failed change, shown in the dialog as well as the panel. */
@@ -95,7 +97,7 @@ export default function SongsDialog({
     if (cursor) setLoadingMore(true);
     else setStatus("loading");
     try {
-      const page = await mockShareStore.list(cursor);
+      const page = await shareStore.list(cursor);
       setRecordings((current) => (cursor ? [...current, ...page.recordings] : page.recordings));
       setNextCursor(page.nextCursor);
       setStatus("ready");
@@ -130,7 +132,7 @@ export default function SongsDialog({
   useEffect(() => {
     if (!sharedId) return;
     let current = true;
-    mockShareStore
+    shareStore
       .get(sharedId)
       .then((recording) => current && setSong(recording ?? "missing"))
       .catch(() => current && setSong("error"));
@@ -258,7 +260,7 @@ export default function SongsDialog({
               <ShareTakeView
                 take={take.recording}
                 headingRef={headingRef}
-                onShared={(share) => mine.shared(take.recording.id, share)}
+                keepShare={(share) => mine.keepShare(take.recording.id, share)}
                 onDone={back}
               />
             )}
@@ -589,7 +591,7 @@ function MySongView({
               Download MIDI
             </button>
             {share ? (
-              <CopyLinkButton url={shareUrl(share.id)} className={`${KEY} min-w-[116px]`} />
+              <CopyLinkButton url={shareUrl(share.id, share.mock === true)} className={`${KEY} min-w-[116px]`} />
             ) : (
               <button type="button" className={KEY} onClick={onShare}>
                 Share
@@ -598,8 +600,8 @@ function MySongView({
             <button
               type="button"
               className="ms-key ms-key-ghost ms-key-danger ml-auto px-3 py-2.5 text-[15px]"
-              onClick={() => {
-                if (mine.remove(recording.id)) onDeleted();
+              onClick={async () => {
+                if (await mine.remove(recording.id)) onDeleted();
               }}
             >
               Delete
@@ -615,12 +617,12 @@ function MySongView({
 function ShareTakeView({
   take,
   headingRef,
-  onShared,
+  keepShare,
   onDone,
 }: {
   take: Recording;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
-  onShared: (share: TakeShare) => void;
+  keepShare: KeepShare;
   onDone: () => void;
 }) {
   const [title, setTitle] = useState(take.name);
@@ -635,8 +637,7 @@ function ShareTakeView({
     setPending(true);
     setError(null);
     try {
-      const result = await uploadTake(take, title, authorName);
-      onShared(result);
+      const result = await uploadTake(take, title, authorName, keepShare);
       setShared(result);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Sharing failed. Try again.");
