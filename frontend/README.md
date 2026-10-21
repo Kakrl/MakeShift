@@ -20,7 +20,7 @@ npm run dev   # starts the local dev server at http://localhost:3000
 The home page remembers tempo and the metronome toggle between visits using
 the shared versioned browser storage module (`makeshift:playback-settings:v1`).
 The existing tempo range is 20–300 BPM. Missing or invalid settings restore
-120 BPM and metronome on; out-of-range saved BPM falls back to defaults,
+60 BPM and metronome on; out-of-range saved BPM falls back to defaults,
 while user input is clamped to the range. If browser storage is blocked or
 full, the controls still work for the current visit. Restoring preferences
 does not start audio or recording.
@@ -140,3 +140,12 @@ show an error and can be retried. Upload integration is separate (#133).
 
 Profile saves preserve a valid ID already stored by another tab, including
 retries after initial storage failure. The panel adopts the saved profile.
+
+### Editing tempo (#204)
+
+The default is 60 BPM; valid previously saved preferences are retained. Edit the
+BPM field freely, then press Enter or leave the field to apply a whole number
+from 20 to 300. Empty, fractional or out-of-range submissions restore the
+active BPM in the field and show a plain error without changing the active/saved
+tempo. Escape restores the active value and clears the error.
+Only applied values are persisted; typing intermediate digits does not save them.

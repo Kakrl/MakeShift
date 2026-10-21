@@ -37,7 +37,7 @@ const MAX_TEMPO = 300;
 const SETTINGS_NAME = "playback-settings";
 const SETTINGS_VERSION = 1;
 type PlaybackSettings = { tempo: number; metronome: boolean };
-const DEFAULT_SETTINGS: PlaybackSettings = { tempo: 120, metronome: true };
+const DEFAULT_SETTINGS: PlaybackSettings = { tempo: 60, metronome: true };
 
 function isPlaybackSettings(value: unknown): value is PlaybackSettings {
   if (typeof value !== "object" || value === null) return false;
@@ -227,6 +227,8 @@ export default function Home() {
 
   // ── Tempo & time signature (controlled) ─────────────────────────────────
   const [tempo, setTempo] = useState(DEFAULT_SETTINGS.tempo);
+  const [tempoInput, setTempoInput] = useState(String(DEFAULT_SETTINGS.tempo));
+  const [tempoError, setTempoError] = useState<string | null>(null);
   const [timeSignature, setTimeSignature] = useState("4/4");
   const beatsPerMeasure = parseInt(timeSignature.split("/")[0]);
 
@@ -291,6 +293,7 @@ export default function Home() {
         SETTINGS_NAME, SETTINGS_VERSION, DEFAULT_SETTINGS, isPlaybackSettings,
       );
       setTempo(saved.tempo);
+      setTempoInput(String(saved.tempo));
       setMetronome(saved.metronome);
       setSettingsLoaded(true);
       const dev = isDevMode();
@@ -450,10 +453,23 @@ export default function Home() {
 
 
   // ── Tempo input helper ───────────────────────────────────────────────────
-  const handleTempoChange = (raw: string) => {
-    const parsed = parseInt(raw);
-    if (!isNaN(parsed)) setTempo(Math.max(MIN_TEMPO, Math.min(MAX_TEMPO, parsed)));
-  };
+  function applyTempo() {
+    const text = tempoInput.trim();
+    const parsed = Number(text);
+    if (text === "" || !Number.isInteger(parsed) || parsed < MIN_TEMPO || parsed > MAX_TEMPO) {
+      setTempoInput(String(tempo));
+      setTempoError(`Enter a whole number from ${MIN_TEMPO} to ${MAX_TEMPO} BPM. Tempo unchanged.`);
+      return;
+    }
+    setTempo(parsed);
+    setTempoInput(String(parsed));
+    setTempoError(null);
+  }
+
+  function cancelTempoEdit() {
+    setTempoInput(String(tempo));
+    setTempoError(null);
+  }
 
   const recordLabel = isRecording && !isPaused ? "Pause" : isPaused ? "Resume" : "Record";
   const recordDisabled = !libraryLoaded || !canPlay || countInBeat !== null || liveStatus.state === "starting";
@@ -676,12 +692,29 @@ export default function Home() {
                   min={MIN_TEMPO}
                   max={MAX_TEMPO}
                   disabled={settingsLocked}
-                  value={tempo}
-                  onChange={(e) => handleTempoChange(e.target.value)}
+                  step={1}
+                  value={tempoInput}
+                  onChange={(event) => {
+                    setTempoInput(event.target.value);
+                    setTempoError(null);
+                  }}
+                  onBlur={applyTempo}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      applyTempo();
+                    } else if (event.key === "Escape") {
+                      event.preventDefault();
+                      cancelTempoEdit();
+                    }
+                  }}
+                  aria-invalid={tempoError !== null}
+                  aria-describedby={tempoError ? "tempo-error" : undefined}
                   className="ms-input w-full pr-12 tabular-nums"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[12px] font-medium text-ink-muted">BPM</span>
               </div>
+              {tempoError && <p id="tempo-error" role="alert">{tempoError}</p>}
             </div>
 
             {/* Time Signature */}

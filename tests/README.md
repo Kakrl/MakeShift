@@ -1532,3 +1532,34 @@ keyboard layout and audio smoke. All deployment assertions passed with the
 previously diagnosed local --disable-gpu workaround in a removed temporary
 runner; the committed runner is unchanged. Physical hardware was not measured.
 Actions execution for this follow-up is unverified.
+
+## Tempo input editing verification (issue #204, 2026-10-17)
+
+Windows, Chromium 151.0.7922.34, production port 3204: default 60 BPM, real
+per-digit editing/clearing without saved changes, Enter and blur commits,
+invalid entry preserving 120 BPM, plain error, Escape restoration, and 90 BPM
+reload persistence passed with no uncaught page errors. Developer mode enabled
+the settings for this UI-only check; no camera/detection pass is inferred.
+
+Lint, TypeScript, 537 Vitest tests across 27 files (one existing skipped
+recordingControls frame-loss case), all 37 contrast checks and build passed.
+Seven new home-page cases cover draft/persisted separation, invalid values,
+Escape and valid boundary commits. Existing default/fallback, storage failure,
+remount and 60 BPM count-in fixtures were updated. Recording-controls fixtures
+explicitly restore 120 BPM to retain existing lifecycle timing assertions.
+Keyboard-layout and audio browser checks passed. All deployment assertions
+passed using the previously documented local --disable-gpu workaround in a
+removed temporary runner; committed deployment configuration is unchanged.
+GitHub Actions execution for this change remains unverified. No physical audio
+or metronome scheduling accuracy is claimed.
+
+### Tempo invalid-entry display follow-up (2026-10-17)
+
+Invalid Enter/blur submissions now restore the active BPM in the field and
+announce that tempo is unchanged. Free typing remains unrestricted until
+submission. Focused home-page regression: 38 cases passed, including invalid
+blur values and invalid Enter after applying a non-default 90 BPM. This
+follow-up adds one regression (eight new #204 cases total). Changed-file lint, TypeScript and production build passed. Production Chromium
+verified invalid Enter and blur restoring applied 90 BPM, unchanged stored
+90 BPM, error feedback and Escape cancellation. Earlier complete-suite/browser
+results above predate this one-line display follow-up.
