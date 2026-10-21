@@ -12,6 +12,7 @@ import {
   formatDuration,
   loadShareName,
   uploadTake,
+  type KeepShare,
   type TakeShare,
 } from "./shareStore";
 
@@ -32,12 +33,13 @@ const AUDIENCES: { value: Audience; label: string; hint: string }[] = [
 export default function SaveTakeDialog({
   take,
   onSave,
+  keepShare,
   onDelete,
   onClose,
 }: {
   take: Recording;
-  /** Renames the take and records its share, if it was shared. */
-  onSave: (name: string, share: TakeShare | null) => void;
+  onSave: (name: string) => void;
+  keepShare: KeepShare;
   /** Returns false when the person backs out of the confirmation. */
   onDelete: () => boolean;
   onClose: () => void;
@@ -71,15 +73,15 @@ export default function SaveTakeDialog({
   async function save() {
     const title = name.trim();
     if (audience === "private") {
-      onSave(title, null);
+      onSave(title);
       onClose();
       return;
     }
     setPending(true);
     setError(null);
     try {
-      const share = await uploadTake(take, title, authorName);
-      onSave(title, share);
+      const share = await uploadTake(take, title, authorName, keepShare);
+      onSave(title);
       setShared(share);
       go("shared", "push");
     } catch (cause) {

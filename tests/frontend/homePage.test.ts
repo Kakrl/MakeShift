@@ -466,6 +466,31 @@ describe("home page", () => {
     expect(screen.getByRole("button", { name: "Delete" })).toBeTruthy();
   });
 
+  it("undoes a share when this device can't keep its delete token", async () => {
+    window.history.replaceState(null, "", "/?dev=1&demo=take&mock=1");
+    localStorage.setItem("hasVisited", "true");
+    renderHome();
+    const write = localStorage.setItem.bind(localStorage);
+    vi.spyOn(window.localStorage, "setItem").mockImplementation((key: string, value: string) => {
+      if (key === "makeshift:take-shares:v1") throw new DOMException("full", "QuotaExceededError");
+      write(key, value);
+    });
+    const review = screen.getByRole("dialog", { name: "Would you like to save your recording?" });
+    fireEvent.click(within(review).getByRole("button", { name: "Yes, save it" }));
+    const details = screen.getByRole("dialog", { name: "Save your recording" });
+    fireEvent.change(within(details).getByLabelText("Recording name"), { target: { value: "Twinkle" } });
+    fireEvent.click(within(details).getByRole("radio", { name: /Everyone/ }));
+    fireEvent.change(within(details).getByLabelText("Your name"), { target: { value: "Jo" } });
+    await act(async () => {
+      fireEvent.click(within(details).getByRole("button", { name: "Save and share" }));
+      await vi.advanceTimersByTimeAsync(800);
+    });
+
+    expect(screen.queryByRole("dialog", { name: "Your song is shared!" })).toBeNull();
+    expect(within(details).getByRole("alert").textContent).toMatch(/undone/);
+    expect(localStorage.getItem("makeshift:mock-shared-recordings:v1") ?? "").not.toContain("Twinkle");
+  });
+
   it("asks for the sharing name only until it is set", async () => {
     localStorage.setItem("makeshift:profile:v1", JSON.stringify({ deviceId: "device-1", displayName: "Jo" }));
     window.history.replaceState(null, "", "/?dev=1&demo=take");

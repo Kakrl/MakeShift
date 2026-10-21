@@ -9,7 +9,7 @@ import {
   type RecordingsDeps,
 } from "../../frontend/src/server/recordings";
 import { createShareApi, ShareNotFoundError } from "../../frontend/src/app/share/shareApi";
-import { shareUrl, stopShare } from "../../frontend/src/app/share/shareStore";
+import { shareUrl, stopShare, uploadTake, type TakeShare } from "../../frontend/src/app/share/shareStore";
 import { RECORDING_LIST_PAGE_SIZE } from "../../frontend/src/lib/recordings";
 
 const env = {
@@ -297,6 +297,31 @@ describe("stopping a take's share", () => {
       expect(fetchMock).toHaveBeenCalledWith(`/api/recordings/${ID}`, expect.objectContaining({ method: "DELETE" }));
       fetchMock.mockResolvedValueOnce(Response.json({ error: "down" }, { status: 502 }));
       await expect(stopShare({ id: ID, deleteToken: "t" })).rejects.toThrow("down");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("undoes a share whose delete token can't be saved", async () => {
+    const take = { id: "take", name: "Take", createdAt: "2026-10-15T00:00:00.000Z", bpm: 120, notes: upload.notes };
+    const uploaded = () => Response.json({ id: ID, deleteToken: "t" }, { status: 201 });
+    const kept: (TakeShare | null)[] = [];
+    const full = (share: TakeShare | null) => {
+      kept.push(share);
+      return { ok: false, reason: "quota" } as const;
+    };
+    const fetchMock = vi.fn(uploaded).mockResolvedValueOnce(uploaded()).mockResolvedValueOnce(Response.json({ deleted: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await expect(uploadTake(take, "Take", "Jo", full)).rejects.toThrow(/undone/);
+      expect(fetchMock).toHaveBeenLastCalledWith(`/api/recordings/${ID}`, expect.objectContaining({ method: "DELETE" }));
+      expect(kept).toEqual([{ id: ID, deleteToken: "t" }, null]);
+
+      // When undoing fails too, the share stays kept in memory for a retry.
+      kept.length = 0;
+      fetchMock.mockResolvedValueOnce(uploaded()).mockResolvedValueOnce(Response.json({ error: "down" }, { status: 502 }));
+      await expect(uploadTake(take, "Take", "Jo", full)).rejects.toThrow(/Retry saving/);
+      expect(kept).toEqual([{ id: ID, deleteToken: "t" }]);
     } finally {
       vi.unstubAllGlobals();
     }

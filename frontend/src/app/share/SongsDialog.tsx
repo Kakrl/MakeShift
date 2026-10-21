@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { RECORDING_LIMITS, recordingDurationMs, type RecordingSummary, type SharedRecording } from "../../lib/recordings";
 import { downloadMidi, type Recording } from "../midi/midiUtils";
 import type { LibraryEntry } from "../midi/recordingsLibrary";
+import type { WriteResult } from "../../lib/storage";
 import { rainbow } from "../rainbow";
 import { useDialogFocus } from "../useDialogFocus";
 import CopyLinkButton from "./CopyLinkButton";
@@ -20,6 +21,7 @@ import {
   shareStore,
   shareUrl,
   uploadTake,
+  type KeepShare,
   type TakeShare,
 } from "./shareStore";
 
@@ -32,7 +34,7 @@ export type MyRecordings = {
   rename(id: string, name: string): boolean;
   /** Asks first, and stops any share before deleting; false when the person backs out or it fails. */
   remove(id: string): Promise<boolean>;
-  shared(id: string, share: TakeShare): void;
+  keepShare(id: string, share: TakeShare | null): WriteResult;
   /** Asks first; false when the person backs out or it fails. */
   stopSharing(id: string): Promise<boolean>;
   /** The last failed change, shown in the dialog as well as the panel. */
@@ -258,7 +260,7 @@ export default function SongsDialog({
               <ShareTakeView
                 take={take.recording}
                 headingRef={headingRef}
-                onShared={(share) => mine.shared(take.recording.id, share)}
+                keepShare={(share) => mine.keepShare(take.recording.id, share)}
                 onDone={back}
               />
             )}
@@ -615,12 +617,12 @@ function MySongView({
 function ShareTakeView({
   take,
   headingRef,
-  onShared,
+  keepShare,
   onDone,
 }: {
   take: Recording;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
-  onShared: (share: TakeShare) => void;
+  keepShare: KeepShare;
   onDone: () => void;
 }) {
   const [title, setTitle] = useState(take.name);
@@ -635,8 +637,7 @@ function ShareTakeView({
     setPending(true);
     setError(null);
     try {
-      const result = await uploadTake(take, title, authorName);
-      onShared(result);
+      const result = await uploadTake(take, title, authorName, keepShare);
       setShared(result);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Sharing failed. Try again.");

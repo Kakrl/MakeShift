@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useRef,
   useState,
   type Ref,
 } from "react";
@@ -15,7 +16,7 @@ import type { Recording } from "./midiUtils";
 import type { WriteResult } from "../../lib/storage";
 import SongsDialog, { type MyRecordings, type SongsTab } from "../share/SongsDialog";
 import SaveTakeDialog from "../share/SaveTakeDialog";
-import { loadTakeShares, saveTakeShare, stopShare } from "../share/shareStore";
+import { loadTakeShares, saveTakeShares, stopShare, type TakeShare } from "../share/shareStore";
 
 export type RecordingsLibraryHandle = {
   completeTake(take: Recording): void;
@@ -34,6 +35,9 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
   );
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [shares, setShares] = useState(() => loadTakeShares());
+  // Shares live here first, so a token that failed to save isn't lost.
+  const sharesRef = useRef(shares);
+  const [sharesUnsaved, setSharesUnsaved] = useState(false);
   const [reviewingTake, setReviewingTake] = useState<Recording | null>(null);
   // A share link (`/play/<id>` redirects to `?song=<id>`) opens that song.
   const [linkedSongId, setLinkedSongId] = useState(() => new URLSearchParams(window.location.search).get("song"));
@@ -52,6 +56,17 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
     },
     [library],
   );
+
+  const keepShare = useCallback((id: string, share: TakeShare | null) => {
+    const next = { ...sharesRef.current };
+    if (share) next[id] = share;
+    else delete next[id];
+    sharesRef.current = next;
+    setShares(next);
+    const result = saveTakeShares(next);
+    setSharesUnsaved(!result.ok);
+    return result;
+  }, []);
 
   useImperativeHandle(
     ref,
@@ -73,6 +88,7 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
 
   function retrySaving() {
     refreshLibrary(library.retrySaving());
+    if (sharesUnsaved) setSharesUnsaved(!saveTakeShares(sharesRef.current).ok);
   }
 
   // The songs dialog edits the library through these; the panel stays the
@@ -97,14 +113,12 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
           setLibraryError("Sharing could not be stopped, so the recording was kept. Try again.");
           return false;
         }
-        setShares(saveTakeShare(id, null));
+        keepShare(id, null);
       }
       refreshLibrary(library.deleteRecording(id));
       return true;
     },
-    shared(id, share) {
-      setShares(saveTakeShare(id, share));
-    },
+    keepShare,
     async stopSharing(id) {
       const share = shares[id];
       if (!share || !window.confirm("Stop sharing? The link will stop working. Your recording stays here.")) return false;
@@ -114,7 +128,7 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
         setLibraryError("Sharing could not be stopped. Try again.");
         return false;
       }
-      setShares(saveTakeShare(id, null));
+      keepShare(id, null);
       return true;
     },
     error: libraryError,
@@ -136,9 +150,10 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
         {unsaved > 0 && <span className="ms-chip ms-chip-danger px-2 py-0.5 text-[11px]">{unsaved} not saved</span>}
       </p>
       {/* Storage problems stay out here, where they can't be missed. */}
-      {libraryError && (
+      {(libraryError || sharesUnsaved) && (
         <div role="alert" className="mb-3 rounded-[10px] bg-danger/5 p-3 text-[13px] leading-relaxed text-danger">
-          <p>{libraryError}</p>
+          {libraryError && <p>{libraryError}</p>}
+          {sharesUnsaved && <p>A shared song&apos;s sharing details couldn&apos;t be saved. Retry, or stop sharing it before you leave, or it can&apos;t be stopped later.</p>}
           <button type="button" className="ms-key ms-key-ghost ms-key-danger mt-2 -ml-2 px-2 py-1 text-[13px]" onClick={retrySaving}>
             Retry saving
           </button>
@@ -155,11 +170,8 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
       {reviewingTake && (
         <SaveTakeDialog
           take={reviewingTake}
-          onSave={(name, share) => {
-            const id = reviewingTake.id;
-            refreshLibrary(library.renameRecording(id, name));
-            if (share) setShares(saveTakeShare(id, share));
-          }}
+          onSave={(name) => refreshLibrary(library.renameRecording(reviewingTake.id, name))}
+          keepShare={(share) => keepShare(reviewingTake.id, share)}
           onDelete={() => {
             if (!window.confirm("Delete this recording? This can't be undone.")) return false;
             refreshLibrary(library.deleteRecording(reviewingTake.id));

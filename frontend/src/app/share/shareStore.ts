@@ -8,7 +8,7 @@ import {
   type SharedRecording,
   type UploadRecordingResponse,
 } from "../../lib/recordings";
-import { readStored, writeStored, type StorageAccess } from "../../lib/storage";
+import { readStored, writeStored, type StorageAccess, type WriteResult } from "../../lib/storage";
 import { loadOrCreateProfile, saveProfile } from "../../lib/deviceProfile";
 import { createShareApi, ShareNotFoundError, type ShareStore } from "./shareApi";
 import { createMockShareStore, mockMode } from "./mockShareStore";
@@ -55,29 +55,27 @@ export function loadTakeShares(storage?: StorageAccess): TakeShares {
   return readStored(TAKE_SHARES_NAME, TAKE_SHARES_VERSION, {}, isTakeShares, storage);
 }
 
-export function saveTakeShare(
-  takeId: string,
-  share: TakeShare | null,
-  storage?: StorageAccess,
-): TakeShares {
-  const next = { ...loadTakeShares(storage) };
-  if (share) next[takeId] = share;
-  else delete next[takeId];
-  writeStored(TAKE_SHARES_NAME, TAKE_SHARES_VERSION, next, storage);
-  return next;
+export function saveTakeShares(shares: TakeShares, storage?: StorageAccess): WriteResult {
+  return writeStored(TAKE_SHARES_NAME, TAKE_SHARES_VERSION, shares, storage);
 }
+
+/** Keeps a new share next to its take, or forgets it on null. */
+export type KeepShare = (share: TakeShare | null) => WriteResult;
 
 /** The sharing name from the device profile (#125), shown in the sidebar too. */
 export const loadShareName = () => loadOrCreateProfile().profile.displayName;
 
 /**
  * Uploads a local take under a title and display name, from this device's
- * profile ID, and keeps the name as the profile's sharing name.
+ * profile ID, and keeps the name as the profile's sharing name. A share
+ * whose delete token can't be saved is undone, since it couldn't be stopped
+ * after a reload; if undoing fails, it stays kept in memory and this throws.
  */
 export async function uploadTake(
   take: Recording,
   title: string,
   authorName: string,
+  keep: KeepShare,
 ): Promise<TakeShare> {
   const mocked = mockMode() !== null;
   const uploaded = await (mocked ? mock : api).upload({
@@ -89,7 +87,15 @@ export async function uploadTake(
   });
   const { profile } = loadOrCreateProfile();
   if (profile.displayName !== authorName.trim()) saveProfile({ ...profile, displayName: authorName });
-  return mocked ? { ...uploaded, mock: true } : uploaded;
+  const share: TakeShare = mocked ? { ...uploaded, mock: true } : uploaded;
+  if (keep(share).ok) return share;
+  try {
+    await stopShare(share);
+  } catch {
+    throw new Error("Shared, but this device couldn't save it. Retry saving or stop sharing in My recordings before you leave.");
+  }
+  keep(null);
+  throw new Error("This device couldn't save the share, so it was undone. Free up storage and try again.");
 }
 
 /**
