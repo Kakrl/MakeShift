@@ -1532,3 +1532,11 @@ keyboard layout and audio smoke. All deployment assertions passed with the
 previously diagnosed local --disable-gpu workaround in a removed temporary
 runner; the committed runner is unchanged. Physical hardware was not measured.
 Actions execution for this follow-up is unverified.
+
+## Live pedal verification (#176)
+
+2026-10-23 local Vitest, lint, TypeScript, contrast and production build evidence
+is recorded in [PD-03](manual/2026-10-23_PD-03.md). New tests are in
+pedals.test.ts and pedalControls.test.tsx; browserAudioLifecycle.test.ts adds
+ordered pedal transport and overload recovery. Browser and real hardware evidence
+remain pending; do not infer physical latency from these fixtures.

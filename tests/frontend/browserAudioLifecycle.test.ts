@@ -57,6 +57,22 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+it("orders pedal commands with physical notes and resets on pedal queue overload", async () => {
+  const audio = new BrowserAudio(); await audio.initialize();
+  const worklet = Worklet.instances[0]; worklet.ack();
+  const token = audio.noteOn(60, 0.8)!;
+  expect(audio.setPedals({ sustain: true, sostenuto: false, soft: false })).toBe(true);
+  audio.noteOff(token);
+  expect(worklet.port.postMessage.mock.calls.slice(-3).map(([e]) => e.type)).toEqual(["note-on", "pedals", "note-off"]);
+  for (let i = 0; i < 70; i++) audio.setPedals({ sustain: !!(i % 2), sostenuto: false, soft: false });
+  expect(worklet.port.postMessage.mock.calls).toHaveLength(66);
+  expect(worklet.port.postMessage.mock.lastCall?.[0].type).toBe("reset");
+  expect(audio.noteOff(token)).toBe(false);
+  worklet.ack();
+  expect(audio.noteOn(61)).not.toBeNull();
+  await audio.close();
+});
+
 describe("recording timeline with the production audio owner", () => {
   const take = {
     id: "playback",
