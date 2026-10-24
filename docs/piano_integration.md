@@ -5,7 +5,10 @@ The default sheet has eight white keys, MIDI 48–60 (C3–C4). Issue #36 adds
 one/two/three-octave white-key layouts, with 8/15/22 keys and a configurable
 starting C. The [printed-sheet contract](piano_sheet.md) defines physical
 dimensions, overlap, starting-note bounds and paper-fit override. Calibration
-must match all selected settings. Black-key contact/pitch mapping remains #25.
+must match all selected settings. Black-key regions now participate in contact
+selection and map to chromatic MIDI pitches through the existing audio/MIDI
+event interface. Automated and physical verification remain pending; see the
+[black-key plan](black_keys_plan.md).
 
 ## Playing the current preview
 
