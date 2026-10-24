@@ -58,6 +58,7 @@ export interface ContactPipelineFrame {
   fingertips: readonly Fingertip[];
   hands: readonly HandObservation[];
   whiteKeys: Point[][] | null;
+  blackKeys?: Point[][] | null;
   calibration: PersistedDepthCalibration | null;
   previewFingerId: string | null;
 }
@@ -235,10 +236,15 @@ export class LiveContactPipeline {
       );
 
       // 1. Which key is under the fingertip?
-      const keyIndexes = checkKeyOverlap(fingertip, frame.whiteKeys);
+      const keyIndexes = checkKeyOverlap(
+        fingertip,
+        frame.whiteKeys,
+        frame.blackKeys ?? null,
+      );
+      
       const containedKeyIndexes = frame.whiteKeys.flatMap((key, keyIndex) =>
         pointInPolygon(fingertip.point, key) ? [keyIndex] : [],
-      );
+      
       const keyOverlap = keyIndexes.length > 0;
 
       // 2. Do the knuckles place this finger in the playing zone?

@@ -5,6 +5,9 @@ const STORAGE_NAME = "profile";
 const STORAGE_VERSION = 1;
 export type DeviceProfile = { deviceId: string; displayName: string };
 
+/** Fired on `window` after a save, so every view showing the name stays in step. */
+export const PROFILE_CHANGE_EVENT = "makeshift:profile-change";
+
 export function isValidDisplayName(value: string): boolean {
   const { min, max } = RECORDING_LIMITS.authorNameLength;
   let length = 0;
@@ -62,5 +65,8 @@ export function saveProfile(profile: DeviceProfile, storage?: StorageAccess) {
     displayName: profile.displayName.trim(),
   };
   const result = writeStored(STORAGE_NAME, STORAGE_VERSION, next, storage);
-  return result.ok ? ({ ok: true, profile: next } as const) : result;
+  if (!result.ok) return result;
+  if (typeof window !== "undefined")
+    window.dispatchEvent(new CustomEvent<DeviceProfile>(PROFILE_CHANGE_EVENT, { detail: next }));
+  return { ok: true, profile: next } as const;
 }

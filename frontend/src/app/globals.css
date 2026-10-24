@@ -471,6 +471,74 @@ body {
   .ms-rec-dot {
     animation: ms-rec 1.6s ease-in-out infinite;
   }
+
+  /* List entrance: each item rises a little after the one before it. Set
+     --i to the item index; the cap keeps a long page from trickling in. */
+  .ms-rise {
+    animation: ms-rise 280ms var(--ease-out) backwards;
+    animation-delay: calc(min(var(--i, 0), 8) * 40ms);
+  }
+
+  /* Label swap (Copy link → Copied): a short blurred crossfade so the two
+     words read as one key changing, not two labels trading places. */
+  .ms-swap {
+    animation: ms-swap 200ms var(--ease-out);
+  }
+
+  /* Drill-in inside a dialog: a song pushes in from the right and Back
+     returns from the left, so both directions travel the same path. */
+  .ms-push {
+    animation: ms-push 240ms var(--ease-out);
+  }
+  .ms-pop {
+    animation: ms-pop 240ms var(--ease-out);
+  }
+
+  /* Piano roll: raised as a card with a hairline ring so it reads on a white
+     dialog. Its white fill is set on the element (PianoRoll). The playhead
+     moves by transform only. */
+  .ms-roll {
+    border-radius: 14px;
+    box-shadow: var(--ring), var(--shadow-2);
+    touch-action: none;
+    cursor: pointer;
+  }
+  .ms-roll:focus-visible {
+    outline: none;
+    box-shadow: var(--ring), var(--shadow-2), var(--halo);
+  }
+  .ms-playhead {
+    will-change: transform;
+  }
+}
+
+@keyframes ms-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes ms-push {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+@keyframes ms-pop {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+
+@keyframes ms-swap {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+    transform: scale(0.96);
+  }
 }
 
 @keyframes ms-fade-in {
@@ -512,6 +580,10 @@ body {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+  /* Staggered items would otherwise sit invisible through their delay. */
+  .ms-rise {
+    animation-delay: 0ms !important;
   }
 }
 

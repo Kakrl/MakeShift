@@ -209,6 +209,32 @@ export function getKeyCollisions(
   });
 }
 
+/** Select black keys before white keys for each fingertip. Black key indexes
+ * follow the white-key indexes, giving every region a distinct live identity. */
+export function getPianoKeyCollisions(
+  fingertips: readonly Fingertip[],
+  whiteKeys: readonly (readonly Point[])[],
+  blackKeys: readonly (readonly Point[])[] = [],
+  tolerance = 0,
+): KeyCollision[] {
+  const selected = new Map<number, string[]>();
+  for (const fingertip of fingertips) {
+    const blackHits = getKeyCollisions([fingertip], blackKeys, tolerance);
+    const hits = blackHits.length
+      ? blackHits.map(({ keyIndex }) => ({ keyIndex: whiteKeys.length + keyIndex }))
+      : getKeyCollisions([fingertip], whiteKeys, tolerance);
+    for (const { keyIndex } of hits) {
+      const collidingFingertips = selected.get(keyIndex) ?? [];
+      collidingFingertips.push(fingertip.id);
+      selected.set(keyIndex, collidingFingertips);
+    }
+  }
+  return [...selected].map(([keyIndex, collidingFingertips]) => ({
+    keyIndex,
+    fingertips: collidingFingertips,
+  }));
+}
+
 export function getCollidedKeyIndexes(
   collisions: readonly KeyCollision[],
 ): Set<number> {
