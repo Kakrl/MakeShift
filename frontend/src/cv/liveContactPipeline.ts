@@ -242,9 +242,9 @@ export class LiveContactPipeline {
         frame.blackKeys ?? null,
       );
       
-      const containedKeyIndexes = frame.whiteKeys.flatMap((key, keyIndex) =>
+      const containedKeyIndexes = (frame.whiteKeys ?? []).flatMap((key, keyIndex) =>
         pointInPolygon(fingertip.point, key) ? [keyIndex] : [],
-      
+      );
       const keyOverlap = keyIndexes.length > 0;
 
       // 2. Do the knuckles place this finger in the playing zone?
