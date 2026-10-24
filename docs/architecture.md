@@ -274,5 +274,7 @@ BrowserAudio sends versioned session controls directly to the existing worklet.
 The ten-voice synth owns physical hold/capture/damping and strike timbre. MIDI
 continues to receive ordinary physical note events, without pedal export/replay.
 See [contract and lifecycle](browser_audio.md#live-binary-pedals-176),
-[follow-up](pedal_recording_followup.md) and [pending system verification](../tests/manual/2026-10-23_PD-03.md).
-Deterministic tests do not establish hardware or under-50 ms compliance.
+[follow-up](pedal_recording_followup.md) and [manual functionality and remaining system verification](../tests/manual/2026-10-23_PD-03.md).
+Carl Xu reported a manual functional pass for all pedals and programmable
+bindings on 2026-10-23. Detailed device compatibility, live-CV profiling and
+physical under-50 ms compliance remain unverified.

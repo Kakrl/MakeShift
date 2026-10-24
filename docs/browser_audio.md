@@ -245,5 +245,8 @@ contenteditable, dialogs and IME do not activate pedals. Capture consumes input.
 
 [Recording/export/replay follow-up](pedal_recording_followup.md) remains deferred.
 [Verification record](../tests/manual/2026-10-23_PD-03.md) distinguishes synthetic
-coverage, failed browser launch, and pending real hardware/CV/latency evidence.
+coverage, the automated browser launch failure, and Carl Xu's 2026-10-23 manual
+functional pass for all pedals and programmable bindings. Specific device
+configuration, detailed recovery scenarios, live-CV profiling and physical latency
+evidence remain pending.
 No physical latency or hardware compatibility pass is claimed.

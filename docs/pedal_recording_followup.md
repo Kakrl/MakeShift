@@ -1,7 +1,7 @@
 # Pedal recording and replay follow-up
 
-Local follow-up proposal for #176, owner Harry Deng. Public issue creation is
-pending user approval. Live pedals are intentionally not serialized into MIDI
+Tracked in [#222](https://github.com/Kakrl/MakeShift/issues/222), following #176
+and PR #221; suggested owner Harry Deng. Live pedals are intentionally not serialized into MIDI
 notes: key duration remains physical press duration.
 
 Add a separate ordered, versioned control-event stream, MIDI CC export and

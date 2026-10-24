@@ -126,6 +126,8 @@ PD-2 adds accessible live switches and versioned Hold/Toggle keyboard bindings,
 safe focus/capture/conflict behavior and nonpersistent activation. PD-3 preserves
 note recording semantics and documents deferred pedal recording/replay. Audio and
 latency owner: Carl Xu; UI/accessibility: Jadden Picardal; bindings and MIDI: Harry
-Deng. Deterministic verification is implemented; browser launch, live-CV stress,
-real hardware listening and physical latency remain pending. See PD inventory
+Deng. Deterministic verification is implemented. Carl Xu reported a manual
+functional pass for all pedals and programmable bindings on 2026-10-23. Automated
+browser execution, specific device/environment evidence, detailed scenario checks,
+live-CV stress and physical latency remain pending. See PD inventory
 and the dated report before claiming completion.
