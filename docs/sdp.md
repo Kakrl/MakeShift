@@ -117,3 +117,17 @@ Scrum methodology is the most applicable to MakeShift. It embodies agility and t
 **Gantt Chart**
 
 [Gantt Chart](https://drive.google.com/file/d/1R86NexxWXXj2oYU1Q2-krOZNudny6dF3/view?usp=sharing)
+
+## Scope expansion: binary pedals (#176)
+
+PD-1 expands piano requirements 2.2/2.4: independent sustain/sostenuto/soft,
+clear-all preserving physically held notes, bounded voices and finite decay.
+PD-2 adds accessible live switches and versioned Hold/Toggle keyboard bindings,
+safe focus/capture/conflict behavior and nonpersistent activation. PD-3 preserves
+note recording semantics and documents deferred pedal recording/replay. Audio and
+latency owner: Carl Xu; UI/accessibility: Jadden Picardal; bindings and MIDI: Harry
+Deng. Deterministic verification is implemented. Carl Xu reported a manual
+functional pass for all pedals and programmable bindings on 2026-10-23. Automated
+browser execution, specific device/environment evidence, detailed scenario checks,
+live-CV stress and physical latency remain pending. See PD inventory
+and the dated report before claiming completion.
