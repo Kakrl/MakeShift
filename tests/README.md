@@ -230,6 +230,14 @@ Local macOS execution on 2026-10-14, Node 24.2.0, Vitest 4.1.11:
   production build completed). The build needed network access to fetch Google
   Fonts. No physical camera test was run.
 
+Review follow-up on 2026-10-24, targeted Vitest run:
+
+- `cd frontend && npx vitest run ../tests/frontend/liveContactPipeline.test.ts`:
+  **3 tests passed**. A new press at x=105 in adjacent 0–100 and 100–200
+  polygons has tolerance candidates `[0, 1]`, exact containment `[1]`, and is
+  assigned key 1. This remains synthetic geometry; physical camera behavior
+  is pending.
+
 ## Octave layout and calibration verification (issues #36 and #162)
 
 Local Windows 11 Home 10.0.26200, Node 22.20.0, Vitest 4.1.11 execution on

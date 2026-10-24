@@ -76,7 +76,9 @@ export class Finger {
     }
 
     if (!contact.active) this.keyIndex = null;
-    else if (this.keyIndex === null) this.keyIndex = gate.keyIndexes[0] ?? null;
+    else if (this.keyIndex === null)
+      this.keyIndex =
+        gate.containedKeyIndexes?.[0] ?? gate.keyIndexes[0] ?? null;
     return contact;
   }
 

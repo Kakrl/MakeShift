@@ -107,4 +107,13 @@ describe("LiveContactPipeline finger key boundary", () => {
     expect(pipeline.contacts.get("finger-1")?.active).toBe(true);
     expect(pipeline.fingers.get("finger-1")?.keyIndex).toBe(1);
   });
+
+  it("assigns a new press just right of a shared edge to the containing key", () => {
+    observe(105);
+    expect(pipeline.gates.get("finger-1")?.keyIndexes).toEqual([0, 1]);
+    expect(pipeline.gates.get("finger-1")?.containedKeyIndexes).toEqual([1]);
+    observe(105);
+    expect(pipeline.contacts.get("finger-1")?.active).toBe(true);
+    expect(pipeline.fingers.get("finger-1")?.keyIndex).toBe(1);
+  });
 });
