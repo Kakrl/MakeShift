@@ -52,7 +52,8 @@ const port = await new Promise((resolvePort, reject) => {
 });
 const baseUrl = `http://127.0.0.1:${port}`;
 const nextCli = path.join(frontendDir, "node_modules/next/dist/bin/next");
-const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+const npmCli = process.env.npm_execpath;
+assert(npmCli, "Run this script through npm so npm_execpath identifies the npm CLI");
 let serverProcess;
 
 function run(command, args, options = {}) {
@@ -87,7 +88,7 @@ async function waitForServer() {
 
 try {
   console.log("Building the production app...");
-  await run(npm, ["run", "build"]);
+  await run(process.execPath, [npmCli, "run", "build"]);
 
   console.log(`Starting the app at ${baseUrl}...`);
   serverProcess = spawn(process.execPath, [nextCli, "start", "--hostname", "127.0.0.1", "--port", String(port)], {
