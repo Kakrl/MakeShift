@@ -21,7 +21,8 @@ The home page remembers tempo and the metronome toggle between visits using
 the shared versioned browser storage module (`makeshift:playback-settings:v1`).
 The existing tempo range is 20–300 BPM. Missing or invalid settings restore
 120 BPM and metronome on; out-of-range saved BPM falls back to defaults,
-while user input is clamped to the range. If browser storage is blocked or
+while invalid user input restores the active tempo with an error.
+Tempo edits apply on Enter or when the field loses focus, not while typing. If browser storage is blocked or
 full, the controls still work for the current visit. Restoring preferences
 does not start audio or recording.
 

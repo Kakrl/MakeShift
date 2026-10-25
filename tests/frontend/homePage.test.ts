@@ -35,6 +35,12 @@ function validCalibration() {
   };
 }
 
+vi.mock("../../frontend/src/app/audio/metronome", async original => {
+  const actual = await original<typeof import("../../frontend/src/app/audio/metronome")>();
+  const { createSimulatedMetronome } = await import("./simulatedMetronome");
+  return { ...actual, createMetronome: () => createSimulatedMetronome({ prepare: async () => true, click() {}, silence() {}, close() {} }, actual.createMetronome) };
+});
+
 const push = vi.fn();
 const camera = vi.hoisted(() => ({
   value: {
@@ -187,11 +193,27 @@ describe("home page", () => {
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("120");
     expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("true");
     fireEvent.change(screen.getByLabelText("Set Tempo"), { target: { value: "175" } });
+    fireEvent.blur(screen.getByLabelText("Set Tempo"));
     fireEvent.click(screen.getByLabelText("Toggle metronome"));
     cleanup();
     renderHome();
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("175");
     expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("keeps the active tempo unchanged while typing and commits on Enter or blur", () => {
+    saveCalibration(); renderHome();
+    const input = screen.getByLabelText("Set Tempo") as HTMLInputElement;
+    const stored = () => JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!).tempo;
+    expect(stored()).toBe(120);
+    fireEvent.change(input, { target: { value: "75" } });
+    expect(input.value).toBe("75"); expect(stored()).toBe(120);
+    fireEvent.keyDown(input, { key: "Enter" }); expect(stored()).toBe(75);
+    fireEvent.change(input, { target: { value: "90" } }); expect(stored()).toBe(75);
+    fireEvent.blur(input); expect(stored()).toBe(90);
+    fireEvent.change(input, { target: { value: "10" } }); fireEvent.blur(input);
+    expect(input.value).toBe("90"); expect(stored()).toBe(90);
+    expect(screen.getByRole("alert").textContent).toContain("Tempo unchanged");
   });
 
   it.each([
@@ -215,7 +237,7 @@ describe("home page", () => {
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe(String(tempo));
   });
 
-  it("clamps input and keeps controls usable when settings storage fails", () => {
+  it("rejects invalid input and keeps controls usable when settings storage fails", () => {
     // Calibration still loads; only the playback settings storage fails.
     saveCalibration();
     const read = window.localStorage.getItem.bind(window.localStorage);
@@ -227,9 +249,11 @@ describe("home page", () => {
     renderHome();
     const input = screen.getByLabelText("Set Tempo") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "350" } });
-    expect(input.value).toBe("300");
+    fireEvent.blur(input);
+    expect(input.value).toBe("120");
     fireEvent.change(input, { target: { value: "10" } });
-    expect(input.value).toBe("20");
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(input.value).toBe("120");
     fireEvent.click(screen.getByLabelText("Toggle metronome"));
     expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
   });

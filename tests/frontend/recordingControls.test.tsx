@@ -20,10 +20,11 @@ const fixtures = vi.hoisted(() => ({
 }));
 vi.mock("../../frontend/src/app/audio/metronome", async original => {
   const actual = await original<typeof import("../../frontend/src/app/audio/metronome")>();
-  return { ...actual, createMetronome: () => actual.createMetronome({
+  const { createSimulatedMetronome } = await import("./simulatedMetronome");
+  return { ...actual, createMetronome: () => createSimulatedMetronome({
     prepare: fixtures.prepareClicks, click: fixtures.clicks,
     silence: fixtures.silenceClicks, close: fixtures.closeClicks,
-  }) };
+  }, actual.createMetronome) };
 });
 vi.mock("../../frontend/src/cv/keyboardGeometry", async (original) => ({
   ...await original<typeof import("../../frontend/src/cv/keyboardGeometry")>(),

@@ -767,6 +767,7 @@ defect report is filed.
 | D22 | Medium | Calibration | Final depth sheet-check exception removed capture/Next controls. Reset collector/index on exception so all five depth positions can be retried. | `frontend/src/app/calibration/page.tsx` | [#178](https://github.com/Kakrl/MakeShift/issues/178) | Fixed in PR #177; local 6.2.3 regression passed; CI/merge pending |
 | D21 | High | Calibration | (Req 6.2, 1.1, 2.1) #148 replaced the reachable result capture with depth buttons and navigated before validation/save. Final depth capture now creates the primary result; completion retains its model and saves both records before navigation. 6.2.3's expected failures are restored as passing regressions. | `frontend/src/app/calibration/page.tsx` | [#162](https://github.com/Kakrl/MakeShift/issues/162) | Fix verified locally 2026-10-06; review/merge and physical check pending |
 
+| D24 | Medium | Audio | User camera-device testing of the initial #206 implementation found no live accompaniment and unstable clicks during page actions. | `frontend/src/app/audio/metronome.ts` | [#206](https://github.com/Kakrl/MakeShift/issues/206) | Worklet revision verified automatically; [physical retest pending](manual/2026-10-25_MET-04.md) |
 | D23 | Medium | Audio | (Req 2.4, related 2.2) User reports high-velocity strikes are not loud enough and wants more apparent velocity dynamics. Listening report 2026-10-14; cause and hardware verification pending. | `frontend/src/cv/fingerVelocity.ts`, `frontend/public/audio/synth.js` | [#209](https://github.com/Kakrl/MakeShift/issues/209) | DSP tuning implemented locally; [verification and listening limits](manual/2026-10-14_209-velocity.md); user confirmed audible velocity changes locally 2026-10-14; measured trials/chord distortion checks pending |
 
 ## Root Cause Analysis Log
@@ -1535,27 +1536,40 @@ Actions execution for this follow-up is unverified.
 
 ## Continuous metronome (#206)
 
-Local verification, 2026-10-25, Windows, branch
-`feature/206-continuous-metronome` (uncommitted working tree based on
-`ddb6d72`): lint, TypeScript, Vitest (545 passed, one existing skip),
-contrast (37 pairs) and production build passed. MET-01 adds nine controller
-cases; MET-02 adds four recording integration cases, including parsing an actual
-MIDI export to prove clicks do not add notes. Existing recording tests remain.
+The initial timer-based implementation at 107b417 passed automated checks, but
+Harry's camera-device test exposed absent live accompaniment and unstable timing
+during other actions. Those results supersede any inference that the earlier
+automation established correct physical behavior. The [manual report](manual/2026-10-25_MET-04.md)
+records the failures and missing environment details; physical retest is pending.
+
+The revised implementation uses an AudioWorklet for sample-frame click timing
+and synthesis. Home integration uses the real controller and processor with a
+simulated audio transport, rather than a separate mock metronome clock. Tempo
+edits now commit on Enter/blur (shared behavior with #204); typing alone leaves
+the active/persisted BPM unchanged. The existing default remains 120 on this
+branch; #204's separate default-tempo change is not included.
+
+Local revision verification, 2026-10-25, Windows, revision following 107b417 on
+`feature/206-continuous-metronome`: lint, TypeScript, full Vitest
+(546 passed, one existing skip), all 37 contrast pairs and production build
+passed. Build required network access for the configured Google Fonts.
+MET-01 includes nine processor/controller cases. Existing Home and recording
+regressions pass; MET-02 includes real MIDI parsing to exclude metronome notes.
 
 Against the production server on port 3206, Chromium 151.0.7922.34 passed
-keyboard-layout and browser-audio regressions. MET-03 passed with live click RMS
-0.14496, pause/toggle-off silence, resume count-in, muted count-in and
-close/reprepare. The harness uses the actual controller and Web Audio synthesis;
-it replaces diagnostic accounting only and does not exercise physical CV.
+MET-03: live RMS 0.14495; three consecutive beat notifications during a deliberate
+1.8-second main-thread stall had sample-frame spacing within one sample of
+500 ms. Pause/toggle silence, resume/muted count-in and close/reprepare passed.
+This verifies generated graph timing, not acoustic output or live-CV behavior;
+UI notifications and recorder reactions can still be delayed by UI stalls.
+Existing browser audio and keyboard-layout regressions also passed.
+Deployment smoke passed using a temporary runner copy with `--disable-gpu`
+for the known local simulated-camera stall: five assets/pages, three play/stop
+rounds without per-note requests, and camera denial/recovery. The committed
+runner is unchanged; database was unconfigured. The temporary copy was removed.
 
 Run MET-03 from frontend with a production server running:
 `MAKE_SHIFT_URL=http://127.0.0.1:3000 AUDIO_BROWSER_CHANNEL=chromium node ../tests/frontend/metronome.browser.mjs`
-(PowerShell: set the two environment variables separately.)
-
-Deployment smoke passed using a temporary copy with `--disable-gpu` for the
-known local simulated-camera stall. Five assets, all five pages, three
-play/stop rounds without note requests, and camera denial/recovery passed.
-The committed runner is unchanged; database was unconfigured. The temporary
-copy was removed. GitHub Actions evidence and physical camera/speaker listening
-remain pending. Follow the frontend README checklist for the latter; no manual
-pass, physical latency or jitter improvement is claimed.
+(PowerShell: set environment variables separately.) The harness loads the actual
+controller/worklet and stubs diagnostic accounting only. GitHub Actions execution
+and camera-device retest remain pending. No physical latency claim is made.

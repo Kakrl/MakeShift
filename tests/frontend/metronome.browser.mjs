@@ -42,19 +42,25 @@ try {
         analyser.fftSize = 2048;
         analyser.connect(this.destination);
         window.clickAnalyser = analyser;
-        const createGain = this.createGain.bind(this);
-        this.createGain = () => {
-          const gain = createGain();
-          const connect = gain.connect.bind(gain);
-          gain.connect = () => connect(analyser);
-          return gain;
-        };
       }
     };
     const { createMetronome } = await import(
       `data:text/javascript;base64,${btoa(code)}`
     );
-    window.testMetronome = createMetronome();
+    window.audioBeats = [];
+    window.testMetronome = createMetronome(undefined, (context) => {
+      const node = new AudioWorkletNode(context, "makeshift-metronome", {
+        numberOfInputs: 0,
+        numberOfOutputs: 1,
+        outputChannelCount: [1],
+      });
+      const connect = node.connect.bind(node);
+      node.connect = () => connect(window.clickAnalyser);
+      node.port.addEventListener("message", (event) =>
+        window.audioBeats.push(event.data),
+      );
+      return node;
+    });
     window.countBeats = [];
     window.countCompletions = 0;
     window.configureClicks = (audible) =>
@@ -98,6 +104,24 @@ try {
   await page.waitForFunction(() => window.clickReady);
   const liveRms = await page.evaluate(() => window.sampleClicks(650));
   assert(liveRms > 0.001);
+  // Block the UI thread for over three beats: the worklet must keep rendering.
+  await page.evaluate(() => {
+    window.audioBeats = [];
+    const end = performance.now() + 1800;
+    while (performance.now() < end) {
+      /* Deliberate browser main-thread stall. */
+    }
+  });
+  await page.waitForFunction(() => window.audioBeats.length >= 3);
+  const busyBeats = await page.evaluate(() =>
+    window.audioBeats.map(({ frame, rate }) => ({ frame, rate })),
+  );
+  for (let i = 1; i < busyBeats.length; i++)
+    assert(
+      Math.abs(
+        busyBeats[i].frame - busyBeats[i - 1].frame - busyBeats[i].rate / 2,
+      ) <= 1,
+    );
   await page.evaluate(() => window.testMetronome.setPlaying(true, true));
   await page.waitForTimeout(150);
   assert((await page.evaluate(() => window.sampleClicks(600))) < 0.00001);
@@ -127,6 +151,8 @@ try {
     JSON.stringify({
       browser: browser.version(),
       liveRms,
+      busyThreadBeats: busyBeats.length,
+      busyThreadSpacing: "within one audio sample of 500ms",
       pause: "silent",
       resume: "count-in and ongoing clicks",
       mutedCountIn: "passed",

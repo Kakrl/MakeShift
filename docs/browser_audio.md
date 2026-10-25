@@ -209,19 +209,27 @@ See the [dated verification/listening report](../tests/manual/2026-10-14_209-vel
 
 ## Continuous metronome (#206)
 
-Home owns one reusable controller in
-`frontend/src/app/audio/metronome.ts`. It replaces the count-in-only
-React timeout chain and inline click synthesis. One monotonic deadline timer
-coordinates count-in completion and ongoing accompaniment, preventing duplicate
-click streams. Late callbacks skip missed deadlines instead of bursting clicks;
-main-thread stalls can still delay onsets. This is not sample-accurate scheduling.
-A tempo edit applies to the interval following the pending beat.
+Home owns a reusable controller in `frontend/src/app/audio/metronome.ts`.
+The separate `frontend/public/audio/metronome-worklet.js` processor owns
+sample-frame beat deadlines, accents, click synthesis and one-bar count-in.
+UI commands configure tempo, mute, live playing, pause/resume and cancellation.
+Click timing does not depend on React renders or individual JavaScript timers.
+The worklet reports visual count-in progress/completion to Home; main-thread
+stalls can still delay those notifications and the recorder's reaction. Audio
+hardware, browser suspension and live CV readiness are separate limitations.
 
-The click AudioContext is prepared from a user gesture, tracked for diagnostics,
-and closed on unmount. Clicks bypass musical-event dispatch and the MIDI
-recorder. Recording start/resume still perform a one-bar count-in and capture
-held notes; muted count-ins still advance visually. Pause silences clicks,
-Stop recording resumes live accompaniment, and session interruption stops the
-controller. Stop also cancels pending asynchronous audio preparation.
-The existing calibration/readiness checks and time-signature interpretation
-remain in force. See the [verification record](../tests/README.md#continuous-metronome-206).
+The session's playing transition directly starts enabled accompaniment after
+both contexts are prepared from a user gesture. Pause recording silences clicks;
+Resume counts in; Stop recording returns to live accompaniment. A muted count-in
+still advances. Generation tokens reject stale notifications after cancellation,
+and page cleanup closes the tracked context, node and message port. The same
+owner can prepare again after StrictMode cleanup. Processor errors or context
+suspension interrupt the session. Clicks bypass musical-event dispatch and MIDI.
+
+Tempo text is a draft until Enter or blur, reusing the #204 input behavior.
+Invalid input restores the active value with a plain accessible error. A valid
+change affects the interval following the pending beat. Time signatures,
+including 6/8 interpretation, and calibration readiness are unchanged. The
+browser harness verifies sample-frame spacing through a deliberate 1.8-second
+page-thread stall; this is software graph evidence, not a hardware timing claim.
+See the [verification record](../tests/README.md#continuous-metronome-206).
