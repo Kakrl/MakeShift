@@ -27,6 +27,7 @@ describe("Finger contact state machine", () => {
       100,
     );
     expect(unavailable.state).toBe("unavailable");
+    expect(finger.keyIndex).toBeNull();
 
     const recovering = finger.checkState(eligibleGate(), 101, {
       state: "press candidate",
@@ -34,10 +35,48 @@ describe("Finger contact state machine", () => {
     });
     expect(recovering.state).toBe("ready");
     expect(recovering.active).toBe(false);
+    expect(finger.keyIndex).toBeNull();
 
     const pressed = finger.checkState(eligibleGate({ frameAtMs: 102 }), 102);
     expect(pressed.state).toBe("pressed");
     expect(pressed.active).toBe(true);
+    expect(finger.keyIndex).toBe(2);
+  });
+
+  it("stores one key index when the finger first becomes active", () => {
+    const finger = new Finger("finger-1");
+    const overlappingGate = eligibleGate({ keyIndexes: [4, 5] });
+
+    const ready = finger.checkState(overlappingGate, 100);
+    expect(ready.active).toBe(false);
+    expect(finger.keyIndex).toBeNull();
+
+    const pressed = finger.checkState(overlappingGate, 110, {
+      state: "press candidate",
+      frameAtMs: 110,
+    });
+    expect(pressed.active).toBe(true);
+    expect(finger.keyIndex).toBe(4);
+  });
+
+  it("keeps its assigned key when later overlaps change", () => {
+    const finger = new Finger("finger-1");
+    const overlappingGate = eligibleGate({ keyIndexes: [2, 3] });
+    finger.checkState(overlappingGate, 99, {
+      state: "unknown",
+      frameAtMs: 99,
+    });
+    finger.checkState(overlappingGate, 100, {
+      state: "press candidate",
+      frameAtMs: 100,
+    });
+    expect(finger.keyIndex).toBe(2);
+
+    finger.checkState(eligibleGate({ keyIndexes: [3] }), 110, {
+      state: "press candidate",
+      frameAtMs: 110,
+    });
+    expect(finger.keyIndex).toBe(2);
   });
 
   it("stays ready when shadow evidence is unknown or stale", () => {
@@ -130,6 +169,7 @@ describe("Finger contact state machine", () => {
     });
     expect(releasing.state).toBe("releasing");
     expect(releasing.active).toBe(true);
+    expect(finger.keyIndex).toBe(2);
 
     const recovered = finger.checkState(eligibleGate(), 130, {
       state: "press candidate",
@@ -138,6 +178,7 @@ describe("Finger contact state machine", () => {
     expect(recovered.state).toBe("pressed");
     expect(recovered.active).toBe(true);
     expect(recovered.releaseStartedAtMs).toBeNull();
+    expect(finger.keyIndex).toBe(2);
 
     finger.checkState(eligibleGate(), 140, {
       state: "hover",
@@ -149,6 +190,7 @@ describe("Finger contact state machine", () => {
     );
     expect(released.state).toBe("ready");
     expect(released.active).toBe(false);
+    expect(finger.keyIndex).toBeNull();
   });
 
   it("starts release grace when pressed shadow evidence becomes stale", () => {
@@ -194,5 +236,20 @@ describe("Finger contact state machine", () => {
     );
     expect(unavailable.state).toBe("unavailable");
     expect(unavailable.active).toBe(false);
+    expect(finger.keyIndex).toBeNull();
+  });
+
+  it("clears the assigned key when reset", () => {
+    const finger = new Finger("finger-1");
+    finger.checkState(eligibleGate(), 100, undefined, {
+      shadowsEnabled: false,
+    });
+    finger.checkState(eligibleGate(), 101, undefined, {
+      shadowsEnabled: false,
+    });
+    expect(finger.keyIndex).toBe(2);
+
+    finger.reset();
+    expect(finger.keyIndex).toBeNull();
   });
 });
