@@ -214,13 +214,17 @@ export default function MarkerTrackingOverlay({
   const syncContactKeys = useCallback(() => {
     const detectedKeys = new Set<number>();
     const velocities = new Map<number, number>();
-    for (const [id, contact] of pipelineRef.current?.contacts ?? []) {
+    const pipeline = pipelineRef.current;
+    for (const [id, contact] of pipeline?.contacts ?? []) {
       if (!contact.active) continue;
-      for (const key of pipelineRef.current?.gates.get(id)?.keyIndexes ?? []) {
-        detectedKeys.add(key);
-        const velocity = pipelineRef.current!.pressVelocities.get(id)!;
-        velocities.set(key, Math.max(velocities.get(key) ?? 0, velocity));
-      }
+      const keyIndex = pipeline?.fingers.get(id)?.keyIndex;
+      if (!pipeline || keyIndex === null || keyIndex === undefined) continue;
+      detectedKeys.add(keyIndex);
+      const velocity = pipeline.pressVelocities.get(id) ?? 0.2;
+      velocities.set(
+        keyIndex,
+        Math.max(velocities.get(keyIndex) ?? 0, velocity),
+      );
     }
     const currentKeys = trackingEnabledRef.current
       ? detectedKeys

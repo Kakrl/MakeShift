@@ -24,6 +24,8 @@ export interface FingerContactEvaluation {
 export interface FingerContactGate {
   available: boolean;
   keyIndexes: readonly number[];
+  /** Keys containing the fingertip before the overlap tolerance is applied. */
+  containedKeyIndexes?: readonly number[];
   knuckleEligible: boolean;
   sourceIdentity: string;
   revision: number;
