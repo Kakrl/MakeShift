@@ -343,8 +343,8 @@ requirement 4.2. Existing requirement scope is unchanged. Vitest runs through
 
 | Test ID | Level | Requirement | Description / source | Owner | Tool | Automated? | Implementation Status | CI Integrated? | Execution evidence |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| PREF-01 | Integration | Issue #123 acceptance criteria | Initial defaults, restore saved tempo/toggle without an initial overwrite, edit and remount with retained preferences; tempo, time signature and metronome stay disabled until a calibration is saved, then unlock (#171) ([source](frontend/homePage.test.ts)) | Jadden Picardal | Vitest + jsdom | Yes | Implemented; simulated page remount, not browser restart | Yes (`frontend-ci.yml`) | [Local verification](README.md#tempo-and-metronome-verification-issue-123) - passed 2026-10-02; Actions pending |
-| PREF-02 | Integration | Issue #123 acceptance criteria | Corrupt JSON, null/array, out-of-range/fractional/string/missing values use defaults; valid 20/300 BPM boundaries restore; input clamps and controls work with throwing settings reads (calibration still loads, #171) and quota failures ([source](frontend/homePage.test.ts)) | Jadden Picardal | Vitest + jsdom | Yes | Implemented; simulated storage failures | Yes (`frontend-ci.yml`) | [Local verification](README.md#tempo-and-metronome-verification-issue-123) - passed 2026-10-02; Actions pending |
+| PREF-01 | Integration | Issue #123 acceptance criteria | 60 BPM initial defaults; draft editing/clearing, Enter/blur commit, Escape cancellation and persistence (#204); restore saved tempo/toggle without an initial overwrite, edit and remount with retained preferences; tempo, time signature and metronome stay disabled until a calibration is saved, then unlock (#171) ([source](frontend/homePage.test.ts)) | Jadden Picardal | Vitest + jsdom | Yes | Implemented; simulated page remount, not browser restart | Yes (`frontend-ci.yml`) | [Local verification](README.md#tempo-and-metronome-verification-issue-123) - passed 2026-10-02; [Tempo editing verification](README.md#tempo-input-editing-verification-issue-204-2026-10-17) passed 2026-10-17; Actions pending |
+| PREF-02 | Integration | Issue #123 acceptance criteria | Corrupt JSON, null/array, out-of-range/fractional/string/missing values use defaults; valid 20/300 BPM boundaries restore; invalid committed text restores the displayed active BPM with an accessible error, valid boundaries commit, and controls work with throwing settings reads (calibration still loads, #171) and quota failures ([source](frontend/homePage.test.ts)) | Jadden Picardal | Vitest + jsdom | Yes | Implemented; simulated storage failures | Yes (`frontend-ci.yml`) | [Local verification](README.md#tempo-and-metronome-verification-issue-123) - passed 2026-10-02; [Tempo editing verification](README.md#tempo-input-editing-verification-issue-204-2026-10-17) passed 2026-10-17; Actions pending |
 
 ## Recordings API schema (#117)
 
@@ -408,6 +408,15 @@ physical 2.4.2 remains pending.
 | PT-02 | Component performance | 2.3, #175 | Alternating sine/piano single/chord/stealing render microbenchmark at 44.1/48/96 kHz; 1000 warmup and 4000 measured blocks, distributions/outlier counts/timer resolution and hardware metadata ([source](frontend/pianoProfile.browser.mjs)) | Carl Xu | Playwright/Edge, performance.now | Yes, manually invoked | Partial: synchronous main-thread DSP; actual worklet quantum/deadlines/dropouts/live-CV stress pending | No | [Local timing table](../docs/performance.md#piano-paired-dsp-profile-175-2026-10-13), 2026-10-13; no real-time pass claim |
 | PT-03 | System | 2.2, PT-1 | Bass/mid/treble soft/loud, holds/taps/current-stage releases, chords, rapid repeats/stealing and emergency lifecycle with original/licensed reference provenance ([report](manual/2026-10-13_PT-03.md)) | Carl Xu | Human listening, production browser/audio hardware | No | Partial: qualitative user-reported listening pass; structured/reference checks pending | N/A | Carl Xu reported qualitative pass 2026-10-13; environment, exact commit and individual-step evidence pending |
 
+### Tempo editing follow-up (#204)
+
+PREF-01/PREF-02 cover eight new draft/commit/cancel/validation cases and the
+60 BPM default. Existing home recording/save-dialog fixtures use the new
+60 BPM count-in. Existing recordingControls.test.tsx cases (including rows
+3.2.2 and 4.1.2) explicitly seed 120 BPM; asserted lifecycle behavior is unchanged.
+[Local run](README.md#tempo-input-editing-verification-issue-204-2026-10-17):
+537 passed, one pre-existing frame-loss test skipped. No new CI integration or
+Actions execution is claimed.
 ## Binary pedals (#176)
 
 | Test ID | Level | Requirement | Description / source | Owner | Tool | Automated? | Implementation Status | CI Integrated? | Execution evidence |

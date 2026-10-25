@@ -173,6 +173,8 @@ beforeEach(async () => {
     corners: [{ x: 100, y: 100 }, { x: 900, y: 100 }, { x: 900, y: 900 }, { x: 100, y: 900 }],
     contact: { model: "landmark-reference-v1", hover: [Array(21).fill({ x: 0.5, y: 0.4, z: 0 })], rest: [Array(21).fill({ x: 0.5, y: 0.5, z: 0 })] },
   }));
+  // Explicit tempo keeps lifecycle timing independent of the user default.
+  localStorage.setItem("makeshift:playback-settings:v1", JSON.stringify({ tempo: 120, metronome: true }));
   localStorage.setItem("hasVisited", "true");
   host = document.createElement("div");
   document.body.append(host);
