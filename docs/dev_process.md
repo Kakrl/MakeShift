@@ -30,6 +30,10 @@ MakeShift/
 │       └── __init__.py
 ├── docs/
 │   ├── architecture.md              # browser target, tooling, delivery boundaries
+│   ├── cv_automated_testing.md       # working plan for labeled CV recordings and metrics
+│   ├── cv_video_tests.md             # quick guide for preparing and running CV video tests
+│   ├── cv_knuckle_boundary.md        # current knuckle eligibility heuristic and review questions
+│   ├── cv_video_test_template.json   # per-video CV labels and calibration template
 │   ├── rvtm_browser_addendum.md      # browser requirement/test reconciliation
 │   ├── performance.md              # bounded pipeline metrics, clocks and profiling
 │   ├── latency_estimation.md       # software estimate, assumptions and sensitivity
@@ -119,6 +123,7 @@ MakeShift/
 │   │   ├── pianoTimbre.test.ts       # piano modal envelopes/filter/spectra/lifecycle
 │   │   ├── pianoProfile.browser.mjs  # paired synchronous browser DSP benchmark
 │   │   ├── deployment.browser.mjs    # production assets, camera recovery, offline playing
+│   │   ├── runCvVideo.mjs             # builds app and runs a labeled CV replay
 │   │   ├── homePage.test.ts
 │   │   ├── supabaseHealth.test.ts    # /api/health database check
 │   │   ├── pianoIntegration.test.ts # deterministic note-to-audio/MIDI/feedback
@@ -129,6 +134,8 @@ MakeShift/
 │   │   ├── midiExport.browser.mjs  # production Export UI and downloaded MIDI bytes
 │   │   ├── cameraLayout.browser.mjs # home camera feed 16:9 across viewports
 │   │   ├── keyboardLayout.test.ts   # physical layout proportions and MIDI bounds
+│   │   ├── keyBoundary.test.ts      # projected key interior and gray-band geometry
+│   │   ├── liveContactPipeline.test.ts # active finger key ownership and boundary switching
 │   │   ├── keyboardLayout.browser.mjs # production layout/override/persistence controls
 │   │   ├── midiUtils.test.ts
 │   │   ├── storage.test.ts           # versioned localStorage module
