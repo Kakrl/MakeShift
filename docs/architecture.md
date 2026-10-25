@@ -87,8 +87,10 @@ starting pitches, actual-size starter/extension PDFs, declared paper coverage
 and explicit override. Configuration changes invalidate calibration and release
 notes synchronously. Geometry reflects assembled marker spacing and preserves
 23.5 mm key pitch; the audio producer captures the session's immutable layout.
-See [sheet/layout semantics](piano_sheet.md). Black-key contact mapping remains
-#25; physical printing/contact/audibility verification remains pending.
+See [sheet/layout semantics](piano_sheet.md). Black-key geometry, collision
+priority, and chromatic pitch mapping use the existing browser event path;
+automated and physical verification remain pending (see
+[the black-key plan](black_keys_plan.md)).
 
 Polygon overlap alone does not prove contact. #34 defines the calibrated model,
 finger/press identity, hover/press/hold/release transitions, velocity estimation,

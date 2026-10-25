@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_LAYOUT, keyboardWidthMm, MARKER_INSET_MM, paperFits, startingNotes, usableLayout, validLayout } from "../../frontend/src/cv/keyboardLayout";
-import { getPianoCorners, getWhiteKeyPolygons } from "../../frontend/src/cv/keyboardGeometry";
-import { keyIndexToMidi } from "../../frontend/src/cv/noteMap";
-import { getKeyCollisions } from "../../frontend/src/cv/collision";
+import { getBlackKeyPolygons, getPianoCorners, getWhiteKeyPolygons } from "../../frontend/src/cv/keyboardGeometry";
+import { blackKeyIndexToMidi, keyIndexToMidi, pianoKeyIndexToMidi } from "../../frontend/src/cv/noteMap";
+import { getKeyCollisions, getPianoKeyCollisions } from "../../frontend/src/cv/collision";
 
 describe("actual-size octave layouts", () => {
   it.each([1, 2, 3])("matches %i assembled octaves to millimeters and hit regions", (octaves) => {
@@ -31,7 +31,32 @@ describe("actual-size octave layouts", () => {
         expect(midi).toBeLessThanOrEqual(127);
       }
       expect(keyIndexToMidi(layout.whiteKeys, layout)).toBeNull();
+      for (let index = 0; index < octaves * 5; index++) {
+        const expected = startingMidi + Math.floor(index / 5) * 12 +
+          [1, 3, 6, 8, 10][index % 5];
+        expect(blackKeyIndexToMidi(index, layout)).toBe(expected);
+        expect(pianoKeyIndexToMidi(layout.whiteKeys + index, layout)).toBe(expected);
+        expect(expected).toBeLessThanOrEqual(127);
+      }
+      expect(pianoKeyIndexToMidi(layout.whiteKeys + octaves * 5, layout)).toBeNull();
     }
+  });
+
+  it("prefers black-key collisions over the white keys beneath them", () => {
+    const layout = { octaves: 1, startingMidi: 48, whiteKeys: 8 };
+    const blackKey = getBlackKeyPolygons(layout)[0];
+    const whiteKeys = getWhiteKeyPolygons(layout);
+    const center = {
+      x: (blackKey[0].x + blackKey[1].x) / 2,
+      y: (blackKey[0].y + blackKey[2].y) / 2,
+    };
+    const collisions = getPianoKeyCollisions(
+      [{ id: "finger", handIndex: 0, landmarkIndex: 8, point: center }],
+      whiteKeys,
+      getBlackKeyPolygons(layout),
+    );
+
+    expect(collisions.map(({ keyIndex }) => keyIndex)).toEqual([layout.whiteKeys]);
   });
 
   it.each([null, {}, { ...DEFAULT_LAYOUT, octaves: 4 },
