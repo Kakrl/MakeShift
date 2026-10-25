@@ -152,7 +152,7 @@ export class LegacySynth {
   }
 }
 
-/** Bounded modal approximation: no samples, noise, detuning or pedal model. */
+/** Bounded modal approximation with binary pedals; no samples or resonance. */
 export class Synth extends LegacySynth {
   constructor(rate, options = {}) {
     super(rate, options);
@@ -239,7 +239,10 @@ export class Synth extends LegacySynth {
         ),
       };
     });
+    this.pedals = { sustain: false, sostenuto: false, soft: false };
     this.voices = this.voices.map((voice) => ({
+      held: false,
+      captured: false,
       ...voice,
       phases: new Float64Array(16),
       weights: new Float64Array(16),
@@ -264,7 +267,9 @@ export class Synth extends LegacySynth {
 
   clear() {
     super.clear();
+    if (this.pedals) this.pedals.sustain = this.pedals.sostenuto = this.pedals.soft = false;
     for (const voice of this.voices) {
+      voice.held = voice.captured = false;
       voice.ic1 = voice.ic2 = voice.last = voice.correction = 0;
       voice.correctionLeft = 0;
     }
@@ -272,6 +277,28 @@ export class Synth extends LegacySynth {
 
   handle(event) {
     if (this.legacy) return super.handle(event);
+    if (event?.type === "pedals") {
+      if (event.version !== 1 || !Number.isSafeInteger(event.session) || event.session < 1 || event.session !== this.session ||
+          ![event.sustain, event.sostenuto, event.soft].every(x => typeof x === "boolean")) return;
+      if (event.sustain === this.pedals.sustain && event.sostenuto === this.pedals.sostenuto && event.soft === this.pedals.soft) return;
+      if (event.sostenuto && !this.pedals.sostenuto)
+        for (const v of this.voices) v.captured = v.press !== 0 && v.held;
+      if (!event.sostenuto) for (const v of this.voices) v.captured = false;
+      this.pedals.sustain = event.sustain;
+      this.pedals.sostenuto = event.sostenuto;
+      this.pedals.soft = event.soft;
+      for (const v of this.voices)
+        if (v.press && !v.held && !v.releasing && !event.sustain && !v.captured) this.damp(v);
+      return;
+    }
+    if (event?.type === "note-off" && event.session === this.session) {
+      for (const v of this.voices) {
+        if (v.press !== event.press || !v.held) continue;
+        v.held = false;
+        if (!this.pedals.sustain && !v.captured) this.damp(v);
+      }
+      return;
+    }
     const previous = this.lastPress;
     let stolen = null;
     let oldOutput = 0;
@@ -296,6 +323,8 @@ export class Synth extends LegacySynth {
     }
     if (this.lastPress === previous || !stolen) return;
     const v = stolen;
+    v.held = true;
+    v.captured = false;
     v.preset = this.presets[event.note];
     v.phases.fill(0);
     let sum = 0;
@@ -305,21 +334,29 @@ export class Synth extends LegacySynth {
           ? 0
           : p === 0
             ? 1
-            : (0.22 + 0.35 * event.velocity) / (p + 1) ** 1.6;
+            : (0.22 + 0.35 * event.velocity) * (this.pedals.soft ? 0.5 : 1) / (p + 1) ** 1.6;
       v.weights[p] = w;
       sum += w;
     }
     for (let p = 0; p < 16; p++) v.weights[p] /= sum || 1;
-    v.gain = 0.095 * event.velocity ** 1.5;
+    v.gain = 0.095 * event.velocity ** 1.5 * (this.pedals.soft ? 0.65 : 1);
     v.stage = "attack";
     v.age = v.elapsed = v.level = 0;
     v.fast = v.slow = 1;
-    v.brightness = 0.4 + 0.6 * event.velocity;
+    v.brightness = (0.4 + 0.6 * event.velocity) * (this.pedals.soft ? 0.65 : 1);
     v.cutoff = v.preset.tracking;
     v.g = v.targetG = v.gStep = v.control = 0;
     v.ic1 = v.ic2 = v.last = 0;
     v.correction = oldOutput;
     v.correctionLeft = this.stealSamples;
+  }
+
+  damp(v) {
+    v.releasing = true;
+    v.stage = "release";
+    v.elapsed = 0;
+    v.releaseStart = v.level;
+    v.cutoffStart = v.cutoff;
   }
 
   render(output) {

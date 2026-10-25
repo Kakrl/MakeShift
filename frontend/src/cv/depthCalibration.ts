@@ -38,6 +38,7 @@ export interface DepthLandmark {
 }
 export interface DepthObservation {
   handedness: "Right" | "Left" | "Unknown";
+  landmarks: readonly DepthLandmark[];
   sheetY: number;
   knuckleDistance: number;
   fingertipSheetYs: readonly number[];
@@ -149,6 +150,13 @@ export function makeDepthObservation(
   expectedHand: CalibrationHand = "Right",
 ): DepthObservation | null {
   if (handedness !== expectedHand || !isFiniteNumber(sheetY)) return null;
+  if (
+    landmarks.length !== 21 ||
+    landmarks.some(({ x, y, z }) =>
+      !isFiniteNumber(x) || !isFiniteNumber(y) ||
+      z === undefined || !isFiniteNumber(z),
+    )
+  ) return null;
 
   const knuckleDistance = getKnuckleDistance(landmarks);
   const fingertipZs = getFingertipZs(landmarks);
@@ -157,6 +165,7 @@ export function makeDepthObservation(
 
   return {
     handedness,
+    landmarks: landmarks.map(({ x, y, z }) => ({ x, y, z })),
     sheetY,
     knuckleDistance,
     fingertipSheetYs: [...fingertipSheetYs],
@@ -264,6 +273,7 @@ function summarizeSamples(
   return {
     position,
     handedness: samples[0].handedness,
+    landmarks: samples[0].landmarks,
     sheetY: median(samples.map((sample) => sample.sheetY)),
     knuckleDistance: median(samples.map((sample) => sample.knuckleDistance)),
     fingertipSheetYs: DEPTH_FINGERS.map((_, index) =>
@@ -293,7 +303,7 @@ function fitFingerLines(
   return Object.fromEntries(lines) as Record<DepthFinger, DepthLine>;
 }
 
-/** Collects button-triggered right-hand samples for the three sheet positions. */
+/** Collects button-triggered samples for one hand at each sheet position. */
 export class DepthCalibrationCollector {
   private readonly samples = new Map<
     DepthCalibrationPosition,
@@ -328,6 +338,16 @@ export class DepthCalibrationCollector {
 
   getSampleCount(position: DepthCalibrationPosition): number {
     return this.samples.get(position)?.length ?? 0;
+  }
+
+  getRawLandmarkCaptures() {
+    return DEPTH_CALIBRATION_POSITIONS.flatMap((position) =>
+      (this.samples.get(position) ?? []).map((sample) => ({
+        position,
+        hand: sample.handedness,
+        landmarks: sample.landmarks.map(({ x, y, z }) => ({ x, y, z })),
+      })),
+    );
   }
 
   isComplete(): boolean {
@@ -370,7 +390,7 @@ export class DepthCalibrationCollector {
 }
 
 export function toPersistedDepthCalibration(
-  models: Readonly<Record<CalibrationHand, DepthCalibrationModel>>,
+  models: Readonly<Record<CalibrationHand, DepthCalibrationModel | null>>,
 ): PersistedDepthCalibration {
   const persistHand = (model: DepthCalibrationModel): PersistedDepthHandCalibration => ({
     knuckleDistances: Object.fromEntries(
@@ -409,7 +429,13 @@ export function toPersistedDepthCalibration(
       ]),
     ) as PersistedDepthHandCalibration["zLines"],
   });
-  return { version: 2, hands: { Right: persistHand(models.Right), Left: persistHand(models.Left) } };
+  return {
+    version: 2,
+    hands: {
+      Right: models.Right ? persistHand(models.Right) : null,
+      Left: models.Left ? persistHand(models.Left) : null,
+    },
+  };
 }
 
 function parseHandCalibration(candidate: Record<string, unknown>): PersistedDepthHandCalibration | null {

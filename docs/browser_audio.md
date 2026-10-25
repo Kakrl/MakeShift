@@ -206,3 +206,47 @@ needs no sample downloads; sampling, resonance and pedal modeling remain separat
 The previous peak was 0.08 times velocity. The new power curve uses more headroom for strong strikes and widens soft-to-loud contrast without render-loop allocations. Maximum excitation gain increases 1.49 dB. The legacy sine mix retains 0.45 dB headroom; piano output additionally includes its filter and steal correction and is verified separately. The user confirmed velocity audibility before the piano merge; listening to the combined piano/velocity implementation remains pending. Register balancing and estimator thresholds are unchanged.
 
 See the [dated verification/listening report](../tests/manual/2026-10-14_209-velocity.md) for before/after digital levels and the pending hardware procedure. Digital RMS does not establish acoustic SPL or physical latency.
+
+## Live binary pedals (#176)
+
+The default piano accepts version-1 session-scoped pedals commands on the same
+MessagePort as note-on/off; port ordering is authoritative. Three booleans carry
+the full effective state. Invalid versions, shapes and stale sessions are ignored.
+The existing 64-unacknowledged-command limit includes controls; overflow sends
+one emergency reset and rejects input until acknowledgement, including releases.
+No context recreation, network request, look-ahead or render buffering is added.
+
+Sustain retains released voices through natural decay. Sostenuto captures only
+currently held voice/press identities on an effective rising edge; reused slots
+clear capture. Damp a released voice only when neither pedal protects it. No
+pedals clears sources/captures, without damping physically held keys. Reset and
+invalidation retain emergency silence. Recording Stop clears pedal activation
+while retaining the existing independent live-note lifecycle.
+
+Ten voices remain preallocated. The first idle slot wins, otherwise the oldest
+press is stolen, including physically held or captured notes; stealing never
+inherits capture. This deliberately preserves the existing deterministic allocator.
+Retained tails retire below 0.00001 amplitude or at 30 seconds. A pedal cannot
+resurrect a damped/retired voice. Legacy ADSR mode retains its historical behavior;
+pedals apply to the production piano mode.
+
+Soft approximates una corda with 0.65 onset gain, 0.5 upper-partial excitation
+before normalization, and 0.65 brightness. The velocity^1.5 gain curve remains;
+recorded velocity is untouched. Each voice keeps its strike settings. This is an
+approximation without half-pedaling, mechanical modeling or sympathetic resonance.
+
+Bindings default unassigned and persist via version-1 shared localStorage.
+Only unmodified letter, digit and numpad digit codes are supported, reserving
+navigation/dialog/application shortcuts. Duplicate codes are rejected. Code means
+physical location, not layout-dependent printed character. UI latches and held
+keys compose by OR. Blur/hidden/navigation/session invalidation/rebinding clear
+activation; held keys stay suppressed until keyup and a fresh press. Typing,
+contenteditable, dialogs and IME do not activate pedals. Capture consumes input.
+
+[Recording/export/replay follow-up](pedal_recording_followup.md) remains deferred.
+[Verification record](../tests/manual/2026-10-23_PD-03.md) distinguishes synthetic
+coverage, the automated browser launch failure, and Carl Xu's 2026-10-23 manual
+functional pass for all pedals and programmable bindings. Specific device
+configuration, detailed recovery scenarios, live-CV profiling and physical latency
+evidence remain pending.
+No physical latency or hardware compatibility pass is claimed.

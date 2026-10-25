@@ -127,3 +127,15 @@ historical sources; their remote contents are not changed by this PR.
 Future edits to those documents should incorporate this addendum and retain
 requirement IDs. Threshold or scope changes require SDP/RVTM updates and test
 mappings under AGENTS.md.
+
+## Pedal scope (#176)
+
+| Requirement | Scope | Verification | Owner | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| PD-1 / 2.2, 2.4 | Binary sustain, press-identity sostenuto, soft strikes, bounded lifetime/stealing, ordered session control | PD-01, PD-04, PD-03 | Carl Xu | Deterministic fixtures implemented; manual pedal functionality pass reported 2026-10-23; detailed device/performance evidence pending |
+| PD-2 | Four accessible live switches; Hold/Toggle bindings, persistence/conflicts, focus and clear-all suppression | PD-02, PD-03 | Jadden Picardal (UI), Harry Deng (bindings) | Automated UI/state tests implemented; manual functionality/programming pass reported 2026-10-23; specific hardware and recovery scenarios pending |
+| PD-3 | Preserve physical MIDI durations; visibly disclose missing pedal serialization | PD-02, PD-03 | Harry Deng | Disclosure implemented; recording/replay deferred to #222 |
+
+Software render/dispatch results do not establish requirement 2.3's physical
+latency. Real device/CV tests must report p50/p95/max, fraction >=50 ms, onset
+method, uncertainty, sample rate and complete hardware/browser metadata.
