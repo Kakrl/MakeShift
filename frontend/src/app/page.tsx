@@ -11,11 +11,10 @@ import SideNav from "./SideNav";
 import PageTopBar from "./PageTopBar";
 import {
   createRecorder,
-  type Recorder,
   type Recording,
   type RecordingState,
 } from "./midi/midiUtils";
-import { trackAudioContext, closeTrackedAudioContext } from "../diagnostics/performanceMetrics";
+import { createMetronome } from "./audio/metronome";
 import { browserAudio } from "./audio/audioEngine";
 import { LiveSession } from "../events/liveSession";
 import { loadCalibration } from "../cv/calibration";
@@ -193,11 +192,7 @@ export default function Home() {
   const [session] = useState(() => new LiveSession(browserAudio));
   const [liveStatus, setLiveStatus] = useState(session.status);
   const [activePitches, setActivePitches] = useState<ReadonlySet<number>>(new Set());
-  const recorderRef = useRef<Recorder | null>(null);
-  if (recorderRef.current === null) {
-    recorderRef.current = createRecorder();
-  }
-  const recorder = recorderRef.current;
+  const [recorder] = useState(createRecorder);
   const consumersRef = useRef<ReturnType<typeof connectPianoConsumers> | null>(null);
   const recordingsLibraryRef = useRef<RecordingsLibraryHandle | null>(null);
   const [libraryLoaded, setLibraryLoaded] = useState(false);
@@ -205,6 +200,7 @@ export default function Home() {
   // `?dev=1&demo=take` acts out a finished take once the library is ready,
   // to preview the post-recording save dialog without a sheet (#203).
   const demoTakePending = useRef(true);
+  const [showRecordingComplete, setShowRecordingComplete] = useState(false);
   const updateLibraryStatus = useCallback((loaded: boolean, hasRecordings: boolean) => {
     setLibraryLoaded(loaded);
     setHasRecordings(hasRecordings);
@@ -233,7 +229,9 @@ export default function Home() {
   // ── Metronome ────────────────────────────────────────────────────────────
   const [metronome, setMetronome] = useState(DEFAULT_SETTINGS.metronome);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
-  const audioCtxRef = useRef<AudioContext | null>(null);
+  const [metronomeController] = useState(createMetronome);
+  const metronomeRequestRef = useRef(0);
+  const cancelMetronomeRequest = useCallback(() => { metronomeRequestRef.current++; }, []);
 
   useEffect(() => {
     // Initial defaults must not overwrite preferences before restoration.
@@ -245,6 +243,8 @@ export default function Home() {
   const [countInBeat, setCountInBeat] = useState<number | null>(null);
   const countInActionRef = useRef<"start" | "resume" | null>(null);
   const playRequestRef = useRef(0);
+  const audioPreparingRef = useRef(false);
+  const [audioPreparing, setAudioPreparing] = useState(false);
 
   useEffect(() => () => {
     // Ignore audio initialization that finishes after leaving this page.
@@ -269,7 +269,6 @@ export default function Home() {
   const [recordingState, setRecordingState] = useState<RecordingState>(() => recorder.getState());
   const isRecording = recordingState !== "stopped";
   const isPaused = recordingState === "paused";
-  const [showRecordingComplete, setShowRecordingComplete] = useState(false);
 
   // ── Export / delete ──────────────────────────────────────────────────────
 
@@ -310,56 +309,34 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, []);
 
-  // ── Audio click (used only for count-in) ────────────────────────────────
-  const playClick = useCallback((accent: boolean) => {
-    if (!audioCtxRef.current) audioCtxRef.current = trackAudioContext(new AudioContext());
-    const ctx = audioCtxRef.current;
-    if (ctx.state === "suspended") ctx.resume();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = "sine";
-    osc.frequency.value = accent ? 1050 : 820;
-    gain.gain.setValueAtTime(accent ? 0.65 : 0.38, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.055);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.06);
-  }, []);
+  const finishCountIn = useCallback(() => {
+    const action = countInActionRef.current;
+    if (!action) return;
+    if (session.status.state !== "playing") {
+      metronomeController.stop();
+      session.interrupt("Readiness changed during count-in. Wait for tracking, then select Enable audio.");
+      return;
+    }
+    setCountInBeat(null);
+    session.flushNotes();
+    if (action === "resume") recorder.resumeRecording();
+    else recorder.startRecording(tempo);
+    consumersRef.current?.captureHeld();
+    setRecordingState(recorder.getState());
+    countInActionRef.current = null;
+  }, [session, recorder, tempo, metronomeController]);
 
-  // ── Beat-based count-in (1 measure at current tempo) ────────────────────
   useEffect(() => {
-    if (countInBeat === null) return;
-    // Play click for this beat (accent on beat 1)
-    if (metronome) playClick(countInBeat === 1);
-    const intervalMs = (60 / tempo) * 1000;
-    const timer = setTimeout(() => {
-      if (countInActionRef.current === null) return;
-      if (countInBeat >= beatsPerMeasure) {
-        // Measure complete, start recording
-        if (session.status.state !== "playing") {
-          session.interrupt("Readiness changed during count-in. Wait for tracking, then select Enable audio.");
-          return;
-        }
-        setCountInBeat(null);
+    metronomeController.configure({ tempo, beatsPerMeasure, audible: metronome }, {
+      onCountInBeat: setCountInBeat,
+      onCountInComplete: finishCountIn,
+      onUnavailable: () => session.interrupt("Metronome audio interrupted. Select Enable audio to retry."),
+    });
+  }, [metronomeController, tempo, beatsPerMeasure, metronome, finishCountIn, session]);
 
-        session.flushNotes();
-        // Resume keeps the existing take and excludes the count-in time.
-        if (countInActionRef.current === "resume") {
-          recorder.resumeRecording();
-        } else {
-          recorder.startRecording(tempo);
-        }
-        consumersRef.current?.captureHeld();
-        setRecordingState(recorder.getState());
-        countInActionRef.current = null;
-      } else {
-        setCountInBeat((b) => (b !== null ? b + 1 : null));
-      }
-    }, intervalMs);
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [countInBeat]);
+  useEffect(() => {
+    metronomeController.setPlaying(liveStatus.state === "playing", isPaused);
+  }, [metronomeController, liveStatus.state, isPaused]);
 
   // Playing and recording share readiness, but have independent lifetimes.
   const canPlay = liveStatus.canStart;
@@ -373,10 +350,16 @@ export default function Home() {
     const unsubscribe = session.subscribe(() => {
       const status = session.status;
       setLiveStatus(status);
+      if (status.state !== "playing") {
+        metronomeController.stop();
+        cancelMetronomeRequest();
+      }
       const changed = previousState !== status.state;
       previousState = status.state;
       if (changed && (status.state === "interrupted" || status.state === "error")) {
         playRequestRef.current++;
+        audioPreparingRef.current = false;
+        setAudioPreparing(false);
         countInActionRef.current = null;
         setCountInBeat(null);
         session.flushNotes();
@@ -398,22 +381,60 @@ export default function Home() {
       disconnectNotes();
       consumersRef.current = null;
       recorder.stopRecording();
-      if (audioCtxRef.current) void closeTrackedAudioContext(audioCtxRef.current);
+      cancelMetronomeRequest();
+      metronomeController.close();
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("pagehide", leave);
     };
-  }, [session, recorder, completeTake]);
+  }, [session, recorder, completeTake, metronomeController, cancelMetronomeRequest]);
   const enableAudio = async () => {
-    if (!canPlay) return false;
-    if (session.status.state === "playing") return true;
-    if (!await session.prepare()) return false;
-    return session.play() !== null;
+    if (!canPlay || audioPreparingRef.current) return false;
+    const request = playRequestRef.current;
+    audioPreparingRef.current = true;
+    setAudioPreparing(true);
+    try {
+      // Both contexts are prepared from this gesture; Stop can cancel either.
+      const clicksReady = metronome ? metronomeController.prepare() : Promise.resolve(true);
+      const prepared = session.status.state === "playing" || await session.prepare();
+      const clickPrepared = await clicksReady;
+      if (request !== playRequestRef.current) return false;
+      if (!prepared) return false;
+      if (!clickPrepared) {
+        session.interrupt("Metronome audio could not start. Select Enable audio to retry.");
+        return false;
+      }
+      return session.status.state === "playing" || session.play() !== null;
+    } finally {
+      if (request === playRequestRef.current) {
+        audioPreparingRef.current = false;
+        setAudioPreparing(false);
+      }
+    }
+  };
+
+  const toggleMetronome = async () => {
+    const request = ++metronomeRequestRef.current;
+    if (metronome) {
+      metronomeController.setAudible(false);
+      setMetronome(false);
+      return;
+    }
+    if (session.status.state === "playing") {
+      const ready = await metronomeController.prepare();
+      if (request !== metronomeRequestRef.current) return;
+      if (!ready) {
+        session.interrupt("Metronome audio could not start. Select Enable audio to retry.");
+        return;
+      }
+    }
+    if (request === metronomeRequestRef.current) setMetronome(true);
   };
   const handlePlay = async () => {
-    if (countInBeat !== null || session.status.state === "starting") return;
+    if (audioPreparingRef.current || countInBeat !== null || session.status.state === "starting") return;
     if (isRecording && !isPaused) {
       session.flushNotes();
       recorder.pauseRecording();
+      metronomeController.setPlaying(true, true);
       setRecordingState(recorder.getState());
       return;
     }
@@ -425,6 +446,8 @@ export default function Home() {
       // Keep the existing take paused until the count-in finishes.
       countInActionRef.current = "resume";
       setCountInBeat(1);
+      metronomeController.setPlaying(true, true);
+      metronomeController.beginCountIn();
       return;
     }
     // Start fresh, clear previous session and begin count-in
@@ -432,10 +455,16 @@ export default function Home() {
     setShowRecordingComplete(false);
     countInActionRef.current = "start";
     setCountInBeat(1);
+    metronomeController.setPlaying(true);
+    metronomeController.beginCountIn();
   };
 
   const handleStop = () => {
-    if (session.status.state === "starting") session.stop();
+    metronomeController.cancelCountIn();
+    metronomeController.setPlaying(session.status.state === "playing");
+    if (audioPreparingRef.current || session.status.state === "starting") session.stop();
+    audioPreparingRef.current = false;
+    setAudioPreparing(false);
     session.flushNotes();
     playRequestRef.current += 1;
     countInActionRef.current = null;
@@ -456,8 +485,8 @@ export default function Home() {
   };
 
   const recordLabel = isRecording && !isPaused ? "Pause" : isPaused ? "Resume" : "Record";
-  const recordDisabled = !libraryLoaded || !canPlay || countInBeat !== null || liveStatus.state === "starting";
-  const stopDisabled = !isRecording && countInBeat === null && liveStatus.state !== "starting";
+  const recordDisabled = !libraryLoaded || !canPlay || countInBeat !== null || audioPreparing || liveStatus.state === "starting";
+  const stopDisabled = !isRecording && countInBeat === null && !audioPreparing && liveStatus.state !== "starting";
   // Playback settings only matter once a calibration exists.
   const settingsLocked = !settingsLoaded || isCalibrated !== true;
   const needsCalibration = isCalibrated === false;
@@ -707,7 +736,7 @@ export default function Home() {
             <div className="col-span-2 sm:col-span-1 lg:col-span-1 flex items-center justify-between gap-3 sm:self-end lg:self-auto sm:h-[38px] lg:h-auto lg:pt-1">
               <span className={`text-[16px] whitespace-nowrap transition-colors ${settingLabel}`}>Metronome</span>
               <button
-                onClick={() => setMetronome((enabled) => !enabled)}
+                onClick={toggleMetronome}
                 disabled={settingsLocked}
                 aria-label="Toggle metronome"
                 aria-pressed={metronome}
@@ -739,7 +768,7 @@ export default function Home() {
           <div className="relative flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
           <button
             onClick={enableAudio}
-            disabled={!canPlay || liveStatus.state === "starting" || liveStatus.state === "playing"}
+            disabled={!canPlay || audioPreparing || liveStatus.state === "starting" || liveStatus.state === "playing"}
             className="ms-key ms-transport-key"
           >
             <SpeakerIcon />

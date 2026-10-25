@@ -364,3 +364,9 @@ meeting, so they always reflect current state:
   issues drop off as they are closed during review, carried-over issues stay,
   and the newly scoped issues from planning are added in. The view should only
   ever contain work that is in scope for the current sprint.
+
+Metronome implementation: `frontend/src/app/audio/metronome.ts` owns click
+audio and the shared count-in/accompaniment clock. Its controller tests are in
+`tests/frontend/metronome.test.ts`; the manually invoked real-Web-Audio
+harness is `tests/frontend/metronome.browser.mjs`. Home integration stays in
+`tests/frontend/recordingControls.test.tsx`.

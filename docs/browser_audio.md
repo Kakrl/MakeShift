@@ -206,3 +206,22 @@ needs no sample downloads; sampling, resonance and pedal modeling remain separat
 The previous peak was 0.08 times velocity. The new power curve uses more headroom for strong strikes and widens soft-to-loud contrast without render-loop allocations. Maximum excitation gain increases 1.49 dB. The legacy sine mix retains 0.45 dB headroom; piano output additionally includes its filter and steal correction and is verified separately. The user confirmed velocity audibility before the piano merge; listening to the combined piano/velocity implementation remains pending. Register balancing and estimator thresholds are unchanged.
 
 See the [dated verification/listening report](../tests/manual/2026-10-14_209-velocity.md) for before/after digital levels and the pending hardware procedure. Digital RMS does not establish acoustic SPL or physical latency.
+
+## Continuous metronome (#206)
+
+Home owns one reusable controller in
+`frontend/src/app/audio/metronome.ts`. It replaces the count-in-only
+React timeout chain and inline click synthesis. One monotonic deadline timer
+coordinates count-in completion and ongoing accompaniment, preventing duplicate
+click streams. Late callbacks skip missed deadlines instead of bursting clicks;
+main-thread stalls can still delay onsets. This is not sample-accurate scheduling.
+A tempo edit applies to the interval following the pending beat.
+
+The click AudioContext is prepared from a user gesture, tracked for diagnostics,
+and closed on unmount. Clicks bypass musical-event dispatch and the MIDI
+recorder. Recording start/resume still perform a one-bar count-in and capture
+held notes; muted count-ins still advance visually. Pause silences clicks,
+Stop recording resumes live accompaniment, and session interruption stops the
+controller. Stop also cancels pending asynchronous audio preparation.
+The existing calibration/readiness checks and time-signature interpretation
+remain in force. See the [verification record](../tests/README.md#continuous-metronome-206).

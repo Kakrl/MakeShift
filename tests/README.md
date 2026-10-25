@@ -1532,3 +1532,30 @@ keyboard layout and audio smoke. All deployment assertions passed with the
 previously diagnosed local --disable-gpu workaround in a removed temporary
 runner; the committed runner is unchanged. Physical hardware was not measured.
 Actions execution for this follow-up is unverified.
+
+## Continuous metronome (#206)
+
+Local verification, 2026-10-25, Windows, branch
+`feature/206-continuous-metronome` (uncommitted working tree based on
+`ddb6d72`): lint, TypeScript, Vitest (545 passed, one existing skip),
+contrast (37 pairs) and production build passed. MET-01 adds nine controller
+cases; MET-02 adds four recording integration cases, including parsing an actual
+MIDI export to prove clicks do not add notes. Existing recording tests remain.
+
+Against the production server on port 3206, Chromium 151.0.7922.34 passed
+keyboard-layout and browser-audio regressions. MET-03 passed with live click RMS
+0.14496, pause/toggle-off silence, resume count-in, muted count-in and
+close/reprepare. The harness uses the actual controller and Web Audio synthesis;
+it replaces diagnostic accounting only and does not exercise physical CV.
+
+Run MET-03 from frontend with a production server running:
+`MAKE_SHIFT_URL=http://127.0.0.1:3000 AUDIO_BROWSER_CHANNEL=chromium node ../tests/frontend/metronome.browser.mjs`
+(PowerShell: set the two environment variables separately.)
+
+Deployment smoke passed using a temporary copy with `--disable-gpu` for the
+known local simulated-camera stall. Five assets, all five pages, three
+play/stop rounds without note requests, and camera denial/recovery passed.
+The committed runner is unchanged; database was unconfigured. The temporary
+copy was removed. GitHub Actions evidence and physical camera/speaker listening
+remain pending. Follow the frontend README checklist for the latter; no manual
+pass, physical latency or jitter improvement is claimed.

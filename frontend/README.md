@@ -140,3 +140,19 @@ show an error and can be retried. Upload integration is separate (#133).
 
 Profile saves preserve a valid ID already stored by another tab, including
 retries after initial storage failure. The panel adopts the saved profile.
+
+## Continuous metronome (#206)
+
+After Enable audio succeeds, the metronome accompanies ordinary live playing
+and recording. Pause recording silences it; Resume uses the existing one-bar
+count-in before accompaniment resumes. Stop recording returns to live playing,
+so enabled clicks continue. Turning the toggle off, losing session readiness,
+or leaving the page silences clicks. Calibration requirements are unchanged.
+Clicks use a separate Web Audio output and never enter recorded MIDI notes.
+Time-signature interpretation, including 6/8, is unchanged.
+
+To check manually, complete calibration and enable audio, then listen during
+live playing, Start, Pause, Resume and Stop. Toggle the metronome off/on and
+confirm silence after navigating away. Download a take and verify that only
+played notes appear in a MIDI editor. Automated checks do not replace this
+physical-camera/speaker check.
