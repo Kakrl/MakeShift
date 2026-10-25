@@ -30,6 +30,10 @@ MakeShift/
 │       └── __init__.py
 ├── docs/
 │   ├── architecture.md              # browser target, tooling, delivery boundaries
+│   ├── cv_automated_testing.md       # working plan for labeled CV recordings and metrics
+│   ├── cv_video_tests.md             # quick guide for preparing and running CV video tests
+│   ├── cv_knuckle_boundary.md        # current knuckle eligibility heuristic and review questions
+│   ├── cv_video_test_template.json   # per-video CV labels and calibration template
 │   ├── rvtm_browser_addendum.md      # browser requirement/test reconciliation
 │   ├── performance.md              # bounded pipeline metrics, clocks and profiling
 │   ├── latency_estimation.md       # software estimate, assumptions and sensitivity
@@ -119,6 +123,7 @@ MakeShift/
 │   │   ├── pianoTimbre.test.ts       # piano modal envelopes/filter/spectra/lifecycle
 │   │   ├── pianoProfile.browser.mjs  # paired synchronous browser DSP benchmark
 │   │   ├── deployment.browser.mjs    # production assets, camera recovery, offline playing
+│   │   ├── runCvVideo.mjs             # builds app and runs a labeled CV replay
 │   │   ├── homePage.test.ts
 │   │   ├── supabaseHealth.test.ts    # /api/health database check
 │   │   ├── pianoIntegration.test.ts # deterministic note-to-audio/MIDI/feedback
@@ -366,3 +371,11 @@ meeting, so they always reflect current state:
   issues drop off as they are closed during review, carried-over issues stay,
   and the newly scoped issues from planning are added in. The view should only
   ever contain work that is in scope for the current sprint.
+
+### Pedal implementation files (#176)
+
+Playing UI: frontend/src/app/PedalControls.tsx. Synchronous source owner and
+binding validation: frontend/src/events/pedals.ts. Existing BrowserAudio/worklet
+and synth carry controls. Tests: tests/frontend/pedals.test.ts,
+pedalControls.test.tsx and the expanded browserAudioLifecycle.test.ts. No new
+subsystem directory is introduced.

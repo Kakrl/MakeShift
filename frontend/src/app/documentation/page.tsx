@@ -59,6 +59,11 @@ export default function Home() {
             Documentation
           </a>
         </div>
+        <section id="pedal-recording" className="bg-surface text-ink p-4">
+          <h2 className="text-xl">Pedal recording and replay follow-up</h2>
+          <p>Live pedals affect sound only. Recordings and MIDI exports preserve physical key durations and do not record pedals.</p>
+          <p>Planned extension: separately ordered pedal events, MIDI control changes, playback restoration and safe pause/seek/stop resets. Public follow-up issue pending; tracked with issue #176.</p>
+        </section>
       </main>
     </div>
   );

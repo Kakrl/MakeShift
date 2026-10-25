@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useCamera } from "./CameraContext";
 import CameraStatusOverlay from "./CameraStatusOverlay";
 import SideNav from "./SideNav";
+import PedalControls from "./PedalControls";
 import PageTopBar from "./PageTopBar";
 import {
   createRecorder,
@@ -437,7 +438,9 @@ export default function Home() {
     setCountInBeat(1);
   };
 
+  const pedalClearRef = useRef<(() => void) | null>(null);
   const handleStop = () => {
+    pedalClearRef.current?.();
     if (session.status.state === "starting") session.stop();
     session.flushNotes();
     playRequestRef.current += 1;
@@ -760,6 +763,7 @@ export default function Home() {
         </SideNav>
       </div>
 
+      <PedalControls active={liveStatus.state === "playing"} clearRef={pedalClearRef} />
       {/* Bottom: Listen (left) + transport (centre) */}
       <div className="flex items-center shrink-0 pl-(--gutter-l) pr-(--gutter-r) pb-[clamp(16px,3dvh,36px)] pt-[clamp(16px,2.5dvh,28px)]">
         <div className="flex-1 relative flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
