@@ -371,3 +371,11 @@ meeting, so they always reflect current state:
   issues drop off as they are closed during review, carried-over issues stay,
   and the newly scoped issues from planning are added in. The view should only
   ever contain work that is in scope for the current sprint.
+
+### Pedal implementation files (#176)
+
+Playing UI: frontend/src/app/PedalControls.tsx. Synchronous source owner and
+binding validation: frontend/src/events/pedals.ts. Existing BrowserAudio/worklet
+and synth carry controls. Tests: tests/frontend/pedals.test.ts,
+pedalControls.test.tsx and the expanded browserAudioLifecycle.test.ts. No new
+subsystem directory is introduced.
