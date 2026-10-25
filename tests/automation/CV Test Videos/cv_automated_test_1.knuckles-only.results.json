@@ -1,0 +1,3227 @@
+{
+  "clip": "cv_automation_test_1.mov",
+  "processedFrames": 288,
+  "runtime": {
+    "handLandmarkerDelegate": "GPU",
+    "webGlAvailable": true,
+    "webGlVendor": "Google Inc. (Apple)",
+    "webGlRenderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2, Unspecified Version)"
+  },
+  "transitions": [
+    {
+      "kind": "press",
+      "keyIndex": 0,
+      "frame": 82,
+      "mediaTimeMs": 2733.3333333333335
+    },
+    {
+      "kind": "release",
+      "keyIndex": 0,
+      "frame": 83,
+      "mediaTimeMs": 2766.6666666666665
+    },
+    {
+      "kind": "press",
+      "keyIndex": 3,
+      "frame": 125,
+      "mediaTimeMs": 4166.666666666667
+    },
+    {
+      "kind": "release",
+      "keyIndex": 3,
+      "frame": 126,
+      "mediaTimeMs": 4200
+    },
+    {
+      "kind": "press",
+      "keyIndex": 3,
+      "frame": 131,
+      "mediaTimeMs": 4366.666666666667
+    },
+    {
+      "kind": "press",
+      "keyIndex": 5,
+      "frame": 131,
+      "mediaTimeMs": 4366.666666666667
+    },
+    {
+      "kind": "press",
+      "keyIndex": 6,
+      "frame": 131,
+      "mediaTimeMs": 4366.666666666667
+    },
+    {
+      "kind": "release",
+      "keyIndex": 6,
+      "frame": 132,
+      "mediaTimeMs": 4400
+    },
+    {
+      "kind": "press",
+      "keyIndex": 7,
+      "frame": 134,
+      "mediaTimeMs": 4466.666666666667
+    },
+    {
+      "kind": "release",
+      "keyIndex": 3,
+      "frame": 135,
+      "mediaTimeMs": 4500
+    },
+    {
+      "kind": "release",
+      "keyIndex": 5,
+      "frame": 136,
+      "mediaTimeMs": 4533.333333333333
+    },
+    {
+      "kind": "release",
+      "keyIndex": 7,
+      "frame": 136,
+      "mediaTimeMs": 4533.333333333333
+    }
+  ],
+  "scores": {
+    "press": {
+      "kind": "press",
+      "truePositive": 1,
+      "falsePositive": 5,
+      "falseNegative": 7,
+      "precision": 0.16666666666666666,
+      "recall": 0.125,
+      "matches": [
+        {
+          "expected": {
+            "id": "event-004",
+            "kind": "press",
+            "keyIndex": 3,
+            "frame": 130,
+            "earliestFrame": 129,
+            "latestFrame": 130
+          },
+          "predicted": {
+            "kind": "press",
+            "keyIndex": 3,
+            "frame": 131,
+            "mediaTimeMs": 4366.666666666667
+          },
+          "timingErrorFrames": 1
+        }
+      ],
+      "unmatchedExpected": [
+        {
+          "id": "event-001",
+          "kind": "press",
+          "keyIndex": 0,
+          "frame": 86,
+          "earliestFrame": 86,
+          "latestFrame": 87
+        },
+        {
+          "id": "event-002",
+          "kind": "press",
+          "keyIndex": 1,
+          "frame": 98,
+          "earliestFrame": 98,
+          "latestFrame": 99
+        },
+        {
+          "id": "event-003",
+          "kind": "press",
+          "keyIndex": 2,
+          "frame": 114,
+          "earliestFrame": 114,
+          "latestFrame": 114
+        },
+        {
+          "id": "event-005",
+          "kind": "press",
+          "keyIndex": 4,
+          "frame": 149,
+          "earliestFrame": 149,
+          "latestFrame": 150
+        },
+        {
+          "id": "event-006",
+          "kind": "press",
+          "keyIndex": 5,
+          "frame": 165,
+          "earliestFrame": 165,
+          "latestFrame": 165
+        },
+        {
+          "id": "event-007",
+          "kind": "press",
+          "keyIndex": 6,
+          "frame": 181,
+          "earliestFrame": 180,
+          "latestFrame": 181
+        },
+        {
+          "id": "event-008",
+          "kind": "press",
+          "keyIndex": 7,
+          "frame": 199,
+          "earliestFrame": 198,
+          "latestFrame": 199
+        }
+      ],
+      "unmatchedPredicted": [
+        {
+          "kind": "press",
+          "keyIndex": 0,
+          "frame": 82,
+          "mediaTimeMs": 2733.3333333333335
+        },
+        {
+          "kind": "press",
+          "keyIndex": 3,
+          "frame": 125,
+          "mediaTimeMs": 4166.666666666667
+        },
+        {
+          "kind": "press",
+          "keyIndex": 5,
+          "frame": 131,
+          "mediaTimeMs": 4366.666666666667
+        },
+        {
+          "kind": "press",
+          "keyIndex": 6,
+          "frame": 131,
+          "mediaTimeMs": 4366.666666666667
+        },
+        {
+          "kind": "press",
+          "keyIndex": 7,
+          "frame": 134,
+          "mediaTimeMs": 4466.666666666667
+        }
+      ]
+    },
+    "release": {
+      "kind": "release",
+      "truePositive": 0,
+      "falsePositive": 6,
+      "falseNegative": 8,
+      "precision": 0,
+      "recall": 0,
+      "matches": [],
+      "unmatchedExpected": [
+        {
+          "id": "event-001",
+          "kind": "release",
+          "keyIndex": 0,
+          "frame": 89,
+          "earliestFrame": 89,
+          "latestFrame": 90
+        },
+        {
+          "id": "event-002",
+          "kind": "release",
+          "keyIndex": 1,
+          "frame": 104,
+          "earliestFrame": 103,
+          "latestFrame": 104
+        },
+        {
+          "id": "event-003",
+          "kind": "release",
+          "keyIndex": 2,
+          "frame": 118,
+          "earliestFrame": 117,
+          "latestFrame": 118
+        },
+        {
+          "id": "event-004",
+          "kind": "release",
+          "keyIndex": 3,
+          "frame": 131,
+          "earliestFrame": 131,
+          "latestFrame": 132
+        },
+        {
+          "id": "event-005",
+          "kind": "release",
+          "keyIndex": 4,
+          "frame": 151,
+          "earliestFrame": 151,
+          "latestFrame": 152
+        },
+        {
+          "id": "event-006",
+          "kind": "release",
+          "keyIndex": 5,
+          "frame": 171,
+          "earliestFrame": 171,
+          "latestFrame": 171
+        },
+        {
+          "id": "event-007",
+          "kind": "release",
+          "keyIndex": 6,
+          "frame": 187,
+          "earliestFrame": 186,
+          "latestFrame": 187
+        },
+        {
+          "id": "event-008",
+          "kind": "release",
+          "keyIndex": 7,
+          "frame": 204,
+          "earliestFrame": 204,
+          "latestFrame": 204
+        }
+      ],
+      "unmatchedPredicted": [
+        {
+          "kind": "release",
+          "keyIndex": 0,
+          "frame": 83,
+          "mediaTimeMs": 2766.6666666666665
+        },
+        {
+          "kind": "release",
+          "keyIndex": 3,
+          "frame": 126,
+          "mediaTimeMs": 4200
+        },
+        {
+          "kind": "release",
+          "keyIndex": 3,
+          "frame": 135,
+          "mediaTimeMs": 4500
+        },
+        {
+          "kind": "release",
+          "keyIndex": 5,
+          "frame": 136,
+          "mediaTimeMs": 4533.333333333333
+        },
+        {
+          "kind": "release",
+          "keyIndex": 6,
+          "frame": 132,
+          "mediaTimeMs": 4400
+        },
+        {
+          "kind": "release",
+          "keyIndex": 7,
+          "frame": 136,
+          "mediaTimeMs": 4533.333333333333
+        }
+      ]
+    }
+  },
+  "performance": {
+    "processedFrames": 288,
+    "sourceDurationMs": 9566.666666666666,
+    "processedFps": 28.297437509823947,
+    "skippedPresentedFrames": 0,
+    "inferenceMs": {
+      "median": 19.40000000037253,
+      "p95": 33.5,
+      "max": 384.79999999981374
+    },
+    "processMs": {
+      "median": 19.5,
+      "p95": 33.59999999962747,
+      "max": 488.1000000005588
+    },
+    "replayElapsedMs": 10177.799999999814,
+    "replayFps": 28.29688144785762,
+    "steadyStateReplayFps": 29.619080054080317,
+    "markerDetectionCount": 1,
+    "shadowSamplesSubmitted": 0,
+    "markerAcquired": true,
+    "markerAcquireIntervalMs": 250,
+    "markerCheckIntervalMs": 10000,
+    "frameStages": [
+      {
+        "frame": 0,
+        "mediaTimeMs": 0,
+        "seekMs": 0,
+        "markerMs": 74.20000000018626,
+        "geometryMs": 0.39999999944120646,
+        "inferenceMs": 384.79999999981374,
+        "contactMs": 0.30000000074505806,
+        "totalCvMs": 488.1000000005588
+      },
+      {
+        "frame": 1,
+        "mediaTimeMs": 33.333333333333336,
+        "seekMs": 10.599999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.099999999627471,
+        "contactMs": 0,
+        "totalCvMs": 10.200000000186265
+      },
+      {
+        "frame": 2,
+        "mediaTimeMs": 66.66666666666667,
+        "seekMs": 6.7999999998137355,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.099999999627471,
+        "contactMs": 0,
+        "totalCvMs": 10.099999999627471
+      },
+      {
+        "frame": 3,
+        "mediaTimeMs": 100,
+        "seekMs": 7,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.399999999441206,
+        "contactMs": 0,
+        "totalCvMs": 10.399999999441206
+      },
+      {
+        "frame": 4,
+        "mediaTimeMs": 133.33333333333334,
+        "seekMs": 7.300000000745058,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11.5,
+        "contactMs": 0,
+        "totalCvMs": 11.5
+      },
+      {
+        "frame": 5,
+        "mediaTimeMs": 166.66666666666666,
+        "seekMs": 9.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 15,
+        "contactMs": 0,
+        "totalCvMs": 15
+      },
+      {
+        "frame": 6,
+        "mediaTimeMs": 200,
+        "seekMs": 8.699999999254942,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 16,
+        "contactMs": 0,
+        "totalCvMs": 16
+      },
+      {
+        "frame": 7,
+        "mediaTimeMs": 233.33333333333334,
+        "seekMs": 10.800000000745058,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.59999999962747,
+        "contactMs": 0,
+        "totalCvMs": 17.699999999254942
+      },
+      {
+        "frame": 8,
+        "mediaTimeMs": 266.6666666666667,
+        "seekMs": 9.400000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.59999999962747,
+        "contactMs": 0,
+        "totalCvMs": 17.59999999962747
+      },
+      {
+        "frame": 9,
+        "mediaTimeMs": 300,
+        "seekMs": 10.300000000745058,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.899999999441206,
+        "contactMs": 0,
+        "totalCvMs": 17.899999999441206
+      },
+      {
+        "frame": 10,
+        "mediaTimeMs": 333.3333333333333,
+        "seekMs": 10.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11,
+        "contactMs": 0,
+        "totalCvMs": 11
+      },
+      {
+        "frame": 11,
+        "mediaTimeMs": 366.6666666666667,
+        "seekMs": 12.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10,
+        "contactMs": 0,
+        "totalCvMs": 10
+      },
+      {
+        "frame": 12,
+        "mediaTimeMs": 400,
+        "seekMs": 13.599999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11.300000000745058,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 11.5
+      },
+      {
+        "frame": 13,
+        "mediaTimeMs": 433.3333333333333,
+        "seekMs": 13.599999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 13.900000000372529,
+        "contactMs": 0,
+        "totalCvMs": 13.900000000372529
+      },
+      {
+        "frame": 14,
+        "mediaTimeMs": 466.6666666666667,
+        "seekMs": 12.299999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.90000000037253,
+        "contactMs": 0,
+        "totalCvMs": 17.90000000037253
+      },
+      {
+        "frame": 15,
+        "mediaTimeMs": 500,
+        "seekMs": 13.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 13.899999999441206,
+        "contactMs": 0,
+        "totalCvMs": 13.899999999441206
+      },
+      {
+        "frame": 16,
+        "mediaTimeMs": 533.3333333333334,
+        "seekMs": 13.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.5,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 9.600000000558794
+      },
+      {
+        "frame": 17,
+        "mediaTimeMs": 566.6666666666666,
+        "seekMs": 14.899999999441206,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.100000000558794,
+        "contactMs": 0,
+        "totalCvMs": 10.100000000558794
+      },
+      {
+        "frame": 18,
+        "mediaTimeMs": 600,
+        "seekMs": 15.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11.299999999813735,
+        "contactMs": 0,
+        "totalCvMs": 11.299999999813735
+      },
+      {
+        "frame": 19,
+        "mediaTimeMs": 633.3333333333334,
+        "seekMs": 15.099999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.300000000745058,
+        "contactMs": 0,
+        "totalCvMs": 17.300000000745058
+      },
+      {
+        "frame": 20,
+        "mediaTimeMs": 666.6666666666666,
+        "seekMs": 15.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 19.299999999813735,
+        "contactMs": 0,
+        "totalCvMs": 19.299999999813735
+      },
+      {
+        "frame": 21,
+        "mediaTimeMs": 700,
+        "seekMs": 16,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.799999999813735,
+        "contactMs": 0,
+        "totalCvMs": 10.799999999813735
+      },
+      {
+        "frame": 22,
+        "mediaTimeMs": 733.3333333333334,
+        "seekMs": 17.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11.099999999627471,
+        "contactMs": 0,
+        "totalCvMs": 11.099999999627471
+      },
+      {
+        "frame": 23,
+        "mediaTimeMs": 766.6666666666666,
+        "seekMs": 16.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11,
+        "contactMs": 0,
+        "totalCvMs": 11
+      },
+      {
+        "frame": 24,
+        "mediaTimeMs": 800,
+        "seekMs": 17.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 16.600000000558794,
+        "contactMs": 0,
+        "totalCvMs": 16.600000000558794
+      },
+      {
+        "frame": 25,
+        "mediaTimeMs": 833.3333333333334,
+        "seekMs": 16.899999999441206,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.600000000558794,
+        "contactMs": 0,
+        "totalCvMs": 17.600000000558794
+      },
+      {
+        "frame": 26,
+        "mediaTimeMs": 866.6666666666666,
+        "seekMs": 17.399999999441206,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.5,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 9.600000000558794
+      },
+      {
+        "frame": 27,
+        "mediaTimeMs": 900,
+        "seekMs": 18.59999999962747,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11.400000000372529,
+        "contactMs": 0,
+        "totalCvMs": 11.400000000372529
+      },
+      {
+        "frame": 28,
+        "mediaTimeMs": 933.3333333333334,
+        "seekMs": 20.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 14,
+        "contactMs": 0,
+        "totalCvMs": 14
+      },
+      {
+        "frame": 29,
+        "mediaTimeMs": 966.6666666666666,
+        "seekMs": 20.299999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 18.40000000037253,
+        "contactMs": 0,
+        "totalCvMs": 18.40000000037253
+      },
+      {
+        "frame": 30,
+        "mediaTimeMs": 1000,
+        "seekMs": 21.09999999962747,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.299999999813735,
+        "contactMs": 0,
+        "totalCvMs": 17.299999999813735
+      },
+      {
+        "frame": 31,
+        "mediaTimeMs": 1033.3333333333333,
+        "seekMs": 7.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.900000000372529,
+        "contactMs": 0,
+        "totalCvMs": 9.900000000372529
+      },
+      {
+        "frame": 32,
+        "mediaTimeMs": 1066.6666666666667,
+        "seekMs": 7.599999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 10.100000000558794
+      },
+      {
+        "frame": 33,
+        "mediaTimeMs": 1100,
+        "seekMs": 8.899999999441206,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11.299999999813735,
+        "contactMs": 0,
+        "totalCvMs": 11.299999999813735
+      },
+      {
+        "frame": 34,
+        "mediaTimeMs": 1133.3333333333333,
+        "seekMs": 9.400000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11.700000000186265,
+        "contactMs": 0,
+        "totalCvMs": 11.700000000186265
+      },
+      {
+        "frame": 35,
+        "mediaTimeMs": 1166.6666666666667,
+        "seekMs": 7.7000000001862645,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 12.399999999441206,
+        "contactMs": 0,
+        "totalCvMs": 12.399999999441206
+      },
+      {
+        "frame": 36,
+        "mediaTimeMs": 1200,
+        "seekMs": 9.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 16.59999999962747,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 16.700000000186265
+      },
+      {
+        "frame": 37,
+        "mediaTimeMs": 1233.3333333333333,
+        "seekMs": 9,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.200000000186265,
+        "contactMs": 0,
+        "totalCvMs": 17.299999999813735
+      },
+      {
+        "frame": 38,
+        "mediaTimeMs": 1266.6666666666667,
+        "seekMs": 10.900000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.699999999254942,
+        "contactMs": 0,
+        "totalCvMs": 9.799999999813735
+      },
+      {
+        "frame": 39,
+        "mediaTimeMs": 1300,
+        "seekMs": 12,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11.399999999441206,
+        "contactMs": 0,
+        "totalCvMs": 11.399999999441206
+      },
+      {
+        "frame": 40,
+        "mediaTimeMs": 1333.3333333333333,
+        "seekMs": 12.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.800000000745058,
+        "contactMs": 0,
+        "totalCvMs": 10.800000000745058
+      },
+      {
+        "frame": 41,
+        "mediaTimeMs": 1366.6666666666667,
+        "seekMs": 11.099999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 14.099999999627471,
+        "contactMs": 0,
+        "totalCvMs": 14.099999999627471
+      },
+      {
+        "frame": 42,
+        "mediaTimeMs": 1400,
+        "seekMs": 11.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 14.200000000186265,
+        "contactMs": 0,
+        "totalCvMs": 14.200000000186265
+      },
+      {
+        "frame": 43,
+        "mediaTimeMs": 1433.3333333333333,
+        "seekMs": 12.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 18,
+        "contactMs": 0,
+        "totalCvMs": 18
+      },
+      {
+        "frame": 44,
+        "mediaTimeMs": 1466.6666666666667,
+        "seekMs": 13.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.900000000372529,
+        "contactMs": 0,
+        "totalCvMs": 9.900000000372529
+      },
+      {
+        "frame": 45,
+        "mediaTimeMs": 1500,
+        "seekMs": 15,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.599999999627471,
+        "contactMs": 0,
+        "totalCvMs": 9.599999999627471
+      },
+      {
+        "frame": 46,
+        "mediaTimeMs": 1533.3333333333333,
+        "seekMs": 15.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 13.200000000186265,
+        "contactMs": 0,
+        "totalCvMs": 13.200000000186265
+      },
+      {
+        "frame": 47,
+        "mediaTimeMs": 1566.6666666666667,
+        "seekMs": 13.699999999254942,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 15.100000000558794,
+        "contactMs": 0,
+        "totalCvMs": 15.100000000558794
+      },
+      {
+        "frame": 48,
+        "mediaTimeMs": 1600,
+        "seekMs": 14.599999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 16,
+        "contactMs": 0,
+        "totalCvMs": 16
+      },
+      {
+        "frame": 49,
+        "mediaTimeMs": 1633.3333333333333,
+        "seekMs": 14.900000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.5,
+        "contactMs": 0,
+        "totalCvMs": 9.5
+      },
+      {
+        "frame": 50,
+        "mediaTimeMs": 1666.6666666666667,
+        "seekMs": 17.59999999962747,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.299999999813735,
+        "contactMs": 0,
+        "totalCvMs": 10.299999999813735
+      },
+      {
+        "frame": 51,
+        "mediaTimeMs": 1700,
+        "seekMs": 18.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11,
+        "contactMs": 0,
+        "totalCvMs": 11
+      },
+      {
+        "frame": 52,
+        "mediaTimeMs": 1733.3333333333333,
+        "seekMs": 16.600000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 16.899999999441206,
+        "contactMs": 0,
+        "totalCvMs": 16.899999999441206
+      },
+      {
+        "frame": 53,
+        "mediaTimeMs": 1766.6666666666667,
+        "seekMs": 16.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.40000000037253,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 17.5
+      },
+      {
+        "frame": 54,
+        "mediaTimeMs": 1800,
+        "seekMs": 16.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.700000000186265,
+        "contactMs": 0,
+        "totalCvMs": 9.700000000186265
+      },
+      {
+        "frame": 55,
+        "mediaTimeMs": 1833.3333333333333,
+        "seekMs": 17.90000000037253,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11.5,
+        "contactMs": 0,
+        "totalCvMs": 11.5
+      },
+      {
+        "frame": 56,
+        "mediaTimeMs": 1866.6666666666667,
+        "seekMs": 17.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 13.099999999627471,
+        "contactMs": 0,
+        "totalCvMs": 13.099999999627471
+      },
+      {
+        "frame": 57,
+        "mediaTimeMs": 1900,
+        "seekMs": 20.300000000745058,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.399999999441206,
+        "contactMs": 0,
+        "totalCvMs": 17.399999999441206
+      },
+      {
+        "frame": 58,
+        "mediaTimeMs": 1933.3333333333333,
+        "seekMs": 20.899999999441206,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 19.40000000037253,
+        "contactMs": 0,
+        "totalCvMs": 19.40000000037253
+      },
+      {
+        "frame": 59,
+        "mediaTimeMs": 1966.6666666666667,
+        "seekMs": 22.399999999441206,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.700000000186265,
+        "contactMs": 0,
+        "totalCvMs": 9.700000000186265
+      },
+      {
+        "frame": 60,
+        "mediaTimeMs": 2000,
+        "seekMs": 8,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.400000000372529,
+        "contactMs": 0,
+        "totalCvMs": 9.400000000372529
+      },
+      {
+        "frame": 61,
+        "mediaTimeMs": 2033.3333333333333,
+        "seekMs": 8.399999999441206,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.400000000372529,
+        "contactMs": 0,
+        "totalCvMs": 10.400000000372529
+      },
+      {
+        "frame": 62,
+        "mediaTimeMs": 2066.6666666666665,
+        "seekMs": 8.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 13.299999999813735,
+        "contactMs": 0,
+        "totalCvMs": 13.299999999813735
+      },
+      {
+        "frame": 63,
+        "mediaTimeMs": 2100,
+        "seekMs": 8.400000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 14.099999999627471,
+        "contactMs": 0,
+        "totalCvMs": 14.099999999627471
+      },
+      {
+        "frame": 64,
+        "mediaTimeMs": 2133.3333333333335,
+        "seekMs": 8.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 41.700000000186265,
+        "contactMs": 0.7000000001862645,
+        "totalCvMs": 42.5
+      },
+      {
+        "frame": 65,
+        "mediaTimeMs": 2166.6666666666665,
+        "seekMs": 9,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 32.200000000186265,
+        "contactMs": 0.20000000018626451,
+        "totalCvMs": 32.40000000037253
+      },
+      {
+        "frame": 66,
+        "mediaTimeMs": 2200,
+        "seekMs": 9.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 29.399999999441206,
+        "contactMs": 0.40000000037252903,
+        "totalCvMs": 29.799999999813735
+      },
+      {
+        "frame": 67,
+        "mediaTimeMs": 2233.3333333333335,
+        "seekMs": 10.599999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.40000000037253,
+        "contactMs": 0.20000000018626451,
+        "totalCvMs": 21.600000000558794
+      },
+      {
+        "frame": 68,
+        "mediaTimeMs": 2266.6666666666665,
+        "seekMs": 10.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 24.200000000186265,
+        "contactMs": 0.20000000018626451,
+        "totalCvMs": 24.40000000037253
+      },
+      {
+        "frame": 69,
+        "mediaTimeMs": 2300,
+        "seekMs": 11.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 26.799999999813735,
+        "contactMs": 0,
+        "totalCvMs": 26.899999999441206
+      },
+      {
+        "frame": 70,
+        "mediaTimeMs": 2333.3333333333335,
+        "seekMs": 11.299999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 24.299999999813735,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 24.399999999441206
+      },
+      {
+        "frame": 71,
+        "mediaTimeMs": 2366.6666666666665,
+        "seekMs": 11.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 27,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 27.100000000558794
+      },
+      {
+        "frame": 72,
+        "mediaTimeMs": 2400,
+        "seekMs": 12.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 28.399999999441206,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 28.59999999962747
+      },
+      {
+        "frame": 73,
+        "mediaTimeMs": 2433.3333333333335,
+        "seekMs": 13.299999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 27.90000000037253,
+        "contactMs": 0,
+        "totalCvMs": 27.90000000037253
+      },
+      {
+        "frame": 74,
+        "mediaTimeMs": 2466.6666666666665,
+        "seekMs": 13.400000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 19.59999999962747,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 19.699999999254942
+      },
+      {
+        "frame": 75,
+        "mediaTimeMs": 2500,
+        "seekMs": 14,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.5,
+        "contactMs": 0,
+        "totalCvMs": 21.5
+      },
+      {
+        "frame": 76,
+        "mediaTimeMs": 2533.3333333333335,
+        "seekMs": 15.100000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 38.89999999944121,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 39
+      },
+      {
+        "frame": 77,
+        "mediaTimeMs": 2566.6666666666665,
+        "seekMs": 14.900000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 29.09999999962747,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 29.200000000186265
+      },
+      {
+        "frame": 78,
+        "mediaTimeMs": 2600,
+        "seekMs": 15.199999999254942,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20,
+        "contactMs": 0,
+        "totalCvMs": 20
+      },
+      {
+        "frame": 79,
+        "mediaTimeMs": 2633.3333333333335,
+        "seekMs": 16.800000000745058,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.399999999441206,
+        "contactMs": 0,
+        "totalCvMs": 21.399999999441206
+      },
+      {
+        "frame": 80,
+        "mediaTimeMs": 2666.6666666666665,
+        "seekMs": 15.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 27.299999999813735,
+        "contactMs": 0,
+        "totalCvMs": 27.299999999813735
+      },
+      {
+        "frame": 81,
+        "mediaTimeMs": 2700,
+        "seekMs": 16.899999999441206,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 31.40000000037253,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 31.5
+      },
+      {
+        "frame": 82,
+        "mediaTimeMs": 2733.3333333333335,
+        "seekMs": 17.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20.40000000037253,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 20.5
+      },
+      {
+        "frame": 83,
+        "mediaTimeMs": 2766.6666666666665,
+        "seekMs": 17.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 22.40000000037253,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 22.5
+      },
+      {
+        "frame": 84,
+        "mediaTimeMs": 2800,
+        "seekMs": 18.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 31.200000000186265,
+        "contactMs": 0.20000000018626451,
+        "totalCvMs": 31.40000000037253
+      },
+      {
+        "frame": 85,
+        "mediaTimeMs": 2833.3333333333335,
+        "seekMs": 19.299999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 34,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 34.10000000055879
+      },
+      {
+        "frame": 86,
+        "mediaTimeMs": 2866.6666666666665,
+        "seekMs": 19.399999999441206,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.200000000186265,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 21.299999999813735
+      },
+      {
+        "frame": 87,
+        "mediaTimeMs": 2900,
+        "seekMs": 19.90000000037253,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 25,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 25.09999999962747
+      },
+      {
+        "frame": 88,
+        "mediaTimeMs": 2933.3333333333335,
+        "seekMs": 23,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 28.700000000186265,
+        "contactMs": 0,
+        "totalCvMs": 28.700000000186265
+      },
+      {
+        "frame": 89,
+        "mediaTimeMs": 2966.6666666666665,
+        "seekMs": 22.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.09999999962747,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 21.200000000186265
+      },
+      {
+        "frame": 90,
+        "mediaTimeMs": 3000,
+        "seekMs": 23.299999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 24.59999999962747,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 24.700000000186265
+      },
+      {
+        "frame": 91,
+        "mediaTimeMs": 3033.3333333333335,
+        "seekMs": 7.2000000001862645,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 25.59999999962747,
+        "contactMs": 0,
+        "totalCvMs": 25.59999999962747
+      },
+      {
+        "frame": 92,
+        "mediaTimeMs": 3066.6666666666665,
+        "seekMs": 7,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 30.700000000186265,
+        "contactMs": 0,
+        "totalCvMs": 30.799999999813735
+      },
+      {
+        "frame": 93,
+        "mediaTimeMs": 3100,
+        "seekMs": 8.299999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 28.90000000037253,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 29
+      },
+      {
+        "frame": 94,
+        "mediaTimeMs": 3133.3333333333335,
+        "seekMs": 8.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 20.100000000558794
+      },
+      {
+        "frame": 95,
+        "mediaTimeMs": 3166.6666666666665,
+        "seekMs": 8.699999999254942,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20.5,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 20.600000000558794
+      },
+      {
+        "frame": 96,
+        "mediaTimeMs": 3200,
+        "seekMs": 9.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.09999999962747,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 21.199999999254942
+      },
+      {
+        "frame": 97,
+        "mediaTimeMs": 3233.3333333333335,
+        "seekMs": 28.40000000037253,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 26.59999999962747,
+        "contactMs": 0.20000000018626451,
+        "totalCvMs": 26.799999999813735
+      },
+      {
+        "frame": 98,
+        "mediaTimeMs": 3266.6666666666665,
+        "seekMs": 10.299999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 28.800000000745058,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 28.90000000037253
+      },
+      {
+        "frame": 99,
+        "mediaTimeMs": 3300,
+        "seekMs": 11.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 19.799999999813735,
+        "contactMs": 0,
+        "totalCvMs": 19.799999999813735
+      },
+      {
+        "frame": 100,
+        "mediaTimeMs": 3333.3333333333335,
+        "seekMs": 11.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.200000000186265,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 21.299999999813735
+      },
+      {
+        "frame": 101,
+        "mediaTimeMs": 3366.6666666666665,
+        "seekMs": 12.100000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 25,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 25.09999999962747
+      },
+      {
+        "frame": 102,
+        "mediaTimeMs": 3400,
+        "seekMs": 13.600000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 31.699999999254942,
+        "contactMs": 0,
+        "totalCvMs": 31.799999999813735
+      },
+      {
+        "frame": 103,
+        "mediaTimeMs": 3433.3333333333335,
+        "seekMs": 13.599999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 35.200000000186265,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 35.299999999813735
+      },
+      {
+        "frame": 104,
+        "mediaTimeMs": 3466.6666666666665,
+        "seekMs": 13.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20.700000000186265,
+        "contactMs": 0,
+        "totalCvMs": 20.799999999813735
+      },
+      {
+        "frame": 105,
+        "mediaTimeMs": 3500,
+        "seekMs": 14.600000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 24.09999999962747,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 24.200000000186265
+      },
+      {
+        "frame": 106,
+        "mediaTimeMs": 3533.3333333333335,
+        "seekMs": 15.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 32.69999999925494,
+        "contactMs": 0,
+        "totalCvMs": 32.69999999925494
+      },
+      {
+        "frame": 107,
+        "mediaTimeMs": 3566.6666666666665,
+        "seekMs": 15.400000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 23.799999999813735,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 23.90000000037253
+      },
+      {
+        "frame": 108,
+        "mediaTimeMs": 3600,
+        "seekMs": 16.59999999962747,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.700000000186265,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 21.799999999813735
+      },
+      {
+        "frame": 109,
+        "mediaTimeMs": 3633.3333333333335,
+        "seekMs": 16.40000000037253,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 24.799999999813735,
+        "contactMs": 0,
+        "totalCvMs": 24.899999999441206
+      },
+      {
+        "frame": 110,
+        "mediaTimeMs": 3666.6666666666665,
+        "seekMs": 16.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 34.80000000074506,
+        "contactMs": 0,
+        "totalCvMs": 34.80000000074506
+      },
+      {
+        "frame": 111,
+        "mediaTimeMs": 3700,
+        "seekMs": 17.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 29.200000000186265,
+        "contactMs": 0,
+        "totalCvMs": 29.200000000186265
+      },
+      {
+        "frame": 112,
+        "mediaTimeMs": 3733.3333333333335,
+        "seekMs": 18.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20,
+        "contactMs": 0,
+        "totalCvMs": 20
+      },
+      {
+        "frame": 113,
+        "mediaTimeMs": 3766.6666666666665,
+        "seekMs": 18.59999999962747,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 25.700000000186265,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 25.799999999813735
+      },
+      {
+        "frame": 114,
+        "mediaTimeMs": 3800,
+        "seekMs": 19,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 35.700000000186265,
+        "contactMs": 0,
+        "totalCvMs": 35.799999999813735
+      },
+      {
+        "frame": 115,
+        "mediaTimeMs": 3833.3333333333335,
+        "seekMs": 19.800000000745058,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 37.59999999962747,
+        "contactMs": 0,
+        "totalCvMs": 37.69999999925494
+      },
+      {
+        "frame": 116,
+        "mediaTimeMs": 3866.6666666666665,
+        "seekMs": 19.40000000037253,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.200000000186265,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 21.299999999813735
+      },
+      {
+        "frame": 117,
+        "mediaTimeMs": 3900,
+        "seekMs": 22,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 30.40000000037253,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 30.5
+      },
+      {
+        "frame": 118,
+        "mediaTimeMs": 3933.3333333333335,
+        "seekMs": 22.40000000037253,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 25.399999999441206,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 25.5
+      },
+      {
+        "frame": 119,
+        "mediaTimeMs": 3966.6666666666665,
+        "seekMs": 22.59999999962747,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.700000000186265,
+        "contactMs": 0,
+        "totalCvMs": 21.700000000186265
+      },
+      {
+        "frame": 120,
+        "mediaTimeMs": 4000,
+        "seekMs": 7.2000000001862645,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 25.59999999962747,
+        "contactMs": 0.20000000018626451,
+        "totalCvMs": 25.799999999813735
+      },
+      {
+        "frame": 121,
+        "mediaTimeMs": 4033.3333333333335,
+        "seekMs": 7.400000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 30.5,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 30.59999999962747
+      },
+      {
+        "frame": 122,
+        "mediaTimeMs": 4066.6666666666665,
+        "seekMs": 7.7999999998137355,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 25.90000000037253,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 26
+      },
+      {
+        "frame": 123,
+        "mediaTimeMs": 4100,
+        "seekMs": 7.6000000005587935,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20.199999999254942,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 20.299999999813735
+      },
+      {
+        "frame": 124,
+        "mediaTimeMs": 4133.333333333333,
+        "seekMs": 9.299999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20.59999999962747,
+        "contactMs": 0,
+        "totalCvMs": 20.59999999962747
+      },
+      {
+        "frame": 125,
+        "mediaTimeMs": 4166.666666666667,
+        "seekMs": 8.800000000745058,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 22.699999999254942,
+        "contactMs": 0,
+        "totalCvMs": 22.699999999254942
+      },
+      {
+        "frame": 126,
+        "mediaTimeMs": 4200,
+        "seekMs": 9.800000000745058,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 27.5,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 27.59999999962747
+      },
+      {
+        "frame": 127,
+        "mediaTimeMs": 4233.333333333333,
+        "seekMs": 10.600000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 28.299999999813735,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 28.399999999441206
+      },
+      {
+        "frame": 128,
+        "mediaTimeMs": 4266.666666666667,
+        "seekMs": 10.800000000745058,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20.299999999813735,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 20.399999999441206
+      },
+      {
+        "frame": 129,
+        "mediaTimeMs": 4300,
+        "seekMs": 11.900000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 22.5,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 22.700000000186265
+      },
+      {
+        "frame": 130,
+        "mediaTimeMs": 4333.333333333333,
+        "seekMs": 11.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 25.09999999962747,
+        "contactMs": 0,
+        "totalCvMs": 25.200000000186265
+      },
+      {
+        "frame": 131,
+        "mediaTimeMs": 4366.666666666667,
+        "seekMs": 12.099999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 34.60000000055879,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 34.700000000186265
+      },
+      {
+        "frame": 132,
+        "mediaTimeMs": 4400,
+        "seekMs": 13.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 32.10000000055879,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 32.200000000186265
+      },
+      {
+        "frame": 133,
+        "mediaTimeMs": 4433.333333333333,
+        "seekMs": 13.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20.5,
+        "contactMs": 0,
+        "totalCvMs": 20.5
+      },
+      {
+        "frame": 134,
+        "mediaTimeMs": 4466.666666666667,
+        "seekMs": 13.400000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 22.399999999441206,
+        "contactMs": 0,
+        "totalCvMs": 22.399999999441206
+      },
+      {
+        "frame": 135,
+        "mediaTimeMs": 4500,
+        "seekMs": 14.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 25.799999999813735,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 25.90000000037253
+      },
+      {
+        "frame": 136,
+        "mediaTimeMs": 4533.333333333333,
+        "seekMs": 15.299999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 28.59999999962747,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 28.700000000186265
+      },
+      {
+        "frame": 137,
+        "mediaTimeMs": 4566.666666666667,
+        "seekMs": 15.099999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 20.09999999962747
+      },
+      {
+        "frame": 138,
+        "mediaTimeMs": 4600,
+        "seekMs": 15.800000000745058,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 23.09999999962747,
+        "contactMs": 0,
+        "totalCvMs": 23.09999999962747
+      },
+      {
+        "frame": 139,
+        "mediaTimeMs": 4633.333333333333,
+        "seekMs": 16.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 31.200000000186265,
+        "contactMs": 0,
+        "totalCvMs": 31.200000000186265
+      },
+      {
+        "frame": 140,
+        "mediaTimeMs": 4666.666666666667,
+        "seekMs": 16.09999999962747,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 27.700000000186265,
+        "contactMs": 0,
+        "totalCvMs": 27.700000000186265
+      },
+      {
+        "frame": 141,
+        "mediaTimeMs": 4700,
+        "seekMs": 17.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20.799999999813735,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 20.899999999441206
+      },
+      {
+        "frame": 142,
+        "mediaTimeMs": 4733.333333333333,
+        "seekMs": 18.100000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 25.09999999962747,
+        "contactMs": 0,
+        "totalCvMs": 25.09999999962747
+      },
+      {
+        "frame": 143,
+        "mediaTimeMs": 4766.666666666667,
+        "seekMs": 18,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 34.09999999962747,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 34.200000000186265
+      },
+      {
+        "frame": 144,
+        "mediaTimeMs": 4800,
+        "seekMs": 18.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 29.299999999813735,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 29.40000000037253
+      },
+      {
+        "frame": 145,
+        "mediaTimeMs": 4833.333333333333,
+        "seekMs": 19.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20.199999999254942,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 20.299999999813735
+      },
+      {
+        "frame": 146,
+        "mediaTimeMs": 4866.666666666667,
+        "seekMs": 19.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 25.399999999441206,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 25.5
+      },
+      {
+        "frame": 147,
+        "mediaTimeMs": 4900,
+        "seekMs": 20.199999999254942,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 28.700000000186265,
+        "contactMs": 0,
+        "totalCvMs": 28.700000000186265
+      },
+      {
+        "frame": 148,
+        "mediaTimeMs": 4933.333333333333,
+        "seekMs": 22.699999999254942,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 34.60000000055879,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 34.700000000186265
+      },
+      {
+        "frame": 149,
+        "mediaTimeMs": 4966.666666666667,
+        "seekMs": 27.90000000037253,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 33.799999999813735,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 33.89999999944121
+      },
+      {
+        "frame": 150,
+        "mediaTimeMs": 5000,
+        "seekMs": 23.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 38.299999999813735,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 38.40000000037253
+      },
+      {
+        "frame": 151,
+        "mediaTimeMs": 5033.333333333333,
+        "seekMs": 7,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 42.89999999944121,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 43
+      },
+      {
+        "frame": 152,
+        "mediaTimeMs": 5066.666666666667,
+        "seekMs": 6.8999999994412065,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20.5,
+        "contactMs": 0,
+        "totalCvMs": 20.5
+      },
+      {
+        "frame": 153,
+        "mediaTimeMs": 5100,
+        "seekMs": 7.900000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20.299999999813735,
+        "contactMs": 0,
+        "totalCvMs": 20.299999999813735
+      },
+      {
+        "frame": 154,
+        "mediaTimeMs": 5133.333333333333,
+        "seekMs": 8.199999999254942,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 23.800000000745058,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 24
+      },
+      {
+        "frame": 155,
+        "mediaTimeMs": 5166.666666666667,
+        "seekMs": 8.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 27.799999999813735,
+        "contactMs": 0,
+        "totalCvMs": 27.799999999813735
+      },
+      {
+        "frame": 156,
+        "mediaTimeMs": 5200,
+        "seekMs": 9.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 30.700000000186265,
+        "contactMs": 0,
+        "totalCvMs": 30.700000000186265
+      },
+      {
+        "frame": 157,
+        "mediaTimeMs": 5233.333333333333,
+        "seekMs": 9.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 27.90000000037253,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 28
+      },
+      {
+        "frame": 158,
+        "mediaTimeMs": 5266.666666666667,
+        "seekMs": 9.400000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 19.5,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 19.59999999962747
+      },
+      {
+        "frame": 159,
+        "mediaTimeMs": 5300,
+        "seekMs": 10.600000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20.5,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 20.59999999962747
+      },
+      {
+        "frame": 160,
+        "mediaTimeMs": 5333.333333333333,
+        "seekMs": 11.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 23.200000000186265,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 23.299999999813735
+      },
+      {
+        "frame": 161,
+        "mediaTimeMs": 5366.666666666667,
+        "seekMs": 11.400000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 29.200000000186265,
+        "contactMs": 0.19999999925494194,
+        "totalCvMs": 29.399999999441206
+      },
+      {
+        "frame": 162,
+        "mediaTimeMs": 5400,
+        "seekMs": 14.600000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 30.799999999813735,
+        "contactMs": 0,
+        "totalCvMs": 30.799999999813735
+      },
+      {
+        "frame": 163,
+        "mediaTimeMs": 5433.333333333333,
+        "seekMs": 12.599999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 19,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 19.100000000558794
+      },
+      {
+        "frame": 164,
+        "mediaTimeMs": 5466.666666666667,
+        "seekMs": 12.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20.299999999813735,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 20.399999999441206
+      },
+      {
+        "frame": 165,
+        "mediaTimeMs": 5500,
+        "seekMs": 13.400000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 24.799999999813735,
+        "contactMs": 0,
+        "totalCvMs": 24.799999999813735
+      },
+      {
+        "frame": 166,
+        "mediaTimeMs": 5533.333333333333,
+        "seekMs": 14.099999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 29.800000000745058,
+        "contactMs": 0,
+        "totalCvMs": 29.800000000745058
+      },
+      {
+        "frame": 167,
+        "mediaTimeMs": 5566.666666666667,
+        "seekMs": 14.699999999254942,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 19.600000000558794,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 19.700000000186265
+      },
+      {
+        "frame": 168,
+        "mediaTimeMs": 5600,
+        "seekMs": 15.400000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.59999999962747,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 21.700000000186265
+      },
+      {
+        "frame": 169,
+        "mediaTimeMs": 5633.333333333333,
+        "seekMs": 15.699999999254942,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 24.40000000037253,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 24.5
+      },
+      {
+        "frame": 170,
+        "mediaTimeMs": 5666.666666666667,
+        "seekMs": 15.600000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 27.399999999441206,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 27.5
+      },
+      {
+        "frame": 171,
+        "mediaTimeMs": 5700,
+        "seekMs": 16.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 19.799999999813735,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 19.899999999441206
+      },
+      {
+        "frame": 172,
+        "mediaTimeMs": 5733.333333333333,
+        "seekMs": 17.100000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 22.199999999254942,
+        "contactMs": 0,
+        "totalCvMs": 22.299999999813735
+      },
+      {
+        "frame": 173,
+        "mediaTimeMs": 5766.666666666667,
+        "seekMs": 17.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 31,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 31.09999999962747
+      },
+      {
+        "frame": 174,
+        "mediaTimeMs": 5800,
+        "seekMs": 17.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 27.09999999962747,
+        "contactMs": 0,
+        "totalCvMs": 27.09999999962747
+      },
+      {
+        "frame": 175,
+        "mediaTimeMs": 5833.333333333333,
+        "seekMs": 18.299999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.100000000558794,
+        "contactMs": 0,
+        "totalCvMs": 21.100000000558794
+      },
+      {
+        "frame": 176,
+        "mediaTimeMs": 5866.666666666667,
+        "seekMs": 18.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 23.799999999813735,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 23.90000000037253
+      },
+      {
+        "frame": 177,
+        "mediaTimeMs": 5900,
+        "seekMs": 21.09999999962747,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 27.59999999962747,
+        "contactMs": 0,
+        "totalCvMs": 27.59999999962747
+      },
+      {
+        "frame": 178,
+        "mediaTimeMs": 5933.333333333333,
+        "seekMs": 21.40000000037253,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20.299999999813735,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 20.5
+      },
+      {
+        "frame": 179,
+        "mediaTimeMs": 5966.666666666667,
+        "seekMs": 22.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.799999999813735,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 21.899999999441206
+      },
+      {
+        "frame": 180,
+        "mediaTimeMs": 6000,
+        "seekMs": 7.1000000005587935,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 24.799999999813735,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 24.899999999441206
+      },
+      {
+        "frame": 181,
+        "mediaTimeMs": 6033.333333333333,
+        "seekMs": 7.6000000005587935,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 30.899999999441206,
+        "contactMs": 0,
+        "totalCvMs": 30.899999999441206
+      },
+      {
+        "frame": 182,
+        "mediaTimeMs": 6066.666666666667,
+        "seekMs": 7.6000000005587935,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 33.5,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 33.59999999962747
+      },
+      {
+        "frame": 183,
+        "mediaTimeMs": 6100,
+        "seekMs": 9,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 18.799999999813735,
+        "contactMs": 0.20000000018626451,
+        "totalCvMs": 19
+      },
+      {
+        "frame": 184,
+        "mediaTimeMs": 6133.333333333333,
+        "seekMs": 9.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 19.40000000037253,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 19.5
+      },
+      {
+        "frame": 185,
+        "mediaTimeMs": 6166.666666666667,
+        "seekMs": 9.099999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.90000000037253,
+        "contactMs": 0,
+        "totalCvMs": 22
+      },
+      {
+        "frame": 186,
+        "mediaTimeMs": 6200,
+        "seekMs": 9.800000000745058,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 24.899999999441206,
+        "contactMs": 0,
+        "totalCvMs": 24.899999999441206
+      },
+      {
+        "frame": 187,
+        "mediaTimeMs": 6233.333333333333,
+        "seekMs": 10.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 30.40000000037253,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 30.5
+      },
+      {
+        "frame": 188,
+        "mediaTimeMs": 6266.666666666667,
+        "seekMs": 11,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20.200000000186265,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 20.300000000745058
+      },
+      {
+        "frame": 189,
+        "mediaTimeMs": 6300,
+        "seekMs": 11.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20.399999999441206,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 20.5
+      },
+      {
+        "frame": 190,
+        "mediaTimeMs": 6333.333333333333,
+        "seekMs": 11.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.799999999813735,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 21.90000000037253
+      },
+      {
+        "frame": 191,
+        "mediaTimeMs": 6366.666666666667,
+        "seekMs": 12.399999999441206,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 27.90000000037253,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 28
+      },
+      {
+        "frame": 192,
+        "mediaTimeMs": 6400,
+        "seekMs": 13.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 25.200000000186265,
+        "contactMs": 0,
+        "totalCvMs": 25.299999999813735
+      },
+      {
+        "frame": 193,
+        "mediaTimeMs": 6433.333333333333,
+        "seekMs": 14,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 19.40000000037253,
+        "contactMs": 0,
+        "totalCvMs": 19.40000000037253
+      },
+      {
+        "frame": 194,
+        "mediaTimeMs": 6466.666666666667,
+        "seekMs": 14.099999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.40000000037253,
+        "contactMs": 0,
+        "totalCvMs": 21.40000000037253
+      },
+      {
+        "frame": 195,
+        "mediaTimeMs": 6500,
+        "seekMs": 15.299999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 29.40000000037253,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 29.5
+      },
+      {
+        "frame": 196,
+        "mediaTimeMs": 6533.333333333333,
+        "seekMs": 15.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 23,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 23.100000000558794
+      },
+      {
+        "frame": 197,
+        "mediaTimeMs": 6566.666666666667,
+        "seekMs": 15.599999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 20.299999999813735,
+        "contactMs": 0,
+        "totalCvMs": 20.299999999813735
+      },
+      {
+        "frame": 198,
+        "mediaTimeMs": 6600,
+        "seekMs": 16.40000000037253,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 24.700000000186265,
+        "contactMs": 0,
+        "totalCvMs": 24.700000000186265
+      },
+      {
+        "frame": 199,
+        "mediaTimeMs": 6633.333333333333,
+        "seekMs": 17.40000000037253,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 29.399999999441206,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 29.5
+      },
+      {
+        "frame": 200,
+        "mediaTimeMs": 6666.666666666667,
+        "seekMs": 16.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 19.899999999441206,
+        "contactMs": 0,
+        "totalCvMs": 19.899999999441206
+      },
+      {
+        "frame": 201,
+        "mediaTimeMs": 6700,
+        "seekMs": 17.800000000745058,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.899999999441206,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 22
+      },
+      {
+        "frame": 202,
+        "mediaTimeMs": 6733.333333333333,
+        "seekMs": 18.09999999962747,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 29.90000000037253,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 30
+      },
+      {
+        "frame": 203,
+        "mediaTimeMs": 6766.666666666667,
+        "seekMs": 18.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 27.399999999441206,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 27.5
+      },
+      {
+        "frame": 204,
+        "mediaTimeMs": 6800,
+        "seekMs": 18.899999999441206,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 19.800000000745058,
+        "contactMs": 0,
+        "totalCvMs": 19.800000000745058
+      },
+      {
+        "frame": 205,
+        "mediaTimeMs": 6833.333333333333,
+        "seekMs": 19.699999999254942,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 21.100000000558794,
+        "contactMs": 0,
+        "totalCvMs": 21.100000000558794
+      },
+      {
+        "frame": 206,
+        "mediaTimeMs": 6866.666666666667,
+        "seekMs": 19.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 24.59999999962747,
+        "contactMs": 0,
+        "totalCvMs": 24.59999999962747
+      },
+      {
+        "frame": 207,
+        "mediaTimeMs": 6900,
+        "seekMs": 20.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 25.5,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 25.59999999962747
+      },
+      {
+        "frame": 208,
+        "mediaTimeMs": 6933.333333333333,
+        "seekMs": 22.40000000037253,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 19.59999999962747,
+        "contactMs": 0,
+        "totalCvMs": 19.59999999962747
+      },
+      {
+        "frame": 209,
+        "mediaTimeMs": 6966.666666666667,
+        "seekMs": 22.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 22,
+        "contactMs": 0.09999999962747097,
+        "totalCvMs": 22.09999999962747
+      },
+      {
+        "frame": 210,
+        "mediaTimeMs": 7000,
+        "seekMs": 23.300000000745058,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 25,
+        "contactMs": 0,
+        "totalCvMs": 25
+      },
+      {
+        "frame": 211,
+        "mediaTimeMs": 7033.333333333333,
+        "seekMs": 6.8999999994412065,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 13.5,
+        "contactMs": 0,
+        "totalCvMs": 13.5
+      },
+      {
+        "frame": 212,
+        "mediaTimeMs": 7066.666666666667,
+        "seekMs": 8.100000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 16.5,
+        "contactMs": 0,
+        "totalCvMs": 16.5
+      },
+      {
+        "frame": 213,
+        "mediaTimeMs": 7100,
+        "seekMs": 8.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17,
+        "contactMs": 0,
+        "totalCvMs": 17
+      },
+      {
+        "frame": 214,
+        "mediaTimeMs": 7133.333333333333,
+        "seekMs": 10.099999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11.200000000186265,
+        "contactMs": 0,
+        "totalCvMs": 11.200000000186265
+      },
+      {
+        "frame": 215,
+        "mediaTimeMs": 7166.666666666667,
+        "seekMs": 8.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11.100000000558794,
+        "contactMs": 0,
+        "totalCvMs": 11.100000000558794
+      },
+      {
+        "frame": 216,
+        "mediaTimeMs": 7200,
+        "seekMs": 9.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11,
+        "contactMs": 0,
+        "totalCvMs": 11
+      },
+      {
+        "frame": 217,
+        "mediaTimeMs": 7233.333333333333,
+        "seekMs": 9.399999999441206,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.600000000558794,
+        "contactMs": 0,
+        "totalCvMs": 10.600000000558794
+      },
+      {
+        "frame": 218,
+        "mediaTimeMs": 7266.666666666667,
+        "seekMs": 11.299999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 13.200000000186265,
+        "contactMs": 0,
+        "totalCvMs": 13.299999999813735
+      },
+      {
+        "frame": 219,
+        "mediaTimeMs": 7300,
+        "seekMs": 12,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.09999999962747,
+        "contactMs": 0,
+        "totalCvMs": 17.09999999962747
+      },
+      {
+        "frame": 220,
+        "mediaTimeMs": 7333.333333333333,
+        "seekMs": 12.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.799999999813735,
+        "contactMs": 0,
+        "totalCvMs": 17.799999999813735
+      },
+      {
+        "frame": 221,
+        "mediaTimeMs": 7366.666666666667,
+        "seekMs": 11.100000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.899999999441206,
+        "contactMs": 0,
+        "totalCvMs": 9.899999999441206
+      },
+      {
+        "frame": 222,
+        "mediaTimeMs": 7400,
+        "seekMs": 12.100000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.600000000558794,
+        "contactMs": 0,
+        "totalCvMs": 10.600000000558794
+      },
+      {
+        "frame": 223,
+        "mediaTimeMs": 7433.333333333333,
+        "seekMs": 12.599999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.5,
+        "contactMs": 0,
+        "totalCvMs": 10.599999999627471
+      },
+      {
+        "frame": 224,
+        "mediaTimeMs": 7466.666666666667,
+        "seekMs": 13.800000000745058,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 13.199999999254942,
+        "contactMs": 0,
+        "totalCvMs": 13.199999999254942
+      },
+      {
+        "frame": 225,
+        "mediaTimeMs": 7500,
+        "seekMs": 15.100000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 15.099999999627471,
+        "contactMs": 0,
+        "totalCvMs": 15.099999999627471
+      },
+      {
+        "frame": 226,
+        "mediaTimeMs": 7533.333333333333,
+        "seekMs": 15.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 14.300000000745058,
+        "contactMs": 0,
+        "totalCvMs": 14.300000000745058
+      },
+      {
+        "frame": 227,
+        "mediaTimeMs": 7566.666666666667,
+        "seekMs": 14.399999999441206,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.299999999813735,
+        "contactMs": 0,
+        "totalCvMs": 9.299999999813735
+      },
+      {
+        "frame": 228,
+        "mediaTimeMs": 7600,
+        "seekMs": 15.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.200000000186265,
+        "contactMs": 0,
+        "totalCvMs": 10.200000000186265
+      },
+      {
+        "frame": 229,
+        "mediaTimeMs": 7633.333333333333,
+        "seekMs": 15.299999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11.600000000558794,
+        "contactMs": 0,
+        "totalCvMs": 11.700000000186265
+      },
+      {
+        "frame": 230,
+        "mediaTimeMs": 7666.666666666667,
+        "seekMs": 18.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 13.5,
+        "contactMs": 0,
+        "totalCvMs": 13.5
+      },
+      {
+        "frame": 231,
+        "mediaTimeMs": 7700,
+        "seekMs": 19,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.399999999441206,
+        "contactMs": 0,
+        "totalCvMs": 17.5
+      },
+      {
+        "frame": 232,
+        "mediaTimeMs": 7733.333333333333,
+        "seekMs": 20,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11,
+        "contactMs": 0,
+        "totalCvMs": 11
+      },
+      {
+        "frame": 233,
+        "mediaTimeMs": 7766.666666666667,
+        "seekMs": 16.899999999441206,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 12.200000000186265,
+        "contactMs": 0,
+        "totalCvMs": 12.300000000745058
+      },
+      {
+        "frame": 234,
+        "mediaTimeMs": 7800,
+        "seekMs": 17.09999999962747,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11.799999999813735,
+        "contactMs": 0,
+        "totalCvMs": 11.799999999813735
+      },
+      {
+        "frame": 235,
+        "mediaTimeMs": 7833.333333333333,
+        "seekMs": 18.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 15.099999999627471,
+        "contactMs": 0,
+        "totalCvMs": 15.099999999627471
+      },
+      {
+        "frame": 236,
+        "mediaTimeMs": 7866.666666666667,
+        "seekMs": 18.90000000037253,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.40000000037253,
+        "contactMs": 0,
+        "totalCvMs": 17.40000000037253
+      },
+      {
+        "frame": 237,
+        "mediaTimeMs": 7900,
+        "seekMs": 21.09999999962747,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.5,
+        "contactMs": 0,
+        "totalCvMs": 17.5
+      },
+      {
+        "frame": 238,
+        "mediaTimeMs": 7933.333333333333,
+        "seekMs": 21.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 16.700000000186265,
+        "contactMs": 0,
+        "totalCvMs": 16.700000000186265
+      },
+      {
+        "frame": 239,
+        "mediaTimeMs": 7966.666666666667,
+        "seekMs": 22.59999999962747,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.400000000372529,
+        "contactMs": 0,
+        "totalCvMs": 9.5
+      },
+      {
+        "frame": 240,
+        "mediaTimeMs": 8000,
+        "seekMs": 8.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.400000000372529,
+        "contactMs": 0,
+        "totalCvMs": 9.400000000372529
+      },
+      {
+        "frame": 241,
+        "mediaTimeMs": 8033.333333333333,
+        "seekMs": 8.099999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11,
+        "contactMs": 0,
+        "totalCvMs": 11
+      },
+      {
+        "frame": 242,
+        "mediaTimeMs": 8066.666666666667,
+        "seekMs": 7.2999999998137355,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 12.200000000186265,
+        "contactMs": 0,
+        "totalCvMs": 12.200000000186265
+      },
+      {
+        "frame": 243,
+        "mediaTimeMs": 8100,
+        "seekMs": 8.400000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 14.899999999441206,
+        "contactMs": 0,
+        "totalCvMs": 14.899999999441206
+      },
+      {
+        "frame": 244,
+        "mediaTimeMs": 8133.333333333333,
+        "seekMs": 8.600000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 16.700000000186265,
+        "contactMs": 0,
+        "totalCvMs": 16.700000000186265
+      },
+      {
+        "frame": 245,
+        "mediaTimeMs": 8166.666666666667,
+        "seekMs": 9.899999999441206,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.600000000558794,
+        "contactMs": 0,
+        "totalCvMs": 17.600000000558794
+      },
+      {
+        "frame": 246,
+        "mediaTimeMs": 8200,
+        "seekMs": 11,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.699999999254942,
+        "contactMs": 0,
+        "totalCvMs": 9.699999999254942
+      },
+      {
+        "frame": 247,
+        "mediaTimeMs": 8233.333333333334,
+        "seekMs": 11.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.900000000372529,
+        "contactMs": 0,
+        "totalCvMs": 10.900000000372529
+      },
+      {
+        "frame": 248,
+        "mediaTimeMs": 8266.666666666666,
+        "seekMs": 10.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11,
+        "contactMs": 0,
+        "totalCvMs": 11
+      },
+      {
+        "frame": 249,
+        "mediaTimeMs": 8300,
+        "seekMs": 12.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11.599999999627471,
+        "contactMs": 0,
+        "totalCvMs": 11.599999999627471
+      },
+      {
+        "frame": 250,
+        "mediaTimeMs": 8333.333333333334,
+        "seekMs": 11.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 16,
+        "contactMs": 0,
+        "totalCvMs": 16
+      },
+      {
+        "frame": 251,
+        "mediaTimeMs": 8366.666666666666,
+        "seekMs": 13.300000000745058,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 18.09999999962747,
+        "contactMs": 0,
+        "totalCvMs": 18.09999999962747
+      },
+      {
+        "frame": 252,
+        "mediaTimeMs": 8400,
+        "seekMs": 12.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 18,
+        "contactMs": 0,
+        "totalCvMs": 18
+      },
+      {
+        "frame": 253,
+        "mediaTimeMs": 8433.333333333334,
+        "seekMs": 14.400000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.399999999441206,
+        "contactMs": 0,
+        "totalCvMs": 17.399999999441206
+      },
+      {
+        "frame": 254,
+        "mediaTimeMs": 8466.666666666666,
+        "seekMs": 13.600000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.5,
+        "contactMs": 0,
+        "totalCvMs": 17.5
+      },
+      {
+        "frame": 255,
+        "mediaTimeMs": 8500,
+        "seekMs": 15.399999999441206,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.5,
+        "contactMs": 0,
+        "totalCvMs": 17.5
+      },
+      {
+        "frame": 256,
+        "mediaTimeMs": 8533.333333333334,
+        "seekMs": 14.300000000745058,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 15.799999999813735,
+        "contactMs": 0,
+        "totalCvMs": 15.899999999441206
+      },
+      {
+        "frame": 257,
+        "mediaTimeMs": 8566.666666666666,
+        "seekMs": 16,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.600000000558794,
+        "contactMs": 0,
+        "totalCvMs": 9.600000000558794
+      },
+      {
+        "frame": 258,
+        "mediaTimeMs": 8600,
+        "seekMs": 14.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.700000000186265,
+        "contactMs": 0,
+        "totalCvMs": 9.700000000186265
+      },
+      {
+        "frame": 259,
+        "mediaTimeMs": 8633.333333333334,
+        "seekMs": 17.299999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11.5,
+        "contactMs": 0,
+        "totalCvMs": 11.5
+      },
+      {
+        "frame": 260,
+        "mediaTimeMs": 8666.666666666666,
+        "seekMs": 16.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.59999999962747,
+        "contactMs": 0,
+        "totalCvMs": 17.59999999962747
+      },
+      {
+        "frame": 261,
+        "mediaTimeMs": 8700,
+        "seekMs": 18.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17,
+        "contactMs": 0,
+        "totalCvMs": 17
+      },
+      {
+        "frame": 262,
+        "mediaTimeMs": 8733.333333333334,
+        "seekMs": 18,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.5,
+        "contactMs": 0,
+        "totalCvMs": 10.5
+      },
+      {
+        "frame": 263,
+        "mediaTimeMs": 8766.666666666666,
+        "seekMs": 17,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.599999999627471,
+        "contactMs": 0,
+        "totalCvMs": 10.599999999627471
+      },
+      {
+        "frame": 264,
+        "mediaTimeMs": 8800,
+        "seekMs": 17.200000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11.099999999627471,
+        "contactMs": 0,
+        "totalCvMs": 11.099999999627471
+      },
+      {
+        "frame": 265,
+        "mediaTimeMs": 8833.333333333334,
+        "seekMs": 18.09999999962747,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 16.5,
+        "contactMs": 0,
+        "totalCvMs": 16.5
+      },
+      {
+        "frame": 266,
+        "mediaTimeMs": 8866.666666666666,
+        "seekMs": 18.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 14.600000000558794,
+        "contactMs": 0,
+        "totalCvMs": 14.600000000558794
+      },
+      {
+        "frame": 267,
+        "mediaTimeMs": 8900,
+        "seekMs": 19.09999999962747,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.400000000372529,
+        "contactMs": 0,
+        "totalCvMs": 9.400000000372529
+      },
+      {
+        "frame": 268,
+        "mediaTimeMs": 8933.333333333334,
+        "seekMs": 21,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.599999999627471,
+        "contactMs": 0,
+        "totalCvMs": 10.599999999627471
+      },
+      {
+        "frame": 269,
+        "mediaTimeMs": 8966.666666666666,
+        "seekMs": 21.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 13.099999999627471,
+        "contactMs": 0,
+        "totalCvMs": 13.099999999627471
+      },
+      {
+        "frame": 270,
+        "mediaTimeMs": 9000,
+        "seekMs": 22.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.299999999813735,
+        "contactMs": 0,
+        "totalCvMs": 17.299999999813735
+      },
+      {
+        "frame": 271,
+        "mediaTimeMs": 9033.333333333334,
+        "seekMs": 5.900000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.200000000186265,
+        "contactMs": 0,
+        "totalCvMs": 17.200000000186265
+      },
+      {
+        "frame": 272,
+        "mediaTimeMs": 9066.666666666666,
+        "seekMs": 7.7000000001862645,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17.09999999962747,
+        "contactMs": 0,
+        "totalCvMs": 17.09999999962747
+      },
+      {
+        "frame": 273,
+        "mediaTimeMs": 9100,
+        "seekMs": 6.7000000001862645,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17,
+        "contactMs": 0,
+        "totalCvMs": 17
+      },
+      {
+        "frame": 274,
+        "mediaTimeMs": 9133.333333333334,
+        "seekMs": 7.099999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 17,
+        "contactMs": 0,
+        "totalCvMs": 17
+      },
+      {
+        "frame": 275,
+        "mediaTimeMs": 9166.666666666666,
+        "seekMs": 7.7999999998137355,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.400000000372529,
+        "contactMs": 0,
+        "totalCvMs": 9.400000000372529
+      },
+      {
+        "frame": 276,
+        "mediaTimeMs": 9200,
+        "seekMs": 8.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.799999999813735,
+        "contactMs": 0,
+        "totalCvMs": 9.799999999813735
+      },
+      {
+        "frame": 277,
+        "mediaTimeMs": 9233.333333333334,
+        "seekMs": 9.100000000558794,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.700000000186265,
+        "contactMs": 0,
+        "totalCvMs": 9.700000000186265
+      },
+      {
+        "frame": 278,
+        "mediaTimeMs": 9266.666666666666,
+        "seekMs": 9.099999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 11.799999999813735,
+        "contactMs": 0,
+        "totalCvMs": 11.799999999813735
+      },
+      {
+        "frame": 279,
+        "mediaTimeMs": 9300,
+        "seekMs": 9.799999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 12.700000000186265,
+        "contactMs": 0,
+        "totalCvMs": 12.700000000186265
+      },
+      {
+        "frame": 280,
+        "mediaTimeMs": 9333.333333333334,
+        "seekMs": 9.900000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 14.599999999627471,
+        "contactMs": 0.10000000055879354,
+        "totalCvMs": 14.700000000186265
+      },
+      {
+        "frame": 281,
+        "mediaTimeMs": 9366.666666666666,
+        "seekMs": 10.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 16.899999999441206,
+        "contactMs": 0,
+        "totalCvMs": 16.899999999441206
+      },
+      {
+        "frame": 282,
+        "mediaTimeMs": 9400,
+        "seekMs": 10.299999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.400000000372529,
+        "contactMs": 0,
+        "totalCvMs": 9.400000000372529
+      },
+      {
+        "frame": 283,
+        "mediaTimeMs": 9433.333333333334,
+        "seekMs": 10.400000000372529,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 9.899999999441206,
+        "contactMs": 0,
+        "totalCvMs": 9.899999999441206
+      },
+      {
+        "frame": 284,
+        "mediaTimeMs": 9466.666666666666,
+        "seekMs": 10.299999999813735,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.399999999441206,
+        "contactMs": 0,
+        "totalCvMs": 10.399999999441206
+      },
+      {
+        "frame": 285,
+        "mediaTimeMs": 9500,
+        "seekMs": 10.700000000186265,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 10.600000000558794,
+        "contactMs": 0,
+        "totalCvMs": 10.600000000558794
+      },
+      {
+        "frame": 286,
+        "mediaTimeMs": 9533.333333333334,
+        "seekMs": 10.5,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 14.099999999627471,
+        "contactMs": 0,
+        "totalCvMs": 14.099999999627471
+      },
+      {
+        "frame": 287,
+        "mediaTimeMs": 9566.666666666666,
+        "seekMs": 10.599999999627471,
+        "markerMs": 0,
+        "geometryMs": 0,
+        "inferenceMs": 16.800000000745058,
+        "contactMs": 0,
+        "totalCvMs": 16.800000000745058
+      }
+    ]
+  },
+  "contactTechniques": {
+    "knuckles": true,
+    "shadows": false
+  },
+  "replayMode": "ordered-paused-frame-stepping-with-live-marker-cadence"
+}
