@@ -165,6 +165,22 @@ branch `feature/28-browser-piano-integration-followup`, based on `b46f342`:
   accuracy remain unverified. Keep #28 open pending #30/#39 and
   [physical follow-up](manual/2026-10-07_2.1.2.md).
 
+### Finger-owned key output (issue #181)
+
+Local macOS execution on 2026-10-14, Node 24.2.0, Vitest 4.1.11:
+
+- `cd frontend && npx vitest run ../tests/frontend/recordingControls.test.tsx`:
+  **26 passed, one existing case skipped**. New cases cover one key for a
+  fingertip overlapping adjacent polygons, output changing when one finger
+  moves to another key, and a shared key releasing only after its last finger
+  leaves.
+- Targeted ESLint passed for `MarkerTrackingOverlay.tsx` and
+  `recordingControls.test.tsx`; TypeScript passed with
+  `cd frontend && npx tsc --noEmit`.
+- The integration fixture uses simulated camera landmarks and mocked audio.
+  Gray-boundary switching remains for Step 3; this verifies output wiring and
+  key aggregation only.
+
 ## PR #177 main reconciliation and PDF relocation
 
 Local Windows execution on 2026-10-06 after merging main `5f26515` into
@@ -200,6 +216,43 @@ and audio browser checks passed in Edge 154.0.4258.53 with fake camera
 on port 3100; audible hardware was not measured. New-regression CI and physical camera
 verification remain pending. The Medium defect is tracked in
 [#178](https://github.com/Kakrl/MakeShift/issues/178), fixed by PR #177.
+
+## Key gray boundary geometry (issue #181)
+
+Local macOS execution on 2026-10-14, Node 24.2.0, Vitest 4.1.11:
+
+- `cd frontend && npx vitest run ../tests/frontend/keyBoundary.test.ts`:
+  **7 tests passed**. Coverage includes interior/boundary/outside points,
+  width scaling, shared edges, invalid points, and usable interiors for one,
+  two and three octaves.
+- Targeted ESLint passed for `collision.ts` and `keyBoundary.test.ts`.
+- This checks synthetic projected geometry only. Camera behavior and the
+  selected 15% gray-band width have not been physically evaluated.
+
+### Live gray-boundary contact verification (issue #181)
+
+Local macOS execution on 2026-10-14, Node 24.2.0, Vitest 4.1.11:
+
+- `cd frontend && npx vitest run ../tests/frontend/liveContactPipeline.test.ts ../tests/frontend/recordingControls.test.tsx ../tests/frontend/fingerState.test.ts`:
+  **39 passed, one existing case skipped** across three files.
+- The pipeline cases verify that a pressed finger keeps its key while moving
+  through the gray band, survives jitter across the shared edge, switches after
+  entering the next key's interior, and does not lock a key while hovering.
+- Targeted ESLint and TypeScript passed. Geometry and camera observations are
+  synthetic; physical camera behavior remains pending.
+- Frontend checks on this change also passed: `npm run lint`, `npx tsc --noEmit`,
+  the full `npx vitest run` suite (**525 passed, one skipped across 28 files**),
+  `npm run test:contrast` (**37 pairs passed**), and `npm run build` (Next.js
+  production build completed). The build needed network access to fetch Google
+  Fonts. No physical camera test was run.
+
+Review follow-up on 2026-10-24, targeted Vitest run:
+
+- `cd frontend && npx vitest run ../tests/frontend/liveContactPipeline.test.ts`:
+  **3 tests passed**. A new press at x=105 in adjacent 0–100 and 100–200
+  polygons has tolerance candidates `[0, 1]`, exact containment `[1]`, and is
+  assigned key 1. This remains synthetic geometry; physical camera behavior
+  is pending.
 
 ## Octave layout and calibration verification (issues #36 and #162)
 
@@ -351,6 +404,7 @@ tests/
 │   ├── performanceResources.test.tsx # CameraProvider lifecycle
 │   ├── performanceMetrics.browser.mjs # profiles and paired overhead
 │   ├── fingerState.test.ts           # per-finger contact state transitions
+│   ├── liveContactPipeline.test.ts   # active key ownership and gray-band switching
 │   ├── fingerVelocity.test.ts        # normalized speed, onset latch and DSP response
 │   ├── browserAudio.test.ts      # production DSP offline rendering
 │   ├── browserAudioLifecycle.test.ts # browser owner mocks
@@ -425,6 +479,19 @@ Local execution on macOS, 2026-10-04, Node 24.2.0 and Vitest 4.1.11:
   were missing from `node_modules`. `npm ci` restored the locked dependencies;
   no manifest or lockfile changes were made. Actions execution evidence is
   pending.
+
+### Key ownership lifecycle follow-up (issue #181)
+
+Local macOS execution on 2026-10-14, Node 24.2.0, Vitest 4.1.11:
+
+- `cd frontend && npx vitest run ../tests/frontend/fingerState.test.ts`:
+  **11 tests passed**. The added cases verify that a key is assigned only when
+  the finger becomes active, remains assigned through overlap changes and
+  release grace, and is cleared after release, tracking timeout, or reset.
+- Targeted ESLint passed for `finger.ts` and `fingerState.test.ts`; TypeScript
+  passed with `cd frontend && npx tsc --noEmit`.
+- Key assignment remains internal to `Finger` in this step. Output wiring and
+  boundary-based switching are not covered yet.
 
 ## Marker acquisition and geometry retention verification
 

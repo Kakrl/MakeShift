@@ -225,8 +225,27 @@ it("rejected audio creates neither a recorded note nor a highlighted key", () =>
   expect(pitches.size).toBe(0);
 });
 
+it("routes black-key pitches through audio, recorder, and active-pitch feedback", () => {
+  const blackPitches = [49, 51, 54, 56, 58];
+  for (const [blackIndex, pitch] of blackPitches.entries()) {
+    const keyIndex = CURRENT_LAYOUT.whiteKeys + blackIndex;
+    producer([{ keyIndex, velocity: 0.7 }], [], now);
+    expect(audio.noteOn).toHaveBeenLastCalledWith(pitch, 0.7);
+    gate.flushNotes();
+    expect(pitches.has(pitch)).toBe(true);
+    now += 20;
+    producer([], [keyIndex], now);
+    gate.flushNotes();
+    expect(pitches.has(pitch)).toBe(false);
+  }
+
+  expect(finish().notes.map(({ pitch }) => pitch)).toEqual(
+    blackPitches.map(midiToPitch),
+  );
+});
+
 it("ignores unsupported key indexes and fails closed on invalid velocity", () => {
-  producer([-1, 8, 0.5, NaN].map((keyIndex) => ({ keyIndex, velocity: 1 })), [], now);
+  producer([-1, 13, 0.5, NaN].map((keyIndex) => ({ keyIndex, velocity: 1 })), [], now);
   expect(audio.noteOn).not.toHaveBeenCalled();
   producer([{ keyIndex: 0, velocity: 0.5 }], [], now);
   producer([{ keyIndex: 1, velocity: NaN }], [], now);

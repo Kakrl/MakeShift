@@ -16,6 +16,20 @@ Key overlap answers **which key is underneath the fingertip**, but not whether
 the finger is actually pressing it. It is therefore a required spatial input
 to the contact score, not sufficient contact evidence by itself.
 
+## One key per finger and the gray boundary
+
+An active finger owns one key for its press lifecycle. If its fingertip jitters
+across a key edge, it keeps the current key while the point is in the gray
+boundary band. It switches only after entering another key's interior. The
+boundary is 15% of the projected white-key width, measured inward from each
+edge; it is separate from the 8-pixel overlap tolerance. The rule applies only
+to an active press, so a hovering finger still uses the normal overlap result
+when starting a press. Different fingers may share a key, which remains active
+until all of them release it.
+
+The implementation and test details are in [one_key_finger.md](one_key_finger.md).
+The 15% boundary is an initial value and still needs physical camera tuning.
+
 ## The idea already in `cv_accuracy_plan.md`
 
 The alternative to using raw MediaPipe `z` as a universal 3D coordinate is an

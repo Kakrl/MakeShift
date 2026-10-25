@@ -89,9 +89,12 @@ requirement 2.3 and test 2.3.1; estimates cannot substitute for that evidence.
 
 Requirements 1.2/1.3 retain the one-to-three-octave scope. Starting-note semantics
 for the printed C-root white-key pipeline are explicit: the leftmost C maps to
-the selected C octave, with the shared final C included once. Black-key contact
-mapping remains #25. Available starts are bounded so all emitted notes are
-MIDI 0–127. The selected range and declared paper coverage are distinct;
+the selected C octave, with the shared final C included once. Black-key
+geometry, collision selection and chromatic pitch mapping are implemented;
+automated integration and physical verification remain pending (see
+[the black-key plan](black_keys_plan.md)). Available starts are bounded so all
+emitted notes are MIDI 0–127. The selected range and declared paper coverage
+are distinct;
 override preserves physical key pitch and extends beyond the paper.
 
 Inventory 1.2.1 and 1.3.1 now cover every supported white-key/start combination

@@ -50,7 +50,10 @@ Requirements 1.2 and 1.3 are delivered for the existing white-key contact
 pipeline: 1–3 octaves (8/15/22 white keys), with the leftmost printed C assigned
 to a user-selected C octave. Starting choices are bounded by MIDI 0–127.
 The shared layout controls geometry, calibration compatibility, audio/MIDI
-pitch and highlights. Chromatic black-key contact mapping remains #25.
+pitch and highlights. Black-key geometry, priority collision selection, and
+chromatic pitch mapping are implemented through the existing note event path;
+automated and physical verification remain pending (see
+[the black-key plan](black_keys_plan.md)).
 
 The actual-size starter/extension PDFs preserve marker IDs 0–3 and use a
 23.5 mm white-key pitch. Paper coverage is explicitly declared in calibration;
