@@ -207,6 +207,40 @@ The previous peak was 0.08 times velocity. The new power curve uses more headroo
 
 See the [dated verification/listening report](../tests/manual/2026-10-14_209-velocity.md) for before/after digital levels and the pending hardware procedure. Digital RMS does not establish acoustic SPL or physical latency.
 
+## Continuous metronome (#206)
+
+Home owns a reusable controller in `frontend/src/app/audio/metronome.ts`.
+The separate `frontend/public/audio/metronome-worklet.js` processor owns
+sample-frame beat deadlines, accents, click synthesis and one-bar count-in.
+UI commands configure tempo, mute, live playing, pause/resume and cancellation.
+Click timing does not depend on React renders or individual JavaScript timers.
+The worklet reports visual count-in progress/completion to Home; main-thread
+stalls can still delay those notifications and the recorder's reaction. Audio
+hardware, browser suspension and live CV readiness are separate limitations.
+
+The toggle directly prepares the click context from its user gesture and
+starts standalone playback. It requires no camera, saved calibration or piano
+Enable audio action. Tempo/meter controls are available before calibration. Pause recording silences clicks;
+Resume counts in; Stop recording returns to live accompaniment. A muted count-in
+still advances. Generation tokens reject stale notifications after cancellation,
+and page cleanup closes the tracked context, node and message port. The same
+owner can prepare again after StrictMode cleanup. Processor errors or context
+suspension switch the metronome off, show a plain error and interrupt any active
+piano session. Piano tracking interruption alone leaves standalone clicks
+running; count-ins are cancelled and the take is closed as before. Backgrounding
+switches clicks off, requiring another toggle gesture after returning. Clicks bypass musical-event dispatch and MIDI.
+
+Tempo text is a draft until Enter or blur, reusing the #204 input behavior.
+Invalid input restores the active value with a plain accessible error. A valid
+change affects the interval following the pending beat. Time signatures,
+including 6/8 interpretation, and calibration readiness are unchanged. The
+browser harness verifies sample-frame spacing through a deliberate 1.8-second
+page-thread stall; this is software graph evidence, not a hardware timing claim.
+See the [verification record](../tests/README.md#continuous-metronome-206).
+
+The metronome starts muted on every page load. Only tempo is persisted; legacy
+stored toggle fields are ignored and removed when preferences are written.
+
 ## Live binary pedals (#176)
 
 The default piano accepts version-1 session-scoped pedals commands on the same

@@ -372,6 +372,16 @@ meeting, so they always reflect current state:
   and the newly scoped issues from planning are added in. The view should only
   ever contain work that is in scope for the current sprint.
 
+Metronome implementation: `frontend/src/app/audio/metronome.ts` owns the click graph and lifecycle.
+`frontend/public/audio/metronome-worklet.js` renders the shared audio-thread
+count-in/accompaniment clock and clicks. Its controller tests are in
+`tests/frontend/metronome.test.ts`; the manually invoked real-Web-Audio
+harness is `tests/frontend/metronome.browser.mjs`.
+`tests/frontend/metronomeHarness.ts` loads the actual processor in a VM;
+`tests/frontend/simulatedMetronome.ts` supplies its simulated audio transport
+to the real controller. Home integration stays in
+`tests/frontend/recordingControls.test.tsx`.
+
 ### Pedal implementation files (#176)
 
 Playing UI: frontend/src/app/PedalControls.tsx. Synchronous source owner and

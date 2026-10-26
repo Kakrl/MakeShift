@@ -17,13 +17,15 @@ npm run dev   # starts the local dev server at http://localhost:3000
 
 ## Tempo and metronome preferences
 
-The home page remembers tempo and the metronome toggle between visits using
+The home page remembers tempo between visits using
 the shared versioned browser storage module (`makeshift:playback-settings:v1`).
 The existing tempo range is 20–300 BPM. Missing or invalid settings restore
-60 BPM and metronome on; out-of-range saved BPM falls back to defaults,
-while user input is clamped to the range. If browser storage is blocked or
+60 BPM; out-of-range saved BPM falls back to defaults,
+while invalid user input restores the active tempo with an error.
+Tempo edits apply on Enter or when the field loses focus, not while typing. If browser storage is blocked or
 full, the controls still work for the current visit. Restoring preferences
-does not start audio or recording.
+does not start audio or recording. The metronome always starts off; its toggle
+is not saved. Older saved toggle values are ignored while retaining valid tempo.
 
 ## CV visual debugging
 
@@ -140,6 +142,27 @@ show an error and can be retried. Upload integration is separate (#133).
 
 Profile saves preserve a valid ID already stored by another tab, including
 retries after initial storage failure. The panel adopts the saved profile.
+
+## Continuous metronome (#206)
+
+Turning the metronome on starts clicks directly, without camera access,
+calibration or the piano Enable audio button. Tempo and meter are available
+before calibration. Enabled clicks also accompany live playing and recording. Pause recording silences it; Resume uses the existing one-bar
+count-in before accompaniment resumes. Stop recording returns to live playing,
+so enabled clicks continue. Turning the toggle off silences clicks. Backgrounding or leaving the page
+stops clicks; returning does not switch them back on automatically. Losing piano
+readiness does not disable standalone clicks. Piano/recording calibration
+requirements are unchanged.
+Clicks use a separate Web Audio output and never enter recorded MIDI notes.
+Time-signature interpretation, including 6/8, is unchanged.
+
+To test without a camera, turn the metronome on, edit tempo (Enter or blur),
+and toggle it off again. For recording checks, complete calibration and enable
+piano audio, then listen during
+live playing, Start, Pause, Resume and Stop. Toggle the metronome off/on and
+confirm silence after navigating away. Download a take and verify that only
+played notes appear in a MIDI editor. Automated checks do not replace this
+physical-camera/speaker check.
 
 ### Editing tempo (#204)
 
