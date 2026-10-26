@@ -189,10 +189,10 @@ beforeEach(async () => {
   root = createRoot(host);
   await act(async () => root.render(<Home />));
   await advance(0);
-  // Disable count-in audio; audio hardware is outside this fixture.
+  // Click audio starts off; individual metronome cases explicitly enable it.
   const metronome = host.querySelector<HTMLButtonElement>('button[aria-label="Toggle metronome"]');
   if (!metronome) throw new Error("Metronome control missing");
-  await click(metronome);
+  expect(metronome.getAttribute("aria-pressed")).toBe("false");
   await keys();
 });
 
@@ -723,15 +723,14 @@ it("accompanies live playing and recording, silences pause, resumes and keeps cl
   expect(fixtures.clicks).toHaveBeenCalledTimes(mutedClicks);
 });
 
-it("cancels ongoing clicks immediately on interruption", async () => {
+it("keeps standalone clicks running when only piano readiness is interrupted", async () => {
   await click(button("Toggle metronome"));
   await click(button("Enable audio"));
   await advance(500);
   await act(async () => fixtures.invalidate?.());
   const count = fixtures.clicks.mock.calls.length;
   await advance(1000);
-  expect(fixtures.clicks).toHaveBeenCalledTimes(count);
-  expect(fixtures.silenceClicks).toHaveBeenCalled();
+  expect(fixtures.clicks.mock.calls.length).toBeGreaterThan(count);
 });
 
 it("can enable metronome after StrictMode effect cleanup and setup", async () => {
@@ -748,7 +747,6 @@ it("can enable metronome after StrictMode effect cleanup and setup", async () =>
 });
 
 it("Stop rejects click-audio preparation that finishes after the pending recording request", async () => {
-  await click(button("Toggle metronome"));
   let resolve!: (ready: boolean) => void;
   fixtures.prepareClicks.mockImplementationOnce(() => new Promise<boolean>(done => { resolve = done; }));
   await click(button("Start recording"));
@@ -759,4 +757,43 @@ it("Stop rejects click-audio preparation that finishes after the pending recordi
   expect(fixtures.clicks).toHaveBeenCalledTimes(before);
   expect(fixtures.takes).toHaveLength(0);
   expect(button("Start recording").disabled).toBe(false);
+});
+
+it("runs metronome without calibration, camera readiness or enabling piano audio", async () => {
+  localStorage.removeItem("makeshift.calibration.v1");
+  await advance(10000); await frame();
+  expect(button("Enable audio").disabled).toBe(true);
+  expect(button("Start recording").disabled).toBe(true);
+  fixtures.initializeAudio.mockClear();
+  await click(button("Toggle metronome"));
+  await advance(1200);
+  expect(fixtures.clicks.mock.calls.length).toBeGreaterThanOrEqual(2);
+  expect(fixtures.initializeAudio).not.toHaveBeenCalled();
+  await click(button("Toggle metronome"));
+  const count = fixtures.clicks.mock.calls.length;
+  await advance(1000); expect(fixtures.clicks).toHaveBeenCalledTimes(count);
+});
+
+it("turning off while standalone audio is preparing cancels late playback", async () => {
+  let resolve!: (ready: boolean) => void;
+  fixtures.prepareClicks.mockImplementationOnce(() => new Promise<boolean>(done => { resolve = done; }));
+  await click(button("Toggle metronome"));
+  expect(button("Toggle metronome").getAttribute("aria-pressed")).toBe("true");
+  await click(button("Toggle metronome"));
+  await act(async () => resolve(true));
+  await advance(1200);
+  expect(button("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
+  expect(fixtures.clicks).not.toHaveBeenCalled();
+});
+
+it("stops standalone clicks on backgrounding without restarting them on return", async () => {
+  await click(button("Toggle metronome")); await advance(500);
+  const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+  await act(async () => document.dispatchEvent(new dom.window.Event("visibilitychange")));
+  const count = fixtures.clicks.mock.calls.length;
+  await advance(1000); expect(fixtures.clicks).toHaveBeenCalledTimes(count);
+  hidden.mockReturnValue(false);
+  await act(async () => document.dispatchEvent(new dom.window.Event("visibilitychange")));
+  await advance(1000); expect(fixtures.clicks).toHaveBeenCalledTimes(count);
+  expect(button("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
 });

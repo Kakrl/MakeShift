@@ -4,7 +4,7 @@ class MetronomeProcessor extends AudioWorkletProcessor {
     super();
     this.tempo = 120;
     this.beats = 4;
-    this.audible = true;
+    this.audible = false;
     this.playing = false;
     this.paused = false;
     this.count = null;

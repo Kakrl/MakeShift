@@ -147,10 +147,91 @@ try {
   await page.evaluate(() => window.configureClicks(true));
   assert((await page.evaluate(() => window.sampleClicks(650))) > 0.001);
   await page.evaluate(() => window.testMetronome.close());
+  // Real Home UI: no camera/calibration and no piano Enable audio gesture.
+  const standalone = await browser.newPage();
+  const standaloneErrors = [];
+  standalone.on("pageerror", (error) => standaloneErrors.push(error.message));
+  await standalone.addInitScript(() => {
+    localStorage.setItem("hasVisited", "true");
+    navigator.mediaDevices.getUserMedia = async () => {
+      throw new DOMException("Test camera denial", "NotAllowedError");
+    };
+    const NativeNode = window.AudioWorkletNode;
+    window.AudioWorkletNode = class extends NativeNode {
+      constructor(context, name, options) {
+        super(context, name, options);
+        if (name === "makeshift-metronome") {
+          window.standaloneContext = context;
+          const analyser = context.createAnalyser();
+          analyser.fftSize = 2048;
+          window.standaloneAnalyser = analyser;
+          this.connect(analyser);
+          const silent = context.createGain();
+          silent.gain.value = 0;
+          analyser.connect(silent);
+          silent.connect(context.destination);
+        }
+      }
+    };
+    window.sampleStandalone = async () => {
+      const samples = new Float32Array(2048);
+      let rms = 0;
+      for (let i = 0; i < 100; i++) {
+        window.standaloneAnalyser.getFloatTimeDomainData(samples);
+        rms = Math.max(
+          rms,
+          Math.sqrt(samples.reduce((s, v) => s + v * v, 0) / samples.length),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      return rms;
+    };
+  });
+  await standalone.goto(
+    (process.env.MAKE_SHIFT_URL || "http://127.0.0.1:3000").replace(/\/+$/, ""),
+  );
+  const toggle = standalone.getByRole("button", { name: "Toggle metronome" });
+  await toggle.waitFor();
+  await standalone.waitForFunction(
+    () => !document.querySelector('[aria-label="Toggle metronome"]').disabled,
+  );
+  assert.equal(await toggle.getAttribute("aria-pressed"), "false");
+  assert.equal(
+    await standalone
+      .getByRole("button", { name: "Enable audio", exact: true })
+      .isDisabled(),
+    true,
+  );
+  assert.equal(
+    await standalone
+      .getByRole("button", { name: "Start recording", exact: true })
+      .isDisabled(),
+    true,
+  );
+  await toggle.click();
+  await standalone.waitForFunction(
+    () => window.standaloneContext?.state === "running",
+  );
+  const standaloneRms = await standalone.evaluate(() =>
+    window.sampleStandalone(),
+  );
+  assert(standaloneRms > 0.001);
+  await standalone.getByLabel("Set Tempo", { exact: true }).fill("90");
+  await standalone.getByLabel("Set Tempo", { exact: true }).press("Enter");
+  await toggle.click();
+  await standalone.waitForTimeout(150);
+  assert(
+    (await standalone.evaluate(() => window.sampleStandalone())) < 0.00001,
+  );
+  assert.deepEqual(standaloneErrors, []);
+  await standalone.close();
   console.log(
     JSON.stringify({
       browser: browser.version(),
       liveRms,
+      standaloneHomeRms: standaloneRms,
+      standaloneHome:
+        "camera denied; no piano Enable audio; toggle and mute passed",
       busyThreadBeats: busyBeats.length,
       busyThreadSpacing: "within one audio sample of 500ms",
       pause: "silent",

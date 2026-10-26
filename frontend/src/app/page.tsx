@@ -35,8 +35,8 @@ const MIN_TEMPO = 20;
 const MAX_TEMPO = 300;
 const SETTINGS_NAME = "playback-settings";
 const SETTINGS_VERSION = 1;
-type PlaybackSettings = { tempo: number; metronome: boolean };
-const DEFAULT_SETTINGS: PlaybackSettings = { tempo: 120, metronome: true };
+type PlaybackSettings = { tempo: number };
+const DEFAULT_SETTINGS: PlaybackSettings = { tempo: 120 };
 
 function isPlaybackSettings(value: unknown): value is PlaybackSettings {
   if (typeof value !== "object" || value === null) return false;
@@ -45,8 +45,7 @@ function isPlaybackSettings(value: unknown): value is PlaybackSettings {
     typeof settings.tempo === "number" &&
     Number.isInteger(settings.tempo) &&
     settings.tempo >= MIN_TEMPO &&
-    settings.tempo <= MAX_TEMPO &&
-    typeof settings.metronome === "boolean"
+    settings.tempo <= MAX_TEMPO
   );
 }
 
@@ -229,7 +228,8 @@ export default function Home() {
   const beatsPerMeasure = parseInt(timeSignature.split("/")[0]);
 
   // ── Metronome ────────────────────────────────────────────────────────────
-  const [metronome, setMetronome] = useState(DEFAULT_SETTINGS.metronome);
+  const [metronome, setMetronome] = useState(false);
+  const [metronomeError, setMetronomeError] = useState<string | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [metronomeController] = useState(createMetronome);
   const metronomeRequestRef = useRef(0);
@@ -238,8 +238,8 @@ export default function Home() {
   useEffect(() => {
     // Initial defaults must not overwrite preferences before restoration.
     if (!settingsLoaded) return;
-    writeStored(SETTINGS_NAME, SETTINGS_VERSION, { tempo, metronome });
-  }, [settingsLoaded, tempo, metronome]);
+    writeStored(SETTINGS_NAME, SETTINGS_VERSION, { tempo });
+  }, [settingsLoaded, tempo]);
 
   // ── Count-in beat (1 → beatsPerMeasure, then recording starts) ──────────
   const [countInBeat, setCountInBeat] = useState<number | null>(null);
@@ -293,7 +293,6 @@ export default function Home() {
       );
       setTempo(saved.tempo);
       setTempoInput(String(saved.tempo));
-      setMetronome(saved.metronome);
       setSettingsLoaded(true);
       const dev = isDevMode();
       setDevMode(dev);
@@ -333,13 +332,17 @@ export default function Home() {
     metronomeController.configure({ tempo, beatsPerMeasure, audible: metronome }, {
       onCountInBeat: setCountInBeat,
       onCountInComplete: finishCountIn,
-      onUnavailable: () => session.interrupt("Metronome audio interrupted. Select Enable audio to retry."),
+      onUnavailable: () => {
+      setMetronome(false);
+      setMetronomeError("Metronome audio interrupted. Turn it on again to retry.");
+      session.interrupt("Metronome audio interrupted. Select Enable audio to retry playing.");
+    },
     });
   }, [metronomeController, tempo, beatsPerMeasure, metronome, finishCountIn, session]);
 
   useEffect(() => {
-    metronomeController.setPlaying(liveStatus.state === "playing", isPaused);
-  }, [metronomeController, liveStatus.state, isPaused]);
+    metronomeController.setPlaying(metronome || liveStatus.state === "playing", isPaused);
+  }, [metronomeController, metronome, liveStatus.state, isPaused]);
 
   // Playing and recording share readiness, but have independent lifetimes.
   const canPlay = liveStatus.canStart;
@@ -353,18 +356,13 @@ export default function Home() {
     const unsubscribe = session.subscribe(() => {
       const status = session.status;
       setLiveStatus(status);
-      if (status.state === "playing") {
-        metronomeController.setPlaying(true, recorder.getState() === "paused");
-      } else {
-        metronomeController.stop();
-        cancelMetronomeRequest();
-      }
       const changed = previousState !== status.state;
       previousState = status.state;
       if (changed && (status.state === "interrupted" || status.state === "error")) {
         playRequestRef.current++;
         audioPreparingRef.current = false;
         setAudioPreparing(false);
+        metronomeController.cancelCountIn();
         countInActionRef.current = null;
         setCountInBeat(null);
         session.flushNotes();
@@ -374,8 +372,16 @@ export default function Home() {
         setShowRecordingComplete(take !== null);
       }
     });
-    const visibility = () => session.setHidden(document.hidden);
-    const leave = () => session.setHidden(true);
+    const leave = () => {
+      cancelMetronomeRequest();
+      metronomeController.stop();
+      setMetronome(false);
+      session.setHidden(true);
+    };
+    const visibility = () => {
+      if (document.hidden) leave();
+      else session.setHidden(false);
+    };
     document.addEventListener("visibilitychange", visibility);
     window.addEventListener("pagehide", leave);
     visibility();
@@ -419,20 +425,21 @@ export default function Home() {
 
   const toggleMetronome = async () => {
     const request = ++metronomeRequestRef.current;
+    setMetronomeError(null);
     if (metronome) {
       metronomeController.setAudible(false);
       setMetronome(false);
       return;
     }
-    if (session.status.state === "playing") {
-      const ready = await metronomeController.prepare();
-      if (request !== metronomeRequestRef.current) return;
-      if (!ready) {
-        session.interrupt("Metronome audio could not start. Select Enable audio to retry.");
-        return;
-      }
+    // This click authorizes the separate metronome context, without camera readiness.
+    setMetronome(true);
+    const ready = await metronomeController.prepare();
+    if (request !== metronomeRequestRef.current) return;
+    if (!ready) {
+      metronomeController.setAudible(false);
+      setMetronome(false);
+      setMetronomeError("Metronome audio could not start. Turn it on again to retry.");
     }
-    if (request === metronomeRequestRef.current) setMetronome(true);
   };
   const handlePlay = async () => {
     if (audioPreparingRef.current || countInBeat !== null || session.status.state === "starting") return;
@@ -466,7 +473,7 @@ export default function Home() {
 
   const handleStop = () => {
     metronomeController.cancelCountIn();
-    metronomeController.setPlaying(session.status.state === "playing");
+    metronomeController.setPlaying(metronome || session.status.state === "playing");
     if (audioPreparingRef.current || session.status.state === "starting") session.stop();
     audioPreparingRef.current = false;
     setAudioPreparing(false);
@@ -505,8 +512,8 @@ export default function Home() {
   const recordLabel = isRecording && !isPaused ? "Pause" : isPaused ? "Resume" : "Record";
   const recordDisabled = !libraryLoaded || !canPlay || countInBeat !== null || audioPreparing || liveStatus.state === "starting";
   const stopDisabled = !isRecording && countInBeat === null && !audioPreparing && liveStatus.state !== "starting";
-  // Playback settings only matter once a calibration exists.
-  const settingsLocked = !settingsLoaded || isCalibrated !== true;
+  // Metronome settings are usable independently once preferences have loaded.
+  const settingsLocked = !settingsLoaded;
   const needsCalibration = isCalibrated === false;
   const openCalibration = () => setShowCalibrationIntro(true);
   const settingLabel = settingsLocked ? "text-ink-muted" : "text-ink";
@@ -779,9 +786,7 @@ export default function Home() {
                 <span />
               </button>
             </div>
-            {needsCalibration && (
-              <CalibrateFirstLock label="Calibrate first to set tempo and metronome" className="lg:left-[35px]" />
-            )}
+            {metronomeError && <p role="alert">{metronomeError}</p>}
           </section>
 
           <div className="mt-[23px] lg:pl-[43px]">

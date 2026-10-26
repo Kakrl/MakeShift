@@ -1573,3 +1573,40 @@ Run MET-03 from frontend with a production server running:
 (PowerShell: set environment variables separately.) The harness loads the actual
 controller/worklet and stubs diagnostic accounting only. GitHub Actions execution
 and camera-device retest remain pending. No physical latency claim is made.
+
+### Metronome default-off follow-up (#206)
+
+User-requested behavior: metronome starts off on every page load, independent
+of any legacy stored toggle. Valid saved tempo is retained; subsequent settings
+writes contain tempo only. PREF-01/PREF-02 and MET-02 cover remount, legacy
+true/false/invalid toggle fields, storage failures and explicitly enabled live
+accompaniment. Local 2026-10-25 verification passed: lint, TypeScript, 548 Vitest cases
+(one existing skip), 37 contrast pairs and production build. Metronome, keyboard-layout and audio browser checks passed in Chromium
+151.0.7922.34. Deployment smoke passed with the existing temporary local
+GPU workaround; the committed runner is unchanged. Actions execution remains
+pending. The reported physical
+live-accompaniment failure is still unresolved; this preference change does not
+claim to fix it.
+
+### Independent metronome follow-up (#206)
+
+The toggle now starts its own click context without piano Enable audio or
+calibration; tempo/meter unlock after preference restoration. Recording/piano
+readiness remains unchanged. Recording pause silences clicks, Resume counts in,
+and Stop returns to enabled standalone clicks. Piano tracking interruption
+closes any take/cancels count-in without stopping standalone accompaniment.
+Backgrounding turns the toggle off and cancels pending startup; returning does
+not restart it. Audio failure uses a plain alert. The off-on-load/no-persistence
+policy remains in place.
+
+MET-02 now runs the real controller and processor through simulated transport
+for no-calibration playback, pending-toggle cancellation and backgrounding.
+MET-03 additionally exercises real Home with camera denial, asserting audible
+graph output without clicking piano Enable audio and silence after toggle-off.
+Local 2026-10-25: lint, TypeScript, 551 Vitest tests (one existing skip),
+37 contrast pairs and production build passed. Chromium 151.0.7922.34 passed
+the real Home camera-denied toggle test (click RMS 0.14496, toggle-off silence),
+worklet timing under a 1.8-second page stall, keyboard-layout and browser-audio
+regressions. Deployment smoke passed with the established temporary local
+GPU workaround; the runner is unchanged and the temporary copy removed.
+GitHub Actions and physical listening remain unverified.

@@ -117,3 +117,15 @@ Scrum methodology is the most applicable to MakeShift. It embodies agility and t
 **Gantt Chart**
 
 [Gantt Chart](https://drive.google.com/file/d/1R86NexxWXXj2oYU1Q2-krOZNudny6dF3/view?usp=sharing)
+
+Metronome preference clarification (#206, user decision 2026-10-25): tempo
+remains persistent, but the metronome starts off on every page load and its
+toggle is not persisted. This supersedes the earlier #123 toggle-persistence
+behavior. Verification: PREF-01/PREF-02 and MET-02 in the test inventory.
+
+Independent metronome clarification (#206, user decision 2026-10-25): switching
+it on directly authorizes click playback, without piano Enable audio, camera
+or calibration. Tempo/meter are available before calibration; piano notes and
+recording retain their readiness checks. Recording pause silences clicks, Resume
+counts in, and Stop returns to enabled standalone clicks. Backgrounding turns
+it off. Verification: PREF-01, MET-02 and MET-03 in the test inventory.

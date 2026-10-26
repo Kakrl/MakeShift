@@ -24,7 +24,7 @@ export function createMetronome(
   let node: AudioWorkletNode | null = null;
   let pending: Promise<boolean> | null = null;
   let generation = 0;
-  let settings: Settings = { tempo: 120, beatsPerMeasure: 4, audible: true };
+  let settings: Settings = { tempo: 120, beatsPerMeasure: 4, audible: false };
   let callbacks: Callbacks = {
     onCountInBeat() {},
     onCountInComplete() {},
