@@ -1,0 +1,392 @@
+{
+  "recording": "Cmaj",
+  "bpm": [
+    120
+  ],
+  "ticksPerQuarter": 128,
+  "msPerTick": 3.90625,
+  "sourceNoteCount": 15,
+  "midiNoteCount": 15,
+  "unclosedNotes": 0,
+  "allMatch": true,
+  "maximumAbsoluteStartErrorMs": 1.875,
+  "maximumAbsoluteEndErrorMs": 1.90625,
+  "maximumAbsoluteDurationErrorMs": 3.6749999970197678,
+  "comparisons": [
+    {
+      "index": 0,
+      "source": {
+        "pitch": "C3",
+        "velocity": 32,
+        "startMs": 1794.2000000029802,
+        "durationMs": 799
+      },
+      "expected": {
+        "pitch": 48,
+        "velocity": 41,
+        "startTick": 459,
+        "endTick": 664
+      },
+      "actual": {
+        "pitch": 48,
+        "velocity": 41,
+        "startTick": 459,
+        "endTick": 664
+      },
+      "match": true,
+      "startErrorMs": -1.2312500029802322,
+      "endErrorMs": 0.5499999970197678,
+      "durationErrorMs": 1.78125
+    },
+    {
+      "index": 1,
+      "source": {
+        "pitch": "D3",
+        "velocity": 34,
+        "startMs": 3260.7000000029802,
+        "durationMs": 900
+      },
+      "expected": {
+        "pitch": 50,
+        "velocity": 43,
+        "startTick": 835,
+        "endTick": 1065
+      },
+      "actual": {
+        "pitch": 50,
+        "velocity": 43,
+        "startTick": 835,
+        "endTick": 1065
+      },
+      "match": true,
+      "startErrorMs": 1.0187499970197678,
+      "endErrorMs": -0.5437500029802322,
+      "durationErrorMs": -1.5625
+    },
+    {
+      "index": 2,
+      "source": {
+        "pitch": "E3",
+        "velocity": 39,
+        "startMs": 4661.79999999702,
+        "durationMs": 965.2000000029802
+      },
+      "expected": {
+        "pitch": 52,
+        "velocity": 50,
+        "startTick": 1193,
+        "endTick": 1441
+      },
+      "actual": {
+        "pitch": 52,
+        "velocity": 50,
+        "startTick": 1193,
+        "endTick": 1441
+      },
+      "match": true,
+      "startErrorMs": -1.6437499970197678,
+      "endErrorMs": 1.90625,
+      "durationErrorMs": 3.5499999970197678
+    },
+    {
+      "index": 3,
+      "source": {
+        "pitch": "F3",
+        "velocity": 34,
+        "startMs": 5928.399999991059,
+        "durationMs": 999
+      },
+      "expected": {
+        "pitch": 53,
+        "velocity": 43,
+        "startTick": 1518,
+        "endTick": 1773
+      },
+      "actual": {
+        "pitch": 53,
+        "velocity": 43,
+        "startTick": 1518,
+        "endTick": 1773
+      },
+      "match": true,
+      "startErrorMs": 1.2875000089406967,
+      "endErrorMs": -1.6187499910593033,
+      "durationErrorMs": -2.90625
+    },
+    {
+      "index": 4,
+      "source": {
+        "pitch": "G3",
+        "velocity": 39,
+        "startMs": 7130.399999991059,
+        "durationMs": 996.8000000119209
+      },
+      "expected": {
+        "pitch": 55,
+        "velocity": 50,
+        "startTick": 1825,
+        "endTick": 2081
+      },
+      "actual": {
+        "pitch": 55,
+        "velocity": 50,
+        "startTick": 1825,
+        "endTick": 2081
+      },
+      "match": true,
+      "startErrorMs": -1.4937499910593033,
+      "endErrorMs": 1.7062499970197678,
+      "durationErrorMs": 3.199999988079071
+    },
+    {
+      "index": 5,
+      "source": {
+        "pitch": "A3",
+        "velocity": 100,
+        "startMs": 8395.20000000298,
+        "durationMs": 799.2999999970198
+      },
+      "expected": {
+        "pitch": 57,
+        "velocity": 127,
+        "startTick": 2149,
+        "endTick": 2354
+      },
+      "actual": {
+        "pitch": 57,
+        "velocity": 127,
+        "startTick": 2149,
+        "endTick": 2354
+      },
+      "match": true,
+      "startErrorMs": -0.6687500029802322,
+      "endErrorMs": 0.8125,
+      "durationErrorMs": 1.4812500029802322
+    },
+    {
+      "index": 6,
+      "source": {
+        "pitch": "B3",
+        "velocity": 100,
+        "startMs": 9644,
+        "durationMs": 899
+      },
+      "expected": {
+        "pitch": 59,
+        "velocity": 127,
+        "startTick": 2469,
+        "endTick": 2699
+      },
+      "actual": {
+        "pitch": 59,
+        "velocity": 127,
+        "startTick": 2469,
+        "endTick": 2699
+      },
+      "match": true,
+      "startErrorMs": 0.53125,
+      "endErrorMs": -0.03125,
+      "durationErrorMs": -0.5625
+    },
+    {
+      "index": 7,
+      "source": {
+        "pitch": "C4",
+        "velocity": 100,
+        "startMs": 10844.5,
+        "durationMs": 899.0999999940395
+      },
+      "expected": {
+        "pitch": 60,
+        "velocity": 127,
+        "startTick": 2776,
+        "endTick": 3006
+      },
+      "actual": {
+        "pitch": 60,
+        "velocity": 127,
+        "startTick": 2776,
+        "endTick": 3006
+      },
+      "match": true,
+      "startErrorMs": -0.75,
+      "endErrorMs": -1.4124999940395355,
+      "durationErrorMs": -0.6624999940395355
+    },
+    {
+      "index": 8,
+      "source": {
+        "pitch": "B3",
+        "velocity": 20,
+        "startMs": 12295,
+        "durationMs": 81.79999999701977
+      },
+      "expected": {
+        "pitch": 59,
+        "velocity": 25,
+        "startTick": 3148,
+        "endTick": 3168
+      },
+      "actual": {
+        "pitch": 59,
+        "velocity": 25,
+        "startTick": 3148,
+        "endTick": 3168
+      },
+      "match": true,
+      "startErrorMs": 1.875,
+      "endErrorMs": -1.7999999970197678,
+      "durationErrorMs": -3.6749999970197678
+    },
+    {
+      "index": 9,
+      "source": {
+        "pitch": "C4",
+        "velocity": 20,
+        "startMs": 12295,
+        "durationMs": 81.79999999701977
+      },
+      "expected": {
+        "pitch": 60,
+        "velocity": 25,
+        "startTick": 3148,
+        "endTick": 3168
+      },
+      "actual": {
+        "pitch": 60,
+        "velocity": 25,
+        "startTick": 3148,
+        "endTick": 3168
+      },
+      "match": true,
+      "startErrorMs": 1.875,
+      "endErrorMs": -1.7999999970197678,
+      "durationErrorMs": -3.6749999970197678
+    },
+    {
+      "index": 10,
+      "source": {
+        "pitch": "C4",
+        "velocity": 20,
+        "startMs": 12478.89999999106,
+        "durationMs": 150.90000000596046
+      },
+      "expected": {
+        "pitch": 60,
+        "velocity": 25,
+        "startTick": 3195,
+        "endTick": 3233
+      },
+      "actual": {
+        "pitch": 60,
+        "velocity": 25,
+        "startTick": 3195,
+        "endTick": 3233
+      },
+      "match": true,
+      "startErrorMs": 1.5687500089406967,
+      "endErrorMs": -0.8937499970197678,
+      "durationErrorMs": -2.4625000059604645
+    },
+    {
+      "index": 11,
+      "source": {
+        "pitch": "B3",
+        "velocity": 20,
+        "startMs": 12478.89999999106,
+        "durationMs": 150.90000000596046
+      },
+      "expected": {
+        "pitch": 59,
+        "velocity": 25,
+        "startTick": 3195,
+        "endTick": 3233
+      },
+      "actual": {
+        "pitch": 59,
+        "velocity": 25,
+        "startTick": 3195,
+        "endTick": 3233
+      },
+      "match": true,
+      "startErrorMs": 1.5687500089406967,
+      "endErrorMs": -0.8937499970197678,
+      "durationErrorMs": -2.4625000059604645
+    },
+    {
+      "index": 12,
+      "source": {
+        "pitch": "A3",
+        "velocity": 20,
+        "startMs": 12478.89999999106,
+        "durationMs": 150.90000000596046
+      },
+      "expected": {
+        "pitch": 57,
+        "velocity": 25,
+        "startTick": 3195,
+        "endTick": 3233
+      },
+      "actual": {
+        "pitch": 57,
+        "velocity": 25,
+        "startTick": 3195,
+        "endTick": 3233
+      },
+      "match": true,
+      "startErrorMs": 1.5687500089406967,
+      "endErrorMs": -0.8937499970197678,
+      "durationErrorMs": -2.4625000059604645
+    },
+    {
+      "index": 13,
+      "source": {
+        "pitch": "C4",
+        "velocity": 20,
+        "startMs": 12762.5,
+        "durationMs": 131.29999999701977
+      },
+      "expected": {
+        "pitch": 60,
+        "velocity": 25,
+        "startTick": 3267,
+        "endTick": 3301
+      },
+      "actual": {
+        "pitch": 60,
+        "velocity": 25,
+        "startTick": 3267,
+        "endTick": 3301
+      },
+      "match": true,
+      "startErrorMs": -0.78125,
+      "endErrorMs": 0.7312500029802322,
+      "durationErrorMs": 1.5125000029802322
+    },
+    {
+      "index": 14,
+      "source": {
+        "pitch": "A3",
+        "velocity": 20,
+        "startMs": 12762.5,
+        "durationMs": 131.29999999701977
+      },
+      "expected": {
+        "pitch": 57,
+        "velocity": 25,
+        "startTick": 3267,
+        "endTick": 3301
+      },
+      "actual": {
+        "pitch": 57,
+        "velocity": 25,
+        "startTick": 3267,
+        "endTick": 3301
+      },
+      "match": true,
+      "startErrorMs": -0.78125,
+      "endErrorMs": 0.7312500029802322,
+      "durationErrorMs": 1.5125000029802322
+    }
+  ]
+}

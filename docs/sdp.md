@@ -129,3 +129,17 @@ or calibration. Tempo/meter are available before calibration; piano notes and
 recording retain their readiness checks. Recording pause silences clicks, Resume
 counts in, and Stop returns to enabled standalone clicks. Backgrounding turns
 it off. Verification: PREF-01, MET-02 and MET-03 in the test inventory.
+
+## Scope expansion: binary pedals (#176)
+
+PD-1 expands piano requirements 2.2/2.4: independent sustain/sostenuto/soft,
+clear-all preserving physically held notes, bounded voices and finite decay.
+PD-2 adds accessible live switches and versioned Hold/Toggle keyboard bindings,
+safe focus/capture/conflict behavior and nonpersistent activation. PD-3 preserves
+note recording semantics and documents deferred pedal recording/replay. Audio and
+latency owner: Carl Xu; UI/accessibility: Jadden Picardal; bindings and MIDI: Harry
+Deng. Deterministic verification is implemented. Carl Xu reported a manual
+functional pass for all pedals and programmable bindings on 2026-10-23. Automated
+browser execution, specific device/environment evidence, detailed scenario checks,
+live-CV stress and physical latency remain pending. See PD inventory
+and the dated report before claiming completion.

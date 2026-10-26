@@ -1,6 +1,8 @@
 import { acquireResource, trackAudioContext, closeTrackedAudioContext } from "../../diagnostics/performanceMetrics";
 export type AudioStatus = "idle" | "loading" | "ready" | "suspended" | "error";
+export type PedalState = { sustain: boolean; sostenuto: boolean; soft: boolean };
 type AudioCommand =
+  | ({ type: "pedals"; version: 1; session: number } & PedalState)
   | { type: "reset" | "release-all"; session: number }
   | {
       type: "note-on";
@@ -159,6 +161,10 @@ export class BrowserAudio {
     this.node.port.postMessage(event);
     this.outstanding++;
     return true;
+  }
+
+  setPedals(state: PedalState) {
+    return this.send({ type: "pedals", version: 1, session: this.session, ...state });
   }
 
   noteOn(

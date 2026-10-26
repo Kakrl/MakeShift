@@ -5,6 +5,8 @@ export const DEBUG_FLAGS = {
   visualDebug: true,
   showZLines: true,
   showSheetWithoutCalibration: true,
+  // Set true to print calibration hand landmarks in the browser console.
+  landmarkersTestGather: false,
 } as const;
 
 /**

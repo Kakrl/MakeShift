@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useCamera } from "./CameraContext";
 import CameraStatusOverlay from "./CameraStatusOverlay";
 import SideNav from "./SideNav";
+import PedalControls from "./PedalControls";
 import PageTopBar from "./PageTopBar";
 import {
   createRecorder,
@@ -36,7 +37,7 @@ const MAX_TEMPO = 300;
 const SETTINGS_NAME = "playback-settings";
 const SETTINGS_VERSION = 1;
 type PlaybackSettings = { tempo: number };
-const DEFAULT_SETTINGS: PlaybackSettings = { tempo: 120 };
+const DEFAULT_SETTINGS: PlaybackSettings = { tempo: 60 };
 
 function isPlaybackSettings(value: unknown): value is PlaybackSettings {
   if (typeof value !== "object" || value === null) return false;
@@ -471,7 +472,9 @@ export default function Home() {
     metronomeController.beginCountIn();
   };
 
+  const pedalClearRef = useRef<(() => void) | null>(null);
   const handleStop = () => {
+    pedalClearRef.current?.();
     metronomeController.cancelCountIn();
     metronomeController.setPlaying(metronome || session.status.state === "playing");
     if (audioPreparingRef.current || session.status.state === "starting") session.stop();
@@ -730,6 +733,7 @@ export default function Home() {
                   min={MIN_TEMPO}
                   max={MAX_TEMPO}
                   disabled={settingsLocked}
+                  step={1}
                   value={tempoInput}
                   onChange={(event) => {
                     setTempoInput(event.target.value);
@@ -795,6 +799,7 @@ export default function Home() {
         </SideNav>
       </div>
 
+      <PedalControls active={liveStatus.state === "playing"} clearRef={pedalClearRef} />
       {/* Bottom: Listen (left) + transport (centre) */}
       <div className="flex items-center shrink-0 pl-(--gutter-l) pr-(--gutter-r) pb-[clamp(16px,3dvh,36px)] pt-[clamp(16px,2.5dvh,28px)]">
         <div className="flex-1 relative flex flex-wrap items-center justify-center gap-x-4 gap-y-3">

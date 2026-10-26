@@ -183,6 +183,8 @@ beforeEach(async () => {
     corners: [{ x: 100, y: 100 }, { x: 900, y: 100 }, { x: 900, y: 900 }, { x: 100, y: 900 }],
     contact: { model: "landmark-reference-v1", hover: [Array(21).fill({ x: 0.5, y: 0.4, z: 0 })], rest: [Array(21).fill({ x: 0.5, y: 0.5, z: 0 })] },
   }));
+  // Explicit tempo keeps lifecycle timing independent of the user default.
+  localStorage.setItem("makeshift:playback-settings:v1", JSON.stringify({ tempo: 120, metronome: true }));
   localStorage.setItem("hasVisited", "true");
   host = document.createElement("div");
   document.body.append(host);
@@ -292,6 +294,50 @@ it("dispatches a chord and release/repress before React commits the landmark sna
     { pitch: "C3", velocity: 20, startMs: 40, durationMs: 60 },
     { pitch: "E3", velocity: 20, startMs: 40, durationMs: 60 },
   ]);
+});
+
+it("outputs one key when a single fingertip overlaps adjacent key polygons", async () => {
+  await start();
+  vi.mocked(browserAudio.noteOn).mockClear();
+  vi.mocked(browserAudio.noteOff).mockClear();
+
+  await keys(170); // Within the 8 px overlap tolerance of the next key.
+  expect(browserAudio.noteOn).toHaveBeenCalledTimes(1);
+  expect(browserAudio.noteOn).toHaveBeenCalledWith(48, 0.2);
+
+  await keys();
+  expect(browserAudio.noteOff).toHaveBeenCalledTimes(1);
+});
+
+it("switches the output key when one finger moves to another key", async () => {
+  await start();
+  vi.mocked(browserAudio.noteOn).mockClear();
+  vi.mocked(browserAudio.noteOff).mockClear();
+
+  await keys(115);
+  expect(browserAudio.noteOn).toHaveBeenCalledWith(48, 0.2);
+  now += 20;
+  await keys(325);
+
+  expect(browserAudio.noteOff).toHaveBeenCalledTimes(1);
+  expect(browserAudio.noteOn).toHaveBeenCalledTimes(2);
+  expect(vi.mocked(browserAudio.noteOn).mock.calls[1][0]).toBe(52);
+});
+
+it("keeps a shared key active until its last finger releases", async () => {
+  await start();
+  vi.mocked(browserAudio.noteOn).mockClear();
+  vi.mocked(browserAudio.noteOff).mockClear();
+
+  await keys(115, 115);
+  expect(browserAudio.noteOn).toHaveBeenCalledTimes(1);
+  expect(browserAudio.noteOn).toHaveBeenCalledWith(48, 0.2);
+
+  await keys(115);
+  expect(browserAudio.noteOff).not.toHaveBeenCalled();
+
+  await keys();
+  expect(browserAudio.noteOff).toHaveBeenCalledTimes(1);
 });
 
 it.each([false, true])("sends estimated velocities to audio/MIDI and retains them while held (same key: %s)", async (sameKey) => {

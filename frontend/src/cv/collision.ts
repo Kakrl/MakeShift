@@ -31,6 +31,11 @@ export interface KeyTransitions {
   held: number[];
 }
 
+export type KeyRegion = "interior" | "boundary" | "outside";
+
+/** Gray-band thickness as a fraction of the projected key width. */
+export const KEY_GRAY_BOUNDARY_WIDTH_RATIO = 0.15;
+
 function distanceToSegment(point: Point, start: Point, end: Point): number {
   const segmentX = end.x - start.x;
   const segmentY = end.y - start.y;
@@ -109,6 +114,54 @@ export function pointNearPolygon(
     const end = polygon[(index + 1) % polygon.length];
     return distanceToSegment(point, start, end) <= tolerance;
   });
+}
+
+/** Return the projected thickness of the gray band for a white-key polygon. */
+export function getKeyGrayBoundaryWidth(
+  polygon: readonly Point[],
+): number | null {
+  if (
+    polygon.length !== 4 ||
+    polygon.some(({ x, y }) => !Number.isFinite(x) || !Number.isFinite(y))
+  )
+    return null;
+
+  // getWhiteKeyPolygons orders corners top-left, top-right, bottom-right,
+  // bottom-left. The first and third edges span the key's width.
+  const keyWidth =
+    (Math.hypot(polygon[1].x - polygon[0].x, polygon[1].y - polygon[0].y) +
+      Math.hypot(polygon[2].x - polygon[3].x, polygon[2].y - polygon[3].y)) /
+    2;
+  return Number.isFinite(keyWidth) && keyWidth > 0
+    ? keyWidth * KEY_GRAY_BOUNDARY_WIDTH_RATIO
+    : null;
+}
+
+/**
+ * Classify a point relative to a projected white-key polygon. The boundary
+ * band is measured inward from every edge and scales with the key's projected
+ * width, so it is independent of camera resolution and distance.
+ */
+export function classifyKeyRegion(
+  point: Point,
+  polygon: readonly Point[],
+): KeyRegion {
+  if (
+    !Number.isFinite(point.x) ||
+    !Number.isFinite(point.y) ||
+    !pointInPolygon(point, polygon)
+  )
+    return "outside";
+
+  const boundaryWidth = getKeyGrayBoundaryWidth(polygon);
+  if (boundaryWidth === null) return "outside";
+  let nearestEdgeDistance = Infinity;
+  for (let index = 0; index < polygon.length; index++)
+    nearestEdgeDistance = Math.min(
+      nearestEdgeDistance,
+      distanceToSegment(point, polygon[index], polygon[(index + 1) % polygon.length]),
+    );
+  return nearestEdgeDistance <= boundaryWidth ? "boundary" : "interior";
 }
 
 /** Convert MediaPipe's normalized fingertip landmarks into raw video pixels. */
