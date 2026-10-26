@@ -767,7 +767,7 @@ defect report is filed.
 | D22 | Medium | Calibration | Final depth sheet-check exception removed capture/Next controls. Reset collector/index on exception so all five depth positions can be retried. | `frontend/src/app/calibration/page.tsx` | [#178](https://github.com/Kakrl/MakeShift/issues/178) | Fixed in PR #177; local 6.2.3 regression passed; CI/merge pending |
 | D21 | High | Calibration | (Req 6.2, 1.1, 2.1) #148 replaced the reachable result capture with depth buttons and navigated before validation/save. Final depth capture now creates the primary result; completion retains its model and saves both records before navigation. 6.2.3's expected failures are restored as passing regressions. | `frontend/src/app/calibration/page.tsx` | [#162](https://github.com/Kakrl/MakeShift/issues/162) | Fix verified locally 2026-10-06; review/merge and physical check pending |
 
-| D24 | Medium | Audio | User camera-device testing of the initial #206 implementation found no live accompaniment and unstable clicks during page actions. | `frontend/src/app/audio/metronome.ts` | [#206](https://github.com/Kakrl/MakeShift/issues/206) | Worklet revision verified automatically; [physical retest pending](manual/2026-10-25_MET-04.md) |
+| D24 | Medium | Audio | User camera-device testing of the initial #206 implementation found no live accompaniment and unstable clicks during page actions. | `frontend/src/app/audio/metronome.ts` | [#206](https://github.com/Kakrl/MakeShift/issues/206) | Worklet revision verified automatically; [user-reported behavior retest passed](manual/2026-10-25_MET-04.md), tested device commit 2cf30d0 confirmed |
 | D23 | Medium | Audio | (Req 2.4, related 2.2) User reports high-velocity strikes are not loud enough and wants more apparent velocity dynamics. Listening report 2026-10-14; cause and hardware verification pending. | `frontend/src/cv/fingerVelocity.ts`, `frontend/public/audio/synth.js` | [#209](https://github.com/Kakrl/MakeShift/issues/209) | DSP tuning implemented locally; [verification and listening limits](manual/2026-10-14_209-velocity.md); user confirmed audible velocity changes locally 2026-10-14; measured trials/chord distortion checks pending |
 
 ## Root Cause Analysis Log
@@ -1610,3 +1610,22 @@ worklet timing under a 1.8-second page stall, keyboard-layout and browser-audio
 regressions. Deployment smoke passed with the established temporary local
 GPU workaround; the runner is unchanged and the temporary copy removed.
 GitHub Actions and physical listening remain unverified.
+
+### MET-04 manual retest, 2026-10-25
+
+Harry confirmed all seven behavior checks passed: off after reload, standalone
+toggle, Enter/blur tempo edits, qualitative steadiness under other actions,
+record/pause/resume/Stop, MIDI exclusion and background/navigation cleanup.
+Environment is the same Windows 11 ROG Flow X13/Chrome/webcam/speaker setup as
+the earlier MIDI test; this run used localhost with npm run dev. The [manual
+report](manual/2026-10-25_MET-04.md) records the user-reported pass and earlier
+failures. The tester confirmed device commit 2cf30d0. No quantitative physical timing claim.
+
+### Countdown synchronization observation (#206)
+
+Harry reported noticing visual countdown/audio beat mismatch during manual
+testing of 2cf30d0. Audio is timed in the worklet; visual updates and the recorder
+reaction to completion run after main-thread message delivery. The observed
+offset/frequency and recording-start alignment were not measured. Retain this
+as a known limitation for later investigation; the functional manual pass does
+not establish visual/audio synchronization. See the MET-04 report.
