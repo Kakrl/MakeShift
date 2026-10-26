@@ -241,6 +241,10 @@ cost and decoded memory are distinct from note dispatch latency.
 For each recording, RMS is measured over the first 500 ms across both channels.
 Playback gain is
 `min(0.003274555342244959 * 10 ** (6 * clamp((69-root)/33,0,1) / 20) / rms, 0.085 / peak)`.
+A final fixed +6 dB gain (1.995262 times amplitude) raises every note equally,
+preserving register balance and velocity. A fixed +/-0.95 safety clamp handles
+exceptional coherent overloads; overloads can distort and are not an equal-gain
+claim. The sample preparation cap is unchanged.
 The common fixed level preserves the prototype's headroom scale. Bass lift is
 +6 dB at C2 and below, +3.82 dB at C3, +1.64 dB at C4, and zero at A4 and above;
 intermediate notes use their selected recording's curve. This equalizes digital
@@ -265,7 +269,7 @@ independent; duplicate/stale releases cannot stop their replacement. Stop,
 release-all, reset, overload and suspension keep the existing identity and
 immediate-silence behavior. Linear sample interpolation, envelopes and convex
 stealing keep each channel of each valid voice at or below 0.085, bounding a
-ten-voice mix to 0.85 (about 1.41 dB sample-peak headroom). No limiter or
+ten-voice mix to 0.85 before the final boost. The output safety clamp is 0.95. No adaptive limiter or
 render-loop allocations are needed. This is not an acoustic distortion or
 intersample-peak guarantee. The native engine and count-in metronome are unchanged.
 
@@ -283,3 +287,48 @@ balance. All phrase notes had the same selected velocity (Medium default 0.6).
 separates that qualitative report from production graph tests and pending
 camera/device/physical-latency measurements. The older velocity and timbre
 reports remain historical evidence for their respective renderers.
+
+## Live binary pedals (#176)
+
+The default piano accepts version-1 session-scoped pedals commands on the same
+MessagePort as note-on/off; port ordering is authoritative. Three booleans carry
+the full effective state. Invalid versions, shapes and stale sessions are ignored.
+The existing 64-unacknowledged-command limit includes controls; overflow sends
+one emergency reset and rejects input until acknowledgement, including releases.
+No context recreation, network request, look-ahead or render buffering is added.
+
+Sustain retains released voices through natural decay. Sostenuto captures only
+currently held voice/press identities on an effective rising edge; reused slots
+clear capture. Damp a released voice only when neither pedal protects it. No
+pedals clears sources/captures, without damping physically held keys. Reset and
+invalidation retain emergency silence. Recording Stop clears pedal activation
+while retaining the existing independent live-note lifecycle.
+
+Ten voices remain preallocated. The first idle slot wins, otherwise the oldest
+press is stolen, including physically held or captured notes; stealing never
+inherits capture. This deliberately preserves the existing deterministic allocator.
+Sampled tails retire at the recording end or at 30 seconds. The procedural
+reference retires tails below 0.00001 amplitude or at 30 seconds. A pedal cannot
+resurrect a damped/retired voice. Legacy ADSR mode retains its historical behavior;
+pedals apply to the production piano mode.
+
+Soft scales future sampled strikes by 0.65, retaining their recorded timbre.
+The procedural reference also uses 0.5 upper-partial excitation and 0.65 brightness. The velocity^1.5 gain curve remains;
+recorded velocity is untouched. Each voice keeps its strike settings. This is an
+approximation without half-pedaling, mechanical modeling or sympathetic resonance.
+
+Bindings default unassigned and persist via version-1 shared localStorage.
+Only unmodified letter, digit and numpad digit codes are supported, reserving
+navigation/dialog/application shortcuts. Duplicate codes are rejected. Code means
+physical location, not layout-dependent printed character. UI latches and held
+keys compose by OR. Blur/hidden/navigation/session invalidation/rebinding clear
+activation; held keys stay suppressed until keyup and a fresh press. Typing,
+contenteditable, dialogs and IME do not activate pedals. Capture consumes input.
+
+[Recording/export/replay follow-up](pedal_recording_followup.md) remains deferred.
+[Verification record](../tests/manual/2026-10-23_PD-03.md) distinguishes synthetic
+coverage, the automated browser launch failure, and Carl Xu's 2026-10-23 manual
+functional pass for all pedals and programmable bindings. Specific device
+configuration, detailed recovery scenarios, live-CV profiling and physical latency
+evidence remain pending.
+No physical latency or hardware compatibility pass is claimed.

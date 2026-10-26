@@ -1,0 +1,98 @@
+{
+  "id": "378a9d07-4836-42f1-939b-396cd549b77b",
+  "name": "Cmaj",
+  "bpm": 120,
+  "createdAt": "2026-10-17T21:19:23.872Z",
+  "notes": [
+    {
+      "pitch": "C3",
+      "velocity": 32,
+      "startMs": 1794.2000000029802,
+      "durationMs": 799
+    },
+    {
+      "pitch": "D3",
+      "velocity": 34,
+      "startMs": 3260.7000000029802,
+      "durationMs": 900
+    },
+    {
+      "pitch": "E3",
+      "velocity": 39,
+      "startMs": 4661.79999999702,
+      "durationMs": 965.2000000029802
+    },
+    {
+      "pitch": "F3",
+      "velocity": 34,
+      "startMs": 5928.399999991059,
+      "durationMs": 999
+    },
+    {
+      "pitch": "G3",
+      "velocity": 39,
+      "startMs": 7130.399999991059,
+      "durationMs": 996.8000000119209
+    },
+    {
+      "pitch": "A3",
+      "velocity": 100,
+      "startMs": 8395.20000000298,
+      "durationMs": 799.2999999970198
+    },
+    {
+      "pitch": "B3",
+      "velocity": 100,
+      "startMs": 9644,
+      "durationMs": 899
+    },
+    {
+      "pitch": "C4",
+      "velocity": 100,
+      "startMs": 10844.5,
+      "durationMs": 899.0999999940395
+    },
+    {
+      "pitch": "B3",
+      "velocity": 20,
+      "startMs": 12295,
+      "durationMs": 81.79999999701977
+    },
+    {
+      "pitch": "C4",
+      "velocity": 20,
+      "startMs": 12295,
+      "durationMs": 81.79999999701977
+    },
+    {
+      "pitch": "C4",
+      "velocity": 20,
+      "startMs": 12478.89999999106,
+      "durationMs": 150.90000000596046
+    },
+    {
+      "pitch": "B3",
+      "velocity": 20,
+      "startMs": 12478.89999999106,
+      "durationMs": 150.90000000596046
+    },
+    {
+      "pitch": "A3",
+      "velocity": 20,
+      "startMs": 12478.89999999106,
+      "durationMs": 150.90000000596046
+    },
+    {
+      "pitch": "C4",
+      "velocity": 20,
+      "startMs": 12762.5,
+      "durationMs": 131.29999999701977
+    },
+    {
+      "pitch": "A3",
+      "velocity": 20,
+      "startMs": 12762.5,
+      "durationMs": 131.29999999701977
+    }
+  ]
+}

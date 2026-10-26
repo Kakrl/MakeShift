@@ -282,3 +282,14 @@ accepted presses without retriggering sound; Pause/Stop only close MIDI capture.
 See [one-octave integration](piano_integration.md); broader recording verification
 remains #88. See the state/timeout/recovery table
 and verification limits in the linked document.
+
+## Pedal control boundary (#176)
+
+Physical note identities and note-off timing remain unchanged. The browser audio
+transport separately accepts {type: "pedals", version: 1, session, sustain,
+sostenuto, soft}, with exactly boolean states. Commands share ordered bounded
+transport with notes and reset; they do not enter MIDI or deferred note observers.
+PedalController dispatches synchronously before React observation and filters
+unchanged effective states. Session reset clears capture and rejects stale control
+messages. See [audio contract](browser_audio.md#live-binary-pedals-176) and the
+[recording follow-up](pedal_recording_followup.md).

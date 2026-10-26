@@ -28,6 +28,8 @@ export const PIANO_SAMPLES = Object.freeze(
 // Fixed, not voice-count-dependent: chords do not turn held voices down.
 export const PIANO_LEVEL = 0.003274555342244959;
 export const PIANO_BASS_DB = 6;
+export const PIANO_BOOST_DB = 6;
+const OUTPUT_GAIN = 10 ** (PIANO_BOOST_DB / 20);
 
 /** Runs during loading, never inside audio rendering. Keeps the recorded stereo image. */
 export function preparePianoSample(note, buffer) {
@@ -126,9 +128,12 @@ export class SampledPiano extends LegacySynth {
             : 0,
       };
     });
+    this.pedals = { sustain: false, sostenuto: false, soft: false };
     this.fade = Math.max(1, Math.round(rate * 0.003));
     this.voices = this.voices.map((v) => ({
       ...v,
+      held: false,
+      captured: false,
       preset: this.presets[60],
       position: 0,
       age: 0,
@@ -142,11 +147,36 @@ export class SampledPiano extends LegacySynth {
 
   clear() {
     super.clear();
-    for (const v of this.voices)
+    if (this.pedals) this.pedals.sustain = this.pedals.sostenuto = this.pedals.soft = false;
+    for (const v of this.voices) {
       v.lastL = v.lastR = v.oldL = v.oldR = v.fadeLeft = 0;
+      v.held = v.captured = false;
+    }
   }
 
   handle(event) {
+    if (event?.type === "pedals") {
+      if (event.version !== 1 || event.session !== this.session ||
+          ![event.sustain, event.sostenuto, event.soft].every(x => typeof x === "boolean")) return;
+      if (event.sostenuto && !this.pedals.sostenuto)
+        for (const v of this.voices) v.captured = v.press !== 0 && v.held;
+      if (!event.sostenuto) for (const v of this.voices) v.captured = false;
+      this.pedals.sustain = event.sustain;
+      this.pedals.sostenuto = event.sostenuto;
+      this.pedals.soft = event.soft;
+      for (const v of this.voices)
+        if (v.press && !v.held && !v.releasing && !event.sustain && !v.captured)
+          super.handle({ type: "note-off", session: this.session, press: v.press });
+      return;
+    }
+    if (event?.type === "note-off" && event.session === this.session) {
+      for (const v of this.voices) {
+        if (v.press !== event.press || !v.held) continue;
+        v.held = false;
+        if (!this.pedals.sustain && !v.captured) super.handle(event);
+      }
+      return;
+    }
     const previous = this.lastPress;
     // Remember the allocator's candidate before shared validation/assignment.
     let selected = this.voices[0];
@@ -168,8 +198,10 @@ export class SampledPiano extends LegacySynth {
       selected.lastL = selected.lastR = 0;
       return;
     }
+    selected.held = true;
+    selected.captured = false;
     selected.position = selected.preset.sample.offset;
-    selected.gain = selected.preset.sample.gain * event.velocity ** 1.5;
+    selected.gain = selected.preset.sample.gain * event.velocity ** 1.5 * (this.pedals.soft ? 0.65 : 1);
     selected.age = 0;
     selected.oldL = oldL;
     selected.oldR = oldR;
@@ -224,8 +256,9 @@ export class SampledPiano extends LegacySynth {
         r += v.lastR;
         v.position += v.preset.step;
       }
-      left[i] = l;
-      if (right !== left) right[i] = r;
+      // Uniform output boost; only overloads reach this fixed safety ceiling.
+      left[i] = Math.max(-0.95, Math.min(0.95, l * OUTPUT_GAIN));
+      if (right !== left) right[i] = Math.max(-0.95, Math.min(0.95, r * OUTPUT_GAIN));
     }
   }
 }

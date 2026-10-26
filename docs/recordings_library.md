@@ -44,3 +44,13 @@ The panel is imported with server rendering disabled because it reads browser
 storage. Its controller and displayed list initialize with lazy `useState`
 initializers; no initialization effect or timer is needed. The import displays
 a loading placeholder until the browser component is available.
+
+## Inspecting a downloaded MIDI file
+
+Open My recordings, select a completed take, and choose Download MIDI. Import
+the file into a compatible MIDI application. MIDI contains note instructions,
+not recorded audio: a host such as REAPER needs a software instrument (for
+example ReaSynth) for audible playback. Compare exported note events with the
+captured recording data to distinguish export errors from unintended detection.
+See the [2026-10-17 scale test](../tests/manual/2026-10-17_4.2.3.md) for manual
+results, event comparison and remaining verification limits.

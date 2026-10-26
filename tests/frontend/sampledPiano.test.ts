@@ -5,6 +5,7 @@ import {
   PIANO_SAMPLES,
   PIANO_BASS_DB,
   PIANO_LEVEL,
+  PIANO_BOOST_DB,
   preparePianoSample,
   SampledPiano,
 } from "../../frontend/public/audio/sampled-piano.js";
@@ -47,6 +48,61 @@ function rms(data: Float32Array) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("sampled piano (#210)", () => {
+  it("boosts every MIDI pitch by the same +6 dB", () => {
+    expect(PIANO_BOOST_DB).toBe(6);
+    const samples = bank();
+    const piano = new SampledPiano(48000, samples);
+    const reference = new SampledPiano(48000, samples);
+    for (let note = 0; note < 128; note++) {
+      for (const synth of [piano, reference]) {
+        synth.handle({ type: "reset", session: note + 1 });
+        synth.handle({ type: "note-on", session: note + 1, press: 1, note, velocity: 0.5 });
+      }
+      reference.voices[0].gain /= 10 ** (6 / 20);
+      expect(rms(render(piano).left) / rms(render(reference).left)).toBeCloseTo(10 ** (6 / 20), 6);
+    }
+  });
+
+  it("clamps exceptional coherent overloads in both stereo channels", () => {
+    const samples = bank();
+    for (const sample of samples) {
+      sample.left.fill(1); sample.right.fill(-1); sample.gain = 0.085;
+    }
+    const piano = new SampledPiano(48000, samples);
+    piano.handle({ type: "reset", session: 1 });
+    for (let press = 1; press <= 10; press++)
+      piano.handle({ type: "note-on", session: 1, press, note: 69, velocity: 1 });
+    const output = render(piano);
+    expect(output.left[1000]).toBeCloseTo(0.95, 6);
+    expect(output.right[1000]).toBeCloseTo(-0.95, 6);
+  });
+
+  it("preserves sampled sustain, sostenuto, soft strikes and reset", () => {
+    const piano = start(); render(piano);
+    const pedals = (sustain = false, sostenuto = false, soft = false, session = 1) =>
+      piano.handle({ type: "pedals", version: 1, session, sustain, sostenuto, soft });
+    const on = (press: number) => piano.handle({ type: "note-on", session: 1, press, note: 69, velocity: 1 });
+    const off = (press: number) => piano.handle({ type: "note-off", session: 1, press });
+    pedals(false, true); on(2); render(piano); off(1); off(2);
+    expect(piano.voices[0].releasing).toBe(false);
+    expect(piano.voices[1].releasing).toBe(true);
+    pedals(true); expect(piano.voices[0].releasing).toBe(false);
+    pedals(); expect(piano.voices[0].releasing).toBe(true);
+    pedals(true, true, true, 2); expect(piano.pedals.soft).toBe(false);
+    const gain = piano.voices[0].gain;
+    pedals(false, false, true); on(3);
+    expect(piano.voices[2].gain).toBeCloseTo(gain * 0.65, 10);
+    expect(piano.voices[0].gain).toBe(gain);
+    pedals(true, true);
+    for (let press = 4; press <= 11; press++) on(press);
+    expect(piano.voices[0].press).toBe(11);
+    expect(piano.voices[0].captured).toBe(false);
+    off(1); expect(piano.voices[0].held).toBe(true);
+    piano.handle({ type: "reset", session: 2 });
+    expect(piano.voices.every(v => !v.press && !v.captured)).toBe(true);
+    expect(piano.pedals).toEqual({ sustain: false, sostenuto: false, soft: false });
+  });
+
   it("pins the auditioned +6 dB normalization and preserves stereo", () => {
     const b = buffer();
     const low = preparePianoSample(36, b),
@@ -111,7 +167,7 @@ describe("sampled piano (#210)", () => {
         }
         expect(
           [...output.left, ...output.right].every(
-            (x) => Number.isFinite(x) && Math.abs(x) <= 0.850001,
+            (x) => Number.isFinite(x) && Math.abs(x) <= 0.950001,
           ),
         ).toBe(true);
       }
@@ -127,7 +183,7 @@ describe("sampled piano (#210)", () => {
       );
       expect(
         render(piano, rate / 4).left.every(
-          (x) => Number.isFinite(x) && Math.abs(x) <= 0.850001,
+          (x) => Number.isFinite(x) && Math.abs(x) <= 0.950001,
         ),
       ).toBe(true);
     },
@@ -184,7 +240,7 @@ describe("sampled piano (#210)", () => {
       velocity: NaN,
     });
     expect(b.lastPress).toBe(11);
-    expect(render(b, 3000).left.every((x) => Math.abs(x) <= 0.850001)).toBe(
+    expect(render(b, 3000).left.every((x) => Math.abs(x) <= 0.950001)).toBe(
       true,
     );
     b.handle({ type: "release-all", session: 1 });
