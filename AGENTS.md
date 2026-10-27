@@ -63,7 +63,7 @@ it separates existing behavior from planned work and links implementation issues
 | `tests/manual/` | Manual test template and completed manual test reports |
 | `docs/` | Architecture, browser RVTM addendum, process, SDP, V&V plan, design, subsystem notes |
 | `docs/piano-sheet-*.pdf` | Actual-size printable starter and right-marker extension piano sheets; generator in `docs/generate_piano_sheets.py` |
-| `.github/workflows/` | CI: tests, linting, frontend checks, RCA validation/publication |
+| `.github/workflows/` | CI: tests, linting, frontend checks, RCA validation/publication, Syft SBOM artifacts |
 | `.github/scripts/` | Trusted RCA validation and comment automation |
 | `.github/pull_request_template.md` | PR description and RCA authoring instructions |
 | `.github/ISSUE_TEMPLATE/` | Defect report template |
@@ -91,6 +91,7 @@ it separates existing behavior from planned work and links implementation issues
 | C++ | `cmake -B build -S backend && cmake --build build --config Release && ctest --test-dir build -C Release --output-on-failure` |
 | C++ formatting | `clang-format --dry-run --Werror` on changed files (`.clang-format`, clang-format 17) |
 | RCA automation | `node --test tests/automation/rca.test.cjs` (Node 22); CI: `rca-tests.yml` |
+| SBOM workflow | `actionlint .github/workflows/sbom.yml`; `node --test tests/automation/sbom.test.cjs`; generate with Syft v1.55.0 and run `node tests/automation/validate-sbom.cjs <SBOM.cdx.json>`; CI: `sbom.yml` |
 
 The C++ build requires Python 3.12 and nanobind (`pip install -r requirements.txt`).
 If a check cannot run locally (for example, no audio device or no CMake),

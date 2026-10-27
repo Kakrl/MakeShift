@@ -214,6 +214,16 @@ These checks guard code quality. They do not verify a requirement on their own.
 | clang-format 17 | Carl Xu | `linting.yml` | C++ changes under `backend/src` |
 | `tests/python/test_dummy.py` | Harry Deng | `testing.yml` | Placeholder so pytest collects a test. Replace it once Python code exists |
 
+## SBOM Automation Verification
+
+These checks cover issue [#229](https://github.com/Kakrl/MakeShift/issues/229),
+not physical piano detection or performance requirements.
+
+| Test ID | Level | Requirement | Coverage / source | Owner | Tool | Automated? | Implementation Status | CI Integrated? | Evidence Link |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| SBOM-01 | Unit | Issue #229: fail on unusable SBOM output | Accept named CycloneDX components; reject absent/wrong format, missing/empty version, missing/malformed/empty components and unnamed entries ([source](automation/sbom.test.cjs)) | Harry Deng | Node test runner | Yes | Implemented | Yes (`sbom.yml`, PRs, main pushes, manual dispatch); execution pending | Pending |
+| SBOM-02 | CI integration | Issue #229: automatic generation and publication | Syft generation, structural validation and commit-associated artifact upload ([workflow](../.github/workflows/sbom.yml), [validator](automation/validate-sbom.cjs)); source inventory only, native/runtime asset coverage partial; not full schema validation | Harry Deng | Syft v1.55.0 / GitHub Actions / Node | Yes | Implemented | Yes (`sbom.yml`, PRs, main pushes, manual dispatch); execution pending | Pending successful run and downloaded artifact inspection |
+
 ## RCA Automation Verification
 
 These are repository-process tests for [issue #81](https://github.com/Kakrl/MakeShift/issues/81),
