@@ -32,6 +32,7 @@ jobs:
           path: .
           format: cyclonedx-json
           syft-version: v1.55.0
+          config: .syft.yaml
           output-file: ${{ runner.temp }}/sbom/SBOM.cdx.json
           upload-artifact: false
           upload-release-assets: false

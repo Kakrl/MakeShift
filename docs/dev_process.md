@@ -45,6 +45,8 @@ MakeShift/
 │   ├── live_session.md              # readiness states, tracking timeout and recovery
 │   ├── note_events.md               # shared browser event/session/clock contract
 │   ├── dev_process.md
+│   ├── SBOM.json                    # generated CycloneDX source inventory
+│   ├── SBOM.commit.txt              # source revision scanned for the inventory
 │   ├── piano_sheet.md               # printable sheet and ArUco marker IDs
 │   ├── generate_piano_sheets.py     # deterministic vector PDF generator
 │   ├── piano_sheet_requirements.txt # pinned generator dependency
@@ -159,6 +161,7 @@ MakeShift/
 │   └── manual/                     # manual test template and completed reports
 ├── .clang-format
 ├── .gitignore
+├── .syft.yaml                       # excludes previous SBOM output from scans
 ├── .infisical.json                  # Infisical project ID (no secrets)
 ├── AGENTS.md                        # contributor and coding agent instructions
 ├── CLAUDE.md                        # points to AGENTS.md
@@ -225,6 +228,14 @@ format, specification version and nonempty named components. This check does
 not perform full CycloneDX schema validation. Generation, validation and upload
 errors fail the job. The workflow never commits generated files to `main`.
 
+The checked-in snapshot is [`docs/SBOM.json`](SBOM.json), with its scanned
+revision in [`docs/SBOM.commit.txt`](SBOM.commit.txt). `.syft.yaml` excludes both
+generated files from subsequent scans. CI continues publishing fresh artifacts;
+to refresh the repository copy, download a successful run's artifact, copy
+`SBOM.cdx.json` to `docs/SBOM.json` and `commit.txt` to `docs/SBOM.commit.txt`,
+then submit those files through a reviewed PR. Automatic repository writes are
+not configured.
+
 Syft scans the checked-out repository, including `frontend/package-lock.json`
 and Python requirements files (including development/test tools). This is a
 source dependency inventory, not a complete inventory of a deployed Vercel
@@ -240,7 +251,7 @@ scan a clean checkout and write outside it so local `node_modules`, build output
 and old SBOMs do not affect the inventory:
 
 ```sh
-syft scan dir:. -o cyclonedx-json=/tmp/MakeShift-SBOM.cdx.json
+syft scan dir:. --config .syft.yaml -o cyclonedx-json=/tmp/MakeShift-SBOM.cdx.json
 node tests/automation/validate-sbom.cjs /tmp/MakeShift-SBOM.cdx.json
 node --test tests/automation/sbom.test.cjs
 actionlint .github/workflows/sbom.yml

@@ -216,6 +216,9 @@ These checks guard code quality. They do not verify a requirement on their own.
 
 ## SBOM Automation Verification
 
+The scan excludes the checked-in `docs/SBOM.json` snapshot and its revision
+sidecar using `.syft.yaml`; repository snapshot refreshes use reviewed PRs.
+
 These checks cover issue [#229](https://github.com/Kakrl/MakeShift/issues/229),
 not physical piano detection or performance requirements.
 
