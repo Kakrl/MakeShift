@@ -119,6 +119,31 @@ and production audio-owner integration. Deterministic timer/device fixtures do
 not establish audible browser performance or physical latency. Browser timing
 measurements and listening evidence remain pending.
 
+## Sampled piano and register balance (#210)
+
+Requirement 2.2 now uses a locally preloaded stereo Salamander piano as the live
+default (#210), replacing procedural modal timbre. Related 2.4 keeps the existing
+velocity exponent and shared/MIDI event contract. The live motion mapping now
+reaches full velocity at 4 rather than 8 palm lengths/s, retaining the 0.5
+noise floor and soft 0.2 fallback; newly captured velocities rise accordingly,
+while saved takes retain their values. Register tuning
+uses RMS-normalized recordings and a bounded +6 dB bass curve selected through
+user listening; it is not a new universal equal-loudness or acoustic SPL claim.
+A uniform +6 dB output boost preserves that balance, with a fixed 0.95 output
+ceiling for exceptional overloads. SP-01 checks the gain ratio for all MIDI
+pitches; SP-02 checks the ceiling and sampled pedal lifecycle after merging #176.
+One recorded dynamic layer is in scope; further layers, pedal resonance and
+release-noise modeling remain separate. Native reference requirements remain.
+
+Inventory SP-01 maps sample preparation/PCM/assets and loader paths; SP-02 maps
+rendering/pitch/velocity/lifecycle and six-rate headroom; 2.2.15 maps owner
+loading/cancellation/recovery, and 2.2.16 maps real decoded assets and offline
+browser graph checks. SP-03 records qualitative prototype acceptance at +6 dB
+and the production listening/device gaps. Historical PT-01/PT-02 and legacy
+results retain their original renderer scope. Under-50 ms physical latency and
+hardware distortion verification are still pending; preload time and memory
+are reported separately. See [the production audio contract](browser_audio.md#sampled-production-piano-and-register-balance-210).
+
 ## Document maintenance
 
 For this browser transition, use this addendum with the inventory as the

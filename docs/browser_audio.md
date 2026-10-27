@@ -1,7 +1,11 @@
-# Browser AudioWorklet Synthesis
+# Browser AudioWorklet Piano
 
 Issue [#35](https://github.com/Kakrl/MakeShift/issues/35). The native
 [voice allocator](audio.md) and [hit queue](audio_events.md) remain unchanged.
+
+The live default is the [sampled stereo piano with +6 dB bass balance](#sampled-production-piano-and-register-balance-210)
+(#210), used by both live CV and recording playback. The procedural modal and
+sine sections below document retained reference APIs, not the live default.
 
 ## Playback and ownership
 
@@ -9,10 +13,10 @@ The browser owner is in `frontend/src/app/audio/audioEngine.ts`. Call
 `initialize()` from a user gesture and await it before delivering notes.
 It requests an interactive AudioContext, resumes before awaiting module loading,
 and loads `/audio/piano-worklet.js`. Both the worklet and its relative
-`synth.js` import are static public assets, without a bundler worker transform.
+`sampled-piano.js` and `synth.js` imports are static public assets, without a bundler worker transform.
 
 The Audio check link opens `/audio`: Enable audio, Soft A4, Loud A4,
-Ten-note chord, and Stop sound. Each test sends note-off after one second, followed by its release tail. Starting another test releases the previous tones; Stop sound is an immediate emergency silence. This page
+Ten-note chord, matched-velocity Bass C2 / Middle C4 / High C6, and Stop sound. Each test sends note-off after one second, followed by its release tail. Starting another test releases the previous tones; Stop sound is an immediate emergency silence. This page
 owns and closes its context on navigation. The existing home-page Play handler
 awaits the shared owner's initialization and displays failures with a retry.
 Detected notes never initialize or resume audio themselves.
@@ -24,7 +28,7 @@ presses, clears voices, and rejects notes until explicit initialization resumes
 the context. Resume never replays notes from the previous session. The owner
 can be closed even while its module is loading.
 
-## DSP
+## Procedural reference DSP
 
 Ten voice records are preallocated. For MIDI note n, frequency is
 `440 * 2 ** ((n - 69) / 12)` Hz at the actual worklet sample rate.
@@ -38,7 +42,7 @@ Ten full-velocity in-phase voices are bounded by 0.95 even at sustain 1; the fin
 
 `new Synth(sampleRate, options)` accepts an optional construction-time envelope.
 Explicit ADSR options or `{mode: "legacy"}` select the previous sine renderer.
-The production AudioWorklet uses the piano defaults below; there is no live parameter UI or
+The procedural Synth class uses the modal defaults below; there is no live parameter UI or
 per-note configuration. Options are copied into sample counts at construction.
 
 | Option | Unit | Default | Valid range |
@@ -119,7 +123,7 @@ wiring remains #24 and #28. Do not mix bridge-owned and legacy calls on one owne
 ## Verification
 
 From `frontend/`, run the standard lint, TypeScript, Vitest, contrast and build
-checks. `tests/frontend/browserAudio.test.ts` renders the exact production DSP
+checks. `tests/frontend/browserAudio.test.ts` renders the retained procedural DSP
 in explicit legacy mode offline at 44.1, 48 and 96 kHz. Interpolated positive zero crossings estimate
 pitch within 0.1 Hz across eleven notes; steady-state RMS allows finite-window
 error. Tests cover velocity ratios, attack/release, ten voices, stealing,
@@ -141,7 +145,7 @@ are local, not yet in CI. Record a listening check with the manual template:
 enable audio, compare soft/loud A4, listen to the chord, stop, suspend/resume
 and navigate away. Do not mark hardware audibility passed from graph samples.
 
-## Piano default (#175)
+## Procedural piano reference (#175)
 
 `new Synth(rate)` now uses ten fixed modal voices. Each voice has sixteen
 partials, independent amplitude/cutoff state, and a topology-preserving
@@ -191,21 +195,98 @@ define a fixed cutoff with zero pitch tracking, avoiding division by zero.
 Supported rates remain
 8000–384000 Hz; automated stage/Nyquist checks sample six representative rates.
 
-`pianoTimbre.test.ts` verifies the production default; `browserAudio.test.ts`
+`pianoTimbre.test.ts` retains the procedural reference; `browserAudio.test.ts`
 retains the explicitly selected legacy oracle for baseline/migration.
-Browser graph thresholds now account for normalized harmonics and decaying
-amplitude (soft RMS >0.001, chord RMS >0.01), and test velocity ordering rather
-than an exact sine ratio. These thresholds establish nonzero output only.
-No licensed reference recordings have been incorporated. Listening/reference
-tuning and physical latency remain pending in the dated manual report.
-The sample-pool proposal #22 is deferred: this bounded procedural approximation
-needs no sample downloads; sampling, resonance and pedal modeling remain separate.
+The procedural reference remains available to offline/migration tests; the live
+worklet now uses SampledPiano. Its sampled graph checks and provenance are
+described below. Historical modal benchmarks do not measure the new renderer.
 
 ## Velocity tuning (#209)
 
 The previous peak was 0.08 times velocity. The new power curve uses more headroom for strong strikes and widens soft-to-loud contrast without render-loop allocations. Maximum excitation gain increases 1.49 dB. The legacy sine mix retains 0.45 dB headroom; piano output additionally includes its filter and steal correction and is verified separately. The user confirmed velocity audibility before the piano merge; listening to the combined piano/velocity implementation remains pending. Register balancing and estimator thresholds are unchanged.
 
 See the [dated verification/listening report](../tests/manual/2026-10-14_209-velocity.md) for before/after digital levels and the pending hardware procedure. Digital RMS does not establish acoustic SPL or physical latency.
+
+## Sampled production piano and register balance (#210)
+
+`piano-worklet.js` uses `SampledPiano` from `sampled-piano.js` for live notes,
+recording playback and the Audio check page. This supersedes the modal default;
+`Synth`/`LegacySynth` remain explicit procedural references for older tests.
+The rejected +4 dB modal experiment is not shipped. No new npm dependency,
+WebAssembly port, native backend, CDN or per-note network request is involved.
+
+Nineteen stereo MP3 recordings of Alexander Holm's Salamander Yamaha C5 are
+committed under `public/audio/piano-samples/` (1,377,637 compressed bytes).
+[Credits, CC BY 3.0 license and source](../frontend/public/audio/piano-samples/NOTICE.md)
+and a SHA-256 manifest accompany the files. This is the same subset heard in
+the accepted listening prototype. Roots are C1, C2 through A5 in minor thirds,
+C6 and C7. All MIDI 0–127 events remain accepted; notes select the nearest
+recording and linearly interpolate at `2 ** ((note-root)/12)`. Roots C1–C7 are
+recorded; pitches outside that range are transpositions, with large stretches
+at the extreme ends. Linear interpolation does not promise alias-free extreme
+transposition or concert-instrument tuning accuracy.
+Fundamentals at or above 0.45 times the context rate are silent, matching the
+reference renderer's safe-band policy rather than playing an aliased pitch.
+
+Each owner loads/decode-prepares the bank once before readiness, with four
+outstanding fetch/decode tasks at most. Decoding uses the actual AudioContext
+rate; stereo PCM is copied to the worklet. The owner retains one bank for
+processor recovery and suspension/resume, and releases it on close or failed
+initialization. AbortController cancels pending fetches on close/failure;
+in-progress browser decoding cannot be interrupted but its stale result is
+rejected. A ten-second worklet-ready timeout reports failure with retry.
+No samples are fetched, decoded or copied per note or per render block. Startup
+cost and decoded memory are distinct from note dispatch latency.
+
+For each recording, RMS is measured over the first 500 ms across both channels.
+Playback gain is
+`min(0.003274555342244959 * 10 ** (6 * clamp((69-root)/33,0,1) / 20) / rms, 0.085 / peak)`.
+A final fixed +6 dB gain (1.995262 times amplitude) raises every note equally,
+preserving register balance and velocity. A fixed +/-0.95 safety clamp handles
+exceptional coherent overloads; overloads can distort and are not an equal-gain
+claim. The sample preparation cap is unchanged.
+The common fixed level preserves the prototype's headroom scale. Bass lift is
++6 dB at C2 and below, +3.82 dB at C3, +1.64 dB at C4, and zero at A4 and above;
+intermediate notes use their selected recording's curve. This equalizes digital
+levels before bass shaping, not universal perceived loudness. It never adjusts
+one held note's gain in response to other active voices. Near-silent leading
+frames are skipped at 0.2% of recording peak with a 1 ms margin.
+
+Velocity multiplies gain by `velocity ** 1.5`. The live motion mapping now reaches
+velocity 1 at 4 palm lengths/s (formerly 8), making loud notes easier to reach
+without increasing maximum output. Its 0.5 palm lengths/s noise floor and soft
+velocity 0.2 remain. Shared events pass that normalized onset velocity unchanged;
+new recordings capture it through the existing MIDI conversion, while saved
+recordings retain their original velocities. There is one recorded dynamic
+layer: velocity changes amplitude, not recorded hammer timbre. Multi-layer
+samples, pedal resonance, release-noise samples and reverb remain future work.
+
+The sampler preallocates ten voices. A 2 ms linear onset and 200 ms release
+from current level shape the recording; natural sample end or a 30-second
+maximum retires it. Oldest-press stealing blends the last stereo sample into
+the replacement for 3 ms using a convex crossfade. Repeated pitches are
+independent; duplicate/stale releases cannot stop their replacement. Stop,
+release-all, reset, overload and suspension keep the existing identity and
+immediate-silence behavior. Linear sample interpolation, envelopes and convex
+stealing keep each channel of each valid voice at or below 0.085, bounding a
+ten-voice mix to 0.85 before the final boost. The output safety clamp is 0.95. No adaptive limiter or
+render-loop allocations are needed. This is not an acoustic distortion or
+intersample-peak guarantee. The native engine and count-in metronome are unchanged.
+
+`sampledPiano.test.ts` covers normalization/bass curve, stereo, PCM validation,
+trimming, all MIDI pitches and chord bounds at six rates, velocity, transposed
+pitch, block continuity, stealing/release/session safety, file hashes and
+bounded loading/failure paths. Audio-owner tests cover pending load, cancellation,
+retry and bank reuse. The production browser runner checks actual decoded
+assets, all-pitch coherent chord bounds, offline bass/mid/treble graph output,
+velocity, Stop, suspension/re-enable and navigation cleanup.
+
+Carl Xu preferred +6 dB in the real-piano prototype after rejecting the modal
+balance. All phrase notes had the same selected velocity (Medium default 0.6).
+[Listening and verification record](../tests/manual/2026-10-19_210-register-balance.md)
+separates that qualitative report from production graph tests and pending
+camera/device/physical-latency measurements. The older velocity and timbre
+reports remain historical evidence for their respective renderers.
 
 ## Live binary pedals (#176)
 
@@ -226,12 +307,13 @@ while retaining the existing independent live-note lifecycle.
 Ten voices remain preallocated. The first idle slot wins, otherwise the oldest
 press is stolen, including physically held or captured notes; stealing never
 inherits capture. This deliberately preserves the existing deterministic allocator.
-Retained tails retire below 0.00001 amplitude or at 30 seconds. A pedal cannot
+Sampled tails retire at the recording end or at 30 seconds. The procedural
+reference retires tails below 0.00001 amplitude or at 30 seconds. A pedal cannot
 resurrect a damped/retired voice. Legacy ADSR mode retains its historical behavior;
 pedals apply to the production piano mode.
 
-Soft approximates una corda with 0.65 onset gain, 0.5 upper-partial excitation
-before normalization, and 0.65 brightness. The velocity^1.5 gain curve remains;
+Soft scales future sampled strikes by 0.65, retaining their recorded timbre.
+The procedural reference also uses 0.5 upper-partial excitation and 0.65 brightness. The velocity^1.5 gain curve remains;
 recorded velocity is untouched. Each voice keeps its strike settings. This is an
 approximation without half-pedaling, mechanical modeling or sympathetic resonance.
 

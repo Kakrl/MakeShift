@@ -57,13 +57,13 @@ MakeShift/
 │   └── Final Verification and Validation Plan.pdf
 ├── frontend/
 │   ├── public/
-│   │   ├── audio/                   # piano-worklet.js and shared synth.js
+│   │   ├── audio/                   # worklet, sampled-piano.js, procedural synth.js and piano-samples/
 │   │   └── models/                  # MediaPipe hand landmarker model
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── api/health/          # recordings database health route
 │   │   │   ├── api/recordings/      # shared recordings list/read/upload/delete routes
-│   │   │   ├── audio/                  # browser owner and Audio check page
+│   │   │   ├── audio/               # browser owner, pianoSamples.ts loader, and Audio check page
 │   │   │   ├── about/
 │   │   │   ├── calibration/
 │   │   │   ├── cv/                  # hand landmark overlay and drawing
@@ -121,6 +121,7 @@ MakeShift/
 │   │   ├── browserAudio.test.ts      # production DSP offline rendering
 │   │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   │   ├── browserAudio.browser.mjs  # production browser graph check
+│   │   ├── sampledPiano.test.ts      # sample preparation, PCM, renderer, hashes and loader
 │   │   ├── pianoTimbre.test.ts       # piano modal envelopes/filter/spectra/lifecycle
 │   │   ├── pianoProfile.browser.mjs  # paired synchronous browser DSP benchmark
 │   │   ├── deployment.browser.mjs    # production assets, camera recovery, offline playing

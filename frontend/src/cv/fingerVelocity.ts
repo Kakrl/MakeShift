@@ -5,7 +5,8 @@ export const VELOCITY_WINDOW_MS = 100;
 export const VELOCITY_MAX_GAP_MS = 150;
 const MIN_SAMPLE_MS = 5;
 const SPEED_NOISE_FLOOR = 0.5;
-const FULL_VELOCITY_SPEED = 8;
+// Reach a strong strike with less motion; retain the stationary/noise floor.
+const FULL_VELOCITY_SPEED = 4;
 const HISTORY_SIZE = 24;
 
 /** Speed is in palm lengths/second, not physical metres/second. */
