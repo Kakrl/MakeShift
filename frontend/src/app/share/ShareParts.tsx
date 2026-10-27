@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { RECORDING_LIMITS } from "../../lib/recordings";
 import CopyLinkButton from "./CopyLinkButton";
-import { shareUrl } from "./mockShareStore";
+import { shareUrl } from "./shareStore";
 
 export function CloseIcon() {
   return (

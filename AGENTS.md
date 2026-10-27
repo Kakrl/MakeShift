@@ -44,15 +44,15 @@ it separates existing behavior from planned work and links implementation issues
 | Path | Contents |
 | :--- | :--- |
 | `frontend/` | Next.js web client: camera, calibration, CV overlays, MIDI utils and local library operations |
-| `frontend/public/audio/` | Static AudioWorklet, shared fixed-voice sampler/procedural references, and attributed piano recordings |
-| `frontend/src/app/audio/` | Browser audio owner, bounded sample loader and user-triggered sound check |
-| `frontend/src/app/share/` | Shared recordings UI (mock data until the recordings API lands): store, post-recording save dialog, songs dialog (Shared and My recordings tabs), piano roll; `play/[id]/` share links open the shared-songs dialog |
+| `frontend/public/audio/` | Static AudioWorklet and shared fixed-voice DSP |
+| `frontend/src/app/audio/` | Browser audio owner and user-triggered sound check |
+| `frontend/src/app/share/` | Shared recordings UI: API client, store (mock fixtures with `?mock=`), post-recording save dialog, songs dialog (Shared and My recordings tabs), piano roll; `play/[id]/` share links open the shared-songs dialog |
 | `frontend/src/diagnostics/` | Shared bounded metrics and explicit camera-video registry |
 | `frontend/src/events/` | Shared browser note schema, clocks, session dispatch and audio adapter |
 | `frontend/src/cv/` | ArUco marker detection, homography, keyboard geometry, prototype shadow worker and combined per-finger contact state |
 | `frontend/src/lib/` | Shared utilities: versioned `localStorage` access and the recordings API types/validation used by client and server |
-| `frontend/src/app/api/` | Server routes; `/api/health` checks the recordings database |
-| `frontend/src/server/` | Server-only Supabase access (never import from client code) |
+| `frontend/src/app/api/` | Server routes; `/api/health` checks the recordings database, `/api/recordings` lists, reads, uploads and deletes shared recordings |
+| `frontend/src/server/` | Server-only Supabase access and recordings route handlers (never import from client code) |
 | `supabase/` | Supabase CLI config and SQL migrations for shared recordings |
 | `backend/` | C++ audio engine (PortAudio) and its nanobind Python module |
 | `tests/` | Test inventory, testing guide, and suite subdirectories |

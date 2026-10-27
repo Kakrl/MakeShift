@@ -16,6 +16,9 @@ export const RECORDING_LIMITS = {
   maxDurationMs: 30 * 60 * 1000,
 } as const;
 
+/** Recordings per `GET /api/recordings` page. */
+export const RECORDING_LIST_PAGE_SIZE = 6;
+
 /** One row in `GET /api/recordings`; omits the note list. */
 export type RecordingSummary = {
   id: string;

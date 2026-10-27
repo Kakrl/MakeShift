@@ -62,14 +62,15 @@ MakeShift/
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── api/health/          # recordings database health route
-│   │   │   ├── audio/                  # browser owner, pianoSamples.ts loader and Audio check page
+│   │   │   ├── api/recordings/      # shared recordings list/read/upload/delete routes
+│   │   │   ├── audio/               # browser owner, pianoSamples.ts loader, and Audio check page
 │   │   │   ├── about/
 │   │   │   ├── calibration/
 │   │   │   ├── cv/                  # hand landmark overlay and drawing
 │   │   │   ├── documentation/
 │   │   │   ├── midi/                # MIDI recorder, export and playback timeline
 │   │   │   ├── play/[id]/           # share link; opens the song in the shared songs dialog
-│   │   │   ├── share/               # mock share store, save and songs dialogs, piano roll
+│   │   │   ├── share/               # share API client and store, mock fixtures, save and songs dialogs, piano roll
 │   │   │   ├── tutorial/
 │   │   │   ├── PipelineDiagnostics.tsx # opt-in metrics and report export
 │   │   │   ├── CameraContext.tsx
@@ -94,7 +95,7 @@ MakeShift/
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
 │   │   ├── lib/                     # shared utilities (versioned storage, recordings API schema)
 │   │   │   └── keyboardSettings.ts  # persisted layout and synchronous invalidation
-│   │   ├── server/                  # server-only Supabase access
+│   │   ├── server/                  # server-only Supabase access and recordings handlers
 │   │   └── shims/                   # empty fs shim and type-only MIDI declaration bridge
 │   ├── package.json
 │   ├── package-lock.json
@@ -127,6 +128,7 @@ MakeShift/
 │   │   ├── runCvVideo.mjs             # builds app and runs a labeled CV replay
 │   │   ├── homePage.test.ts
 │   │   ├── supabaseHealth.test.ts    # /api/health database check
+│   │   ├── recordingsApi.test.ts     # recordings routes and client, mocked database
 │   │   ├── pianoIntegration.test.ts # deterministic note-to-audio/MIDI/feedback
 │   │   ├── fingerVelocity.test.ts   # motion estimator, lifecycle and DSP response
 │   │   ├── liveSession.test.ts       # readiness transitions and stale-input safety
