@@ -15,6 +15,19 @@ npm run dev   # starts the local dev server at http://localhost:3000
 
 ---
 
+## Live sampled piano
+
+Live notes and recording playback use locally hosted Salamander grand-piano
+recordings through a ten-voice stereo AudioWorklet. Enable audio preloads the
+19 recordings; playing afterward needs no network. The selected balance uses
++6 dB bass presence after per-recording RMS normalization. `/audio` provides
+matched-velocity C2/C4/C6 comparisons plus the existing velocity/chord checks.
+Samples are attributed to Alexander Holm under CC BY 3.0; see
+[`public/audio/piano-samples/NOTICE.md`](public/audio/piano-samples/NOTICE.md)
+and [DSP/loading details and limits](../docs/browser_audio.md).
+Velocity changes gain in one recorded dynamic layer. Procedural `Synth` remains
+an offline reference; it is no longer the live worklet default.
+
 ## Tempo and metronome preferences
 
 The home page remembers tempo and the metronome toggle between visits using
