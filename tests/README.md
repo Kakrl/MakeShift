@@ -1873,3 +1873,5 @@ localhost pedal branch on 2026-10-23 and confirmed all pedals behave as intended
 and can be programmed. This is a reported functional pass; automated browser
 checks, specific device/environment details, detailed edge-case verification,
 live-CV profiling and physical latency evidence remain pending.
+
+Issue #205 user follow-up (2026-10-27): Carl Xu tested the localhost build at 4ea7a38 and confirmed it works as intended. See the CI-04 report's user confirmation; detailed hardware/scenario and physical measurement evidence remains pending.
