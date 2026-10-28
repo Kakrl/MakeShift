@@ -37,6 +37,7 @@ export class LiveSession {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private listeners = new Set<() => void>();
   private notes: NoteSession;
+  private sink: ReturnType<typeof createAudioSink>;
   private hidden = false;
   private configuredLayout: Readonly<KeyboardLayout> = DEFAULT_LAYOUT;
 
@@ -55,7 +56,8 @@ export class LiveSession {
     private audio: BrowserAudio,
     private now = () => performance.now(),
   ) {
-    this.notes = new NoteSession(createAudioSink(audio), now);
+    this.sink = createAudioSink(audio);
+    this.notes = new NoteSession(this.sink, now);
   }
 
   /** Attach in an effect; construction has no browser resources or subscriptions. */
@@ -111,6 +113,15 @@ export class LiveSession {
 
   flushNotes() {
     this.notes.flushObservers();
+  }
+
+  pauseInput() {
+    this.notes.pauseInput();
+    this.sink.pauseInput();
+  }
+  resumeInput() {
+    this.notes.resumeInput();
+    this.audio.resumeInput();
   }
 
   private expireBeforeRefresh() {
@@ -226,6 +237,7 @@ export class LiveSession {
     } catch {
       if (request !== this.generation) return false;
       this.state = "error";
+      this.resumeInput();
       this.message =
         "Audio could not start. Select Enable audio to retry; check browser audio permissions.";
       this.emit();
@@ -296,6 +308,7 @@ export class LiveSession {
     this.state = state; // Retire before audio invalidation can reenter.
     this.message = message;
     this.notes.stop();
+    this.resumeInput();
     if (changed) this.emit();
   }
 }

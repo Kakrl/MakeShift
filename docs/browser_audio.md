@@ -332,3 +332,15 @@ functional pass for all pedals and programmable bindings. Specific device
 configuration, detailed recovery scenarios, live-CV profiling and physical latency
 evidence remain pending.
 No physical latency or hardware compatibility pass is claimed.
+
+## Count-in silence (#205)
+
+`BrowserAudio.pauseInput()` sends the existing ordered `release-all` command
+without transport invalidation, clearing every sampled voice, sustain/sostenuto
+capture, soft state and crossfade history. The same AudioContext/worklet stays
+alive. Piano note-ons and positive pedal activations are rejected until opening;
+release/reset paths remain available. `LiveSession` also clears audio-token
+ownership and gates validated musical delivery. Separate count-in oscillators
+remain audible. Ordinary interruption/reset still invalidates sessions.
+Pedal UI sources clear synchronously at entry; inactive assigned keydowns are
+remembered as suppressed until keyup, for both Hold and Toggle.

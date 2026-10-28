@@ -193,7 +193,6 @@ export default function Home() {
     recorderRef.current = createRecorder();
   }
   const recorder = recorderRef.current;
-  const consumersRef = useRef<ReturnType<typeof connectPianoConsumers> | null>(null);
   const recordingsLibraryRef = useRef<RecordingsLibraryHandle | null>(null);
   const [libraryLoaded, setLibraryLoaded] = useState(false);
   const [hasRecordings, setHasRecordings] = useState(false);
@@ -254,6 +253,7 @@ export default function Home() {
   const [countInBeat, setCountInBeat] = useState<number | null>(null);
   const countInActionRef = useRef<"start" | "resume" | null>(null);
   const playRequestRef = useRef(0);
+  const [countInRequest, setCountInRequest] = useState(0);
 
   useEffect(() => () => {
     // Ignore audio initialization that finishes after leaving this page.
@@ -331,13 +331,14 @@ export default function Home() {
     let canceled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let cancelClicks = () => {};
+    const request = playRequestRef.current;
     const begin = () => {
-      if (canceled || countInActionRef.current === null) return;
+      if (canceled || request !== playRequestRef.current || countInActionRef.current === null) return;
       const origin = performance.now();
       const intervalMs = beatIntervalMs(tempo, meter);
       if (metronome) cancelClicks = scheduleCountInClicks(audioCtxRef.current!, tempo, meter);
       const tick = () => {
-        if (canceled || countInActionRef.current === null) return;
+        if (canceled || request !== playRequestRef.current || countInActionRef.current === null) return;
         const elapsed = performance.now() - origin;
         const beat = Math.min(beatsPerMeasure, Math.floor(elapsed / intervalMs));
         if (elapsed >= beatsPerMeasure * intervalMs) {
@@ -349,7 +350,7 @@ export default function Home() {
           session.flushNotes();
           if (countInActionRef.current === "resume") recorder.resumeRecording();
           else recorder.startRecording(tempo, undefined, meter);
-          consumersRef.current?.captureHeld();
+          session.resumeInput();
           setRecordingState(recorder.getState());
           countInActionRef.current = null;
           return;
@@ -361,15 +362,21 @@ export default function Home() {
       };
       tick();
     };
-    if (metronome) {
-      if (!audioCtxRef.current) audioCtxRef.current = trackAudioContext(new AudioContext());
-      const context = audioCtxRef.current;
-      if (context.state === "suspended") {
-        void context.resume().then(begin).catch(() => {
-          if (!canceled) session.interrupt("Count-in audio could not start. Select Enable audio to retry.");
-        });
+    const failed = () => {
+      if (!canceled && request === playRequestRef.current) {
+        clearTimeout(timer);
+        cancelClicks();
+        session.interrupt("Count-in audio could not start. Select Enable audio to retry.");
+      }
+    };
+    try {
+      if (metronome) {
+        if (!audioCtxRef.current) audioCtxRef.current = trackAudioContext(new AudioContext());
+        const context = audioCtxRef.current;
+        if (context.state === "suspended") void context.resume().then(begin).catch(failed);
+        else begin();
       } else begin();
-    } else begin();
+    } catch { failed(); }
     return () => {
       canceled = true;
       clearTimeout(timer);
@@ -378,7 +385,7 @@ export default function Home() {
   // Settings are locked throughout this measure. Only its lifetime, rather
   // than each displayed beat, should create or cancel the audio schedule.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [countingIn]);
+  }, [countingIn, countInRequest]);
 
   // Playing and recording share readiness, but have independent lifetimes.
   const canPlay = liveStatus.canStart;
@@ -387,7 +394,6 @@ export default function Home() {
   useEffect(() => {
     const detach = session.attach();
     const disconnectNotes = connectPianoConsumers(session, recorder, setActivePitches);
-    consumersRef.current = disconnectNotes;
     let previousState = session.status.state;
     const unsubscribe = session.subscribe(() => {
       const status = session.status;
@@ -415,7 +421,6 @@ export default function Home() {
       detach();
       session.flushNotes();
       disconnectNotes();
-      consumersRef.current = null;
       recorder.stopRecording();
       if (audioCtxRef.current) void closeTrackedAudioContext(audioCtxRef.current);
       document.removeEventListener("visibilitychange", visibility);
@@ -429,7 +434,7 @@ export default function Home() {
     return session.play() !== null;
   };
   const handlePlay = async () => {
-    if (countInBeat !== null || session.status.state === "starting") return;
+    if (countInActionRef.current !== null || session.status.state === "starting") return;
     if (isRecording && !isPaused) {
       session.flushNotes();
       recorder.pauseRecording();
@@ -437,9 +442,20 @@ export default function Home() {
       return;
     }
     if (!canPlay || !libraryLoaded) return;
+    countInActionRef.current = isRecording && isPaused ? "resume" : "start";
     const request = ++playRequestRef.current;
-    if (!await enableAudio() || request !== playRequestRef.current) return;
+    session.pauseInput();
+    pedalClearRef.current?.();
+    if (request !== playRequestRef.current) return;
+    if (!await enableAudio() || request !== playRequestRef.current) {
+      if (request === playRequestRef.current) {
+        countInActionRef.current = null;
+        session.resumeInput();
+      }
+      return;
+    }
     if (countInBeat !== null) return; // already counting in
+    setCountInRequest(request);
     if (isRecording && isPaused) {
       // Keep the existing take paused until the count-in finishes.
       countInActionRef.current = "resume";
@@ -461,6 +477,7 @@ export default function Home() {
     playRequestRef.current += 1;
     countInActionRef.current = null;
     setCountInBeat(null);
+    session.resumeInput();
     // An initial count-in has no take; a resume count-in does.
     if (!isRecording) return;
     const recording = recorder.stopRecording();
@@ -513,7 +530,7 @@ export default function Home() {
         </p>
       </PageTopBar>
       <div aria-live="polite" className="sr-only">
-        {countInBeat !== null ? (isPaused ? "Count-in to resume recording" : "Count-in to start recording") : isPaused ? "Recording paused" : isRecording ? "Recording started" : showRecordingComplete ? "Recording complete" : ""}
+        {countInBeat !== null ? `Count-in — piano input paused. Beat ${countInBeat} of ${beatsPerMeasure}. Select Stop to cancel.` : isPaused ? "Recording paused" : isRecording ? "Recording started" : showRecordingComplete ? "Recording complete" : ""}
       </div>
 
       {/* ── Welcome Modal (first visit) ─────────────────────────────────────── */}
@@ -675,6 +692,7 @@ export default function Home() {
           {/* Count-in overlay, one measure of beats before recording */}
           {countInBeat !== null && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-dark/60 z-40 pointer-events-none">
+              <p className="text-white">Count-in — piano input paused · Stop to cancel</p>
               <span
                 key={countInBeat}
                 className="ms-beat font-display text-white font-bold leading-none tabular-nums"
@@ -782,7 +800,7 @@ export default function Home() {
         </SideNav>
       </div>
 
-      <PedalControls active={liveStatus.state === "playing"} clearRef={pedalClearRef} />
+      <PedalControls active={liveStatus.state === "playing" && !countingIn} clearRef={pedalClearRef} />
       {/* Bottom: Listen (left) + transport (centre) */}
       <div className="flex items-center shrink-0 pl-(--gutter-l) pr-(--gutter-r) pb-[clamp(16px,3dvh,36px)] pt-[clamp(16px,2.5dvh,28px)]">
         <div className="flex-1 relative flex flex-wrap items-center justify-center gap-x-4 gap-y-3">

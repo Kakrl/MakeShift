@@ -2,7 +2,7 @@
 
 `frontend/src/events/liveSession.ts` owns readiness independently of React.
 The home page prepares audio from Enable audio (or Record) and immediately opens
-a fresh #86 `NoteSession`. Recording count-in does not delay live playback.
+a fresh #86 `NoteSession`. Start/resume count-ins synchronously gate live input (#205), including audio startup. Camera, calibration and contact tracking continue.
 The CV coordinator calls `session.noteOn` / `session.noteOff` with the captured
 session identity, press identity and note values. These methods construct the
 versioned envelope and sequence internally, then use the same validated
@@ -35,7 +35,7 @@ tracking after readiness loss refreshes stopped/interrupted guidance without
 automatic playback. Audio-start errors retain their retry guidance. Pending startup completions cannot revive stopped sessions.
 Old-session events are rejected even after restart. Pause preserves live audio
 and the paused MIDI take; Resume uses a MIDI count-in without reinitializing audio.
-Held notes are captured at start/resume boundaries without retriggering sound. Interruption closes the take instead of resuming it automatically.
+Held notes are retired at count-in entry and require release plus a fresh press after completion. Interruption closes the take instead of resuming it automatically.
 
 ## Calibration and tracking policy
 

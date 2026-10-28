@@ -441,3 +441,7 @@ binding validation: frontend/src/events/pedals.ts. Existing BrowserAudio/worklet
 and synth carry controls. Tests: tests/frontend/pedals.test.ts,
 pedalControls.test.tsx and the expanded browserAudioLifecycle.test.ts. No new
 subsystem directory is introduced.
+
+Issue #205 adds `tests/frontend/countInGate.browser.mjs`, a manually invoked
+real-worklet silence and metronome verification runner. Its scope and execution
+evidence are recorded under CI-03 in the verification inventory.

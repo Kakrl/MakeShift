@@ -1,5 +1,55 @@
 # MakeShift Testing
 
+## Count-in input gate (issue #205)
+
+2026-10-27, Windows / Node 22.20.0, branch
+`feature/205-count-in-input-gate`: full Vitest **696 passed**, one existing
+frame-loss skip, 36 files. Lint, TypeScript, all 37 contrast pairs and production
+build passed. Vitest needed outside-sandbox execution after EPERM cache renames;
+build needed network access for the configured Google Fonts.
+
+Start/resume gate notes and positive pedal activation synchronously before
+startup/first beat. Entry retires accepted feedback/history and clears voices,
+pedal tails and captures without invalidating the live session. Physical
+identities and sequence validation continue; suppressed releases retire them.
+The final complete meter callback drains history, opens/resumes the recorder,
+then opens input. Equal timestamps are eligible only if delivered after opening;
+earlier observations and held identities stay suppressed until release. The home
+page never captures held notes at that boundary. Tests revise former count-in
+free-play and resumed-held-capture expectations; cover every requested 120 BPM
+meter, 20 BPM 1/1 and 300 BPM 32/32 extrema, taps on every start beat, holds across resume, cancellation at
+0/500/1000/1500/1999 ms on both paths, zero gated MIDI-export notes, and free play
+outside count-in. Existing startup/Stop/background/interruption/navigation and
+stale-callback cases passed, including count-in AudioContext construction failure. Hold/Toggle UI tests require keyup and a fresh press
+after inactive count-in keydown.
+
+Edge 156.0.4314.42 deployment, keyboard-layout and production audio checks
+passed against a temporary port 3235 production server with fake media.
+`countInGate.browser.mjs` passed using actual owner/session/sink source modules,
+the production worklet and decoded stereo sample bank at 48 kHz: sustain and
+sostenuto retained tails were nonzero before entry, exactly zero while gated,
+and nonzero on a fresh press afterward. Each case independently rendered all
+four scheduled metronome clicks; zero owner invalidations and the same context.
+The runner transpiles source modules into data URLs and reuses the decoded bank;
+it does not test full-page camera interaction or physical speakers. Run with
+a production server:
+
+```powershell
+$env:MAKE_SHIFT_URL = 'http://127.0.0.1:3235'
+$env:AUDIO_BROWSER_CHANNEL = 'msedge'
+node tests/frontend/countInGate.browser.mjs
+```
+
+All four browser runners were attempted with Chromium but failed before
+execution (`spawn UNKNOWN`); Chromium remains pending. Database unconfigured.
+Human camera/audio, physical pedals, screen reader and MIDI-import checks
+remain pending in [CI-04](manual/2026-10-27_CI-04.md). No physical accuracy or
+latency pass and no new Actions execution is claimed.
+
+This branch builds on the existing unmerged #207/#232 scheduler commit
+`4cbc67c` in PR #233. The #205 draft targets main and depends on #233;
+its dependency commit remains visible until that PR merges.
+
 ## Count-in timing correction (issue #232, 2026-10-27)
 
 The user heard swung/unequal count-in intervals on localhost. Code audit found

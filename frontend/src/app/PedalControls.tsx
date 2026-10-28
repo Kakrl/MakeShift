@@ -44,6 +44,7 @@ export default function PedalControls({ active, clearRef }: { active: boolean; c
         save({ ...bindings, [capture]: { ...bindings[capture], code: e.code } });
         setCapture(null); return;
       }
+      if (!active || browserAudio.isInputPaused) { owner?.suppressKey(e.code); return; }
       if (!active || e.isComposing || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey ||
           (e.target instanceof Element && e.target.closest("input,textarea,select,[contenteditable]:not([contenteditable=false]),[role=dialog]"))) return;
       if (owner?.keydown(e.code, e.repeat)) e.preventDefault();

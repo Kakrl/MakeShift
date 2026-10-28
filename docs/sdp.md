@@ -154,3 +154,15 @@ and quarter-note tick conversion remain unchanged. Grouped accents, dotted-beat
 tempo and meter changes within a take are outside scope. See [the contract](meter.md)
 and METER-01 through METER-04 in the verification inventory for mapped tests
 and explicit hardware/manual limitations.
+
+## Count-in input policy (#205)
+
+CI-1 refines requirements 2.2, 3.2 and 4.1: start/resume count-ins silence
+existing voices and pedal captures and discard new piano input for every full
+meter interval, including asynchronous startup. Camera/calibration/contact
+tracking and optional clicks continue. CI-2 requires held note/pedal release
+and a fresh press, deterministic recorder-before-input opening, stale-event
+rejection and safe cancellation; free play outside count-in remains available.
+No change to latency thresholds or pedal recording scope. Mapped tests CI-01
+through CI-04 cover software behavior; physical camera/audio evidence remains
+pending in the [manual procedure](../tests/manual/2026-10-27_CI-04.md).

@@ -20,10 +20,10 @@ event interface. Automated and physical verification remain pending; see the
 
 Calibrate with the printed sheet, keep all four markers visible, and return to
 the home page. Select Enable audio for free play, or Record to enable audio
-and begin a count-in. Live playback and highlights continue during count-in,
-Pause and recording Stop. Pause closes captured notes and excludes paused and
-resume count-in time. Start/resume captures currently held accepted presses
-with their identities and velocities, without retriggering audio. Stop closes
+and begin a count-in. Start/resume count-ins pause piano audio, pedals, MIDI capture
+and sounding-key feedback. Contact tracking continues, but held keys require release
+and a fresh press after completion. Free play continues during Pause and after Stop.
+Pause closes captured notes and excludes paused and resume count-in time. Stop closes
 the take for MIDI export. Restore tracking and select Enable audio after an
 interruption.
 
