@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { createRecorder, downloadMidi } from "../../frontend/src/app/midi/midiUtils";
+import { NoteSession } from "../../frontend/src/events/noteSession";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -19,6 +20,7 @@ function readMidi(uri: string) {
   let offset = 22;
   let tick = 0;
   let tempo = 0;
+  let meter: number[] = [];
   let ended = false;
   const notes: { tick: number; on: boolean; pitch: number; velocity: number }[] = [];
   function variableLength() {
@@ -41,6 +43,10 @@ function readMidi(uri: string) {
       if (type === 81) {
         expect(length).toBe(3);
         tempo = bytes.readUIntBE(offset, 3);
+      } else if (type === 88) {
+        expect(tick).toBe(0);
+        expect(length).toBe(4);
+        meter = [...bytes.subarray(offset, offset + length)];
       } else {
         expect(type).toBe(47);
         expect(length).toBe(0);
@@ -53,8 +59,36 @@ function readMidi(uri: string) {
     }
   }
   expect(ended).toBe(true);
-  return { tempo, notes };
+  return { tempo, notes, meter };
 }
+
+it("exports zero gated onsets and excludes start/resume count-in time", () => {
+  let now = 1000;
+  vi.spyOn(performance, "now").mockImplementation(() => now);
+  const link = { href: "", download: "", click: vi.fn() };
+  vi.stubGlobal("document", { createElement: () => link });
+  const recorder = createRecorder();
+  const session = new NoteSession(() => true, () => now), id = session.start();
+  session.subscribe(({ event }) => {
+    if (event.type === "release-all") recorder.releaseAllNotes(event.timestampMs);
+    else if (event.type === "note-on") recorder.noteOn("C4", 80, event.timestampMs, String(event.pressId));
+    else recorder.noteOff("C4", event.timestampMs, String(event.pressId));
+  });
+  let sequence = 0;
+  const event = (type: "note-on" | "note-off", pressId: number) => session.receive({
+    version: 1, sessionId: id, sequence: ++sequence, timestampMs: now, type, pressId, pitch: 60, velocity: 0.8,
+  });
+  session.pauseInput(); event("note-on", 1); now += 2000;
+  recorder.startRecording(120); session.resumeInput();
+  event("note-off", 1); event("note-on", 2); session.flushObservers();
+  now += 500; recorder.pauseRecording(); session.pauseInput(); event("note-on", 3);
+  now += 3000; recorder.resumeRecording(); session.resumeInput();
+  event("note-off", 2); event("note-off", 3); event("note-on", 4); session.flushObservers();
+  now += 250; session.stop(); session.flushObservers();
+  const take = recorder.stopRecording()!; downloadMidi(take);
+  expect(take.notes.map(n => [n.startMs, n.durationMs])).toEqual([[0, 500], [500, 250]]);
+  expect(readMidi(link.href).notes.map(n => [n.tick, n.on])).toEqual([[0, true], [128, false], [128, true], [192, false]]);
+});
 
 it("exports chords, split held notes and stop boundaries with the real writer", () => {
   let now = 1000;
@@ -63,7 +97,7 @@ it("exports chords, split held notes and stop boundaries with the real writer", 
   vi.stubGlobal("document", { createElement: () => link });
   const recorder = createRecorder();
   expect(recorder.getState()).toBe("stopped");
-  recorder.startRecording(120);
+  recorder.startRecording(120, undefined, { numerator: 7, denominator: 8 });
   expect(recorder.getState()).toBe("recording");
   recorder.noteOn("C4", 80, now, "finger-1");
   recorder.noteOn("E4", 50, now, "finger-2");
@@ -83,6 +117,7 @@ it("exports chords, split held notes and stop boundaries with the real writer", 
   expect(link.click).toHaveBeenCalledOnce();
   const decoded = readMidi(link.href);
   expect(decoded.tempo).toBe(500000);
+  expect(decoded.meter).toEqual([7, 3, 24, 8]);
   expect(decoded.notes.filter(note => note.on)).toEqual([
     { tick: 0, on: true, pitch: 60, velocity: 102 },
     { tick: 0, on: true, pitch: 64, velocity: 64 },
@@ -100,7 +135,7 @@ it("exports chords, split held notes and stop boundaries with the real writer", 
   recorder.noteOn("D4", 100);
   now += 500;
   downloadMidi(recorder.stopRecording()!);
-  expect(readMidi(link.href)).toEqual({ tempo: 1000000, notes: [
+  expect(readMidi(link.href)).toEqual({ tempo: 1000000, meter: [4, 2, 24, 8], notes: [
     { tick: 64, on: true, pitch: 62, velocity: 127 },
     { tick: 128, on: false, pitch: 62, velocity: 127 },
   ] });

@@ -139,6 +139,7 @@ export default function MarkerTrackingOverlay({
   trackingEnabled = false,
   onCalibrationObservation,
   activePitches,
+  soundFeedbackOnly = false,
   showVisualDebug = false,
   debugShowZLines = false,
   debugShowSheetWithoutCalibration = false,
@@ -151,6 +152,7 @@ export default function MarkerTrackingOverlay({
   hands?: readonly HandObservation[];
   depthCalibration?: PersistedDepthCalibration | null;
   activePitches: ReadonlySet<number>;
+  soundFeedbackOnly?: boolean;
   onKeyTransitions?: (pressed: readonly KeyPress[], released: readonly number[]) => void;
   trackingEnabled?: boolean;
   showVisualDebug?: boolean;
@@ -767,7 +769,7 @@ export default function MarkerTrackingOverlay({
       projectedWhiteKeys.forEach((key, index) => {
         const pitch = keyIndexToMidi(index, layout);
         const isPlaying = pitch !== null && activePitches.has(pitch);
-        const isPressed = collidedKeys.has(index) || isPlaying;
+        const isPressed = (!soundFeedbackOnly && collidedKeys.has(index)) || isPlaying;
         context.strokeStyle = isPressed ? danger : ink;
         if (isPressed) pressWhiteKey(context, key, danger);
         else releaseWhiteKey(context, key, white);
@@ -776,7 +778,7 @@ export default function MarkerTrackingOverlay({
       projectedBlackKeys.forEach((key, index) => {
         const pitch = blackKeyIndexToMidi(index, layout);
         const isPlaying = pitch !== null && activePitches.has(pitch);
-        const isCollided = collidedKeys.has(layout.whiteKeys + index);
+        const isCollided = !soundFeedbackOnly && collidedKeys.has(layout.whiteKeys + index);
         drawBlackKey(context, key, isCollided || isPlaying ? info : ink);
       });
 
@@ -936,6 +938,7 @@ export default function MarkerTrackingOverlay({
     stream,
     trackingEnabled,
     activePitches,
+    soundFeedbackOnly,
     layout
   ]);
 

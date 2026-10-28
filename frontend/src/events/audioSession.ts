@@ -2,9 +2,9 @@ import { BrowserAudio } from "../app/audio/audioEngine";
 import { NoteSession, type NoteSink } from "./noteSession";
 
 /** Press identities map to audio tokens independently of subscription ownership. */
-export function createAudioSink(audio: BrowserAudio): NoteSink {
+export function createAudioSink(audio: BrowserAudio) {
   const tokens = new Map<number, { session: number; press: number }>();
-  return ({ event }) => {
+  const sink: NoteSink = ({ event }) => {
     if (event.type === "release-all") {
       tokens.clear();
       audio.releaseAll();
@@ -20,6 +20,7 @@ export function createAudioSink(audio: BrowserAudio): NoteSink {
     tokens.delete(event.pressId);
     return token !== undefined && audio.noteOff(token);
   };
+  return Object.assign(sink, { pauseInput() { tokens.clear(); audio.pauseInput(); } });
 }
 
 /** Attach one shared session owner to one BrowserAudio instance after initialize(). */

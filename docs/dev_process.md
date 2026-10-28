@@ -38,6 +38,7 @@ MakeShift/
 │   ├── rvtm_browser_addendum.md      # browser requirement/test reconciliation
 │   ├── performance.md              # bounded pipeline metrics, clocks and profiling
 │   ├── latency_estimation.md       # software estimate, assumptions and sensitivity
+│   ├── meter.md                     # validated meter, timing, persistence and export contract
 │   ├── browser_audio.md             # browser DSP, transport and verification
 │   ├── audio.md                     # polyphony and voice stealing
 │   ├── audio_events.md              # native audio event queue contract
@@ -66,7 +67,7 @@ MakeShift/
 │   │   ├── app/
 │   │   │   ├── api/health/          # recordings database health route
 │   │   │   ├── api/recordings/      # shared recordings list/read/upload/delete routes
-│   │   │   ├── audio/               # browser owner, pianoSamples.ts loader, and Audio check page
+│   │   │   ├── audio/               # browser owner, countIn.ts scheduler, pianoSamples.ts loader and Audio check page
 │   │   │   ├── about/
 │   │   │   ├── calibration/
 │   │   │   ├── cv/                  # hand landmark overlay and drawing
@@ -440,3 +441,7 @@ binding validation: frontend/src/events/pedals.ts. Existing BrowserAudio/worklet
 and synth carry controls. Tests: tests/frontend/pedals.test.ts,
 pedalControls.test.tsx and the expanded browserAudioLifecycle.test.ts. No new
 subsystem directory is introduced.
+
+Issue #205 adds `tests/frontend/countInGate.browser.mjs`, a manually invoked
+real-worklet silence and metronome verification runner. Its scope and execution
+evidence are recorded under CI-03 in the verification inventory.

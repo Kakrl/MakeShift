@@ -1,4 +1,5 @@
 "use client";
+import { DEFAULT_METER, DENOMINATORS, MIN_NUMERATOR, MAX_NUMERATOR, isMeter, restoreMeter, beatIntervalMs, formatMeter, type Meter } from "../lib/meter";
 
 import { registerCameraVideo } from "../diagnostics/cameraVideo";
 
@@ -18,6 +19,7 @@ import {
 } from "./midi/midiUtils";
 import { trackAudioContext, closeTrackedAudioContext } from "../diagnostics/performanceMetrics";
 import { browserAudio } from "./audio/audioEngine";
+import { scheduleCountInClicks } from "./audio/countIn";
 import { LiveSession } from "../events/liveSession";
 import { loadCalibration } from "../cv/calibration";
 import { connectPianoConsumers } from "../events/pianoConsumers";
@@ -37,7 +39,7 @@ const MIN_TEMPO = 20;
 const MAX_TEMPO = 300;
 const SETTINGS_NAME = "playback-settings";
 const SETTINGS_VERSION = 1;
-type PlaybackSettings = { tempo: number; metronome: boolean };
+type PlaybackSettings = { tempo: number; metronome: boolean; meter?: unknown };
 const DEFAULT_SETTINGS: PlaybackSettings = { tempo: 60, metronome: true };
 
 function isPlaybackSettings(value: unknown): value is PlaybackSettings {
@@ -56,14 +58,6 @@ const CVOverlayCoordinator = dynamic(
   () => import("./CVOverlayCoordinator"),
   { ssr: false },
 );
-
-function ChevronDown() {
-  return (
-    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 function RecordIcon() {
   return (
@@ -199,7 +193,6 @@ export default function Home() {
     recorderRef.current = createRecorder();
   }
   const recorder = recorderRef.current;
-  const consumersRef = useRef<ReturnType<typeof connectPianoConsumers> | null>(null);
   const recordingsLibraryRef = useRef<RecordingsLibraryHandle | null>(null);
   const [libraryLoaded, setLibraryLoaded] = useState(false);
   const [hasRecordings, setHasRecordings] = useState(false);
@@ -230,8 +223,20 @@ export default function Home() {
   const [tempo, setTempo] = useState(DEFAULT_SETTINGS.tempo);
   const [tempoInput, setTempoInput] = useState(String(DEFAULT_SETTINGS.tempo));
   const [tempoError, setTempoError] = useState<string | null>(null);
-  const [timeSignature, setTimeSignature] = useState("4/4");
-  const beatsPerMeasure = parseInt(timeSignature.split("/")[0]);
+  const [meter, setMeter] = useState<Meter>(DEFAULT_METER);
+  const [numeratorDraft, setNumeratorDraft] = useState("4");
+  const [meterError, setMeterError] = useState<string | null>(null);
+  const beatsPerMeasure = meter.numerator;
+  function commitMeter(denominator = meter.denominator) {
+    const next = { numerator: Number(numeratorDraft), denominator };
+    if (!numeratorDraft.trim() || !isMeter(next)) {
+      setNumeratorDraft(String(meter.numerator));
+      setMeterError(`Use an integer from ${MIN_NUMERATOR} to ${MAX_NUMERATOR}. Restored ${formatMeter(meter)}.`);
+      return;
+    }
+    setMeter(next);
+    setMeterError(null);
+  }
 
   // ── Metronome ────────────────────────────────────────────────────────────
   const [metronome, setMetronome] = useState(DEFAULT_SETTINGS.metronome);
@@ -241,13 +246,14 @@ export default function Home() {
   useEffect(() => {
     // Initial defaults must not overwrite preferences before restoration.
     if (!settingsLoaded) return;
-    writeStored(SETTINGS_NAME, SETTINGS_VERSION, { tempo, metronome });
-  }, [settingsLoaded, tempo, metronome]);
+    writeStored(SETTINGS_NAME, SETTINGS_VERSION, { tempo, metronome, meter });
+  }, [settingsLoaded, tempo, metronome, meter]);
 
   // ── Count-in beat (1 → beatsPerMeasure, then recording starts) ──────────
   const [countInBeat, setCountInBeat] = useState<number | null>(null);
   const countInActionRef = useRef<"start" | "resume" | null>(null);
   const playRequestRef = useRef(0);
+  const [countInRequest, setCountInRequest] = useState(0);
 
   useEffect(() => () => {
     // Ignore audio initialization that finishes after leaving this page.
@@ -296,6 +302,9 @@ export default function Home() {
       setTempo(saved.tempo);
       setTempoInput(String(saved.tempo));
       setMetronome(saved.metronome);
+      const restored = restoreMeter(saved.meter);
+      setMeter(restored);
+      setNumeratorDraft(String(restored.numerator));
       setSettingsLoaded(true);
       const dev = isDevMode();
       setDevMode(dev);
@@ -314,56 +323,69 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, []);
 
-  // ── Audio click (used only for count-in) ────────────────────────────────
-  const playClick = useCallback((accent: boolean) => {
-    if (!audioCtxRef.current) audioCtxRef.current = trackAudioContext(new AudioContext());
-    const ctx = audioCtxRef.current;
-    if (ctx.state === "suspended") ctx.resume();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = "sine";
-    osc.frequency.value = accent ? 1050 : 820;
-    gain.gain.setValueAtTime(accent ? 0.65 : 0.38, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.055);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.06);
-  }, []);
-
-  // ── Beat-based count-in (1 measure at current tempo) ────────────────────
+  // One measure owns one audio schedule and one wall-clock origin. React
+  // renders update the display only; they never trigger individual clicks.
+  const countingIn = countInBeat !== null;
   useEffect(() => {
-    if (countInBeat === null) return;
-    // Play click for this beat (accent on beat 1)
-    if (metronome) playClick(countInBeat === 1);
-    const intervalMs = (60 / tempo) * 1000;
-    const timer = setTimeout(() => {
-      if (countInActionRef.current === null) return;
-      if (countInBeat >= beatsPerMeasure) {
-        // Measure complete, start recording
-        if (session.status.state !== "playing") {
-          session.interrupt("Readiness changed during count-in. Wait for tracking, then select Enable audio.");
+    if (!countingIn) return;
+    let canceled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let cancelClicks = () => {};
+    const request = playRequestRef.current;
+    const begin = () => {
+      if (canceled || request !== playRequestRef.current || countInActionRef.current === null) return;
+      const origin = performance.now();
+      const intervalMs = beatIntervalMs(tempo, meter);
+      if (metronome) cancelClicks = scheduleCountInClicks(audioCtxRef.current!, tempo, meter);
+      const tick = () => {
+        if (canceled || request !== playRequestRef.current || countInActionRef.current === null) return;
+        const elapsed = performance.now() - origin;
+        const beat = Math.min(beatsPerMeasure, Math.floor(elapsed / intervalMs));
+        if (elapsed >= beatsPerMeasure * intervalMs) {
+          if (session.status.state !== "playing") {
+            session.interrupt("Readiness changed during count-in. Wait for tracking, then select Enable audio.");
+            return;
+          }
+          setCountInBeat(null);
+          session.flushNotes();
+          if (countInActionRef.current === "resume") recorder.resumeRecording();
+          else recorder.startRecording(tempo, undefined, meter);
+          session.resumeInput();
+          setRecordingState(recorder.getState());
+          countInActionRef.current = null;
           return;
         }
-        setCountInBeat(null);
-
-        session.flushNotes();
-        // Resume keeps the existing take and excludes the count-in time.
-        if (countInActionRef.current === "resume") {
-          recorder.resumeRecording();
-        } else {
-          recorder.startRecording(tempo);
-        }
-        consumersRef.current?.captureHeld();
-        setRecordingState(recorder.getState());
-        countInActionRef.current = null;
-      } else {
-        setCountInBeat((b) => (b !== null ? b + 1 : null));
+        setCountInBeat(beat + 1);
+        // A delayed callback skips stale display beats instead of moving the
+        // remaining deadlines or emitting a burst of late clicks.
+        timer = setTimeout(tick, Math.max(1, origin + (beat + 1) * intervalMs - performance.now()));
+      };
+      tick();
+    };
+    const failed = () => {
+      if (!canceled && request === playRequestRef.current) {
+        clearTimeout(timer);
+        cancelClicks();
+        session.interrupt("Count-in audio could not start. Select Enable audio to retry.");
       }
-    }, intervalMs);
-    return () => clearTimeout(timer);
+    };
+    try {
+      if (metronome) {
+        if (!audioCtxRef.current) audioCtxRef.current = trackAudioContext(new AudioContext());
+        const context = audioCtxRef.current;
+        if (context.state === "suspended") void context.resume().then(begin).catch(failed);
+        else begin();
+      } else begin();
+    } catch { failed(); }
+    return () => {
+      canceled = true;
+      clearTimeout(timer);
+      cancelClicks();
+    };
+  // Settings are locked throughout this measure. Only its lifetime, rather
+  // than each displayed beat, should create or cancel the audio schedule.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [countInBeat]);
+  }, [countingIn, countInRequest]);
 
   // Playing and recording share readiness, but have independent lifetimes.
   const canPlay = liveStatus.canStart;
@@ -372,7 +394,6 @@ export default function Home() {
   useEffect(() => {
     const detach = session.attach();
     const disconnectNotes = connectPianoConsumers(session, recorder, setActivePitches);
-    consumersRef.current = disconnectNotes;
     let previousState = session.status.state;
     const unsubscribe = session.subscribe(() => {
       const status = session.status;
@@ -400,7 +421,6 @@ export default function Home() {
       detach();
       session.flushNotes();
       disconnectNotes();
-      consumersRef.current = null;
       recorder.stopRecording();
       if (audioCtxRef.current) void closeTrackedAudioContext(audioCtxRef.current);
       document.removeEventListener("visibilitychange", visibility);
@@ -414,7 +434,7 @@ export default function Home() {
     return session.play() !== null;
   };
   const handlePlay = async () => {
-    if (countInBeat !== null || session.status.state === "starting") return;
+    if (countInActionRef.current !== null || session.status.state === "starting") return;
     if (isRecording && !isPaused) {
       session.flushNotes();
       recorder.pauseRecording();
@@ -422,9 +442,20 @@ export default function Home() {
       return;
     }
     if (!canPlay || !libraryLoaded) return;
+    countInActionRef.current = isRecording && isPaused ? "resume" : "start";
     const request = ++playRequestRef.current;
-    if (!await enableAudio() || request !== playRequestRef.current) return;
+    session.pauseInput();
+    pedalClearRef.current?.();
+    if (request !== playRequestRef.current) return;
+    if (!await enableAudio() || request !== playRequestRef.current) {
+      if (request === playRequestRef.current) {
+        countInActionRef.current = null;
+        session.resumeInput();
+      }
+      return;
+    }
     if (countInBeat !== null) return; // already counting in
+    setCountInRequest(request);
     if (isRecording && isPaused) {
       // Keep the existing take paused until the count-in finishes.
       countInActionRef.current = "resume";
@@ -446,6 +477,7 @@ export default function Home() {
     playRequestRef.current += 1;
     countInActionRef.current = null;
     setCountInBeat(null);
+    session.resumeInput();
     // An initial count-in has no take; a resume count-in does.
     if (!isRecording) return;
     const recording = recorder.stopRecording();
@@ -478,7 +510,7 @@ export default function Home() {
   const recordDisabled = !libraryLoaded || !canPlay || countInBeat !== null || liveStatus.state === "starting";
   const stopDisabled = !isRecording && countInBeat === null && liveStatus.state !== "starting";
   // Playback settings only matter once a calibration exists.
-  const settingsLocked = !settingsLoaded || isCalibrated !== true;
+  const settingsLocked = !settingsLoaded || isCalibrated !== true || isRecording || countInBeat !== null || liveStatus.state === "starting";
   const needsCalibration = isCalibrated === false;
   const openCalibration = () => setShowCalibrationIntro(true);
   const settingLabel = settingsLocked ? "text-ink-muted" : "text-ink";
@@ -498,7 +530,7 @@ export default function Home() {
         </p>
       </PageTopBar>
       <div aria-live="polite" className="sr-only">
-        {countInBeat !== null ? (isPaused ? "Count-in to resume recording" : "Count-in to start recording") : isPaused ? "Recording paused" : isRecording ? "Recording started" : showRecordingComplete ? "Recording complete" : ""}
+        {countInBeat !== null ? `Count-in — piano input paused. Beat ${countInBeat} of ${beatsPerMeasure}. Select Stop to cancel.` : isPaused ? "Recording paused" : isRecording ? "Recording started" : showRecordingComplete ? "Recording complete" : ""}
       </div>
 
       {/* ── Welcome Modal (first visit) ─────────────────────────────────────── */}
@@ -660,6 +692,7 @@ export default function Home() {
           {/* Count-in overlay, one measure of beats before recording */}
           {countInBeat !== null && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-dark/60 z-40 pointer-events-none">
+              <p className="text-white">Count-in — piano input paused · Stop to cancel</p>
               <span
                 key={countInBeat}
                 className="ms-beat font-display text-white font-bold leading-none tabular-nums"
@@ -667,7 +700,7 @@ export default function Home() {
               >
                 {countInBeat}
               </span>
-              <div className="flex items-center gap-2.5 mt-6">
+              <div className="flex flex-wrap justify-center max-w-[240px] items-center gap-2.5 mt-6">
                 {Array.from({ length: beatsPerMeasure }, (_, i) => (
                   <div
                     key={i}
@@ -722,21 +755,25 @@ export default function Home() {
 
             {/* Time Signature */}
             <div className="flex flex-col gap-2">
-              <label htmlFor="time-signature" className={`ms-label transition-colors ${settingLabel}`}>Time Signature</label>
-              <div className="relative">
-                <select
-                  id="time-signature"
-                  value={timeSignature}
-                  onChange={(e) => setTimeSignature(e.target.value)}
-                  disabled={settingsLocked}
-                  className="ms-input w-full"
-                >
-                  <option>4/4</option>
-                  <option>3/4</option>
-                  <option>6/8</option>
+              <label htmlFor="time-signature" className={`ms-label transition-colors ${settingLabel}`}>Time Signature numerator</label>
+              <div className="flex items-center gap-2">
+                <input id="time-signature" type="number" min={MIN_NUMERATOR} max={MAX_NUMERATOR} step={1}
+                  disabled={settingsLocked} value={numeratorDraft}
+                  onChange={(e) => { setNumeratorDraft(e.target.value); setMeterError(null); }}
+                  onBlur={() => commitMeter()} onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); commitMeter(); }
+                    if (e.key === "Escape") { setNumeratorDraft(String(meter.numerator)); setMeterError(null); }
+                  }} aria-invalid={meterError !== null} aria-describedby="meter-help meter-error"
+                  className="ms-input w-full min-w-0" />
+                <span aria-hidden="true">/</span>
+                <select aria-label="Time signature denominator" disabled={settingsLocked}
+                  value={meter.denominator} onChange={(e) => commitMeter(Number(e.target.value))}
+                  className="ms-input w-full min-w-0">
+                  {DENOMINATORS.map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-ink-muted"><ChevronDown /></div>
               </div>
+              <p id="meter-help" className="text-sm text-ink-muted">{formatMeter(meter)} · Numerator / denominator. Quarter-note BPM. Stop the take to change settings.</p>
+              <p id="meter-error" role={meterError ? "alert" : undefined}>{meterError}</p>
             </div>
 
             {/* Metronome toggle */}
@@ -763,7 +800,7 @@ export default function Home() {
         </SideNav>
       </div>
 
-      <PedalControls active={liveStatus.state === "playing"} clearRef={pedalClearRef} />
+      <PedalControls active={liveStatus.state === "playing" && !countingIn} clearRef={pedalClearRef} />
       {/* Bottom: Listen (left) + transport (centre) */}
       <div className="flex items-center shrink-0 pl-(--gutter-l) pr-(--gutter-r) pb-[clamp(16px,3dvh,36px)] pt-[clamp(16px,2.5dvh,28px)]">
         <div className="flex-1 relative flex flex-wrap items-center justify-center gap-x-4 gap-y-3">

@@ -77,10 +77,10 @@ the same marker IDs cannot be distinguished by this camera-only contract.
 ## Playing and recording
 
 After live calibration validation, select **Enable audio** to unlock browser
-sound without starting a MIDI recording. Live notes continue during count-in,
-recording pauses and after Stop. **Record**, **Pause**, **Resume** and **Stop**
-control only MIDI capture. Notes held at the end of a start/resume count-in are
-captured from that recording boundary without retriggering their sound.
+sound without starting a MIDI recording. Live notes continue during recording
+pauses and after Stop. Start/resume count-ins silence piano voices and pedals,
+while tracking and optional countdown clicks continue. Held keys require release
+and a fresh press after the countdown; no held notes are captured at its boundary.
 Calibration invalidation and leaving the page still release live sound.
 
 ## Persistence failures

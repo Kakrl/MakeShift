@@ -164,3 +164,27 @@ mappings under AGENTS.md.
 Software render/dispatch results do not establish requirement 2.3's physical
 latency. Real device/CV tests must report p50/p95/max, fraction >=50 ms, onset
 method, uncertainty, sample rate and complete hardware/browser metadata.
+
+## Configurable meter scope (#207)
+
+Requirements 3.2, 4.1 and 4.2 now include validated 1-32 numerator and
+1/2/4/8/16/32 denominator, quarter-note BPM with denominator-note count-in,
+immutable take metadata, compatible preferences/library restoration and MIDI
+signature metadata at tick zero. Share/API preservation includes a database
+migration; live deployment verification is pending. Note timing/velocity/pitch
+and quarter-note tick conversion remain unchanged. Grouped accents, dotted-beat
+tempo and meter changes within a take are outside scope. See [the contract](meter.md)
+and METER-01 through METER-04 in the verification inventory for mapped tests
+and explicit hardware/manual limitations.
+
+## Count-in input policy (#205)
+
+CI-1 refines requirements 2.2, 3.2 and 4.1: start/resume count-ins silence
+existing voices and pedal captures and discard new piano input for every full
+meter interval, including asynchronous startup. Camera/calibration/contact
+tracking and optional clicks continue. CI-2 requires held note/pedal release
+and a fresh press, deterministic recorder-before-input opening, stale-event
+rejection and safe cancellation; free play outside count-in remains available.
+No change to latency thresholds or pedal recording scope. Mapped tests CI-01
+through CI-04 cover software behavior; physical camera/audio evidence remains
+pending in the [manual procedure](../tests/manual/2026-10-27_CI-04.md).

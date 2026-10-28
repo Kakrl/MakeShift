@@ -48,7 +48,8 @@ in the mock store, and their links keep `?mock=1`.
 | `title` | `text` | 1-100 characters |
 | `author_name` | `text` | Display name, 1-50 characters |
 | `device_id` | `text` | Anonymous per-browser ID, 1-128 characters |
-| `bpm` | `integer` | 20-400 |
+| `bpm` | `integer` | 20-400, quarter-note BPM |
+| `meter` | `jsonb` | Numerator integer 1-32; denominator 1/2/4/8/16/32; legacy default 4/4 (#207) |
 | `duration_ms` | `integer` | Non-negative |
 | `note_count` | `integer` | Non-negative |
 | `notes` | `jsonb` | Note-list JSON; must be an array |
@@ -137,3 +138,13 @@ environments above and enable auto-sync. Redeploy after the first sync
    the Infisical App Connection, then revoke the old token.
 4. Remove a person's access by removing them from the Infisical project, then
    rotate any secret they could read.
+
+## Meter migration (#207)
+
+Apply `20261027000000_recording_meter.sql` with `npx supabase db push --linked`
+before deploying the updated API. The new routes select/insert `meter`; an
+unmigrated database will return route errors. Upload omission uses 4/4, explicit
+invalid meter returns 400, and list/read return validated meter. Existing rows
+receive 4/4. [Meter semantics](meter.md) apply to previews and MIDI downloads.
+Local migration execution is pending: Supabase CLI/project credentials are not
+available in this checkout. Mocked API tests are not evidence of live migration.

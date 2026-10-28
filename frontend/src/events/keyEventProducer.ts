@@ -17,7 +17,7 @@ export function createKeyEventProducer(session: LiveSession, sessionId: string) 
       const pressId = keys.get(keyIndex);
       if (pitch === null || pressId === undefined) continue;
       const result = session.noteOff(sessionId, pressId, pitch, timestampMs);
-      if (result !== "accepted") return;
+      if (result !== "accepted" && result !== "suppressed") return;
       keys.delete(keyIndex);
     }
     for (const { keyIndex, velocity } of pressed) {
@@ -25,7 +25,7 @@ export function createKeyEventProducer(session: LiveSession, sessionId: string) 
       if (pitch === null || keys.has(keyIndex)) continue;
       const pressId = ++press;
       const result = session.noteOn(sessionId, pressId, pitch, velocity, timestampMs);
-      if (result !== "accepted") return;
+      if (result !== "accepted" && result !== "suppressed") return;
       keys.set(keyIndex, pressId);
     }
   };

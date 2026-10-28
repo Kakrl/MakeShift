@@ -48,6 +48,41 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+it("discards gated physical identities, retires accepted history, and defines equal-time opening", () => {
+  const f = fixture();
+  const off = (sequence: number, pressId: number, timestampMs: number) => ({
+    ...on(f.id, sequence, pressId, timestampMs), type: "note-off",
+  });
+  expect(f.session.receive(on(f.id))).toBe("accepted");
+  f.setTime(110);
+  f.session.pauseInput();
+  expect(f.observer.mock.calls.map(([d]) => d.event.type)).toEqual(["note-on", "note-off"]);
+  expect(f.session.receive(on(f.id, 2, 2, 110))).toBe("suppressed");
+  expect(f.session.receive(off(3, 2, 110))).toBe("suppressed");
+  f.setTime(120);
+  f.session.resumeInput();
+  // Deferred pre-boundary onset is discarded even though delivered after open.
+  expect(f.session.receive(on(f.id, 4, 3, 119))).toBe("suppressed");
+  expect(f.session.receive(off(5, 1, 120))).toBe("suppressed");
+  expect(f.session.receive(off(6, 3, 120))).toBe("suppressed");
+  expect(f.session.receive(on(f.id, 7, 4, 120))).toBe("accepted");
+  f.session.flushObservers();
+  expect(f.audio.mock.calls.map(([d]) => d.event.type)).toEqual(["note-on", "note-on"]);
+  expect(f.observer.mock.calls.map(([d]) => d.event.type)).toEqual(["note-on", "note-off", "note-on"]);
+});
+
+it("validates duplicate/malformed gated events and resets suppressed identities on restart", () => {
+  const f = fixture(); f.session.pauseInput();
+  const event = on(f.id);
+  expect(f.session.receive(event)).toBe("suppressed");
+  expect(f.session.receive(event)).toBe("duplicate");
+  expect(f.session.receive({ ...event, sequence: 2, type: "note-off", pitch: 61 })).toBe("interrupted");
+  f.session.resumeInput();
+  const id = f.session.start();
+  expect(f.session.receive(event)).toBe("stale");
+  expect(f.session.receive(on(id))).toBe("accepted");
+});
+
 describe("versioned musical boundary", () => {
   it("copies and freezes all three event types, ignoring extra fields", () => {
     const raw = { ...on(), pitch: 60 as number, extra: "not forwarded" };

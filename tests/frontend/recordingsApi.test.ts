@@ -82,6 +82,7 @@ describe("GET /api/recordings", () => {
       title: "Song 0",
       authorName: "Jo",
       bpm: 100,
+      meter: { numerator: 4, denominator: 4 },
       durationMs: 1000,
       noteCount: 2,
       createdAt: rows[0].created_at,
@@ -166,6 +167,7 @@ describe("POST /api/recordings", () => {
       author_name: "Jo",
       device_id: "device",
       bpm: 120,
+      meter: { numerator: 4, denominator: 4 },
       duration_ms: 650,
       note_count: 2,
       notes: [
@@ -331,4 +333,26 @@ describe("stopping a take's share", () => {
     expect(shareUrl(ID, false)).toBe(`/play/${ID}`);
     expect(shareUrl("ab12cd34", true)).toBe("/play/ab12cd34?mock=1");
   });
+});
+
+it("preserves meter on upload, list and read with legacy fallback", async () => {
+  const meter = {numerator:7,denominator:8};
+  const db=database([{id:ID}],[{...row(1),id:ID,meter}],[{...row(1),id:ID,meter,notes:upload.notes}]);
+  expect((await uploadRecording(post({...upload,meter}),db.deps)).status).toBe(201);
+  expect(JSON.parse(db.calls[0].init.body as string).meter).toEqual(meter);
+  expect((await (await listRecordings(new Request("http://localhost/api/recordings"),db.deps)).json()).recordings[0].meter).toEqual(meter);
+  expect((await (await getRecording(ID,db.deps)).json()).meter).toEqual(meter);
+});
+it.each([{numerator:0,denominator:4},{numerator:7,denominator:3},null])("rejects invalid uploaded meter before touching the database", async meter => {
+  const db=database();
+  expect((await uploadRecording(post({...upload,meter}),db.deps)).status).toBe(400);
+  expect(db.calls).toHaveLength(0);
+});
+
+it("normalizes legacy/corrupt API meter and rejects invalid client uploads", async () => {
+  const fetchImpl=vi.fn(async () => Response.json({id:ID,meter:{numerator:7,denominator:3}}));
+  const client=createShareApi(fetchImpl as unknown as typeof fetch);
+  expect((await client.get(ID))!.meter).toEqual({numerator:4,denominator:4});
+  await expect(client.upload({...upload,meter:{numerator:33,denominator:4}})).rejects.toThrow("Invalid time signature");
+  expect(fetchImpl).toHaveBeenCalledTimes(1);
 });
