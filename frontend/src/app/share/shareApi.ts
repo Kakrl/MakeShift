@@ -1,3 +1,4 @@
+import { isMeter, restoreMeter } from "../../lib/meter";
 // Browser client for the recordings API (#119, #122, #128). Same shape as
 // the mock store, so the share UI does not care which one it is using.
 import type {
@@ -45,18 +46,21 @@ export function createShareApi(fetchImpl: typeof fetch = (...args) => fetch(...a
   });
 
   return {
-    list(cursor = null) {
-      return call(cursor ? `?cursor=${encodeURIComponent(cursor)}` : "");
+    async list(cursor = null) {
+      const page = await call<RecordingListResponse>(cursor ? `?cursor=${encodeURIComponent(cursor)}` : "");
+      return { ...page, recordings: page.recordings.map((r) => ({ ...r, meter: restoreMeter(r.meter) })) };
     },
 
     async get(id) {
       const response = await fetchImpl(`/api/recordings/${encodeURIComponent(id)}`, { cache: "no-store" });
       if (response.status === 404) return null;
       if (!response.ok) throw await apiError(response);
-      return (await response.json()) as SharedRecording;
+      const recording = (await response.json()) as SharedRecording;
+      return { ...recording, meter: restoreMeter(recording.meter) };
     },
 
     upload(request) {
+      if (request.meter !== undefined && !isMeter(request.meter)) return Promise.reject(new Error("Invalid time signature"));
       return call("", sendJson("POST", request));
     },
 

@@ -156,6 +156,37 @@ describe("home page", () => {
     window.history.replaceState(null, "", "/");
   });
 
+  it.each([undefined, null, {numerator:0,denominator:4}, {numerator:7,denominator:3}])("restores corrupt/legacy meter independently of tempo and metronome", meter => {
+    saveCalibration();
+    localStorage.setItem(storageKey("playback-settings",1), JSON.stringify({tempo:180,metronome:false,meter}));
+    renderHome();
+    expect((screen.getByLabelText("Time Signature numerator") as HTMLInputElement).value).toBe("4");
+    expect((screen.getByLabelText("Time signature denominator") as HTMLSelectElement).value).toBe("4");
+    expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("180");
+    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("commits meter only on Enter/blur, explains invalid drafts, and restores preferences", () => {
+    saveCalibration(); renderHome();
+    const numerator = screen.getByLabelText("Time Signature numerator") as HTMLInputElement;
+    fireEvent.change(numerator, { target: { value: "" } });
+    expect(numerator.value).toBe("");
+    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!).meter.numerator).toBe(4);
+    fireEvent.keyDown(numerator, { key: "Enter" });
+    expect(numerator.value).toBe("4");
+    expect(screen.getByRole("alert").textContent).toContain("Restored 4/4");
+    fireEvent.change(numerator, { target: { value: "7.5" } });
+    fireEvent.blur(numerator);
+    expect(numerator.value).toBe("4");
+    fireEvent.change(numerator, { target: { value: "7" } });
+    fireEvent.keyDown(numerator, { key: "Enter" });
+    fireEvent.change(screen.getByLabelText("Time signature denominator"), { target: { value: "8" } });
+    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!).meter).toEqual({ numerator: 7, denominator: 8 });
+    cleanup(); renderHome();
+    expect((screen.getByLabelText("Time Signature numerator") as HTMLInputElement).value).toBe("7");
+    expect((screen.getByLabelText("Time signature denominator") as HTMLSelectElement).value).toBe("8");
+  });
+
   it("restores saved preferences without overwriting them on initial render", () => {
     const key = storageKey("playback-settings", 1);
     localStorage.setItem(key, JSON.stringify({ tempo: 180, metronome: false }));
@@ -169,7 +200,7 @@ describe("home page", () => {
   it("keeps playback settings unavailable until a calibration is saved", () => {
     renderHome();
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).disabled).toBe(true);
-    expect((screen.getByLabelText("Time Signature") as HTMLSelectElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Time Signature numerator") as HTMLSelectElement).disabled).toBe(true);
     expect((screen.getByLabelText("Toggle metronome") as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByLabelText("Toggle metronome"));
     expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("true");
@@ -177,7 +208,7 @@ describe("home page", () => {
     saveCalibration();
     renderHome();
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).disabled).toBe(false);
-    expect((screen.getByLabelText("Time Signature") as HTMLSelectElement).disabled).toBe(false);
+    expect((screen.getByLabelText("Time Signature numerator") as HTMLSelectElement).disabled).toBe(false);
     expect((screen.getByLabelText("Toggle metronome") as HTMLButtonElement).disabled).toBe(false);
   });
 
@@ -386,7 +417,7 @@ describe("home page", () => {
     await act(async () => {
       fireEvent.click(screen.getByLabelText("Start recording"));
     });
-    expect(screen.getByText("1")).toBeTruthy();
+    expect(screen.getByText("1", { selector: "span.ms-beat" })).toBeTruthy();
     // One 4/4 measure at the default 60 BPM. Each beat schedules the next after a render.
     for (let beat = 0; beat < 4; beat++) act(() => vi.advanceTimersByTime(1000));
     expect(screen.getByText("Recording started")).toBeTruthy();

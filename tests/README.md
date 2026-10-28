@@ -1,5 +1,71 @@
 # MakeShift Testing
 
+## Count-in timing correction (issue #232, 2026-10-27)
+
+The user heard swung/unequal count-in intervals on localhost. Code audit found
+that each immediate click waited for a React effect after the previous timer;
+CV/render delays could move clicks and compound drift. The earlier deterministic
+meter tests did not model delayed UI callbacks. The bounded measure now schedules
+all oscillators once at fixed AudioContext times. A monotonic origin anchors the
+visual/completion deadlines; late callbacks skip stale display beats instead of
+shifting later deadlines. Recording starts when the final deadline is handled,
+never early; severe main-thread stalls may still delay capture and are not backdated.
+The audio context must resume before scheduling; canceled resume promises do nothing.
+
+Windows / Node 22.20.0: all 681 Vitest cases passed (one existing skip,
+36 files), lint, TypeScript, 37 contrast pairs and production build passed.
+New scheduler cases check all five timing examples plus 32/32, accents,
+fixed timestamps despite UI clock progress, idempotent cancellation, completed
+node cleanup and partial scheduling failure. Integration cases check a callback
+100 ms late without shifting subsequent boundaries; Stop/interruption/pagehide
+cancel every queued click and a canceled audio-resume promise cannot restart.
+
+Edge 156.0.4314.42 rendered the actual TypeScript scheduler through Web Audio
+OfflineAudioContext at 48 kHz. Every click-onset difference was exactly 24000
+samples (4/4, 3/4), 12000 (6/8, 7/8) or 48000 (2/2) at 120 BPM; canceled measures
+rendered silence. Run `AUDIO_BROWSER_CHANNEL=msedge node tests/frontend/countIn.browser.mjs`
+with shell-appropriate environment syntax. This standalone runner is manual,
+not CI. Digital rendering does not verify live-CV worklet deadlines or speakers.
+[User listening report and retest procedure](manual/2026-10-27_232-count-in.md)
+record the initial failure; physical retest and new Actions execution are pending.
+On the rebuilt fix, Edge 156 deployment, keyboard-layout and production audio
+smoke checks passed against a temporary port 3230 server with fake media;
+Chromium was attempted for all three but failed to spawn (UNKNOWN), so its
+execution remains pending. Database unconfigured. The temporary server and
+the user-facing port 3000 server were stopped after verification.
+
+
+## Configurable meter verification (issue #207)
+
+2026-10-27, Windows, Node 22.20.0, branch
+`feature/207-configurable-meter`: full Vitest passed (668 passed, one existing skip, 35 files),
+including deterministic 120 BPM 4/4, 3/4, 6/8, 7/8 and 2/2 start/resume
+boundaries, muted count-ins, accent generation through a mocked AudioContext,
+locked settings, draft/commit/error/reload and legacy/corrupt meter recovery.
+Real MIDI byte parsing verifies tick-zero 7/8 and legacy 4/4 metadata while
+retaining exact expected note ticks, pitch and velocity. Local-library snapshots
+and mocked upload/list/read preserve meter; invalid uploads never query the DB.
+
+Lint, TypeScript, all 37 contrast pairs and production build passed. The initial
+sandbox suite could not rename Vitest cache files (EPERM); the outside-sandbox
+rerun executed successfully. Build required outside-sandbox Google Fonts access.
+Chromium deployment/layout/audio checks were attempted but failed to spawn
+(`spawn UNKNOWN`); their execution remains pending. Edge 156.0.4314.42 fallback
+deployment, keyboard-layout and production audio checks passed with fake media.
+The 320px meter browser runner passed maximum 32/32 editing, Tab focus,
+invalid-draft explanation, no horizontal page overflow and persisted reload.
+Run it with `MAKE_SHIFT_URL=... BROWSER_CHANNEL=msedge node tests/frontend/meter.browser.mjs`
+(PowerShell environment syntax differs). It is not invoked by CI.
+
+Supabase CLI is not installed locally. `npx supabase db push --linked` failed
+fetching the package (ENOTFOUND); the no-install attempt confirmed it is absent.
+The database was unconfigured during browser checks: migration application and
+live shared-recording round trips remain pending. Apply the new migration before
+API deployment. CI execution, real audio/camera and the 32-beat live overlay
+remain unverified; [manual procedure](manual/2026-10-27_METER-04.md) is prepared,
+not executed. No physical latency or listening-quality pass is claimed.
+
+
 ## PR #219 integration and uniform volume (2026-10-26)
 
 Merged current main while retaining sampler documentation and the MIDI, tempo
@@ -951,6 +1017,7 @@ defect report is filed.
 | D21 | High | Calibration | (Req 6.2, 1.1, 2.1) #148 replaced the reachable result capture with depth buttons and navigated before validation/save. Final depth capture now creates the primary result; completion retains its model and saves both records before navigation. 6.2.3's expected failures are restored as passing regressions. | `frontend/src/app/calibration/page.tsx` | [#162](https://github.com/Kakrl/MakeShift/issues/162) | Fix verified locally 2026-10-06; review/merge and physical check pending |
 | D23 | Medium | Audio | (Req 2.4, related 2.2) User reports high-velocity strikes are not loud enough and wants more apparent velocity dynamics. Listening report 2026-10-14; cause and hardware verification pending. | `frontend/src/cv/fingerVelocity.ts`, `frontend/public/audio/synth.js` | [#209](https://github.com/Kakrl/MakeShift/issues/209) | DSP tuning implemented locally; [verification and listening limits](manual/2026-10-14_209-velocity.md); user confirmed audible velocity changes locally 2026-10-14; measured trials/chord distortion checks pending |
 | D24 | Medium | Audio | (Req 2.2, related 2.4) Higher notes dominated the procedural sound; +4 dB gain was insufficient. User selected sampled Salamander piano at +6 dB after RMS normalization. | `frontend/public/audio/sampled-piano.js`, `frontend/src/app/audio/pianoSamples.ts` | [#210](https://github.com/Kakrl/MakeShift/issues/210) | Sampled production implemented; [software and qualitative prototype evidence](manual/2026-10-19_210-register-balance.md); production hardware listening and review/merge pending |
+| D25 | Medium | Audio / UI | (Req 3.2, #207) Immediate per-beat clicks depended on React/main-thread timer delivery, allowing uneven intervals and accumulated drift under CV/render work. | `frontend/src/app/page.tsx`, `frontend/src/app/audio/countIn.ts` | [#232](https://github.com/Kakrl/MakeShift/issues/232) | Fix implemented; digital audio/timer regressions pass locally; physical listening, review/merge and Actions pending |
 
 ## Root Cause Analysis Log
 

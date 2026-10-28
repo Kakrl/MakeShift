@@ -708,3 +708,124 @@ it("ignores pending free-play audio initialization after calibration loss", asyn
   expect(browserAudio.noteOn).not.toHaveBeenCalled();
   expect(button("Start recording").disabled).toBe(true);
 });
+
+// Quarter-note BPM count-in contract; each step ends exactly on a beat boundary.
+it.each([[4,4,500],[3,4,500],[6,8,250],[7,8,250],[2,2,1000]])(
+  "counts and resumes %s/%s with %s ms intervals, excluding both count-ins", async (numerator, denominator, interval) => {
+    await act(async () => root.unmount());
+    localStorage.setItem("makeshift:playback-settings:v1", JSON.stringify({tempo:120,metronome:false,meter:{numerator,denominator}}));
+    root = createRoot(host);
+    await act(async () => root.render(<Home />));
+    await advance(0); await keys();
+    await click(button("Start recording"));
+    expect(host.querySelector<HTMLInputElement>("#time-signature")!.disabled).toBe(true);
+    for (let beat=1; beat<=numerator; beat++) {
+      expect(host.querySelector(".ms-beat")?.textContent).toBe(String(beat));
+      expect(host.querySelectorAll(".ms-beat + div > div")).toHaveLength(numerator);
+      await advance(interval-1);
+      expect(host.querySelector(".ms-beat")?.textContent).toBe(String(beat));
+      await advance(1);
+    }
+    expect(button("Pause recording").disabled).toBe(false);
+    await keys(115); await advance(100);
+    await click(button("Pause recording"));
+    expect(host.querySelector<HTMLInputElement>("#time-signature")!.disabled).toBe(true);
+    await click(button("Resume recording"));
+    for(let beat=1;beat<=numerator;beat++) {
+      expect(host.querySelector(".ms-beat")?.textContent).toBe(String(beat));
+      await advance(interval);
+    }
+    await advance(100); await click(button("Stop recording"));
+    const take=fixtures.takes.at(-1)!;
+    expect(take.meter).toEqual({numerator,denominator});
+    expect(take.notes[0]).toMatchObject({startMs:0,durationMs:100});
+    expect(take.notes[1]).toMatchObject({startMs:100,durationMs:100});
+  });
+
+it("accents only the first denominator beat when the metronome is audible", async () => {
+  const frequencies: number[] = [];
+  class ClickContext {
+    state = "running";
+    currentTime = 0;
+    destination = {};
+    createOscillator() {
+      const frequency = { value: 0 };
+      return { frequency, type: "", connect() {}, disconnect() {}, start() { frequencies.push(frequency.value); }, stop() {} };
+    }
+    createGain() { return {connect() {}, disconnect() {}, gain:{setValueAtTime() {}, exponentialRampToValueAtTime() {}}}; }
+    close() { return Promise.resolve(); }
+  }
+  vi.stubGlobal("AudioContext", ClickContext);
+  await click(button("Toggle metronome"));
+  await click(button("Start recording"));
+  // The complete audio measure is scheduled before subsequent UI timers.
+  expect(frequencies).toEqual([1050,820,820,820]);
+  await advance(500); expect(frequencies).toEqual([1050,820,820,820]);
+  await advance(500); await advance(500); await advance(500);
+  expect(frequencies).toEqual([1050,820,820,820]);
+  await click(button("Stop recording"));
+});
+
+it("uses absolute display/start deadlines after a delayed main-thread callback", async () => {
+  await click(button("Start recording"));
+  await advance(400);
+  // The beat-2 callback arrives at elapsed 600 ms instead of 500 ms, below
+  // the separate tracking timeout. A chained timer would start at 2100 ms.
+  now += 200;
+  await act(async () => fixtures.landmarks?.([]));
+  await frame();
+  await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+  expect(host.querySelector(".ms-beat")?.textContent).toBe("2");
+  await advance(400);
+  expect(host.querySelector(".ms-beat")?.textContent).toBe("3");
+  await advance(500);
+  expect(host.querySelector(".ms-beat")?.textContent).toBe("4");
+  await advance(500);
+  expect(button("Pause recording").disabled).toBe(false);
+});
+
+it.each(["Stop", "interruption", "navigation"])("cancels every pre-scheduled click on %s", async action => {
+  const stops: ReturnType<typeof vi.fn>[] = [];
+  class ClickContext {
+    state = "running";
+    currentTime = 0;
+    destination = {};
+    createOscillator() {
+      const stop=vi.fn(); stops.push(stop);
+      return {frequency:{value:0}, type:"", connect() {},disconnect() {},start() {},stop};
+    }
+    createGain() { return {connect() {},disconnect() {},gain:{setValueAtTime() {},exponentialRampToValueAtTime() {}}}; }
+    close() {return Promise.resolve();}
+  }
+  vi.stubGlobal("AudioContext", ClickContext);
+  await click(button("Toggle metronome"));
+  await click(button("Start recording"));
+  expect(stops).toHaveLength(4);
+  expect(stops.every(stop => stop.mock.calls.length === 1)).toBe(true);
+  if(action === "Stop") await click(button("Stop recording"));
+  else if(action === "interruption") await act(async () => fixtures.invalidate?.());
+  else await act(async () => window.dispatchEvent(new dom.window.Event("pagehide")));
+  expect(stops.every(stop => stop.mock.calls.length === 2 && stop.mock.lastCall!.length === 0)).toBe(true);
+  await advance(2500);
+  expect(fixtures.takes).toHaveLength(0);
+});
+
+it("does not schedule or start after Stop cancels a pending count-in audio resume", async () => {
+  let resolveResume!: () => void;
+  const createOscillator=vi.fn();
+  class ClickContext {
+    state="suspended";
+    resume() { return new Promise<void>(resolve => {resolveResume=resolve;}); }
+    createOscillator=createOscillator;
+    close() {return Promise.resolve();}
+  }
+  vi.stubGlobal("AudioContext", ClickContext);
+  await click(button("Toggle metronome"));
+  await click(button("Start recording"));
+  expect(host.querySelector(".ms-beat")?.textContent).toBe("1");
+  await click(button("Stop recording"));
+  await act(async () => resolveResume());
+  await advance(2500);
+  expect(createOscillator).not.toHaveBeenCalled();
+  expect(fixtures.takes).toHaveLength(0);
+});

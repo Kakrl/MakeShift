@@ -1,3 +1,4 @@
+import { restoreMeter } from "../lib/meter";
 /**
  * Server-only recordings API (#119, #122, #128) over the Supabase REST API.
  * Route files stay thin and call these handlers, so the specs can run them
@@ -44,7 +45,7 @@ export function recordingsDeps(): RecordingsDeps {
 // 10,000 notes of ~80 bytes each fit well inside this.
 export const MAX_UPLOAD_BYTES = 1_000_000;
 
-const SUMMARY_COLUMNS = "id,title,author_name,bpm,duration_ms,note_count,created_at";
+const SUMMARY_COLUMNS = "id,title,author_name,bpm,meter,duration_ms,note_count,created_at";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // A Postgres timestamptz as PostgREST returns it. Kept as text, because a JS
 // Date would drop the microseconds the keyset compares against.
@@ -55,6 +56,7 @@ type SummaryRow = {
   title: string;
   author_name: string;
   bpm: number;
+  meter?: unknown;
   duration_ms: number;
   note_count: number;
   created_at: string;
@@ -119,6 +121,7 @@ function summary(row: SummaryRow): RecordingSummary {
     title: row.title,
     authorName: row.author_name,
     bpm: row.bpm,
+    meter: restoreMeter(row.meter),
     durationMs: row.duration_ms,
     noteCount: row.note_count,
     createdAt: row.created_at,
@@ -241,6 +244,7 @@ export async function uploadRecording(request: Request, deps: RecordingsDeps) {
         author_name: upload.authorName,
         device_id: upload.deviceId,
         bpm: upload.bpm,
+        meter: restoreMeter(upload.meter),
         duration_ms: Math.round(recordingDurationMs(upload.notes)),
         note_count: upload.notes.length,
         notes: upload.notes,
