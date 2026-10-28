@@ -19,6 +19,7 @@ function readMidi(uri: string) {
   let offset = 22;
   let tick = 0;
   let tempo = 0;
+  let meter: number[] = [];
   let ended = false;
   const notes: { tick: number; on: boolean; pitch: number; velocity: number }[] = [];
   function variableLength() {
@@ -41,6 +42,10 @@ function readMidi(uri: string) {
       if (type === 81) {
         expect(length).toBe(3);
         tempo = bytes.readUIntBE(offset, 3);
+      } else if (type === 88) {
+        expect(tick).toBe(0);
+        expect(length).toBe(4);
+        meter = [...bytes.subarray(offset, offset + length)];
       } else {
         expect(type).toBe(47);
         expect(length).toBe(0);
@@ -53,7 +58,7 @@ function readMidi(uri: string) {
     }
   }
   expect(ended).toBe(true);
-  return { tempo, notes };
+  return { tempo, notes, meter };
 }
 
 it("exports chords, split held notes and stop boundaries with the real writer", () => {
@@ -63,7 +68,7 @@ it("exports chords, split held notes and stop boundaries with the real writer", 
   vi.stubGlobal("document", { createElement: () => link });
   const recorder = createRecorder();
   expect(recorder.getState()).toBe("stopped");
-  recorder.startRecording(120);
+  recorder.startRecording(120, undefined, { numerator: 7, denominator: 8 });
   expect(recorder.getState()).toBe("recording");
   recorder.noteOn("C4", 80, now, "finger-1");
   recorder.noteOn("E4", 50, now, "finger-2");
@@ -83,6 +88,7 @@ it("exports chords, split held notes and stop boundaries with the real writer", 
   expect(link.click).toHaveBeenCalledOnce();
   const decoded = readMidi(link.href);
   expect(decoded.tempo).toBe(500000);
+  expect(decoded.meter).toEqual([7, 3, 24, 8]);
   expect(decoded.notes.filter(note => note.on)).toEqual([
     { tick: 0, on: true, pitch: 60, velocity: 102 },
     { tick: 0, on: true, pitch: 64, velocity: 64 },
@@ -100,7 +106,7 @@ it("exports chords, split held notes and stop boundaries with the real writer", 
   recorder.noteOn("D4", 100);
   now += 500;
   downloadMidi(recorder.stopRecording()!);
-  expect(readMidi(link.href)).toEqual({ tempo: 1000000, notes: [
+  expect(readMidi(link.href)).toEqual({ tempo: 1000000, meter: [4, 2, 24, 8], notes: [
     { tick: 64, on: true, pitch: 62, velocity: 127 },
     { tick: 128, on: false, pitch: 62, velocity: 127 },
   ] });
