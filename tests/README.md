@@ -1920,3 +1920,9 @@ Existing thresholds and contact/session safety remain unchanged. Source tests
 run in existing frontend CI; the new recovery browser runner is manually invoked.
 
 PR #238 also addresses defect [#226](https://github.com/Kakrl/MakeShift/issues/226) through the same readiness messages and saved/current sheet-reference comparison. Marker detection is distinguished from compatible calibration, and restoration requires a matching complete scan plus explicit Enable audio. Standalone metronome behavior is outside this change. No additional execution is claimed by this documentation/linkage update; physical recovery with knuckles enabled and recalibration at the new pose remain pending in REC-04.
+
+### Visible alignment timing guidance (PR #238 follow-up)
+
+2026-10-29: the alignment legend now visibly says, "After realigning, allow about 10 seconds for checking. Once ready, select Enable audio." This replaces screen-reader-only timing text; scan cadence and readiness gates are unchanged. REC-02 checks that the guidance is not marked sr-only. REC-05 verifies actual visible dimensions and that the complete guidance fits inside the camera at 320/390/1440px, alongside existing keyboard/status checks.
+
+Full Vitest rerun: 710 passed, one existing skip, 37 files. Lint, TypeScript, 37 contrast pairs and production build passed. Edge 156.0.4314.50 recovery, deployment, keyboard-layout and audio browser checks passed against the final port 3001 build with fake media. Prior Chromium spawn limitation remains; database unconfigured, no physical camera/audio or real screen-reader execution claimed.

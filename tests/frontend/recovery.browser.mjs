@@ -33,10 +33,17 @@ try {
   await legend.waitFor({ timeout: 60_000 });
   assert.match(await legend.innerText(), /Calibrated position \(solid\)/);
   assert.match(await legend.innerText(), /Current position unavailable/);
+  const timing = legend.getByText("After realigning, allow about 10 seconds for checking. Once ready, select Enable audio.");
   assert.equal(await legend.getAttribute("aria-live"), null);
   for (const width of [320, 390, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     const box = await legend.boundingBox();
+    assert.equal(await timing.isVisible(), true, `timing guidance visible at ${width}px`);
+    const timingBox = await timing.boundingBox();
+    assert.ok(timingBox.width > 1 && timingBox.height > 1, "timing guidance is not screen-reader-only");
+    const videoBox = await page.locator("video").boundingBox();
+    assert.ok(timingBox.y >= videoBox.y && timingBox.y + timingBox.height <= videoBox.y + videoBox.height,
+      `timing guidance is not clipped by the camera at ${width}px`);
     assert.ok(box.x >= 0 && box.x + box.width <= width, `legend within ${width}px`);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `no ${width}px page overflow`);
   }

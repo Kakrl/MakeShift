@@ -91,6 +91,8 @@ no old session or held notes are replayed. Audio and count-in audio failures
 retain their own retry reasons. The generic camera-panel recalibration banner
 is removed, avoiding contradictory calibration advice and duplicate status
 announcements. The ordinary legend is outside the live announcement region.
+Its visible text tells users to allow about ten seconds after realigning and
+to select Enable audio once ready; the wait is not limited to screen-reader copy.
 
 The camera overlay compares saved and last complete scan sheet-reference
 outlines, with solid/dashed strokes and a text legend. These are marker-center

@@ -21,6 +21,7 @@ it("preserves saved sheet-reference corners and distinguishes the current scan w
   const { container } = render(createElement(SheetAlignment, { saved, camera: saved.camera, scan: scan() }));
   expect(screen.getByText(/Calibrated position \(solid\)/)).toBeTruthy();
   expect(screen.getByText(/Current position \(dashed; last complete scan\)/)).toBeTruthy();
+  expect(screen.getByText(/After realigning, allow about 10 seconds/).classList.contains("sr-only")).toBe(false);
   const outlines = container.querySelectorAll("polygon");
   expect(outlines).toHaveLength(4);
   expect(outlines[0].getAttribute("points")).toBe("100,100 900,100 900,900 100,900");

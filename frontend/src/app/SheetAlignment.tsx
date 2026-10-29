@@ -40,7 +40,7 @@ function SheetAlignment({ saved, camera, scan }: {
       <p className="font-semibold">Sheet-reference alignment</p>
       <p>― Calibrated position (solid)</p>
       <p>{current ? "┄ Current position (dashed; last complete scan)" : "Current position unavailable — show all four markers"}</p>
-      <p className="sr-only">Position checks up to 10 seconds apart</p>
+      <p>After realigning, allow about 10 seconds for checking. Once ready, select Enable audio.</p>
     </aside>
   </>;
 }
