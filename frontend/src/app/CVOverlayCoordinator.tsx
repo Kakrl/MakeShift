@@ -109,6 +109,7 @@ export default function CVOverlayCoordinator({
         debugShowZLines={DEBUG_FLAGS.showZLines}
         debugShowSheetWithoutCalibration={DEBUG_FLAGS.showSheetWithoutCalibration}
         activePitches={activePitches}
+        soundFeedbackOnly={session.status.state === "playing"}
         onKeyTransitions={handleKeyTransitions}
         trackingEnabled={enabled}
         onCalibrationObservation={observeCalibration}

@@ -14,7 +14,9 @@ const fixtures = vi.hoisted(() => ({
   highlight: vi.fn(),
   detect: vi.fn(),
   missNextDetection: false,
-  camera: { stream: { getVideoTracks: () => [{ readyState: "live", getSettings: () => ({ deviceId: "camera-1" }) }] }, cameraReady: true },
+  markerShift: 0,
+  cameraDevice: "camera-1",
+  camera: { stream: { getVideoTracks: () => [{ readyState: "live", getSettings: () => ({ deviceId: fixtures.cameraDevice }) }] }, cameraReady: true },
 }));
 vi.mock("../../frontend/src/cv/keyboardGeometry", async (original) => ({
   ...await original<typeof import("../../frontend/src/cv/keyboardGeometry")>(),
@@ -49,6 +51,8 @@ vi.mock("../../frontend/src/app/audio/audioEngine", () => ({
     },
     noteOn: vi.fn(() => ({ session: 1, press: 1 })),
     noteOff: vi.fn(() => true),
+    pauseInput: vi.fn(),
+    resumeInput: vi.fn(),
     releaseAll: vi.fn(),
   },
 }));
@@ -83,7 +87,7 @@ vi.mock("../../frontend/src/cv/markerDetector", () => ({
         missingIds: [],
         observations: [[100, 100], [900, 100], [900, 900], [100, 900]]
           .map(([x, y], id) => ({
-            id, center: { x, y },
+            id, center: { x: x + fixtures.markerShift, y },
             corners: [{ x, y }, { x: x + 1, y }, { x: x + 1, y: y + 1 }, { x, y: y + 1 }],
           })),
       });
@@ -142,6 +146,8 @@ beforeEach(async () => {
   currentHands = [];
   fixtures.takes.length = 0;
   fixtures.missNextDetection = false;
+  fixtures.markerShift = 0;
+  fixtures.cameraDevice = "camera-1";
   fixtures.camera.cameraReady = true;
   fixtures.initializeAudio.mockImplementation(async () => {});
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -251,6 +257,64 @@ async function start() {
   await countIn();
   expect(button("Pause recording").disabled).toBe(false);
 }
+
+it("uses one recovery announcement and preserves calibrated/current alignment through displacement, misses and restoration", async () => {
+  const enable = [...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!;
+  await click(enable);
+  await keys(115);
+  const saved = localStorage.getItem("makeshift.calibration.v1");
+  fixtures.markerShift = 20;
+  await advance(10_000);
+  const status = host.querySelector('[role="status"]')!;
+  expect(status.textContent).toContain("sheet or camera may have moved");
+  expect(host.textContent).not.toContain("Saved data is checked before playing");
+  expect(enable.disabled).toBe(true);
+  expect(host.querySelector('a[href="/calibration"]')?.textContent).toBe("Calibrate");
+  expect(host.textContent).toContain("Calibrated position (solid)");
+  expect(host.textContent).toContain("Current position (dashed; last complete scan)");
+  expect(browserAudio.releaseAll).toHaveBeenCalled();
+  expect(localStorage.getItem("makeshift.calibration.v1")).toBe(saved);
+  fixtures.missNextDetection = true;
+  await advance(10_000);
+  expect(host.textContent).toContain("Current position unavailable");
+  fixtures.markerShift = 0;
+  await advance(10_000);
+  expect(status.textContent).toContain("Select Enable audio");
+  expect(status.textContent).not.toMatch(/calibrat/i);
+  expect(enable.disabled).toBe(false);
+  expect(host.querySelector('a[href="/calibration"]')).toBeNull();
+});
+
+it("offers audio recovery without recalibration and names camera changes without alleging sheet movement", async () => {
+  const enable = [...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!;
+  await click(enable);
+  await act(async () => fixtures.invalidate?.());
+  expect(host.querySelector('[role="status"]')?.textContent).toContain("Audio interrupted");
+  expect(host.querySelector('a[href="/calibration"]')).toBeNull();
+  expect(enable.disabled).toBe(false);
+  fixtures.cameraDevice = "camera-2";
+  await frame();
+  expect(host.querySelector('[role="status"]')?.textContent).toContain("camera changed");
+  expect(host.querySelector('[role="status"]')?.textContent).not.toContain("moved");
+  expect(host.textContent).not.toContain("Sheet-reference alignment");
+  expect(enable.disabled).toBe(true);
+});
+
+it("announces temporary tracking pause and explicit audio recovery without calibration advice", async () => {
+  const enable = [...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!;
+  await click(enable);
+  await keys(115);
+  await act(async () => { now += 600; await vi.advanceTimersByTimeAsync(600); });
+  expect(host.querySelector('[role="status"]')?.textContent).toContain("Tracking paused");
+  expect(host.querySelector('a[href="/calibration"]')).toBeNull();
+  expect(enable.disabled).toBe(true);
+  const calls = vi.mocked(browserAudio.noteOn).mock.calls.length;
+  await keys(115);
+  expect(host.querySelector('[role="status"]')?.textContent).toContain("Select Enable audio");
+  expect(host.querySelector('a[href="/calibration"]')).toBeNull();
+  expect(enable.disabled).toBe(false);
+  expect(browserAudio.noteOn).toHaveBeenCalledTimes(calls);
+});
 
 it("dispatches a chord and release/repress before React commits the landmark snapshot", async () => {
   await start();
@@ -392,20 +456,20 @@ it.each([2, 3])("uses %i-octave live geometry, shifted notes and feedback after 
 it("announces capture state through pause, resume count-in and completion", async () => {
   const status = () => host.querySelector('[aria-live="polite"]')?.textContent;
   await click(button("Start recording"));
-  expect(status()).toBe("Count-in to start recording");
+  expect(status()).toBe("Count-in — piano input paused. Beat 1 of 4. Select Stop to cancel.");
   await countIn();
   expect(status()).toBe("Recording started");
   await click(button("Pause recording"));
   expect(status()).toBe("Recording paused");
   await click(button("Resume recording"));
-  expect(status()).toBe("Count-in to resume recording");
+  expect(status()).toBe("Count-in — piano input paused. Beat 1 of 4. Select Stop to cancel.");
   await countIn();
   expect(status()).toBe("Recording started");
   await click(button("Stop recording"));
   expect(status()).toBe("Recording complete");
 });
 
-it("uses the real page/coordinator/marker transitions to capture held keys after resume", async () => {
+it("requires release and a fresh press for keys held across resume", async () => {
   await start();
   await keys(115); // First key, via real geometry and transitions.
   await advance(500);
@@ -418,12 +482,14 @@ it("uses the real page/coordinator/marker transitions to capture held keys after
   await countIn();
   await advance(250);
   await keys();
+  await keys(115, 225);
+  await advance(100);
   await click(button("Stop recording"));
   const notes = fixtures.takes.at(-1)!.notes;
   expect(notes).toHaveLength(3);
   expect(notes[0]).toMatchObject({ startMs: 0, durationMs: 500 });
-  expect(notes[1]).toMatchObject({ pitch: notes[0].pitch, startMs: 500, durationMs: 250 });
-  expect(notes[2]).toMatchObject({ startMs: 500, durationMs: 250 });
+  expect(notes[1]).toMatchObject({ pitch: notes[0].pitch, startMs: 750, durationMs: 100 });
+  expect(notes[2]).toMatchObject({ startMs: 750, durationMs: 100 });
   expect(notes[2].pitch).not.toBe(notes[0].pitch);
   expect(host.textContent).toContain("1 recording");
   expect(button("Start recording").disabled).toBe(false);
@@ -451,7 +517,6 @@ it("omits keys released during pause and preserves timing across repeated resume
     .toEqual([
       { startMs: 0, durationMs: 200 },
       { startMs: 500, durationMs: 100 },
-      { startMs: 600, durationMs: 100 },
     ]);
 });
 
@@ -567,7 +632,7 @@ it("highlights accepted notes through recording Stop and clears them on interrup
   fixtures.highlight.mockClear();
   await start();
   await advance(0);
-  expect(fixtures.highlight).toHaveBeenCalled();
+  expect(fixtures.highlight).not.toHaveBeenCalled(); // Held contact is suppressed.
   await click(button("Stop recording"));
   fixtures.highlight.mockClear();
   await keys(115, 225);
@@ -578,7 +643,7 @@ it("highlights accepted notes through recording Stop and clears them on interrup
   await keys(115, 225);
   await advance(100);
   // Contact feedback still highlights; the interrupted session records nothing.
-  expect(fixtures.takes.at(-1)!.notes).toHaveLength(1);
+  expect(fixtures.takes.at(-1)!.notes).toHaveLength(0);
 });
 
 it("records a same-turn press before Stop drains deferred consumers", async () => {
@@ -636,7 +701,26 @@ it("retains usable geometry and the ten-second cadence through repeated marker m
   expect(browserAudio.releaseAll).not.toHaveBeenCalled();
 });
 
-it("plays before recording, during count-in and pause, and after Stop", async () => {
+it.each([0, 500, 1000, 1500, 1999])("cancels start/resume at %i ms without replaying gated contacts", async elapsed => {
+  for (const resume of [false, true]) {
+    if (resume) { await keys(); await start(); await keys(115); await advance(100); await click(button("Pause recording")); }
+    await click(button(resume ? "Resume recording" : "Start recording"));
+    await keys(225);
+    await advance(elapsed);
+    const calls = vi.mocked(browserAudio.noteOn).mock.calls.length;
+    await click(button("Stop recording"));
+    await countIn();
+    expect(button("Start recording").disabled).toBe(false);
+    expect(browserAudio.noteOn).toHaveBeenCalledTimes(calls);
+    if (!resume) expect(fixtures.takes).toHaveLength(0);
+    else expect(fixtures.takes.at(-1)!.notes).toHaveLength(1);
+    await keys(); await keys(225);
+    expect(browserAudio.noteOn).toHaveBeenCalledTimes(calls + 1);
+    await keys();
+  }
+});
+
+it("discards count-in notes and preserves free play before, during pause and after Stop", async () => {
   const enable = [...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!;
   await click(enable);
   expect(fixtures.initializeAudio).toHaveBeenCalled();
@@ -647,22 +731,21 @@ it("plays before recording, during count-in and pause, and after Stop", async ()
   expect(fixtures.takes).toEqual([]);
   await click(button("Start recording"));
   await keys(115, 225);
-  expect(browserAudio.noteOn).toHaveBeenCalledTimes(2);
+  expect(browserAudio.pauseInput).toHaveBeenCalledTimes(1);
+  expect(browserAudio.noteOn).toHaveBeenCalledTimes(1);
   await countIn();
-  expect(browserAudio.noteOn).toHaveBeenCalledTimes(2); // No audio retrigger at recording boundary.
+  expect(browserAudio.noteOn).toHaveBeenCalledTimes(1);
   await advance(100);
   await click(button("Pause recording"));
   await keys(115);
-  expect(browserAudio.noteOff).toHaveBeenCalled();
   await keys(115, 225);
-  expect(browserAudio.noteOn).toHaveBeenCalledTimes(3);
+  expect(browserAudio.noteOn).toHaveBeenCalledTimes(2);
   await click(button("Stop recording"));
   expect(browserAudio.releaseAll).not.toHaveBeenCalled();
-  expect(fixtures.takes.at(-1)!.notes).toHaveLength(2);
-  expect(fixtures.takes.at(-1)!.notes.every(n => n.startMs === 0 && n.durationMs === 100)).toBe(true);
+  expect(fixtures.takes.at(-1)!.notes).toHaveLength(0);
   await keys();
   await keys(115);
-  expect(browserAudio.noteOn).toHaveBeenCalledTimes(4);
+  expect(browserAudio.noteOn).toHaveBeenCalledTimes(3);
 });
 
 it("releases free-play notes when calibration becomes invalid", async () => {
@@ -707,4 +790,167 @@ it("ignores pending free-play audio initialization after calibration loss", asyn
   await keys(115);
   expect(browserAudio.noteOn).not.toHaveBeenCalled();
   expect(button("Start recording").disabled).toBe(true);
+});
+
+// Quarter-note BPM count-in contract; each step ends exactly on a beat boundary.
+it.each([[4,4,500],[3,4,500],[6,8,250],[7,8,250],[2,2,1000]])(
+  "counts and resumes %s/%s with %s ms intervals, excluding both count-ins", async (numerator, denominator, interval) => {
+    await act(async () => root.unmount());
+    localStorage.setItem("makeshift:playback-settings:v1", JSON.stringify({tempo:120,metronome:false,meter:{numerator,denominator}}));
+    root = createRoot(host);
+    await act(async () => root.render(<Home />));
+    await advance(0); await keys();
+    await click(button("Start recording"));
+    const audioCalls = vi.mocked(browserAudio.noteOn).mock.calls.length;
+    expect(host.querySelector<HTMLInputElement>("#time-signature")!.disabled).toBe(true);
+    for (let beat=1; beat<=numerator; beat++) {
+      expect(host.querySelector(".ms-beat")?.textContent).toBe(String(beat));
+      expect(host.querySelectorAll(".ms-beat + div > div")).toHaveLength(numerator);
+      await keys(225); await keys(); // Complete taps inside each full interval.
+      expect(browserAudio.noteOn).toHaveBeenCalledTimes(audioCalls);
+      await advance(interval-1);
+      expect(host.querySelector(".ms-beat")?.textContent).toBe(String(beat));
+      await advance(1);
+    }
+    expect(button("Pause recording").disabled).toBe(false);
+    await keys(115); await advance(100);
+    await click(button("Pause recording"));
+    expect(host.querySelector<HTMLInputElement>("#time-signature")!.disabled).toBe(true);
+    await click(button("Resume recording"));
+    const resumeCalls = vi.mocked(browserAudio.noteOn).mock.calls.length;
+    for(let beat=1;beat<=numerator;beat++) {
+      expect(host.querySelector(".ms-beat")?.textContent).toBe(String(beat));
+      await advance(interval);
+      expect(browserAudio.noteOn).toHaveBeenCalledTimes(resumeCalls);
+    }
+    await advance(100); await click(button("Stop recording"));
+    const take=fixtures.takes.at(-1)!;
+    expect(take.meter).toEqual({numerator,denominator});
+    expect(take.notes[0]).toMatchObject({startMs:0,durationMs:100});
+    expect(take.notes).toHaveLength(1); // Held through resume: no fabricated note.
+  });
+
+it.each([false, true])("keeps audible clicks while piano is gated (resume: %s)", async resume => {
+  const frequencies: number[] = [];
+  class ClickContext {
+    state = "running";
+    currentTime = 0;
+    destination = {};
+    createOscillator() {
+      const frequency = { value: 0 };
+      return { frequency, type: "", connect() {}, disconnect() {}, start() { frequencies.push(frequency.value); }, stop() {} };
+    }
+    createGain() { return {connect() {}, disconnect() {}, gain:{setValueAtTime() {}, exponentialRampToValueAtTime() {}}}; }
+    close() { return Promise.resolve(); }
+  }
+  vi.stubGlobal("AudioContext", ClickContext);
+  await click(button("Toggle metronome"));
+  if (resume) { await start(); await click(button("Pause recording")); frequencies.length = 0; }
+  await click(button(resume ? "Resume recording" : "Start recording"));
+  const onsets = vi.mocked(browserAudio.noteOn).mock.calls.length;
+  await keys(115); await keys();
+  expect(browserAudio.noteOn).toHaveBeenCalledTimes(onsets);
+  // The complete audio measure is scheduled before subsequent UI timers.
+  expect(frequencies).toEqual([1050,820,820,820]);
+  await advance(500); expect(frequencies).toEqual([1050,820,820,820]);
+  await advance(500); await advance(500); await advance(500);
+  expect(frequencies).toEqual([1050,820,820,820]);
+  await click(button("Stop recording"));
+});
+
+it.each([[20, 1, 1], [300, 32, 32]])("gates the full measure at %i BPM and %i/%i", async (tempo, numerator, denominator) => {
+  await act(async () => root.unmount());
+  localStorage.setItem("makeshift:playback-settings:v1", JSON.stringify({ tempo, metronome: false, meter: { numerator, denominator } }));
+  root = createRoot(host); await act(async () => root.render(<Home />));
+  await advance(0); await keys();
+  const duration = numerator * 60000 / tempo * 4 / denominator;
+  for (const resume of [false, true]) {
+    await click(button(resume ? "Resume recording" : "Start recording"));
+    const onsets = vi.mocked(browserAudio.noteOn).mock.calls.length;
+    await keys(115); await advance(duration - 1);
+    expect(host.querySelector(".ms-beat")).not.toBeNull();
+    expect(browserAudio.noteOn).toHaveBeenCalledTimes(onsets);
+    await advance(1); expect(host.querySelector(".ms-beat")).toBeNull();
+    expect(browserAudio.noteOn).toHaveBeenCalledTimes(onsets);
+    await keys(); await keys(115); await advance(10);
+    expect(browserAudio.noteOn).toHaveBeenCalledTimes(onsets + 1);
+    await click(button(resume ? "Stop recording" : "Pause recording"));
+  }
+  expect(fixtures.takes.at(-1)!.notes).toHaveLength(2);
+});
+
+it("uses absolute display/start deadlines after a delayed main-thread callback", async () => {
+  await click(button("Start recording"));
+  await advance(400);
+  // The beat-2 callback arrives at elapsed 600 ms instead of 500 ms, below
+  // the separate tracking timeout. A chained timer would start at 2100 ms.
+  now += 200;
+  await act(async () => fixtures.landmarks?.([]));
+  await frame();
+  await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+  expect(host.querySelector(".ms-beat")?.textContent).toBe("2");
+  await advance(400);
+  expect(host.querySelector(".ms-beat")?.textContent).toBe("3");
+  await advance(500);
+  expect(host.querySelector(".ms-beat")?.textContent).toBe("4");
+  await advance(500);
+  expect(button("Pause recording").disabled).toBe(false);
+});
+
+it.each(["Stop", "interruption", "navigation"])("cancels every pre-scheduled click on %s", async action => {
+  const stops: ReturnType<typeof vi.fn>[] = [];
+  class ClickContext {
+    state = "running";
+    currentTime = 0;
+    destination = {};
+    createOscillator() {
+      const stop=vi.fn(); stops.push(stop);
+      return {frequency:{value:0}, type:"", connect() {},disconnect() {},start() {},stop};
+    }
+    createGain() { return {connect() {},disconnect() {},gain:{setValueAtTime() {},exponentialRampToValueAtTime() {}}}; }
+    close() {return Promise.resolve();}
+  }
+  vi.stubGlobal("AudioContext", ClickContext);
+  await click(button("Toggle metronome"));
+  await click(button("Start recording"));
+  expect(stops).toHaveLength(4);
+  expect(stops.every(stop => stop.mock.calls.length === 1)).toBe(true);
+  if(action === "Stop") await click(button("Stop recording"));
+  else if(action === "interruption") await act(async () => fixtures.invalidate?.());
+  else await act(async () => window.dispatchEvent(new dom.window.Event("pagehide")));
+  expect(stops.every(stop => stop.mock.calls.length === 2 && stop.mock.lastCall!.length === 0)).toBe(true);
+  await advance(2500);
+  expect(fixtures.takes).toHaveLength(0);
+});
+
+it("does not schedule or start after Stop cancels a pending count-in audio resume", async () => {
+  let resolveResume!: () => void;
+  const createOscillator=vi.fn();
+  class ClickContext {
+    state="suspended";
+    resume() { return new Promise<void>(resolve => {resolveResume=resolve;}); }
+    createOscillator=createOscillator;
+    close() {return Promise.resolve();}
+  }
+  vi.stubGlobal("AudioContext", ClickContext);
+  await click(button("Toggle metronome"));
+  await click(button("Start recording"));
+  expect(host.querySelector(".ms-beat")?.textContent).toBe("1");
+  await click(button("Stop recording"));
+  await act(async () => resolveResume());
+  await advance(2500);
+  expect(createOscillator).not.toHaveBeenCalled();
+  expect(fixtures.takes).toHaveLength(0);
+});
+
+it("retires the gated request when count-in audio construction fails", async () => {
+  vi.stubGlobal("AudioContext", class { constructor() { throw Error("No audio context available"); } });
+  await click(button("Toggle metronome"));
+  await click(button("Start recording"));
+  expect(host.querySelector(".ms-beat")).toBeNull();
+  expect(host.textContent).toContain("Count-in audio could not start");
+  await advance(2500);
+  expect(fixtures.takes).toHaveLength(0);
+  expect(browserAudio.resumeInput).toHaveBeenCalled();
+  await keys(115); expect(browserAudio.noteOn).not.toHaveBeenCalled();
 });

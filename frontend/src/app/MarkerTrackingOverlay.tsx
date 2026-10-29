@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import SheetAlignment, { type AlignmentScan } from "./SheetAlignment";
 import { useCamera } from "./CameraContext";
 import {
+  calibrationReason,
   cameraSignature,
+  type CameraSignature,
   loadCalibration,
   markerCorners,
 } from "../cv/calibration";
@@ -43,6 +46,7 @@ import {
 } from "../cv/shadowHeuristics";
 import type { ShadowContactState, ShadowState } from "../cv/shadowHeuristics";
 import { MarkerDetector } from "../cv/markerDetector";
+import { subscribeKeyboardLayout } from "../lib/keyboardSettings";
 import { MarkerGeometryPolicy } from "../cv/markerGeometryPolicy";
 import {
   computeHomography,
@@ -139,6 +143,7 @@ export default function MarkerTrackingOverlay({
   trackingEnabled = false,
   onCalibrationObservation,
   activePitches,
+  soundFeedbackOnly = false,
   showVisualDebug = false,
   debugShowZLines = false,
   debugShowSheetWithoutCalibration = false,
@@ -151,6 +156,7 @@ export default function MarkerTrackingOverlay({
   hands?: readonly HandObservation[];
   depthCalibration?: PersistedDepthCalibration | null;
   activePitches: ReadonlySet<number>;
+  soundFeedbackOnly?: boolean;
   onKeyTransitions?: (pressed: readonly KeyPress[], released: readonly number[]) => void;
   trackingEnabled?: boolean;
   showVisualDebug?: boolean;
@@ -161,6 +167,10 @@ export default function MarkerTrackingOverlay({
   const { stream, cameraReady } = useCamera();
   const [markerDetection, setMarkerDetection] =
     useState<MarkerDetectionResult | null>(null);
+  const [savedAlignment, setSavedAlignment] = useState(loadCalibration);
+  useEffect(() => subscribeKeyboardLayout(() => setSavedAlignment(loadCalibration())), []);
+  const [alignmentCamera, setAlignmentCamera] = useState<CameraSignature | null>(null);
+  const [alignmentScan, setAlignmentScan] = useState<AlignmentScan | null>(null);
   const processingCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const shadowPreviewCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -407,6 +417,7 @@ export default function MarkerTrackingOverlay({
     let animationFrame = 0;
     let detector: MarkerDetector | null = null;
     let lastDetectionTime = -Infinity;
+    let lastCameraKey = "";
     let videoWasUnavailable = false;
 
     // Camera/source changes begin a new acquisition session.
@@ -420,7 +431,7 @@ export default function MarkerTrackingOverlay({
     displayWhiteKeysRef.current = null;
     displayBlackKeysRef.current = null;
     queueMicrotask(() => {
-      if (!cancelled) setMarkerDetection(null);
+      if (!cancelled) { setMarkerDetection(null); setAlignmentScan(null); setAlignmentCamera(null); }
     });
 
     const detect = (time: number) => {
@@ -428,6 +439,13 @@ export default function MarkerTrackingOverlay({
       const processingCanvas = processingCanvasRef.current;
 
       if (!cancelled) {
+        const currentCamera = cameraReady ? cameraSignature(stream, video) : null;
+        const cameraKey = JSON.stringify(currentCamera);
+        if (cameraKey !== lastCameraKey) {
+          lastCameraKey = cameraKey;
+          setAlignmentCamera(currentCamera);
+          setAlignmentScan(null);
+        }
         if (video && processingCanvas && video.readyState >= 2) {
           if (video.videoWidth > 0 && video.videoHeight > 0) {
             videoWasUnavailable = false;
@@ -468,9 +486,14 @@ export default function MarkerTrackingOverlay({
                   if (detectionStartedAt !== null) recordMarkerDetection(
                     performance.now() - detectionStartedAt,
                   );
+                  setSavedAlignment(loadCalibration());
+                  const camera = cameraSignature(stream, video);
+                  const corners = camera ? markerCorners(detection, camera) : null;
+                  setAlignmentScan(camera && corners ? { camera, corners, at: Date.now() } : null);
                   markerDetectionRef.current = detection;
                   setMarkerDetection(detection);
                 } catch {
+                  setAlignmentScan(null);
                   markerDetectionRef.current = null;
                   setMarkerDetection(null);
                 }
@@ -480,6 +503,7 @@ export default function MarkerTrackingOverlay({
           }
         }
         if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) {
+          setAlignmentScan(null);
           markerDetectionRef.current = null;
           setMarkerDetection(null);
           if (!videoWasUnavailable) {
@@ -527,13 +551,25 @@ export default function MarkerTrackingOverlay({
     if (markerDetection !== markerDetectionRef.current) return;
 
     const camera = cameraReady ? cameraSignature(stream, videoRef.current) : null;
-    const corners = camera && markerDetection ? markerCorners(markerDetection, camera) : null;
+    const scanMatchesCamera = alignmentScan && JSON.stringify(alignmentScan.camera) === JSON.stringify(camera);
+    const corners = camera && markerDetection && scanMatchesCamera ? markerCorners(markerDetection, camera) : null;
     const saved = loadCalibration();
 
     // A failed marker scan must leave the last successful marker projection
     // and key state untouched. Only a complete marker result can update the
     // calibration observation below.
-    if (!corners) return;
+    if (!corners) {
+      const reason = calibrationReason(saved, camera, null, layout);
+      if (["camera-unavailable", "camera-device", "camera-dimensions", "camera-facing", "layout-changed"].includes(reason ?? "")) {
+        displayPianoCornersRef.current = null;
+        displayWhiteKeysRef.current = null;
+        displayBlackKeysRef.current = null;
+      }
+      // Missed scans retain usable geometry, but camera/layout changes fail closed.
+      if (reason !== "markers-unavailable" || !homographyRef.current)
+        onCalibrationObservation(saved, camera, null);
+      return;
+    }
 
     let homography: Homography | null = null;
     let projectedPianoCorners: Point[] | null = null;
@@ -598,7 +634,7 @@ export default function MarkerTrackingOverlay({
     projectedPianoCornersRef.current = geometry.pianoCorners;
     projectedWhiteKeysRef.current = geometry.whiteKeys;
     projectedBlackKeysRef.current = geometry.blackKeys;
-  }, [markerDetection, stream, cameraReady, videoRef, onCalibrationObservation, onKeyTransitions, debugShowSheetWithoutCalibration, layout]);
+  }, [markerDetection, alignmentCamera, alignmentScan, stream, cameraReady, videoRef, onCalibrationObservation, onKeyTransitions, debugShowSheetWithoutCalibration, layout]);
 
   const processContactFrame = useCallback((
     fingertips: readonly Fingertip[], hands: readonly HandObservation[],
@@ -767,7 +803,7 @@ export default function MarkerTrackingOverlay({
       projectedWhiteKeys.forEach((key, index) => {
         const pitch = keyIndexToMidi(index, layout);
         const isPlaying = pitch !== null && activePitches.has(pitch);
-        const isPressed = collidedKeys.has(index) || isPlaying;
+        const isPressed = (!soundFeedbackOnly && collidedKeys.has(index)) || isPlaying;
         context.strokeStyle = isPressed ? danger : ink;
         if (isPressed) pressWhiteKey(context, key, danger);
         else releaseWhiteKey(context, key, white);
@@ -776,7 +812,7 @@ export default function MarkerTrackingOverlay({
       projectedBlackKeys.forEach((key, index) => {
         const pitch = blackKeyIndexToMidi(index, layout);
         const isPlaying = pitch !== null && activePitches.has(pitch);
-        const isCollided = collidedKeys.has(layout.whiteKeys + index);
+        const isCollided = !soundFeedbackOnly && collidedKeys.has(layout.whiteKeys + index);
         drawBlackKey(context, key, isCollided || isPlaying ? info : ink);
       });
 
@@ -930,12 +966,14 @@ export default function MarkerTrackingOverlay({
     fingertips,
     hands,
     markerDetection,
+    alignmentCamera,
     shadowPreviewFinger,
     videoRef,
     cameraReady,
     stream,
     trackingEnabled,
     activePitches,
+    soundFeedbackOnly,
     layout
   ]);
 
@@ -947,6 +985,7 @@ export default function MarkerTrackingOverlay({
         height={1080}
         className="absolute inset-0 z-10 h-full w-full object-cover scale-x-[-1] pointer-events-none"
       />
+      <SheetAlignment saved={savedAlignment} camera={alignmentCamera} scan={alignmentScan} />
       <canvas ref={processingCanvasRef} className="hidden" />
       {showVisualDebug && (
         <>

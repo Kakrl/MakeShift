@@ -1,5 +1,6 @@
 import {
-  compatibleCalibration,
+  calibrationReason,
+  type CalibrationReason,
   validateCalibration,
   type CameraSignature,
 } from "../cv/calibration";
@@ -18,8 +19,31 @@ export type LiveState =
   | "interrupted"
   | "error";
 export const TRACKING_TIMEOUT_MS = 500;
+export type ReadinessReason = CalibrationReason | "backgrounded" | "tracking-paused" | "tracking-failed" |
+  "audio-interrupted" | "audio-error" | "count-in-audio" | "audio-required" | "starting" | "ready" | "playing";
+export const RECOVERY_COPY: Record<ReadinessReason, string> = {
+  "calibration-missing": "Calibrate your piano sheet before playing.",
+  "calibration-invalid": "Saved calibration could not be read. Calibrate your piano sheet again.",
+  "camera-unavailable": "Camera unavailable. Reconnect or enable the camera to continue.",
+  "camera-device": "The camera changed. Restore the calibrated camera or calibrate this camera.",
+  "camera-dimensions": "Camera resolution changed. Restore the calibrated resolution or calibrate again.",
+  "camera-facing": "Camera direction changed. Restore the calibrated direction or calibrate again.",
+  "layout-changed": "Keyboard layout changed. Calibrate the selected layout before playing.",
+  "markers-unavailable": "Show all four sheet markers so alignment can be checked.",
+  "geometry-mismatch": "The last complete scan did not match the calibrated position. The sheet or camera may have moved. Align the sheet-reference outlines, or calibrate the new position.",
+  "backgrounded": "Playing stopped in the background. Return and wait for tracking, then select Enable audio.",
+  "tracking-paused": "Tracking paused. Keep the camera view clear while tracking reconnects.",
+  "tracking-failed": "Tracking could not reconnect. Reload the tracker, then select Enable audio when tracking is ready.",
+  "audio-interrupted": "Audio interrupted. Select Enable audio to continue.",
+  "audio-error": "Audio could not start. Select Enable audio to retry; check browser audio permissions.",
+  "count-in-audio": "Count-in audio could not start. Select Enable audio to retry.",
+  "audio-required": "Tracking ready. Select Enable audio to continue.",
+  "starting": "Enabling audio…", "ready": "Audio ready.", "playing": "Playing",
+};
 export type LiveStatus = Readonly<{
   state: LiveState;
+  reason: ReadinessReason;
+  action: "calibrate" | "enable-audio" | "reload" | "wait" | "none";
   message: string;
   canStart: boolean;
 }>;
@@ -37,7 +61,11 @@ export class LiveSession {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private listeners = new Set<() => void>();
   private notes: NoteSession;
+  private sink: ReturnType<typeof createAudioSink>;
   private hidden = false;
+  private detectorFailed = false;
+  private calibrationIssue: CalibrationReason | null = "calibration-missing";
+  private audioIssue: "audio-interrupted" | "audio-error" | "count-in-audio" | null = null;
   private configuredLayout: Readonly<KeyboardLayout> = DEFAULT_LAYOUT;
 
   get layout() { return this.configuredLayout; }
@@ -48,6 +76,7 @@ export class LiveSession {
   }
   private invalidateLayout() {
     this.calibrationAt = -Infinity;
+    this.calibrationIssue = "layout-changed";
     this.interrupt("Keyboard settings changed. Calibrate again, then enable audio.");
   }
 
@@ -55,7 +84,8 @@ export class LiveSession {
     private audio: BrowserAudio,
     private now = () => performance.now(),
   ) {
-    this.notes = new NoteSession(createAudioSink(audio), now);
+    this.sink = createAudioSink(audio);
+    this.notes = new NoteSession(this.sink, now);
   }
 
   /** Attach in an effect; construction has no browser resources or subscriptions. */
@@ -68,8 +98,10 @@ export class LiveSession {
     });
     const unsubscribe = this.audio.subscribeInvalidation(() => {
       // initialize() resets its transport before reporting ready.
-      if (this.state === "playing" || this.state === "ready")
+      if (this.state === "playing" || this.state === "ready") {
+        this.audioIssue = "audio-interrupted";
         this.interrupt("Audio interrupted. Select Enable audio to resume playing.");
+      }
     });
     return () => {
       this.stop();
@@ -95,9 +127,18 @@ export class LiveSession {
     );
   }
   get status(): LiveStatus {
+    // Precedence: background, calibration/camera/layout, tracking, audio, lifecycle.
+    const reason: ReadinessReason = this.hidden ? "backgrounded" :
+      this.calibrationIssue ?? (this.detectorFailed ? "tracking-failed" : !this.fresh() ? "tracking-paused" :
+        this.state === "starting" ? "starting" : this.audioIssue ??
+        (this.state === "playing" ? "playing" : this.state === "ready" ? "ready" : "audio-required"));
+    const calibrate = ["calibration-missing", "calibration-invalid", "camera-device",
+      "camera-dimensions", "camera-facing", "layout-changed", "geometry-mismatch"].includes(reason);
     return Object.freeze({
-      state: this.state,
-      message: this.message,
+      state: this.state, reason,
+      action: calibrate ? "calibrate" : reason === "tracking-failed" ? "reload" : this.fresh() && !["starting", "playing", "ready"].includes(reason)
+        ? "enable-audio" : ["playing", "ready"].includes(reason) ? "none" : "wait",
+      message: RECOVERY_COPY[reason],
       canStart: this.fresh(),
     });
   }
@@ -111,6 +152,15 @@ export class LiveSession {
 
   flushNotes() {
     this.notes.flushObservers();
+  }
+
+  pauseInput() {
+    this.notes.pauseInput();
+    this.sink.pauseInput();
+  }
+  resumeInput() {
+    this.notes.resumeInput();
+    this.audio.resumeInput();
   }
 
   private expireBeforeRefresh() {
@@ -127,13 +177,8 @@ export class LiveSession {
   ) {
     this.expireBeforeRefresh();
     const valid = validateCalibration(value);
-    if (
-      !valid ||
-      !camera ||
-      !corners ||
-      !usableLayout(this.layout) ||
-      !compatibleCalibration(valid, camera, corners, this.layout)
-    ) {
+    this.calibrationIssue = calibrationReason(value, camera, corners, this.layout);
+    if (this.calibrationIssue || !valid) {
       this.calibrationAt = -Infinity;
       this.interrupt(
         "Calibration unavailable. Restore the original sheet/camera position or calibrate again.",
@@ -150,9 +195,12 @@ export class LiveSession {
     this.expireBeforeRefresh();
     if (!camera || !corners || !usableLayout(this.layout)) {
       this.calibrationAt = -Infinity;
+      this.calibrationIssue = !camera ? "camera-unavailable" :
+        !usableLayout(this.layout) ? "layout-changed" : "markers-unavailable";
       this.interrupt("Dev mode: show all four sheet markers to play.");
       return false;
     }
+    this.calibrationIssue = null;
     return this.acceptCalibration(`dev:${JSON.stringify(this.layout)}`);
   }
   private acceptCalibration(key: string) {
@@ -169,11 +217,13 @@ export class LiveSession {
   /** Successful inference, including an empty frame, is usable tracking. */
   observeTracking() {
     this.expireBeforeRefresh();
+    this.detectorFailed = false;
     const wasFresh = this.fresh();
     this.trackingAt = this.now();
     this.watch(wasFresh);
   }
   trackingFailed() {
+    this.detectorFailed = true;
     this.trackingAt = -Infinity;
     this.interrupt(
       "Tracking failed. Reload to retry the detector, then select Enable audio.",
@@ -201,12 +251,13 @@ export class LiveSession {
       this.interrupt(
         "Playing stopped in the background. Return, wait for tracking, then select Enable audio.",
       );
-    }
+    } else this.emit();
   }
   async prepare(): Promise<boolean> {
     if (!this.fresh() || this.state === "starting" || this.state === "playing")
       return false;
     const request = ++this.generation;
+    this.audioIssue = null;
     this.state = "starting";
     this.message = "Enabling audio…";
     this.emit();
@@ -225,7 +276,9 @@ export class LiveSession {
       return true;
     } catch {
       if (request !== this.generation) return false;
+      this.audioIssue = "audio-error";
       this.state = "error";
+      this.resumeInput();
       this.message =
         "Audio could not start. Select Enable audio to retry; check browser audio permissions.";
       this.emit();
@@ -282,7 +335,8 @@ export class LiveSession {
   stop() {
     this.end("stopped", "Stopped. Select Enable audio to start a new session.");
   }
-  interrupt(message: string) {
+  interrupt(message: string, reason?: "count-in-audio") {
+    if (reason) this.audioIssue = reason;
     if (["starting", "ready", "playing"].includes(this.state)) {
       this.end("interrupted", message);
     } else {
@@ -296,6 +350,7 @@ export class LiveSession {
     this.state = state; // Retire before audio invalidation can reenter.
     this.message = message;
     this.notes.stop();
+    this.resumeInput();
     if (changed) this.emit();
   }
 }

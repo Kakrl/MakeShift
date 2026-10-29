@@ -5,6 +5,7 @@ export type Delivery = Readonly<{ event: NoteEvent; receivedAtMs: number }>;
 export type NoteSink = (delivery: Delivery) => boolean;
 export type DispatchResult =
   | "accepted"
+  | "suppressed"
   | "stale"
   | "duplicate"
   | "invalid"
@@ -17,6 +18,9 @@ export class NoteSession {
   private timestamp = 0;
   private lastPress = 0;
   private active = new Map<number, number>();
+  private suppressed = new Set<number>();
+  private paused = false;
+  private inputAfter = -Infinity;
   private pending: Delivery[] = [];
   private timer: ReturnType<typeof setTimeout> | null = null;
   private listeners = new Set<(delivery: Delivery) => void>();
@@ -30,6 +34,32 @@ export class NoteSession {
   }
   get activePressCount() {
     return this.active.size;
+  }
+
+  /** Preserve physical identities while retiring their audible/recorded history. */
+  pauseInput() {
+    if (this.paused) return;
+    this.paused = true;
+    this.flushObservers();
+    const timestampMs = this.now();
+    for (const [pressId, pitch] of this.active) {
+      if (!this.suppressed.has(pressId)) {
+        this.enqueue({ receivedAtMs: timestampMs, event: {
+          version: 1, type: "note-off", sessionId: this.id!,
+          sequence: this.sequence, timestampMs, pressId, pitch,
+        } });
+      }
+      this.suppressed.add(pressId);
+    }
+    this.flushObservers();
+  }
+
+  resumeInput() {
+    if (!this.paused) return;
+    // Observations before this boundary remain suppressed. Equal timestamps
+    // are eligible only when delivered after this synchronous opening.
+    this.inputAfter = this.now();
+    this.paused = false;
   }
 
   start(): string {
@@ -114,6 +144,11 @@ export class NoteSession {
       this.lastPress = event.pressId;
       this.active.set(event.pressId, event.pitch);
     } else this.active.delete(event.pressId);
+    if (event.type === "note-on" && (this.paused || event.timestampMs < this.inputAfter)) {
+      this.suppressed.add(event.pressId);
+      return "suppressed";
+    }
+    if (event.type === "note-off" && this.suppressed.delete(event.pressId)) return "suppressed";
     const delivery = Object.freeze({ event, receivedAtMs });
     let delivered = false;
     try {
@@ -151,6 +186,7 @@ export class NoteSession {
     // Retire before calling audio: its reset callback may reenter interrupt().
     this.id = null;
     this.active.clear();
+    this.suppressed.clear();
     try {
       this.audio(delivery);
     } catch {

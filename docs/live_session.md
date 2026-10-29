@@ -2,7 +2,7 @@
 
 `frontend/src/events/liveSession.ts` owns readiness independently of React.
 The home page prepares audio from Enable audio (or Record) and immediately opens
-a fresh #86 `NoteSession`. Recording count-in does not delay live playback.
+a fresh #86 `NoteSession`. Start/resume count-ins synchronously gate live input (#205), including audio startup. Camera, calibration and contact tracking continue.
 The CV coordinator calls `session.noteOn` / `session.noteOff` with the captured
 session identity, press identity and note values. These methods construct the
 versioned envelope and sequence internally, then use the same validated
@@ -35,7 +35,7 @@ tracking after readiness loss refreshes stopped/interrupted guidance without
 automatic playback. Audio-start errors retain their retry guidance. Pending startup completions cannot revive stopped sessions.
 Old-session events are rejected even after restart. Pause preserves live audio
 and the paused MIDI take; Resume uses a MIDI count-in without reinitializing audio.
-Held notes are captured at start/resume boundaries without retriggering sound. Interruption closes the take instead of resuming it automatically.
+Held notes are retired at count-in entry and require release plus a fresh press after completion. Interruption closes the take instead of resuming it automatically.
 
 ## Calibration and tracking policy
 
@@ -72,8 +72,44 @@ Return requires fresh observations and Enable audio or Record. Route unmount rel
 closes the recorder and count-in context. The shared browser synthesizer remains
 reusable for the Audio check route. Audio startup failure offers Enable audio retry;
 audio interruption closes the active take and requires reactivation through Enable audio or Record.
-The UI's status text describes the recovery action, with a calibration link in
-the camera panel. Stop is available while audio initialization is pending.
+The UI's single primary status describes the recovery action, with a calibration
+link beside that status only when calibration is relevant. Stop is available
+while audio initialization is pending.
+
+## Recovery explanations and alignment (#220)
+
+`LiveStatus.reason` and `action` are structured independently of lifecycle state.
+The displayed message comes from that reason, including while stopped or already
+interrupted. Precedence is backgrounding, calibration validity, camera identity,
+decoded dimensions, facing mode, layout, missing markers/geometry disagreement,
+tracking failure/freshness, audio recovery, then ready/playing/Enable audio.
+An audio startup in progress takes precedence over a previous audio error.
+Unavailable camera data never establishes sheet movement. Detector failure
+offers Reload tracker; a temporary tracking pause asks the user to keep the
+view clear. Recovered tracking or alignment requires explicit Enable audio;
+no old session or held notes are replayed. Audio and count-in audio failures
+retain their own retry reasons. The generic camera-panel recalibration banner
+is removed, avoiding contradictory calibration advice and duplicate status
+announcements. The ordinary legend is outside the live announcement region.
+Its visible text tells users to allow about ten seconds after realigning and
+to select Enable audio once ready; the wait is not limited to screen-reader copy.
+
+The camera overlay compares saved and last complete scan sheet-reference
+outlines, with solid/dashed strokes and a text legend. These are marker-center
+quadrilaterals, not paper edges or a piano footprint. Both use unmirrored frame
+pixels, the same cover crop and the same display mirroring as the video.
+The saved outline is never replaced by a disagreement. The current outline is
+hidden after a missed scan or ten seconds, and is explicitly labelled as the
+last complete scan while shown. A disagreement message describes the last
+complete scan, rather than asserting ongoing movement; corners cannot identify
+whether the sheet or camera moved. Camera device/dimensions/facing mismatches
+hide the comparison and retained key drawing. Missed scans still retain usable
+contact geometry and do not themselves interrupt playing. Original 1% diagonal
+tolerance, 250 ms acquisition, ten-second marker cadence and 500 ms tracking
+deadline are unchanged.
+
+See [#220 verification](../tests/README.md#playing-recovery-and-alignment-issue-220)
+and the [dated manual procedure](../tests/manual/2026-10-29_REC-04.md).
 
 ## Verification and stacked delivery
 

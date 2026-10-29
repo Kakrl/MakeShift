@@ -54,6 +54,12 @@ export class PedalController {
     else { this.state = { ...this.latch }; this.observe(this.state); }
   }
   rebind(bindings: Bindings) { this.clear(); this.bindings = bindings; }
+  suppressKey(code: string) {
+    if (pedalIds.some(id => this.bindings[id].code === code)) {
+      this.down.add(code);
+      this.suppressed.add(code);
+    }
+  }
   keydown(code: string, repeat: boolean) {
     const id = pedalIds.find(id => this.bindings[id].code === code);
     if (!id) return false;

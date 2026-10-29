@@ -12,6 +12,7 @@ function take(id = "one"): Recording {
     id,
     name: "Take",
     bpm: 120,
+    meter: { numerator: 4, denominator: 4 },
     createdAt: "2026-10-03T12:00:00Z",
     notes: [{ pitch: "C4", velocity: 75, startMs: 0, durationMs: 100 }],
   };
@@ -145,4 +146,15 @@ describe("recordings library", () => {
     });
     expect(library.list()[0].saved).toBe(false);
   });
+});
+
+it("normalizes legacy meter, preserves selected meter on reload, rejects corrupt meter", () => {
+  const storage = storageFixture();
+  const legacy = take(); delete legacy.meter;
+  storage.data.set(storageKey("recordings",1),JSON.stringify([legacy]));
+  expect(loadRecordings(storage.access)[0].meter).toEqual({numerator:4,denominator:4});
+  const metered = {...take(),meter:{numerator:12,denominator:8}};
+  expect(saveRecordings([metered],storage.access).ok).toBe(true);
+  expect(loadRecordings(storage.access)[0].meter).toEqual(metered.meter);
+  expect(saveRecordings([{...metered,meter:{numerator:33,denominator:8}}],storage.access).ok).toBe(false);
 });
