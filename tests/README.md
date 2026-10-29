@@ -1069,6 +1069,8 @@ defect report is filed.
 | D24 | Medium | Audio | (Req 2.2, related 2.4) Higher notes dominated the procedural sound; +4 dB gain was insufficient. User selected sampled Salamander piano at +6 dB after RMS normalization. | `frontend/public/audio/sampled-piano.js`, `frontend/src/app/audio/pianoSamples.ts` | [#210](https://github.com/Kakrl/MakeShift/issues/210) | Sampled production implemented; [software and qualitative prototype evidence](manual/2026-10-19_210-register-balance.md); production hardware listening and review/merge pending |
 | D25 | Medium | Audio / UI | (Req 3.2, #207) Immediate per-beat clicks depended on React/main-thread timer delivery, allowing uneven intervals and accumulated drift under CV/render work. | `frontend/src/app/page.tsx`, `frontend/src/app/audio/countIn.ts` | [#232](https://github.com/Kakrl/MakeShift/issues/232) | Fix implemented; digital audio/timer regressions pass locally; physical listening, review/merge and Actions pending |
 
+| D25 | Medium | Calibration / UI | (Req 3.2, 6.2) A moved sheet can have all four markers and a visible debug keyboard while saved calibration is incompatible, leaving Enable audio/Record disabled without a clear recovery explanation. | `frontend/src/events/liveSession.ts`, `frontend/src/app/page.tsx`, `frontend/src/app/SheetAlignment.tsx` | [#226](https://github.com/Kakrl/MakeShift/issues/226) | Addressed with #220 in [PR #238](https://github.com/Kakrl/MakeShift/pull/238); 2.1.5/REC-03 automated recovery checks passed; physical recovery, including knuckles enabled, remains pending in REC-04; review/merge pending |
+
 ## Root Cause Analysis Log
 
 Every completed RCA is listed here. Add its row in the fix PR so it receives
@@ -1916,3 +1918,5 @@ listening, usability or latency pass is claimed. The dated human procedure and
 pending environment/step results are in [REC-04](manual/2026-10-29_REC-04.md).
 Existing thresholds and contact/session safety remain unchanged. Source tests
 run in existing frontend CI; the new recovery browser runner is manually invoked.
+
+PR #238 also addresses defect [#226](https://github.com/Kakrl/MakeShift/issues/226) through the same readiness messages and saved/current sheet-reference comparison. Marker detection is distinguished from compatible calibration, and restoration requires a matching complete scan plus explicit Enable audio. Standalone metronome behavior is outside this change. No additional execution is claimed by this documentation/linkage update; physical recovery with knuckles enabled and recalibration at the new pose remain pending in REC-04.
