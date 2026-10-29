@@ -91,6 +91,67 @@ function note(id: string, sequence = 1) {
   };
 }
 
+it("orders background, calibration/camera/layout, tracking and audio reasons", async () => {
+  const saved = calibration();
+  expect(gate.status).toMatchObject({ reason: "calibration-missing", action: "calibrate" });
+  gate.observeCalibration({}, saved.camera, saved.corners);
+  expect(gate.status.reason).toBe("calibration-invalid");
+  gate.observeCalibration(saved, null, null);
+  expect(gate.status).toMatchObject({ reason: "camera-unavailable", action: "wait" });
+  for (const [field, value, reason] of [
+    ["deviceId", "other", "camera-device"], ["width", 800, "camera-dimensions"],
+    ["height", 800, "camera-dimensions"], ["facingMode", "environment", "camera-facing"],
+  ] as const) {
+    gate.observeCalibration(saved, { ...saved.camera, [field]: value }, saved.corners);
+    expect(gate.status).toMatchObject({ reason, action: "calibrate", canStart: false });
+  }
+  gate.setLayout({ ...CURRENT_LAYOUT, startingMidi: 60 });
+  gate.observeCalibration(saved, saved.camera, saved.corners);
+  expect(gate.status.reason).toBe("layout-changed");
+  gate.setHidden(true);
+  expect(gate.status.reason).toBe("backgrounded");
+  gate.setHidden(false);
+  gate.setLayout(CURRENT_LAYOUT);
+  gate.observeCalibration(saved, saved.camera, null);
+  expect(gate.status.reason).toBe("markers-unavailable");
+  gate.observeCalibration(saved, saved.camera, saved.corners);
+  expect(gate.status).toMatchObject({ reason: "tracking-paused", action: "wait" });
+  gate.observeTracking();
+  expect(gate.status).toMatchObject({ reason: "audio-required", action: "enable-audio" });
+  await gate.prepare();
+  gate.play();
+  invalidate();
+  expect(gate.status).toMatchObject({ reason: "audio-interrupted", action: "enable-audio" });
+  gate.trackingFailed();
+  expect(gate.status).toMatchObject({ reason: "tracking-failed", action: "reload" });
+  gate.observeTracking();
+  expect(gate.status.reason).toBe("audio-interrupted");
+});
+
+it("explains displacement and realignment without mutating calibration or replaying held input", async () => {
+  const saved = calibration();
+  const original = structuredClone(saved);
+  const id = await play();
+  gate.noteOn(id, 1, 60, 0.8);
+  gate.observeCalibration(saved, saved.camera, saved.corners.map(p => ({ ...p, x: p.x + 20 })));
+  expect(gate.status).toMatchObject({ reason: "geometry-mismatch", action: "calibrate", canStart: false });
+  expect(gate.status.message).toContain("sheet or camera");
+  expect(saved).toEqual(original);
+  expect(gate.sessionId).toBeNull();
+  expect(audio.releaseAll).toHaveBeenCalledTimes(1);
+  gate.observeCalibration(saved, saved.camera, saved.corners);
+  expect(gate.status).toMatchObject({ reason: "audio-required", action: "enable-audio", canStart: true });
+  expect(gate.noteOn(id, 2, 62, 0.8)).toBe("stale");
+  expect(audio.noteOn).toHaveBeenCalledTimes(1);
+  now += TRACKING_TIMEOUT_MS;
+  vi.advanceTimersByTime(TRACKING_TIMEOUT_MS);
+  expect(gate.status).toMatchObject({ reason: "tracking-paused", action: "wait" });
+  expect(gate.status.message).not.toMatch(/calibrat/i);
+  gate.observeTracking();
+  expect(gate.status).toMatchObject({ reason: "audio-required", action: "enable-audio" });
+  expect(gate.sessionId).toBeNull();
+});
+
 it("keeps initial missing calibration and idle timeouts stopped, then refreshes readiness", () => {
   const states: string[] = [];
   gate.subscribe(() => states.push(gate.status.state));
@@ -102,7 +163,7 @@ it("keeps initial missing calibration and idle timeouts stopped, then refreshes 
   gate.stop();
   now += TRACKING_TIMEOUT_MS;
   vi.advanceTimersByTime(TRACKING_TIMEOUT_MS);
-  expect(gate.status.message).toContain("Stopped.");
+  expect(gate.status.reason).toBe("tracking-paused");
   expect(gate.status.canStart).toBe(false);
   gate.observeCalibration(null, null, null);
   expect(states.every(state => state === "stopped")).toBe(true);
@@ -115,9 +176,9 @@ it("refreshes interrupted recovery guidance without resuming or repeating interr
   const id = await play();
   gate.noteOn(id, 1, 60, 0.8);
   gate.trackingFailed();
-  const message = gate.status.message;
+  expect(gate.status.reason).toBe("tracking-failed");
   gate.observeCalibration(null, null, null);
-  expect(gate.status.message).toBe(message);
+  expect(gate.status.reason).toBe("calibration-missing");
   observe();
   expect(gate.status).toMatchObject({ state: "interrupted", canStart: true });
   expect(gate.status.message).toContain("Tracking ready");
@@ -410,6 +471,7 @@ it("accepts marker detector jitter beyond the old 500 ms slack with fresh hands"
 it("dev mode accepts live marker corners without saved calibration and still requires tracking", async () => {
   const saved = calibration();
   gate.observeUncalibratedSheet(saved.camera, null);
+  expect(gate.status).toMatchObject({ reason: "markers-unavailable", action: "wait" });
   gate.observeTracking();
   expect(gate.status.canStart).toBe(false);
   expect(gate.observeUncalibratedSheet(saved.camera, saved.corners)).toBe(true);

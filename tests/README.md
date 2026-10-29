@@ -1875,3 +1875,44 @@ checks, specific device/environment details, detailed edge-case verification,
 live-CV profiling and physical latency evidence remain pending.
 
 Issue #205 user follow-up (2026-10-27): Carl Xu tested the localhost build at 4ea7a38 and confirmed it works as intended. See the CI-04 report's user confirmation; detailed hardware/scenario and physical measurement evidence remains pending.
+
+## Playing recovery and alignment (issue #220)
+
+Local verification on 2026-10-29, Windows, Node 22.20.0, branch
+`feature/220-playing-recovery-alignment` (working tree based on `99bd9fd`):
+
+- `npm run lint` and `npx tsc --noEmit` passed.
+- `npx vitest run`: **710 passed, one existing frame-loss test skipped**, 37 files.
+  Added structured reason precedence/copy and realignment/stale-session cases in
+  liveSession; nine sheetAlignment component cases; three Home/coordinator/marker
+  integration cases for displacement/miss/realignment, audio/camera and tracking
+  recovery. Existing count-in audio failure retains its distinct message.
+- `npm run test:contrast`: all 37 existing token pairs passed. Legend uses
+  ink/surface (16.67:1); comparison strokes white/dark (19.91:1) and
+  accent-light/dark (9.87:1) with a dark backing stroke. Video-pixel contrast is
+  not a measured guarantee; solid/dashed shapes provide non-color cues.
+- `npm run build` passed. The sandbox's initial font downloads failed;
+  rerunning with network access succeeded without source/config changes.
+- Production server, `MAKE_SHIFT_URL=http://127.0.0.1:3001`, Edge
+  **156.0.4314.50**: deployment, keyboard-layout and browser-audio runners passed.
+  Deployment loaded eight assets and five routes, exercised three local audio
+  rounds without note requests, and camera denial/retry/loss/recovery. Database
+  was unconfigured. Browser audio decoded 19 samples at 48 kHz, reported
+  111,179,616 decoded bytes and 0.5716 ten-voice peak; offline registers,
+  suspension recovery and navigation cleanup passed. This is graph output,
+  not physical audibility or latency.
+- `BROWSER_CHANNEL=msedge node ../tests/frontend/recovery.browser.mjs`
+  passed: 320/390/1440px legend/page bounds, saved outline with missing current
+  geometry, one primary resolution-mismatch status, non-live legend, Tab/Enter
+  calibration navigation. Fake camera, no physical sheet/hand verification.
+- Chromium checks were attempted with the installed browser path but could not
+  spawn (`spawn UNKNOWN`); Edge supplied the browser evidence. The sandboxed
+  server was unreachable from the external browser; an external production
+  server resolved it. Vitest initially hit temporary-file rename permissions;
+  the complete reported run used the external execution environment.
+
+No new Actions execution is claimed. No real screen-reader, physical camera,
+listening, usability or latency pass is claimed. The dated human procedure and
+pending environment/step results are in [REC-04](manual/2026-10-29_REC-04.md).
+Existing thresholds and contact/session safety remain unchanged. Source tests
+run in existing frontend CI; the new recovery browser runner is manually invoked.

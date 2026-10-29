@@ -14,7 +14,9 @@ const fixtures = vi.hoisted(() => ({
   highlight: vi.fn(),
   detect: vi.fn(),
   missNextDetection: false,
-  camera: { stream: { getVideoTracks: () => [{ readyState: "live", getSettings: () => ({ deviceId: "camera-1" }) }] }, cameraReady: true },
+  markerShift: 0,
+  cameraDevice: "camera-1",
+  camera: { stream: { getVideoTracks: () => [{ readyState: "live", getSettings: () => ({ deviceId: fixtures.cameraDevice }) }] }, cameraReady: true },
 }));
 vi.mock("../../frontend/src/cv/keyboardGeometry", async (original) => ({
   ...await original<typeof import("../../frontend/src/cv/keyboardGeometry")>(),
@@ -85,7 +87,7 @@ vi.mock("../../frontend/src/cv/markerDetector", () => ({
         missingIds: [],
         observations: [[100, 100], [900, 100], [900, 900], [100, 900]]
           .map(([x, y], id) => ({
-            id, center: { x, y },
+            id, center: { x: x + fixtures.markerShift, y },
             corners: [{ x, y }, { x: x + 1, y }, { x: x + 1, y: y + 1 }, { x, y: y + 1 }],
           })),
       });
@@ -144,6 +146,8 @@ beforeEach(async () => {
   currentHands = [];
   fixtures.takes.length = 0;
   fixtures.missNextDetection = false;
+  fixtures.markerShift = 0;
+  fixtures.cameraDevice = "camera-1";
   fixtures.camera.cameraReady = true;
   fixtures.initializeAudio.mockImplementation(async () => {});
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -253,6 +257,64 @@ async function start() {
   await countIn();
   expect(button("Pause recording").disabled).toBe(false);
 }
+
+it("uses one recovery announcement and preserves calibrated/current alignment through displacement, misses and restoration", async () => {
+  const enable = [...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!;
+  await click(enable);
+  await keys(115);
+  const saved = localStorage.getItem("makeshift.calibration.v1");
+  fixtures.markerShift = 20;
+  await advance(10_000);
+  const status = host.querySelector('[role="status"]')!;
+  expect(status.textContent).toContain("sheet or camera may have moved");
+  expect(host.textContent).not.toContain("Saved data is checked before playing");
+  expect(enable.disabled).toBe(true);
+  expect(host.querySelector('a[href="/calibration"]')?.textContent).toBe("Calibrate");
+  expect(host.textContent).toContain("Calibrated position (solid)");
+  expect(host.textContent).toContain("Current position (dashed; last complete scan)");
+  expect(browserAudio.releaseAll).toHaveBeenCalled();
+  expect(localStorage.getItem("makeshift.calibration.v1")).toBe(saved);
+  fixtures.missNextDetection = true;
+  await advance(10_000);
+  expect(host.textContent).toContain("Current position unavailable");
+  fixtures.markerShift = 0;
+  await advance(10_000);
+  expect(status.textContent).toContain("Select Enable audio");
+  expect(status.textContent).not.toMatch(/calibrat/i);
+  expect(enable.disabled).toBe(false);
+  expect(host.querySelector('a[href="/calibration"]')).toBeNull();
+});
+
+it("offers audio recovery without recalibration and names camera changes without alleging sheet movement", async () => {
+  const enable = [...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!;
+  await click(enable);
+  await act(async () => fixtures.invalidate?.());
+  expect(host.querySelector('[role="status"]')?.textContent).toContain("Audio interrupted");
+  expect(host.querySelector('a[href="/calibration"]')).toBeNull();
+  expect(enable.disabled).toBe(false);
+  fixtures.cameraDevice = "camera-2";
+  await frame();
+  expect(host.querySelector('[role="status"]')?.textContent).toContain("camera changed");
+  expect(host.querySelector('[role="status"]')?.textContent).not.toContain("moved");
+  expect(host.textContent).not.toContain("Sheet-reference alignment");
+  expect(enable.disabled).toBe(true);
+});
+
+it("announces temporary tracking pause and explicit audio recovery without calibration advice", async () => {
+  const enable = [...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!;
+  await click(enable);
+  await keys(115);
+  await act(async () => { now += 600; await vi.advanceTimersByTimeAsync(600); });
+  expect(host.querySelector('[role="status"]')?.textContent).toContain("Tracking paused");
+  expect(host.querySelector('a[href="/calibration"]')).toBeNull();
+  expect(enable.disabled).toBe(true);
+  const calls = vi.mocked(browserAudio.noteOn).mock.calls.length;
+  await keys(115);
+  expect(host.querySelector('[role="status"]')?.textContent).toContain("Select Enable audio");
+  expect(host.querySelector('a[href="/calibration"]')).toBeNull();
+  expect(enable.disabled).toBe(false);
+  expect(browserAudio.noteOn).toHaveBeenCalledTimes(calls);
+});
 
 it("dispatches a chord and release/repress before React commits the landmark snapshot", async () => {
   await start();
