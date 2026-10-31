@@ -327,6 +327,26 @@ describe("stopping a take's share", () => {
     }
   });
 
+  it("checks and normalizes the take with the shared schema before uploading", async () => {
+    const take = { id: "take", name: "Take", createdAt: "2026-10-15T00:00:00.000Z", bpm: 120, notes: upload.notes };
+    const keep = () => ({ ok: true }) as const;
+    const fetchMock = vi.fn(async () => Response.json({ id: ID, deleteToken: "t" }, { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await expect(uploadTake({ ...take, notes: [] }, "Take", "Jo", keep)).rejects.toThrow("notes must contain 1-");
+      await expect(uploadTake({ ...take, bpm: 12.5 }, "Take", "Jo", keep)).rejects.toThrow("bpm must be an integer");
+      await expect(uploadTake(take, "   ", "Jo", keep)).rejects.toThrow("title must be 1-100 characters");
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      await expect(uploadTake(take, "  Take  ", "Jo", keep)).resolves.toEqual({ id: ID, deleteToken: "t" });
+      const sent = JSON.parse((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+      expect(sent.title).toBe("Take");
+      expect(sent.notes[0]).toEqual({ pitch: "C4", velocity: 80, startMs: 0, durationMs: 500 });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("keeps mock links on the mock store", () => {
     expect(shareUrl(ID, false)).toBe(`/play/${ID}`);
     expect(shareUrl("ab12cd34", true)).toBe("/play/ab12cd34?mock=1");
