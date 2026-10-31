@@ -203,6 +203,19 @@ No camera, browser listening, or physical latency result is claimed.
 | PB-1.4 | Unit | PB-1 | Late callback skips expired notes and retains the current note's endpoint ([source](frontend/playbackTimeline.test.ts)) | Carl Xu | Vitest fake clock | Yes | Implemented — no real scheduling measurements | No (D3) | [Local record](README.md#playback-timeline-verification-issue-130) - passed 2026-09-29; Actions pending |
 | PB-1.5 | Integration | PB-1 | Production BrowserAudio receives distinct press tokens and matched releases; suspension, processor failure and close pause playback without later dispatch ([source](frontend/browserAudioLifecycle.test.ts)) | Carl Xu | Vitest, mocked AudioContext/Worklet | Yes | Partially implemented — real device/browser checks pending | Yes (`frontend-ci.yml`, Vitest) | [Local record](README.md#playback-timeline-verification-issue-130) - passed 2026-09-29; sampled-owner mock regression rerun 2026-10-19, Actions pending |
 
+## Falling-notes view (#131)
+
+Source: [falling-notes tests](frontend/fallingNotes.test.ts). Geometry and
+timing are checked with synthetic projections; drawing over a real camera and
+calibrated sheet is not yet verified.
+
+| Test ID | Level | Requirement | Behavior tested | Owner | Tool | Automated? | Implementation Status | CI Integrated? | Execution evidence |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| FN-01 | Unit | Issue #131: works for one-, two- and three-octave layouts | `keyColumns` gives one column per key (13, 25, 37) on the keyboard line, white keys contiguous in pitch order, black keys flagged; the line is whichever long piano edge is higher on screen; a failed projection returns null ([source](frontend/fallingNotes.test.ts)) | Jadden Picardal | Vitest | Yes | Implemented; synthetic projections | Yes (`frontend-ci.yml`, Vitest discovery) | Local run passed 2026-10-31; Actions pending |
+| FN-02 | Unit | Issue #131: notes reach the keyboard line at their scheduled time | `fallingBars`: hidden a full lead before the start, halfway down at half the lead, bottom edge on the line exactly at the start, stays there while sounding and shrinks, gone at the end; long notes clip at the frame top, zero-length notes stay visible, out-of-layout notes skipped ([source](frontend/fallingNotes.test.ts)) | Jadden Picardal | Vitest | Yes | Implemented | Yes (`frontend-ci.yml`, Vitest discovery) | Local run passed 2026-10-31; Actions pending |
+| FN-03 | Unit | Issue #131 | Play along shifts the song by one fall so the first note starts at the frame top, keeps time on a silent timeline, and holds one song at a time, disposing the one it replaces ([source](frontend/fallingNotes.test.ts)) | Jadden Picardal | Vitest | Yes | Implemented | Yes (`frontend-ci.yml`, Vitest discovery) | Local run passed 2026-10-31; Actions pending |
+| FN-04 | System | Issue #131 | Bars align with the printed keys over a live calibrated camera for 1-, 2- and 3-octave sheets, and land as each note is due | Jadden Picardal | Manual, real camera and sheet | No | Planned | N/A (manual) | Pending |
+
 ## Supporting CI Checks
 
 These checks guard code quality. They do not verify a requirement on their own.

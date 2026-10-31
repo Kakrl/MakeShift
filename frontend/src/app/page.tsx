@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCamera } from "./CameraContext";
 import CameraStatusOverlay from "./CameraStatusOverlay";
+import PlayAlongBar from "./midi/PlayAlongBar";
 import SideNav from "./SideNav";
 import PedalControls from "./PedalControls";
 import PageTopBar from "./PageTopBar";
@@ -626,6 +627,7 @@ export default function Home() {
             activePitches={activePitches}
           />
           <CameraStatusOverlay />
+          <PlayAlongBar />
           {devMode && <p className="ms-pill absolute top-3 right-3 z-30 py-1.5 px-3 text-[12px] font-semibold">Dev mode: calibration skipped</p>}
 
           {/* Calibrate-first call to action: the first thing to do on this page */}
