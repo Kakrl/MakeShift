@@ -27,7 +27,10 @@ headless Chrome from Selenium Manager with fake media, production build of
 - The runner exits 0 while D25 and D26 are open and fails on any other assertion.
   Not covered: real camera, browsers other than Chrome, widths below `lg`,
   the Documentation control (no nav entry; `/documentation` is the Next.js
-  starter page). Actions execution pending.
+  starter page).
+- GitHub Actions (ubuntu-latest Chrome, PR #246 at the D26 commit): [Actions job log](https://github.com/Kakrl/MakeShift/actions/runs/41236674591/job/124641810203)
+  matched locally for 3.1.1 (D25) and 6.2.1 (PASS); 3.1.2 was KNOWN FAIL (D26)
+  with a 15 px scrollbar on `/` and `/?dev=1`.
 
 ## PR #219 integration and uniform volume (2026-10-26)
 
