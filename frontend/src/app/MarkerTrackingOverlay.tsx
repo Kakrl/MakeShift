@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCamera } from "./CameraContext";
+import FallingNotesLayer from "./cv/FallingNotesLayer";
 import {
   cameraSignature,
   loadCalibration,
@@ -947,6 +948,7 @@ export default function MarkerTrackingOverlay({
         height={1080}
         className="absolute inset-0 z-10 h-full w-full object-cover scale-x-[-1] pointer-events-none"
       />
+      <FallingNotesLayer homographyRef={homographyRef} videoRef={videoRef} layout={layout} />
       <canvas ref={processingCanvasRef} className="hidden" />
       {showVisualDebug && (
         <>

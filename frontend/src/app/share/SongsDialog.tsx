@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 import { RECORDING_LIMITS, recordingDurationMs, type RecordingSummary, type SharedRecording } from "../../lib/recordings";
 import { downloadMidi, type Recording } from "../midi/midiUtils";
+import { startPlayAlong } from "../midi/playAlong";
 import type { LibraryEntry } from "../midi/recordingsLibrary";
 import type { WriteResult } from "../../lib/storage";
 import { rainbow } from "../rainbow";
@@ -79,6 +80,10 @@ export default function SongsDialog({
   const listScroll = useRef(0);
   const sentinelRef = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true, onClose);
+  const playAlong = (recording: Recording) => {
+    startPlayAlong(recording);
+    onClose();
+  };
 
   const [tab, setTab] = useState<SongsTab>(initialTab);
   const [recordings, setRecordings] = useState<RecordingSummary[]>([]);
@@ -244,6 +249,7 @@ export default function SongsDialog({
                 song={song}
                 headingRef={headingRef}
                 onBack={back}
+                onPlayAlong={playAlong}
               />
             )}
             {view.kind === "mine" && take && (
@@ -254,6 +260,7 @@ export default function SongsDialog({
                 headingRef={headingRef}
                 onShare={() => push({ kind: "share", id: take.recording.id })}
                 onDeleted={back}
+                onPlayAlong={playAlong}
               />
             )}
             {view.kind === "share" && take && (
@@ -437,11 +444,13 @@ function SharedSongView({
   song,
   headingRef,
   onBack,
+  onPlayAlong,
 }: {
   summary: RecordingSummary | null;
   song: SongLoad;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   onBack: () => void;
+  onPlayAlong: (recording: Recording) => void;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -472,7 +481,7 @@ function SharedSongView({
           </button>
         </div>
       ) : (
-        <SharedPlayer recording={song === "loading" ? null : song} fill />
+        <SharedPlayer recording={song === "loading" ? null : song} fill onPlayAlong={onPlayAlong} />
       )}
     </div>
   );
@@ -488,6 +497,7 @@ function MySongView({
   headingRef,
   onShare,
   onDeleted,
+  onPlayAlong,
 }: {
   entry: LibraryEntry;
   share: TakeShare | null;
@@ -495,6 +505,7 @@ function MySongView({
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   onShare: () => void;
   onDeleted: () => void;
+  onPlayAlong: (recording: Recording) => void;
 }) {
   const { recording, saved } = entry;
   const [preview] = useState(() => asSharedRecording(recording));
@@ -585,6 +596,7 @@ function MySongView({
         recording={preview}
         fill
         shareActions={false}
+        onPlayAlong={onPlayAlong}
         actions={
           <>
             <button type="button" className={KEY} onClick={() => downloadMidi(recording)}>

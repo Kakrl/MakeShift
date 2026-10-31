@@ -43,6 +43,7 @@ export default function SharedPlayer({
   fill = false,
   shareActions = true,
   actions,
+  onPlayAlong,
 }: {
   recording: SharedRecording | null;
   /** Fill a flex column: the roll takes the free space, keys sit at the bottom. */
@@ -51,6 +52,8 @@ export default function SharedPlayer({
   shareActions?: boolean;
   /** Extra keys after Play, e.g. a local take's Download, Share and Delete. */
   actions?: ReactNode;
+  /** Shows a Play along key that drops the song onto the keyboard (#131). */
+  onPlayAlong?: (recording: Recording) => void;
 }) {
   const [timeline, setTimeline] = useState<PlaybackTimeline | null>(null);
   const [state, setState] = useState<PlaybackState>("stopped");
@@ -122,6 +125,20 @@ export default function SharedPlayer({
           <PlayIcon playing={playing} />
           {playing ? "Pause" : state === "ended" ? "Play again" : "Play"}
         </button>
+        {onPlayAlong && (
+          <button
+            type="button"
+            className={secondary}
+            disabled={!recording}
+            onClick={() => {
+              if (!recording) return;
+              timeline?.pause();
+              onPlayAlong(asRecording(recording));
+            }}
+          >
+            Play along
+          </button>
+        )}
         {shareActions && (
           <>
             <button
