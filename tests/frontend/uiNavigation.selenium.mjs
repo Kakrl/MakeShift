@@ -157,8 +157,12 @@ async function checkStableTabs(viewport) {
     await open(driver, "/");
     await driver.executeScript(() => localStorage.setItem("hasVisited", "true"));
     const positions = {};
+    const scrollbar = {};
     for (const path of NAV_PAGES) {
       await open(driver, path);
+      scrollbar[path] = await driver.executeScript(
+        () => window.innerWidth - document.documentElement.clientWidth,
+      );
       positions[path] = {};
       for (const label of TABS) {
         // Active tabs are plain divs, so only check placement, not cover.
@@ -168,16 +172,24 @@ async function checkStableTabs(viewport) {
       }
     }
     const reference = positions["/"];
+    const moves = [];
     for (const path of NAV_PAGES.slice(1)) {
+      // Expected x offset if only a classic scrollbar's width differs.
+      const gutter = scrollbar["/"] - scrollbar[path];
       for (const label of TABS) {
-        const moved = positions[path][label].some(
-          (value, i) => Math.abs(value - reference[label][i]) > TOLERANCE_PX,
-        );
-        assert(
-          !moved,
-          `${label} tab moved on ${path}: ${positions[path][label]} vs / ${reference[label]}`,
-        );
+        const rect = positions[path][label];
+        const near = (value, i, dx = 0) => Math.abs(value - reference[label][i] - dx) <= TOLERANCE_PX;
+        if (rect.every((value, i) => near(value, i))) continue;
+        const scrollbarOnly = gutter !== 0 && rect.every((value, i) => near(value, i, i === 0 ? gutter : 0));
+        moves.push({ scrollbarOnly, message: `${label} tab moved on ${path}: ${rect} vs / ${reference[label]}` });
       }
+    }
+    const real = moves.find((move) => !move.scrollbarOnly);
+    assert(!real, real?.message);
+    if (moves.length > 0) {
+      throw new KnownDefect("D26", "#247", new Error(
+        `${moves[0].message} (scrollbar ${JSON.stringify(scrollbar)})`,
+      ));
     }
     return reference;
   } finally {
