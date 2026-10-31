@@ -1,5 +1,29 @@
 # MakeShift Testing
 
+## Selenium UI navigation verification (issue #244)
+
+Local macOS execution on 2026-10-31, Node 26.8.1, Selenium WebDriver 4.50.0,
+headless Chrome from Selenium Manager with fake media, production build of
+`8d7e944` served by `next start`. Viewports set exactly through
+`Emulation.setDeviceMetricsOverride`.
+
+- **3.1.1, KNOWN FAIL (D25, #245):** after "Skip for now" on the welcome
+  dialog, the Calibration, Tutorial and About tabs were inside the viewport,
+  unscrolled and uncovered at 1024x768, 1440x900 and 1920x1080. The Record
+  control was below the fold at all three (top/bottom 874/917, 877/920 and
+  1121/1164 px), uncalibrated and in `?dev=1`.
+- **3.1.2, PASS:** the three tabs kept identical rects (within 1 px) across
+  `/`, `/?dev=1`, `/calibration` and `/about` at each viewport, for example
+  `1127,126,267,72` for Calibration at 1440x900. `/tutorial` has no side nav
+  and is not covered.
+- **6.2.1, PASS (1440x900):** home Calibration tab opened the intro dialog,
+  Begin Calibration reached `/calibration` with that tab `aria-current`, and
+  the About page's Calibration link reached `/calibration`.
+- The runner exits 0 while D25 is open and fails on any other assertion.
+  Not covered: real camera, browsers other than Chrome, widths below `lg`,
+  the Documentation control (no nav entry; `/documentation` is the Next.js
+  starter page). Actions execution pending.
+
 ## PR #219 integration and uniform volume (2026-10-26)
 
 Merged current main while retaining sampler documentation and the MIDI, tempo
@@ -454,6 +478,7 @@ tests/
 │   ├── browserAudio.browser.mjs  # production browser graph check
 │   ├── cameraLayout.browser.mjs  # home camera feed 16:9 across viewports
 │   ├── deployment.browser.mjs    # production assets, camera recovery, offline playing
+│   ├── uiNavigation.selenium.mjs # Selenium control visibility, tab position, calibration nav
 │   ├── sampledPiano.test.ts         # sample bank, stereo renderer, assets and loader
 │   ├── homePage.test.ts              # home page modals and overlays (jsdom)
 │   ├── supabaseHealth.test.ts    # /api/health database check
@@ -498,6 +523,7 @@ No test implementation requires an exception to this layout.
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
 | MIDI production download | `cd frontend && npm run test:midi-browser` | Running production server; Playwright and Edge; optional MAKE_SHIFT_URL / MIDI_BROWSER_CHANNEL |
 | Pipeline profiling | `cd frontend && npm run test:performance-browser` | Production server on port 3100, Playwright + Edge; synthetic camera; local only |
+| Selenium UI navigation | `cd frontend && npm run test:ui-selenium` | Running production server; optional MAKE_SHIFT_URL; Chrome and chromedriver found or downloaded by Selenium Manager. Prints `KNOWN FAIL` for D25 without failing |
 | Camera feed layout | `cd frontend && npm run test:layout-browser` | Running production server; Playwright bundled Chromium; optional MAKE_SHIFT_URL / LAYOUT_BROWSER_CHANNEL |
 | RCA automation | `node --test tests/automation/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
 
@@ -951,6 +977,7 @@ defect report is filed.
 | D21 | High | Calibration | (Req 6.2, 1.1, 2.1) #148 replaced the reachable result capture with depth buttons and navigated before validation/save. Final depth capture now creates the primary result; completion retains its model and saves both records before navigation. 6.2.3's expected failures are restored as passing regressions. | `frontend/src/app/calibration/page.tsx` | [#162](https://github.com/Kakrl/MakeShift/issues/162) | Fix verified locally 2026-10-06; review/merge and physical check pending |
 | D23 | Medium | Audio | (Req 2.4, related 2.2) User reports high-velocity strikes are not loud enough and wants more apparent velocity dynamics. Listening report 2026-10-14; cause and hardware verification pending. | `frontend/src/cv/fingerVelocity.ts`, `frontend/public/audio/synth.js` | [#209](https://github.com/Kakrl/MakeShift/issues/209) | DSP tuning implemented locally; [verification and listening limits](manual/2026-10-14_209-velocity.md); user confirmed audible velocity changes locally 2026-10-14; measured trials/chord distortion checks pending |
 | D24 | Medium | Audio | (Req 2.2, related 2.4) Higher notes dominated the procedural sound; +4 dB gain was insufficient. User selected sampled Salamander piano at +6 dB after RMS normalization. | `frontend/public/audio/sampled-piano.js`, `frontend/src/app/audio/pianoSamples.ts` | [#210](https://github.com/Kakrl/MakeShift/issues/210) | Sampled production implemented; [software and qualitative prototype evidence](manual/2026-10-19_210-register-balance.md); production hardware listening and review/merge pending |
+| D25 | Medium | UI | (Req 3.1) On first load the home Record control sits under the 16:9 camera feed, below the fold at 1024x768, 1440x900 and 1920x1080 (top at 874, 877 and 1121 px). The nav tabs are visible. Found by 3.1.1 | `frontend/src/app/page.tsx` | [#245](https://github.com/Kakrl/MakeShift/issues/245) | Open; 3.1.1 reports it as a known failure |
 
 ## Root Cause Analysis Log
 
