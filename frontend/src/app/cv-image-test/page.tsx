@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useEffect, useRef, useState } from "react";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 import { checkKeyOverlap } from "../../cv/contactPipeline";
@@ -11,12 +13,35 @@ import { computeHomography, projectPoint } from "../../cv/homography";
 import { getWhiteKeyPolygons } from "../../cv/keyboardGeometry";
 import { DEFAULT_LAYOUT } from "../../cv/keyboardLayout";
 import {
+  analyzeDarkShadowRegion,
+  darkShadowRuns,
+  measureShadowEvidence,
+  compareShadowEvidence,
+  type ShadowEvidence,
+  DEFAULT_DARK_SHADOW_FILTER,
+  type DarkShadowFilter,
+  findDarkShadowSize,
+  SHADOW_PROBE_ANGLES_DEGREES,
+  SHADOW_PROBE_LENGTH_PX,
+  type DarkShadowSize,
+} from "../../cv/darkShadowRegion";
+import {
+  compareShadowPress,
+  isComparableFrameGap,
+  LARGE_SHADOW_AREA_PX,
+  MAX_COMPARISON_FRAME_GAP,
+  SMALL_SHADOW_AREA_PX,
+  type ShadowSizeTransition,
+} from "../../cv/shadowPressHysteresis";
+import {
   analyzeSynchronousShadow,
   SYNCHRONOUS_SHADOW_CROP,
   type SynchronousShadowMeasurement,
 } from "../../cv/synchronousShadowDetector";
 import type { Point } from "../../cv/types";
 import { WASM_PATH } from "../useHandLandmarker";
+
+import ShadowFilterControls from "../ShadowFilterControls";
 
 const MODEL_PATH = "/models/hand_landmarker.task";
 const TIP_INSET_PX = 4;
@@ -56,7 +81,7 @@ interface RgbRayProfile {
 
 interface ImageCaseResult {
   fileName: string;
-  label: "hover" | "press" | "unknown";
+  label: "hover" | "press" | "approach" | "release" | "unknown";
   dimensions: string | null;
   backgroundDimensionsMatch: boolean | null;
   detectedFingertips: Array<{
@@ -94,13 +119,26 @@ interface ImageCaseResult {
       failureReason: string | null;
     } | null;
     refinedMeasurement: SynchronousShadowMeasurement | null;
+    darkShadowArea: number | null;
+    darkShadowMeanDrop: number | null;
+    shadowEvidence?: ShadowEvidence | null;
+    shadowEvidenceChange?: ReturnType<typeof compareShadowEvidence> | null;
+    shadowEllipse: {
+      areaPx: number;
+      majorDiameterPx: number;
+      minorDiameterPx: number;
+    } | null;
+    comparisonFrameGap: number | null;
+    yDecreased: boolean | null;
+    shadowTransition: ShadowSizeTransition;
+    pressCandidate: boolean | null;
     error?: string;
   }>;
   error?: string;
 }
 
-function parseLabel(fileName: string): { label: "hover" | "press" | "unknown"; targets: TargetLabel[] } {
-  const match = /^(hover|press)_(.+?)_frame_/i.exec(fileName);
+function parseLabel(fileName: string): { label: ImageCaseResult["label"]; targets: TargetLabel[] } {
+  const match = /^(hover|press|approach|release)_(.+?)_frame_/i.exec(fileName);
   if (!match) return { label: "unknown", targets: [] };
   const targets = match[2].split("+").flatMap((part) => {
     const target = /^(left|right)-(thumb|index|middle|ring|pinky)$/i.exec(part);
@@ -109,7 +147,12 @@ function parseLabel(fileName: string): { label: "hover" | "press" | "unknown"; t
           finger: target[2].toLowerCase() as FingerName }]
       : [];
   });
-  return { label: match[1].toLowerCase() as "hover" | "press", targets };
+  return { label: match[1].toLowerCase() as ImageCaseResult["label"], targets };
+}
+
+function imageFrameNumber(fileName: string): number | null {
+  const match = /_frame_(\d+)_/i.exec(fileName);
+  return match ? Number(match[1]) : null;
 }
 
 type CaseVerdict = "PASS" | "FAIL" | "NOT SCORED";
@@ -124,7 +167,7 @@ function targetVerdict(
   expected: ImageCaseResult["label"],
   measurement: SynchronousShadowMeasurement | null,
 ): CaseVerdict {
-  if (expected === "unknown" || !measurement || measurement.state === "unknown") {
+  if ((expected !== "hover" && expected !== "press") || !measurement || measurement.state === "unknown") {
     return "NOT SCORED";
   }
   return (expected === "press") === (measurement.state === "press candidate")
@@ -683,9 +726,12 @@ function createDifferencePreview(
 
 function createSourcePreview(
   image: HTMLImageElement,
+  imagePixels: ImageData,
+  backgroundPixels: ImageData | null,
   point: Point,
   refinement: ReturnType<typeof refineFingertip>,
   colorRefinement: ReturnType<typeof refineFingertipByColor>,
+  filter: Readonly<DarkShadowFilter>,
 ) {
   const cropWidth = 640;
   const cropHeight = 480;
@@ -701,6 +747,23 @@ function createSourcePreview(
   context.drawImage(image, left, top, width, height, 0, 0, width, height);
   const rootStyle = getComputedStyle(document.documentElement);
   const local = (candidate: Point) => ({ x: candidate.x - left, y: candidate.y - top });
+  context.save();
+  context.fillStyle = rootStyle.getPropertyValue("--color-blue").trim();
+  context.globalAlpha = 0.5;
+  for (const [x, y, length] of darkShadowRuns(analyzeDarkShadowRegion(imagePixels, backgroundPixels, point, filter))) {
+    context.fillRect(x - left, y - top, length, 1);
+  }
+  context.restore();
+  const shadowEllipse = drawLinesToShadow(
+    context,
+    imagePixels,
+    backgroundPixels,
+    point,
+    local,
+    rootStyle.getPropertyValue("--color-blue").trim(),
+    rootStyle.getPropertyValue("--color-ink-muted").trim(),
+    filter,
+  );
   const drawDot = (candidate: Point, color: string, radius: number) => {
     const location = local(candidate);
     context.beginPath();
@@ -712,20 +775,6 @@ function createSourcePreview(
     context.stroke();
   };
   drawDot(point, rootStyle.getPropertyValue("--color-danger").trim(), 6);
-  if (colorRefinement?.contour.length) {
-    context.fillStyle = rootStyle.getPropertyValue("--color-yellow-strong").trim();
-    context.globalAlpha = 0.32;
-    for (const candidate of colorRefinement.matchedPixels) {
-      const location = local(candidate);
-      context.fillRect(location.x, location.y, 1, 1);
-    }
-    context.globalAlpha = 1;
-    for (const candidate of colorRefinement.contour) {
-      const location = local(candidate);
-      context.fillRect(location.x, location.y, 2, 2);
-    }
-    context.globalAlpha = 1;
-  }
   if (colorRefinement?.scan) {
     const purple = rootStyle.getPropertyValue("--color-purple").trim();
     const drawScan = (start: Point, end: Point) => {
@@ -749,7 +798,91 @@ function createSourcePreview(
     drawDot(refinement.point, rootStyle.getPropertyValue("--color-success-strong").trim(), 7);
   }
   if (colorRefinement?.point) drawDot(colorRefinement.point, rootStyle.getPropertyValue("--color-blue").trim(), 7);
-  return canvas.toDataURL();
+  return {
+    dataUrl: canvas.toDataURL(),
+    shadowEllipse,
+  };
+}
+
+function drawLinesToShadow(
+  context: CanvasRenderingContext2D,
+  image: ImageData,
+  background: ImageData | null,
+  tip: Point,
+  toLocal: (point: Point) => Point,
+  shadowColor: string,
+  guideColor: string,
+  filter: Readonly<DarkShadowFilter>,
+): DarkShadowSize | null {
+  const shadowSize = findDarkShadowSize(image, background, tip, { x: 0, y: 0 }, filter);
+  context.save();
+  context.lineWidth = 1;
+  context.setLineDash([3, 3]);
+  context.strokeStyle = guideColor;
+  for (const degrees of SHADOW_PROBE_ANGLES_DEGREES) {
+    const radians = (degrees * Math.PI) / 180;
+    const end = {
+      x: tip.x + Math.sin(radians) * SHADOW_RAY_LENGTH_PX,
+      y: tip.y + Math.cos(radians) * SHADOW_PROBE_LENGTH_PX,
+    };
+    const startLocal = toLocal(tip);
+    const endLocal = toLocal(end);
+    context.beginPath();
+    context.moveTo(startLocal.x, startLocal.y);
+    context.lineTo(endLocal.x, endLocal.y);
+    context.stroke();
+
+    const run = shadowSize?.runs.find((item) => item.angleDegrees === degrees)?.points ?? [];
+    if (run.length) {
+      context.setLineDash([]);
+      context.strokeStyle = shadowColor;
+      context.lineWidth = 4;
+      context.lineCap = "round";
+      context.beginPath();
+      const first = toLocal(run[0]);
+      context.moveTo(first.x, first.y);
+      for (const sample of run.slice(1)) {
+        const location = toLocal(sample);
+        context.lineTo(location.x, location.y);
+      }
+      context.stroke();
+      context.setLineDash([3, 3]);
+      context.lineWidth = 1;
+      context.strokeStyle = guideColor;
+    }
+  }
+
+  const ellipse = shadowSize;
+  if (ellipse) {
+    const center = toLocal(ellipse.center);
+    context.setLineDash([]);
+    context.strokeStyle = getComputedStyle(document.documentElement)
+      .getPropertyValue("--color-purple").trim();
+    context.lineWidth = 2;
+    context.beginPath();
+    context.ellipse(
+      center.x,
+      center.y,
+      ellipse.majorRadius,
+      ellipse.minorRadius,
+      ellipse.rotation,
+      0,
+      Math.PI * 2,
+    );
+    context.stroke();
+
+    const label = `${Math.round(ellipse.majorRadius * 2)} × ${Math.round(ellipse.minorRadius * 2)} px`;
+    context.font = "12px sans-serif";
+    context.lineWidth = 3;
+    context.strokeStyle = getComputedStyle(document.documentElement)
+      .getPropertyValue("--color-ink").trim();
+    context.strokeText(label, center.x + 4, center.y - 4);
+    context.fillStyle = getComputedStyle(document.documentElement)
+      .getPropertyValue("--color-purple").trim();
+    context.fillText(label, center.x + 4, center.y - 4);
+  }
+  context.restore();
+  return ellipse;
 }
 
 function BoundaryProfile({
@@ -878,6 +1011,7 @@ function makeMeasurement(
 }
 
 export default function CvImageTestPage() {
+  const [filter, setFilter] = useState<Readonly<DarkShadowFilter>>(DEFAULT_DARK_SHADOW_FILTER);
   const [status, setStatus] = useState("Choose background.png and labeled case images.");
   const [results, setResults] = useState<ImageCaseResult[]>([]);
   const [setup, setSetup] = useState<Record<string, unknown> | null>(null);
@@ -948,6 +1082,7 @@ export default function CvImageTestPage() {
       });
 
       setSetup({
+        darkPixelFilter: { ...filter },
         backgroundFile: backgroundFile.name,
         excludedBackgroundFromCases: selectedCaseFiles.length !== caseFiles.length,
         dimensions: `${backgroundImage.naturalWidth}x${backgroundImage.naturalHeight}`,
@@ -961,7 +1096,18 @@ export default function CvImageTestPage() {
       });
 
       const nextResults: ImageCaseResult[] = [];
-      for (const file of caseFiles.sort((a, b) => a.name.localeCompare(b.name))) {
+      const previousShadowSamples = new Map<string, {
+        frame: number;
+        y: number;
+        shadowAreaPx: number | null;
+        evidence: ShadowEvidence | null;
+      }>();
+      for (const file of caseFiles.sort((a, b) =>
+        (imageFrameNumber(a.name) ?? Number.MAX_SAFE_INTEGER) -
+          (imageFrameNumber(b.name) ?? Number.MAX_SAFE_INTEGER) ||
+        a.name.localeCompare(b.name),
+      )) {
+        const currentFrame = imageFrameNumber(file.name);
         setStatus(`Analyzing ${file.name} (${nextResults.length + 1}/${caseFiles.length})...`);
         const parsed = parseLabel(file.name);
         const result: ImageCaseResult = {
@@ -1042,6 +1188,13 @@ export default function CvImageTestPage() {
                 colorRefinement: null,
                 refinement: null,
                 refinedMeasurement: null,
+                darkShadowArea: null,
+                darkShadowMeanDrop: null,
+                shadowEllipse: null,
+                comparisonFrameGap: null,
+                yDecreased: null,
+                shadowTransition: "unavailable",
+                pressCandidate: null,
                 error: `No ${expectedHand} hand found (${handObservations.map((hand) => hand.handedness).join(", ") || "no hands detected"})`,
               });
               continue;
@@ -1066,6 +1219,13 @@ export default function CvImageTestPage() {
                 colorRefinement: null,
                 refinement: null,
                 refinedMeasurement: null,
+                darkShadowArea: null,
+                darkShadowMeanDrop: null,
+                shadowEllipse: null,
+                comparisonFrameGap: null,
+                yDecreased: null,
+                shadowTransition: "unavailable",
+                pressCandidate: null,
                 error: "MediaPipe did not return the target fingertip landmark",
               });
               continue;
@@ -1094,19 +1254,54 @@ export default function CvImageTestPage() {
               matchingBackground,
               point,
             );
+            const darkShadowRegion = analyzeDarkShadowRegion(
+              imageRgb,
+              matchingBackground,
+              point,
+              filter,
+            );
+            const evidence = measureShadowEvidence(imageRgb, matchingBackground, point, filter);
             const yellowRgbProfiles = yellowPoint
               ? makeRgbRayProfiles(imageRgb, matchingBackground, yellowPoint)
               : null;
             const differencePreviewKey = `${file.name}:${targetIndex}`;
+            const sourcePreview = createSourcePreview(
+              image,
+              imageRgb,
+              matchingBackground,
+              point,
+              refinement,
+              colorRefinement,
+              filter,
+            );
             setSourceCropPreviews((previous) => ({
               ...previous,
-              [differencePreviewKey]: createSourcePreview(
-                image,
-                point,
-                refinement,
-                colorRefinement,
-              ),
+              [differencePreviewKey]: sourcePreview.dataUrl,
             }));
+            const targetKey = `${target.hand}-${target.finger}`;
+            const previousShadow = previousShadowSamples.get(targetKey);
+            const frameGap = previousShadow && currentFrame !== null
+              ? currentFrame - previousShadow.frame
+              : null;
+            const comparison = previousShadow && frameGap !== null &&
+              isComparableFrameGap(previousShadow.frame, currentFrame!)
+              ? compareShadowPress(
+                previousShadow.y,
+                point.y,
+                previousShadow.shadowAreaPx,
+                sourcePreview.shadowEllipse?.areaPx ?? null,
+              )
+              : null;
+            const evidenceChange = comparison && evidence && previousShadow?.evidence
+              ? compareShadowEvidence(previousShadow.evidence, evidence) : null;
+            if (currentFrame !== null) {
+              previousShadowSamples.set(targetKey, {
+                frame: currentFrame,
+                evidence,
+                y: point.y,
+                shadowAreaPx: sourcePreview.shadowEllipse?.areaPx ?? null,
+              });
+            }
             setDifferencePreviews((previous) => ({
               ...previous,
               [differencePreviewKey]: createDifferencePreview(
@@ -1151,6 +1346,21 @@ export default function CvImageTestPage() {
               refinedMeasurement: refinement?.point
                 ? makeMeasurement(image, backgroundImage, refinement.point)
                 : null,
+              shadowEvidence: evidence,
+              shadowEvidenceChange: evidenceChange,
+              darkShadowArea: darkShadowRegion?.area ?? null,
+              darkShadowMeanDrop: darkShadowRegion?.meanLumaDrop ?? null,
+              shadowEllipse: sourcePreview.shadowEllipse ? {
+                areaPx: sourcePreview.shadowEllipse.areaPx,
+                majorDiameterPx: sourcePreview.shadowEllipse.majorRadius * 2,
+                minorDiameterPx: sourcePreview.shadowEllipse.minorRadius * 2,
+              } : null,
+              comparisonFrameGap: comparison ? frameGap : null,
+              yDecreased: comparison?.yDecreased ?? null,
+              shadowTransition: comparison?.shadowTransition ?? "unavailable",
+              pressCandidate: comparison && comparison.shadowTransition !== "unavailable"
+                ? comparison.pressCandidate
+                : null,
             });
           }
         } catch (error) {
@@ -1171,6 +1381,7 @@ export default function CvImageTestPage() {
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-6">
       <h1 className="text-2xl font-semibold">Synchronous shadow image test</h1>
+      <p><Link href="/cv-shadow-test">Open shadow heatmap · images and video, without finger tracking</Link></p>
       <p>Use an empty-sheet frame with all four markers as the background. The labeled case images must share its camera position and resolution.</p>
       <label className="block space-y-1">
         <span>Background frame (save it as background.png)</span>
@@ -1180,6 +1391,7 @@ export default function CvImageTestPage() {
         <span>Labeled cases (for example, hover_right-ring_frame_....png)</span>
         <input id="cases" type="file" accept="image/*" multiple />
       </label>
+      <ShadowFilterControls value={filter} onChange={setFilter} disabled={running} />
       <button className="rounded border px-4 py-2" disabled={running} onClick={() => void runAnalysis().catch((error) => setStatus(error instanceof Error ? error.message : String(error)))}>
         {running ? "Analyzing..." : "Run image analysis"}
       </button>
@@ -1193,9 +1405,9 @@ export default function CvImageTestPage() {
       {results.length > 0 && <section className="space-y-3">
         <h2 className="text-lg font-medium">Per-image results</h2>
         {results.map((result) => <article className="space-y-2 rounded border p-4" key={result.fileName}>
-          <h3 className="font-medium"><span>Expected {result.label.toUpperCase()}</span><VerdictBadge verdict={imageVerdict(result)} /> · {result.fileName} · {result.dimensions ?? "dimensions unavailable"} · subtraction reference {setup ? String(setup.backgroundFile) : "unavailable"} · {result.backgroundDimensionsMatch === null ? "background size unknown" : result.backgroundDimensionsMatch ? "background size matches" : "background size does not match"}</h3>
+          <h3 className="font-medium"><span>Label {result.label.toUpperCase()}</span><VerdictBadge verdict={imageVerdict(result)} /> · {result.fileName} · {result.dimensions ?? "dimensions unavailable"} · subtraction reference {setup ? String(setup.backgroundFile) : "unavailable"} · {result.backgroundDimensionsMatch === null ? "background size unknown" : result.backgroundDimensionsMatch ? "background size matches" : "background size does not match"}</h3>
           {result.error && <p>{result.error}</p>}
-          <p className="text-sm">RGB class strips below show the three 45-pixel rays from each MediaPipe and yellow-dot origin: N is the existing nail-color match, P is within ±18 RGB values per channel of the empty-sheet pixel, and O is other. These diagnostic classes also color the sampled ray segments on the enlarged grayscale subtraction crop; they do not affect contact decisions. The crop shows raw absolute luma difference without display amplification: 0 = unchanged black, 255 = maximum difference white.</p>
+          <p className="text-sm">Approach/release labels are descriptive still-image groups and are not scored as press/hover. In the original RGB crop, gray dotted probes fan 45 pixels below the fingertip at 0°, ±18° and ±35°. Each probe traces its first contiguous dark run in blue, stopping at the first non-dark pixel after the run. The dark-pixel rule uses the four limits recorded in the setup panel for this run. A purple oval fits the probe samples when at least two lines find dark runs; its displayed dimensions are approximate. The nail-color contour is hidden. The broad-region pixel count remains a separate reference measurement. Sequential files are sorted by frame number and compared only for the same hand/finger within {MAX_COMPARISON_FRAME_GAP} frames. A decrease in fingertip Y plus an oval area transition from at least {LARGE_SHADOW_AREA_PX} px² to at most {SMALL_SHADOW_AREA_PX} px² is labeled an experimental press candidate. This is diagnostic only and does not affect contact decisions.</p>
           {previews[result.fileName] && result.dimensions && <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(180px,1fr)]">
             <div className="relative w-full max-w-xl">
             <img className="block h-auto w-full" src={previews[result.fileName]} alt={`${result.fileName} with MediaPipe and refined fingertip points`} />
@@ -1216,13 +1428,14 @@ export default function CvImageTestPage() {
             </div>
           </div>}
           {result.targets.map((target, index) => <div className="overflow-auto" key={`${target.finger}-${index}`}>
-            <p><strong>{target.requestedHand} {target.finger}:</strong> Expected {result.label.toUpperCase()} · MediaPipe says {detectorLabel(target.measurement?.state)} <VerdictBadge verdict={targetVerdict(result.label, target.measurement)} />; subtraction point {target.refinedPoint ? `(${target.refinedPoint.x.toFixed(1)}, ${target.refinedPoint.y.toFixed(1)})` : "not found"}; nail-color component center {target.colorPoint ? `(${target.colorPoint.x.toFixed(1)}, ${target.colorPoint.y.toFixed(1)})` : "not found"} · RGB target (${NAIL_RGB.join(", ")}) ± ${NAIL_RGB_TOLERANCE} · heuristic confidence {target.colorRefinement?.confidence.toFixed(2) ?? "unavailable"} · component {target.colorRefinement?.area ?? "unavailable"} px{target.colorRefinement?.failureReason ? ` · ${target.colorRefinement.failureReason}` : ""}; subtraction detector says {detectorLabel(target.refinedMeasurement?.state)} <VerdictBadge verdict={targetVerdict(result.label, target.refinedMeasurement)} />; edges {target.refinement?.leftEdge && target.refinement.rightEdge ? `${target.refinement.leftEdge.x}–${target.refinement.rightEdge.x}` : "unavailable"}; paper boundary {target.refinement?.paperBoundary ? `y=${target.refinement.paperBoundary.y}` : "unavailable"}; key overlap {target.keyIndexes.join(", ") || "none"}; background available {target.refinedMeasurement?.backgroundAvailable ? "yes" : "no"}</p>
+            <p>Shadow evidence (diagnostic): near 2–10 px: {target.shadowEvidence?.near ? `${target.shadowEvidence.near.darkPixels} dark px, darkness ${target.shadowEvidence.near.darknessPerPixel.toFixed(2)} luma/pixel` : "unavailable"}; forward 11–45 px: {target.shadowEvidence?.forward ? `${target.shadowEvidence.forward.darkPixels} dark px, darkness ${target.shadowEvidence.forward.darknessPerPixel.toFixed(2)} luma/pixel` : "unavailable"}; max row gradient {target.shadowEvidence?.maxSpatialGradient?.toFixed(2) ?? "unavailable"}. Adjacent-frame darkness change: near {target.shadowEvidenceChange?.nearDarknessDelta?.toFixed(2) ?? "unavailable"}, forward {target.shadowEvidenceChange?.forwardDarknessDelta?.toFixed(2) ?? "unavailable"}. Positive means darker; Y direction and old oval rule are reported separately below.</p>
+            <p><strong>{target.requestedHand} {target.finger}:</strong> Label {result.label.toUpperCase()} · oval {target.shadowEllipse ? `${target.shadowEllipse.areaPx.toFixed(0)} px² (${target.shadowEllipse.majorDiameterPx.toFixed(0)} × ${target.shadowEllipse.minorDiameterPx.toFixed(0)} px)` : "unavailable"} · previous-frame gap {target.comparisonFrameGap ?? "—"} · Y decreased {target.yDecreased === null ? "unknown" : target.yDecreased ? "yes" : "no"} · shadow {target.shadowTransition} · experimental press {target.pressCandidate === null ? "unavailable" : target.pressCandidate ? "candidate" : "no"} · broad-region dark pixels {target.darkShadowArea ?? "unavailable"} px{target.darkShadowMeanDrop == null ? "" : ` · mean drop ${target.darkShadowMeanDrop.toFixed(1)} luma`} · MediaPipe says {detectorLabel(target.measurement?.state)} <VerdictBadge verdict={targetVerdict(result.label, target.measurement)} />; subtraction point {target.refinedPoint ? `(${target.refinedPoint.x.toFixed(1)}, ${target.refinedPoint.y.toFixed(1)})` : "not found"}; nail-color component center {target.colorPoint ? `(${target.colorPoint.x.toFixed(1)}, ${target.colorPoint.y.toFixed(1)})` : "not found"} · RGB target ({NAIL_RGB.join(", ")}) ± {NAIL_RGB_TOLERANCE} · heuristic confidence {target.colorRefinement?.confidence.toFixed(2) ?? "unavailable"} · component {target.colorRefinement?.area ?? "unavailable"} px{target.colorRefinement?.failureReason ? ` · ${target.colorRefinement.failureReason}` : ""}; subtraction detector says {detectorLabel(target.refinedMeasurement?.state)} <VerdictBadge verdict={targetVerdict(result.label, target.refinedMeasurement)} />; edges {target.refinement?.leftEdge && target.refinement.rightEdge ? `${target.refinement.leftEdge.x}–${target.refinement.rightEdge.x}` : "unavailable"}; paper boundary {target.refinement?.paperBoundary ? `y=${target.refinement.paperBoundary.y}` : "unavailable"}; key overlap {target.keyIndexes.join(", ") || "none"}; background available {target.refinedMeasurement?.backgroundAvailable ? "yes" : "no"}</p>
             {target.rgbProfiles.length > 0 && <RgbClassRayProfiles profiles={target.rgbProfiles} title="MediaPipe point" />}
             {target.yellowRgbProfiles && <RgbClassRayProfiles profiles={target.yellowRgbProfiles} title="Yellow-dot point" />}
             {!target.refinedPoint && <p className="font-medium">No refined point was placed: {target.refinement?.failureReason ?? "the subtraction scan did not return a result"}.</p>}
             {(sourceCropPreviews[`${result.fileName}:${index}`] || differencePreviews[`${result.fileName}:${index}`]) && <div className="grid max-w-5xl gap-4 md:grid-cols-2">
               {sourceCropPreviews[`${result.fileName}:${index}`] && <div className="space-y-1">
-                <p className="text-sm font-medium">Original RGB crop · red MediaPipe, green subtraction point, yellow nail-color contour, purple range scans</p>
+                <p className="text-sm font-medium">Original RGB crop · blue: traced dark runs · gray: probe lines · purple: approximate oval fit · red MediaPipe, green subtraction point</p>
                 <img className="block h-auto w-full border" src={sourceCropPreviews[`${result.fileName}:${index}`]} alt={`Original RGB crop for ${target.requestedHand} ${target.finger} showing fingertip refinement overlays`} />
               </div>}
               {differencePreviews[`${result.fileName}:${index}`] && <div className="space-y-1">

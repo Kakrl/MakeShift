@@ -143,3 +143,102 @@ interpreting results.
 The five automated evaluation-core cases cover parser and scoring setup.
 Validate that browser seeking selects the intended encoded frame on each clip
 before using its scores as an accuracy ceiling.
+
+## Shadow evidence frame review
+
+Manual replay automatically displays the same near/forward darkness metrics
+as `/cv-image-test`. Use the existing visible frame controls:
+
+```sh
+cd frontend
+CV_HEADFUL=1 CV_MANUAL_STEP=1 npm run test:cv-video:auto -- --clip 1
+```
+
+Green rectangles mark the near band (2–10 px below the landmark), blue the
+forward band (11–45 px), both ±40 px wide. The table below the video reports
+dark pixel count, darkness strength, each band's frame-to-frame strength
+change, spatial gradient and image ΔY. Positive ΔY means downward in image
+coordinates; it is not calibrated physical descent. Finger labels use detected
+handedness and finger name. Unknown/duplicate handedness and missing references
+are unavailable. Losing a finger or replacing the background resets comparison.
+
+Previous/Next restore cached measurements together with their source frame;
+browsing backward does not rerun contact state. Measurement definitions and
+limitations match [the image experiment](cv_image_tests.md#comparing-darkness-hypotheses-locally-2026-10-27).
+There are no added contact thresholds or note decisions. Near bands are only
+landmark-relative guesses; inspect whether they actually contain the contact
+edge. The strict mask can miss shadows and include occluding fingers.
+
+For headless exports use `CV_SHADOW_EVIDENCE=1`; the report adds
+`shadowEvidenceFrames` for all processed frames. Extra full-frame reads and
+analysis affect throughput; the extra measurements run outside contact timing.
+Default headless runs omit them. `CV_SHADOW_STEP_CHECK=1 CV_SHADOW_EVIDENCE=1`
+automates Next/Previous/Next and asserts identical cached display before
+resuming the clip, saving `shadow-evidence-stepping.png` beside the report.
+
+The same **Experimental dark-pixel filter** controls are available before a
+replay. Edit and rerun; the displayed recorded filter belongs to the current
+run, and old cached frames are never reinterpreted using edited controls.
+Translucent blue spans show every matching pixel in the measurement bands,
+including when there is no fitted oval. The exported `darkPixelFilter` records
+all four limits. These changes affect diagnostics only; the live contact rule
+keeps its existing defaults. The automated step check also edits and resets a
+filter control before replay. Dark-pixel limits still need tuning against
+multiple press and near-hover examples.
+
+### Finger inspector layout
+
+The replay places the video beside a selected-finger inspector on desktop,
+stacking the panels on narrow screens. Choose a finger in **Inspect finger**
+or expand **All fingers** and select its row. The selected finger is outlined
+in the video and shown in a magnified crop with the same measurement overlays.
+Motion, near darkness, forward darkness and spatial sharpness have separate
+cards; signed changes distinguish increasing from decreasing measurements.
+Frame indices are zero-based, matching captured filenames and exported data.
+
+Four charts share the same last-60-frame horizontal window ending at the
+currently displayed frame. Each has its own labeled vertical range; compare
+when changes occur, not their drawn heights across charts. Missing samples
+break the line. Previous/Next restores the matching crop, metrics and history
+without advancing the contact pipeline. Source/filter setup, the full finger
+table and raw JSON report are collapsible. The video stays visible while
+scrolling the inspector on desktop. Analysis and contact rules are unchanged.
+
+Local UI validation on clip 1: automated filter edit/reset, cached frame
+restoration, finger selection, four rendered charts, populated crop canvas,
+and a 390-pixel viewport without horizontal overflow passed. Desktop and
+mobile screenshots were inspected; the 288-frame replay completed with no
+page errors. See [execution evidence](../tests/README.md#video-replay-inspector-ui-2026-10-27).
+
+## Finger-independent heatmap
+
+For the current shadow-only experiment, open `/cv-shadow-test` using the link
+at the top of this page. It supports images and paused video without finger
+tracking, marker detection or a sidecar. See [heatmap usage and limits](cv_shadow_heatmap.md).
+
+### Heatmaps inside the replay
+
+The **Diagnostic view** selector now defaults to **Shadow heatmaps**. During
+manual review, pause and use the existing Previous/Next controls to inspect
+full-frame darkening and normalized color-change maps beside the source video.
+The finger measurements remain selectable. Heatmap display controls update
+immediately and are separate from the strict dark-pixel detector's settings.
+Finger/key overlays are hidden in heatmap mode so the source stays unobstructed.
+
+The maps use the empty-sheet background captured by the replay's existing
+complete-marker scan; start with hands out of view and all markers visible.
+Each cached frame records a reference ID, and the small reference snapshots
+are kept separately so revisiting a frame uses that frame's original reference.
+The PNG/color output is not stored for every frame. References are capped at
+640 pixels on the longest edge; map rendering runs only while paused, outside
+contact-pipeline timing. Headless runs without shadow evidence omit reference
+sampling. Missing references are visibly unavailable. No fingertip locations,
+clusters, or strict dark-pixel masks enter the heatmap calculation. The replay
+itself continues to run its existing MediaPipe/contact evaluation.
+
+The same [subtraction/color interpretation and limits](cv_shadow_heatmap.md)
+apply: finger occlusion is still visible, color shift is ambiguous, and whole
+frames include pixels outside the paper. `CV_SHADOW_STEP_CHECK=1` checks the
+finger inspector and then heatmap view switching, scale updates, cached frame
+navigation, paused/resumed behavior and mobile overflow. Execution evidence is
+recorded in the [testing guide](../tests/README.md#integrated-replay-heatmaps-2026-10-27).

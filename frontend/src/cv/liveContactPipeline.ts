@@ -38,6 +38,15 @@ import {
   SYNCHRONOUS_SHADOW_CROP,
   type SynchronousShadowMeasurement,
 } from "./synchronousShadowDetector";
+import {
+  findDarkShadowSize,
+  SHADOW_PROBE_REGION_HALF_WIDTH,
+  type DarkShadowSize,
+} from "./darkShadowRegion";
+import {
+  ShadowPressTracker,
+  type ShadowPressTrackerObservation,
+} from "./shadowPressHysteresis";
 
 export const SHADOW_CROP_RADIUS = 70;
 const SHADOW_INTERVAL_MS = 10;
@@ -49,6 +58,8 @@ export interface ContactTechniques {
   zMotion?: boolean;
   /** Same-frame experimental detector; independent from the legacy worker. */
   synchronousShadows?: boolean;
+  /** Experimental empty-sheet + fingertip-Y press/release hysteresis. */
+  shadowPressHysteresis?: boolean;
 }
 
 // Change these independently to debug either technique. Key overlap is required.
@@ -57,7 +68,8 @@ export const CONTACT_TECHNIQUES: Readonly<ContactTechniques> = {
   knuckles: false,
   shadows: false,
   zMotion: false,
-  synchronousShadows: true,
+  synchronousShadows: false,
+  shadowPressHysteresis: true,
 };
 
 export interface ContactPipelineFrame {
@@ -71,6 +83,14 @@ export interface ContactPipelineFrame {
   previewFingerId: string | null;
 }
 
+export interface ShadowPressLiveMeasurement extends ShadowPressTrackerObservation {
+  frameAtMs: number;
+  shadowAreaPx: number | null;
+  fingertipX: number;
+  fingertipY: number;
+  shadowEllipse: DarkShadowSize | null;
+}
+
 interface SynchronousImageRegion {
   image: ImageData;
   origin: Point;
@@ -82,6 +102,7 @@ interface PipelineCallbacks {
     crop: HTMLCanvasElement | null,
     center: Point,
     origin: Point,
+    shadowPress: ShadowPressLiveMeasurement | undefined,
   ) => void;
   onShadowPreview: (
     observation: ShadowObservation,
@@ -100,9 +121,11 @@ export class LiveContactPipeline {
   readonly observations = new Map<string, ShadowObservation>();
   readonly shadowContacts = new Map<string, ShadowContactEvaluation>();
   readonly synchronousMeasurements = new Map<string, SynchronousShadowMeasurement>();
+  readonly shadowPressComparisons = new Map<string, ShadowPressLiveMeasurement>();
   private readonly measurements = new Map<string, ShadowMeasurement>();
   private readonly zHistories = new Map<string, ZMotionSample[]>();
   private readonly zPredictionLatched = new Set<string>();
+  private readonly shadowPressTrackers = new Map<string, ShadowPressTracker>();
   private worker: Worker | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private disposed = false;
@@ -141,7 +164,8 @@ export class LiveContactPipeline {
         finger.contact = previous;
         const next = finger.checkState(gate, now, undefined, {
           shadowsEnabled: this.techniques.shadows ||
-            this.techniques.synchronousShadows,
+            this.techniques.synchronousShadows ||
+            this.techniques.shadowPressHysteresis,
         });
         this.setContact(id, next, now);
         changed ||= next.state !== previous.state;
@@ -223,6 +247,8 @@ export class LiveContactPipeline {
     this.observations.clear();
     this.shadowContacts.clear();
     this.synchronousMeasurements.clear();
+    this.shadowPressComparisons.clear();
+    this.shadowPressTrackers.clear();
     this.zHistories.clear();
     this.zPredictionLatched.clear();
     // Keep revisions monotonic so pending results cannot enter a new session.
@@ -246,7 +272,9 @@ export class LiveContactPipeline {
     const knuckleDistances = new Map<number, number | null>();
     const synchronousRegions = new Map<number, SynchronousImageRegion | null>();
     const useSynchronousShadow = Boolean(
-      this.techniques.synchronousShadows || this.synchronousDiagnosticsOnly,
+      this.techniques.synchronousShadows ||
+        this.synchronousDiagnosticsOnly ||
+        this.techniques.shadowPressHysteresis,
     );
 
     for (const fingertip of frame.fingertips) {
@@ -288,6 +316,10 @@ export class LiveContactPipeline {
         hand.landmarks[fingertip.landmarkIndex] &&
         (!this.techniques.knuckles ||
           (handCalibration && distance !== null && screenY !== null)) &&
+        (!this.techniques.shadowPressHysteresis ||
+          (frame.background &&
+            frame.background.width === frame.video?.videoWidth &&
+            frame.background.height === frame.video?.videoHeight)) &&
         (!(this.techniques.shadows || this.shadowDiagnosticsOnly) ||
           this.worker),
       );
@@ -389,6 +421,8 @@ export class LiveContactPipeline {
         this.measurements.delete(fingertip.id);
         this.observations.delete(fingertip.id);
         this.synchronousMeasurements.delete(fingertip.id);
+        this.shadowPressComparisons.delete(fingertip.id);
+        this.shadowPressTrackers.delete(fingertip.id);
       }
 
       this.gates.set(fingertip.id, gate);
@@ -396,6 +430,9 @@ export class LiveContactPipeline {
       this.fingers.set(fingertip.id, finger);
       if (gateChanged) finger.reset();
       let synchronousObservation:
+        | { state: ShadowContactState; frameAtMs: number }
+        | undefined;
+      let shadowPressObservation:
         | { state: ShadowContactState; frameAtMs: number }
         | undefined;
       let synchronousMeasurement: SynchronousShadowMeasurement | null = null;
@@ -414,7 +451,10 @@ export class LiveContactPipeline {
         synchronousMeasurement = region
           ? this.measureSynchronousShadow(frame, region, fingertip)
           : null;
-        if (synchronousMeasurement) {
+        if (
+          synchronousMeasurement &&
+          (this.techniques.synchronousShadows || this.synchronousDiagnosticsOnly)
+        ) {
           this.synchronousMeasurements.set(fingertip.id, synchronousMeasurement);
           synchronousObservation = {
             state: synchronousMeasurement.state,
@@ -423,16 +463,67 @@ export class LiveContactPipeline {
         } else {
           this.synchronousMeasurements.delete(fingertip.id);
         }
+        let shadowSize = null;
+        if (this.techniques.shadowPressHysteresis && frame.background && region) {
+          const center = {
+            x: fingertip.point.x - region.origin.x,
+            y: fingertip.point.y - region.origin.y,
+          };
+          shadowSize = findDarkShadowSize(
+            region.image,
+            frame.background,
+            center,
+            region.origin,
+          );
+          const tracker = this.shadowPressTrackers.get(fingertip.id) ??
+            new ShadowPressTracker();
+          this.shadowPressTrackers.set(fingertip.id, tracker);
+          const comparison = tracker.observe(
+            fingertip.point.y,
+            shadowSize?.areaPx ?? null,
+            now,
+          );
+          this.shadowPressComparisons.set(fingertip.id, {
+            frameAtMs: now,
+            shadowAreaPx: shadowSize?.areaPx ?? null,
+            fingertipX: fingertip.point.x,
+            fingertipY: fingertip.point.y,
+            shadowEllipse: shadowSize ? {
+              ...shadowSize,
+              center: {
+                x: shadowSize.center.x + region.origin.x,
+                y: shadowSize.center.y + region.origin.y,
+              },
+              runs: shadowSize.runs.map((run) => ({
+                ...run,
+                points: run.points.map((point) => ({
+                  x: point.x + region.origin.x,
+                  y: point.y + region.origin.y,
+                })),
+              })),
+            } : null,
+            ...comparison,
+          });
+          shadowPressObservation = { state: comparison.state, frameAtMs: now };
+        } else if (this.techniques.shadowPressHysteresis) {
+          this.shadowPressComparisons.delete(fingertip.id);
+          this.shadowPressTrackers.delete(fingertip.id);
+          shadowPressObservation = { state: "unknown", frameAtMs: now };
+        }
       }
+      const contactObservation = this.techniques.shadowPressHysteresis
+        ? shadowPressObservation
+        : this.techniques.synchronousShadows
+          ? synchronousObservation
+          : undefined;
       const contact = finger.checkState(
         gate,
         now,
-        this.techniques.synchronousShadows
-          ? synchronousObservation
-          : undefined,
+        contactObservation,
         {
           shadowsEnabled: this.techniques.shadows ||
-            this.techniques.synchronousShadows,
+            this.techniques.synchronousShadows ||
+            this.techniques.shadowPressHysteresis,
           zMotionPredicted,
         },
       );
@@ -440,7 +531,12 @@ export class LiveContactPipeline {
 
       if (useSynchronousShadow && fingertip.id === this.previewFingerId) {
         const sample = this.makeSynchronousCrop(frame, fingertip);
-        this.callbacks.onShadowCameraPreview(sample.crop, sample.center, sample.origin);
+        this.callbacks.onShadowCameraPreview(
+          sample.crop,
+          sample.center,
+          sample.origin,
+          this.shadowPressComparisons.get(fingertip.id),
+        );
       }
 
     }
@@ -457,6 +553,8 @@ export class LiveContactPipeline {
       this.motion,
       this.pressVelocities,
       this.synchronousMeasurements,
+      this.shadowPressComparisons,
+      this.shadowPressTrackers,
     ]) {
       for (const id of map.keys()) if (!activeIds.has(id)) map.delete(id);
     }
@@ -495,9 +593,12 @@ export class LiveContactPipeline {
       x: Math.round(point.x),
       y: Math.round(point.y),
     }));
+    const halfWidth = this.techniques.shadowPressHysteresis
+      ? Math.max(SYNCHRONOUS_SHADOW_CROP.halfWidth, SHADOW_PROBE_REGION_HALF_WIDTH)
+      : SYNCHRONOUS_SHADOW_CROP.halfWidth;
     const left = Math.max(
       0,
-      Math.min(...points.map(({ x }) => x - SYNCHRONOUS_SHADOW_CROP.halfWidth)),
+      Math.min(...points.map(({ x }) => x - halfWidth)),
     );
     const top = Math.max(
       0,
@@ -505,7 +606,7 @@ export class LiveContactPipeline {
     );
     const right = Math.min(
       video.videoWidth,
-      Math.max(...points.map(({ x }) => x + SYNCHRONOUS_SHADOW_CROP.halfWidth)),
+      Math.max(...points.map(({ x }) => x + halfWidth)),
     );
     const bottom = Math.min(
       video.videoHeight,
@@ -681,6 +782,7 @@ export class LiveContactPipeline {
           width > 0 && height > 0 ? canvas : null,
           center,
           { x: left, y: top },
+          undefined,
         );
       return {
         id: finger.id,

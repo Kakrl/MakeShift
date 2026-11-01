@@ -1,0 +1,5866 @@
+{
+  "schemaVersion": 1,
+  "exportedAt": "2026-10-28T03:55:11.611Z",
+  "samples": [
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 6.466666,
+          "frame": 194,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "color",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.15,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 246,
+        "y": 202,
+        "size": 3,
+        "label": "shadow",
+        "phase": "hover",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 245,
+        "y": 201,
+        "right": 248,
+        "bottom": 204
+      },
+      "pixels": [
+        {
+          "x": 245,
+          "y": 201,
+          "currentRgb": [
+            144,
+            133,
+            126
+          ],
+          "referenceRgb": [
+            201,
+            198,
+            187
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 63.010398864746094,
+          "colorShift": 3.650754928588867,
+          "multiplier": 0.6881142258644104,
+          "attenuation": 0.3118857741355896,
+          "residualReference": 0.020905613899230957,
+          "residualCurrent": 0.030367011204361916,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 246,
+          "y": 201,
+          "currentRgb": [
+            144,
+            135,
+            126
+          ],
+          "referenceRgb": [
+            200,
+            197,
+            186
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 60.58000183105469,
+          "colorShift": 3.188107490539551,
+          "multiplier": 0.6951280832290649,
+          "attenuation": 0.30487191677093506,
+          "residualReference": 0.0186295285820961,
+          "residualCurrent": 0.026790518313646317,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 247,
+          "y": 201,
+          "currentRgb": [
+            142,
+            133,
+            123
+          ],
+          "referenceRgb": [
+            200,
+            197,
+            186
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 62.652198791503906,
+          "colorShift": 3.501340389251709,
+          "multiplier": 0.6832062005996704,
+          "attenuation": 0.3167937994003296,
+          "residualReference": 0.020544636994600296,
+          "residualCurrent": 0.030057329684495926,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 245,
+          "y": 202,
+          "currentRgb": [
+            145,
+            134,
+            128
+          ],
+          "referenceRgb": [
+            201,
+            198,
+            187
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 61.938201904296875,
+          "colorShift": 3.381795644760132,
+          "multiplier": 0.6948609352111816,
+          "attenuation": 0.30513903498649597,
+          "residualReference": 0.01982567086815834,
+          "residualCurrent": 0.028520245105028152,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 246,
+          "y": 202,
+          "currentRgb": [
+            144,
+            134,
+            125
+          ],
+          "referenceRgb": [
+            200,
+            197,
+            188
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 61.51179885864258,
+          "colorShift": 3.937138080596924,
+          "multiplier": 0.6894080638885498,
+          "attenuation": 0.3105919361114502,
+          "residualReference": 0.023298267275094986,
+          "residualCurrent": 0.033775314688682556,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 247,
+          "y": 202,
+          "currentRgb": [
+            144,
+            135,
+            126
+          ],
+          "referenceRgb": [
+            199,
+            197,
+            189
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 60.58399963378906,
+          "colorShift": 3.923076868057251,
+          "multiplier": 0.6927565932273865,
+          "attenuation": 0.3072434365749359,
+          "residualReference": 0.023717667907476425,
+          "residualCurrent": 0.034216608852148056,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 245,
+          "y": 203,
+          "currentRgb": [
+            144,
+            135,
+            128
+          ],
+          "referenceRgb": [
+            201,
+            198,
+            187
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 61.43560028076172,
+          "colorShift": 2.7552599906921387,
+          "multiplier": 0.6948347687721252,
+          "attenuation": 0.30516523122787476,
+          "residualReference": 0.01596512645483017,
+          "residualCurrent": 0.02297080308198929,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 246,
+          "y": 203,
+          "currentRgb": [
+            144,
+            135,
+            127
+          ],
+          "referenceRgb": [
+            199,
+            196,
+            188
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 59.72439956665039,
+          "colorShift": 3.4021832942962646,
+          "multiplier": 0.6968181133270264,
+          "attenuation": 0.30318185687065125,
+          "residualReference": 0.02034934051334858,
+          "residualCurrent": 0.0291907861828804,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 247,
+          "y": 203,
+          "currentRgb": [
+            147,
+            139,
+            131
+          ],
+          "referenceRgb": [
+            200,
+            199,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 58.58399963378906,
+          "colorShift": 3.597670078277588,
+          "multiplier": 0.7059030532836914,
+          "attenuation": 0.2940969467163086,
+          "residualReference": 0.022043393924832344,
+          "residualCurrent": 0.031212009489536285,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 9,
+        "projectionRetained": 9,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "8a626f0b-0032-4c20-a449-5883b014a05e",
+      "savedAt": "2026-10-28T03:49:31.761Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 6.466666,
+          "frame": 194,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "color",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.15,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 226,
+        "y": 186,
+        "size": 3,
+        "label": "skin",
+        "phase": "hover",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 225,
+        "y": 185,
+        "right": 228,
+        "bottom": 188
+      },
+      "pixels": [
+        {
+          "x": 225,
+          "y": 185,
+          "currentRgb": [
+            118,
+            78,
+            70
+          ],
+          "referenceRgb": [
+            202,
+            200,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 113.92120361328125,
+          "colorShift": 26.40312957763672,
+          "multiplier": 0.4493660032749176,
+          "attenuation": 0.55063396692276,
+          "residualReference": 0.09874466061592102,
+          "residualCurrent": 0.21462157368659973,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 226,
+          "y": 185,
+          "currentRgb": [
+            113,
+            73,
+            64
+          ],
+          "referenceRgb": [
+            166,
+            165,
+            156
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 83.70860290527344,
+          "colorShift": 28.3400821685791,
+          "multiplier": 0.5155276656150818,
+          "attenuation": 0.4844723641872406,
+          "residualReference": 0.12145990878343582,
+          "residualCurrent": 0.22932429611682892,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 227,
+          "y": 185,
+          "currentRgb": [
+            119,
+            79,
+            70
+          ],
+          "referenceRgb": [
+            153,
+            152,
+            143
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 64.70860290527344,
+          "colorShift": 26.14055824279785,
+          "multiplier": 0.600713849067688,
+          "attenuation": 0.399286150932312,
+          "residualReference": 0.13038015365600586,
+          "residualCurrent": 0.2121036946773529,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 225,
+          "y": 186,
+          "currentRgb": [
+            113,
+            74,
+            67
+          ],
+          "referenceRgb": [
+            204,
+            202,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 120.06159973144531,
+          "colorShift": 26.744882583618164,
+          "multiplier": 0.4247851073741913,
+          "attenuation": 0.5752149224281311,
+          "residualReference": 0.09444177895784378,
+          "residualCurrent": 0.21702919900417328,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 226,
+          "y": 186,
+          "currentRgb": [
+            113,
+            73,
+            65
+          ],
+          "referenceRgb": [
+            138,
+            137,
+            128
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 55.63639831542969,
+          "colorShift": 27.480697631835938,
+          "multiplier": 0.6257726550102234,
+          "attenuation": 0.3742273449897766,
+          "residualReference": 0.14246004819869995,
+          "residualCurrent": 0.221975177526474,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 227,
+          "y": 186,
+          "currentRgb": [
+            114,
+            76,
+            70
+          ],
+          "referenceRgb": [
+            173,
+            172,
+            163
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 87.91719818115234,
+          "colorShift": 24.967140197753906,
+          "multiplier": 0.5135103464126587,
+          "attenuation": 0.4864896237850189,
+          "residualReference": 0.10630477964878082,
+          "residualCurrent": 0.2027176171541214,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 225,
+          "y": 187,
+          "currentRgb": [
+            113,
+            75,
+            70
+          ],
+          "referenceRgb": [
+            198,
+            197,
+            188
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 113.84500122070312,
+          "colorShift": 25.082273483276367,
+          "multiplier": 0.44381025433540344,
+          "attenuation": 0.5561897158622742,
+          "residualReference": 0.09233002364635468,
+          "residualCurrent": 0.2036784440279007,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 226,
+          "y": 187,
+          "currentRgb": [
+            112,
+            77,
+            74
+          ],
+          "referenceRgb": [
+            122,
+            121,
+            112
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 36.338401794433594,
+          "colorShift": 20.959352493286133,
+          "multiplier": 0.7432789206504822,
+          "attenuation": 0.2567211091518402,
+          "residualReference": 0.12967467308044434,
+          "residualCurrent": 0.1718670278787613,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 227,
+          "y": 187,
+          "currentRgb": [
+            102,
+            72,
+            68
+          ],
+          "referenceRgb": [
+            197,
+            196,
+            187
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 117.47360229492188,
+          "colorShift": 20.86726951599121,
+          "multiplier": 0.41822201013565063,
+          "attenuation": 0.5817779898643494,
+          "residualReference": 0.07240571826696396,
+          "residualCurrent": 0.17058978974819183,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 0,
+        "projectionRetained": 0,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "b6427255-c1fb-44c7-b496-0a63b0c975cd",
+      "savedAt": "2026-10-28T03:49:46.824Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 6.466666,
+          "frame": 194,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "color",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.15,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 217,
+        "y": 180,
+        "size": 3,
+        "label": "nail",
+        "phase": "hover",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 216,
+        "y": 179,
+        "right": 219,
+        "bottom": 182
+      },
+      "pixels": [
+        {
+          "x": 216,
+          "y": 179,
+          "currentRgb": [
+            147,
+            103,
+            93
+          ],
+          "referenceRgb": [
+            194,
+            193,
+            184
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 80.9303970336914,
+          "colorShift": 22.648235321044922,
+          "multiplier": 0.6024314761161804,
+          "attenuation": 0.3975685238838196,
+          "residualReference": 0.1135602816939354,
+          "residualCurrent": 0.18524083495140076,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 217,
+          "y": 179,
+          "currentRgb": [
+            144,
+            100,
+            89
+          ],
+          "referenceRgb": [
+            195,
+            194,
+            185
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 85.00260162353516,
+          "colorShift": 23.64134979248047,
+          "multiplier": 0.5819212794303894,
+          "attenuation": 0.418078750371933,
+          "residualReference": 0.1147148609161377,
+          "residualCurrent": 0.1934090554714203,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 218,
+          "y": 179,
+          "currentRgb": [
+            143,
+            98,
+            88
+          ],
+          "referenceRgb": [
+            194,
+            192,
+            184
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 85.00260162353516,
+          "colorShift": 24.0463924407959,
+          "multiplier": 0.5791096091270447,
+          "attenuation": 0.4208903908729553,
+          "residualReference": 0.11599340289831161,
+          "residualCurrent": 0.19639530777931213,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 216,
+          "y": 180,
+          "currentRgb": [
+            146,
+            102,
+            91
+          ],
+          "referenceRgb": [
+            194,
+            193,
+            184
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 82.00260162353516,
+          "colorShift": 23.185531616210938,
+          "multiplier": 0.5954883694648743,
+          "attenuation": 0.40451163053512573,
+          "residualReference": 0.11510578542947769,
+          "residualCurrent": 0.1897834688425064,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 217,
+          "y": 180,
+          "currentRgb": [
+            145,
+            101,
+            90
+          ],
+          "referenceRgb": [
+            195,
+            194,
+            185
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 84.00260162353516,
+          "colorShift": 23.41572380065918,
+          "multiplier": 0.5871448516845703,
+          "attenuation": 0.4128551483154297,
+          "residualReference": 0.11463376134634018,
+          "residualCurrent": 0.1916213184595108,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 218,
+          "y": 180,
+          "currentRgb": [
+            142,
+            97,
+            87
+          ],
+          "referenceRgb": [
+            194,
+            192,
+            184
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 86.00260162353516,
+          "colorShift": 24.28414535522461,
+          "multiplier": 0.5738491415977478,
+          "attenuation": 0.4261508285999298,
+          "residualReference": 0.11608035117387772,
+          "residualCurrent": 0.19826796650886536,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 216,
+          "y": 181,
+          "currentRgb": [
+            146,
+            102,
+            91
+          ],
+          "referenceRgb": [
+            194,
+            193,
+            184
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 82.00260162353516,
+          "colorShift": 23.185531616210938,
+          "multiplier": 0.5954883694648743,
+          "attenuation": 0.40451163053512573,
+          "residualReference": 0.11510578542947769,
+          "residualCurrent": 0.1897834688425064,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 217,
+          "y": 181,
+          "currentRgb": [
+            144,
+            100,
+            89
+          ],
+          "referenceRgb": [
+            195,
+            194,
+            185
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 85.00260162353516,
+          "colorShift": 23.64134979248047,
+          "multiplier": 0.5819212794303894,
+          "attenuation": 0.418078750371933,
+          "residualReference": 0.1147148609161377,
+          "residualCurrent": 0.1934090554714203,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 218,
+          "y": 181,
+          "currentRgb": [
+            142,
+            97,
+            87
+          ],
+          "referenceRgb": [
+            194,
+            192,
+            184
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 86.00260162353516,
+          "colorShift": 24.28414535522461,
+          "multiplier": 0.5738491415977478,
+          "attenuation": 0.4261508285999298,
+          "residualReference": 0.11608035117387772,
+          "residualCurrent": 0.19826796650886536,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 0,
+        "projectionRetained": 0,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "6c2c6f62-b6d4-4bd1-a9bd-356db37d9751",
+      "savedAt": "2026-10-28T03:50:01.822Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 6.466666,
+          "frame": 194,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "color",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.15,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 198,
+        "y": 214,
+        "size": 3,
+        "label": "paper",
+        "phase": "hover",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 197,
+        "y": 213,
+        "right": 200,
+        "bottom": 216
+      },
+      "pixels": [
+        {
+          "x": 197,
+          "y": 213,
+          "currentRgb": [
+            210,
+            204,
+            194
+          ],
+          "referenceRgb": [
+            194,
+            192,
+            184
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": -12.706000328063965,
+          "colorShift": 1.2861841917037964,
+          "multiplier": 1.0668905973434448,
+          "attenuation": -0.06689061969518661,
+          "residualReference": 0.011834869161248207,
+          "residualCurrent": 0.011092177592217922,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 198,
+          "y": 213,
+          "currentRgb": [
+            210,
+            204,
+            194
+          ],
+          "referenceRgb": [
+            194,
+            192,
+            184
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": -12.706000328063965,
+          "colorShift": 1.2861841917037964,
+          "multiplier": 1.0668905973434448,
+          "attenuation": -0.06689061969518661,
+          "residualReference": 0.011834869161248207,
+          "residualCurrent": 0.011092177592217922,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 199,
+          "y": 213,
+          "currentRgb": [
+            210,
+            204,
+            194
+          ],
+          "referenceRgb": [
+            194,
+            192,
+            184
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": -12.706000328063965,
+          "colorShift": 1.2861841917037964,
+          "multiplier": 1.0668905973434448,
+          "attenuation": -0.06689061969518661,
+          "residualReference": 0.011834869161248207,
+          "residualCurrent": 0.011092177592217922,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 197,
+          "y": 214,
+          "currentRgb": [
+            210,
+            204,
+            194
+          ],
+          "referenceRgb": [
+            194,
+            192,
+            184
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": -12.706000328063965,
+          "colorShift": 1.2861841917037964,
+          "multiplier": 1.0668905973434448,
+          "attenuation": -0.06689061969518661,
+          "residualReference": 0.011834869161248207,
+          "residualCurrent": 0.011092177592217922,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 198,
+          "y": 214,
+          "currentRgb": [
+            210,
+            204,
+            194
+          ],
+          "referenceRgb": [
+            194,
+            192,
+            184
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": -12.706000328063965,
+          "colorShift": 1.2861841917037964,
+          "multiplier": 1.0668905973434448,
+          "attenuation": -0.06689061969518661,
+          "residualReference": 0.011834869161248207,
+          "residualCurrent": 0.011092177592217922,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 199,
+          "y": 214,
+          "currentRgb": [
+            210,
+            204,
+            194
+          ],
+          "referenceRgb": [
+            194,
+            192,
+            184
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": -12.706000328063965,
+          "colorShift": 1.2861841917037964,
+          "multiplier": 1.0668905973434448,
+          "attenuation": -0.06689061969518661,
+          "residualReference": 0.011834869161248207,
+          "residualCurrent": 0.011092177592217922,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 197,
+          "y": 215,
+          "currentRgb": [
+            210,
+            204,
+            194
+          ],
+          "referenceRgb": [
+            194,
+            192,
+            184
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": -12.706000328063965,
+          "colorShift": 1.2861841917037964,
+          "multiplier": 1.0668905973434448,
+          "attenuation": -0.06689061969518661,
+          "residualReference": 0.011834869161248207,
+          "residualCurrent": 0.011092177592217922,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 198,
+          "y": 215,
+          "currentRgb": [
+            210,
+            204,
+            194
+          ],
+          "referenceRgb": [
+            194,
+            192,
+            184
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": -12.706000328063965,
+          "colorShift": 1.2861841917037964,
+          "multiplier": 1.0668905973434448,
+          "attenuation": -0.06689061969518661,
+          "residualReference": 0.011834869161248207,
+          "residualCurrent": 0.011092177592217922,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 199,
+          "y": 215,
+          "currentRgb": [
+            210,
+            204,
+            194
+          ],
+          "referenceRgb": [
+            194,
+            192,
+            184
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": -12.706000328063965,
+          "colorShift": 1.2861841917037964,
+          "multiplier": 1.0668905973434448,
+          "attenuation": -0.06689061969518661,
+          "residualReference": 0.011834869161248207,
+          "residualCurrent": 0.011092177592217922,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 0,
+        "projectionRetained": 0,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "21f9881e-ed06-4e73-8d9a-cb9c09fbd8eb",
+      "savedAt": "2026-10-28T03:50:07.880Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 6.466666,
+          "frame": 194,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "color",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.15,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 253,
+        "y": 210,
+        "size": 3,
+        "label": "ink",
+        "phase": "hover",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 252,
+        "y": 209,
+        "right": 255,
+        "bottom": 212
+      },
+      "pixels": [
+        {
+          "x": 252,
+          "y": 209,
+          "currentRgb": [
+            37,
+            39,
+            43
+          ],
+          "referenceRgb": [
+            51,
+            54,
+            58
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 14.787400245666504,
+          "colorShift": 1.406660795211792,
+          "multiplier": 0.7304357886314392,
+          "attenuation": 0.2695642411708832,
+          "residualReference": 0.00864163227379322,
+          "residualCurrent": 0.011829962022602558,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 253,
+          "y": 209,
+          "currentRgb": [
+            37,
+            37,
+            39
+          ],
+          "referenceRgb": [
+            50,
+            53,
+            59
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 15.651000022888184,
+          "colorShift": 4.861520767211914,
+          "multiplier": 0.6953356266021729,
+          "attenuation": 0.30466440320014954,
+          "residualReference": 0.03219105303287506,
+          "residualCurrent": 0.04624617472290993,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 254,
+          "y": 209,
+          "currentRgb": [
+            37,
+            37,
+            39
+          ],
+          "referenceRgb": [
+            49,
+            53,
+            59
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 15.438400268554688,
+          "colorShift": 5.8868794441223145,
+          "multiplier": 0.6989989876747131,
+          "attenuation": 0.30100104212760925,
+          "residualReference": 0.03804764151573181,
+          "residualCurrent": 0.05435115471482277,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 252,
+          "y": 210,
+          "currentRgb": [
+            39,
+            41,
+            44
+          ],
+          "referenceRgb": [
+            49,
+            53,
+            57
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 11.647000312805176,
+          "colorShift": 1.6167072057724,
+          "multiplier": 0.7792883515357971,
+          "attenuation": 0.22071166336536407,
+          "residualReference": 0.010492741130292416,
+          "residualCurrent": 0.013463296927511692,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 253,
+          "y": 210,
+          "currentRgb": [
+            38,
+            38,
+            41
+          ],
+          "referenceRgb": [
+            48,
+            52,
+            58
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 13.36620044708252,
+          "colorShift": 5.352158546447754,
+          "multiplier": 0.7379359602928162,
+          "attenuation": 0.26206400990486145,
+          "residualReference": 0.034615375101566315,
+          "residualCurrent": 0.046856850385665894,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 254,
+          "y": 210,
+          "currentRgb": [
+            37,
+            37,
+            40
+          ],
+          "referenceRgb": [
+            48,
+            52,
+            58
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 14.36620044708252,
+          "colorShift": 5.294803619384766,
+          "multiplier": 0.7190635204315186,
+          "attenuation": 0.28093644976615906,
+          "residualReference": 0.03321709483861923,
+          "residualCurrent": 0.0461457259953022,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 252,
+          "y": 211,
+          "currentRgb": [
+            39,
+            41,
+            44
+          ],
+          "referenceRgb": [
+            48,
+            52,
+            57
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 10.719200134277344,
+          "colorShift": 2.2398295402526855,
+          "multiplier": 0.7886641621589661,
+          "attenuation": 0.21133583784103394,
+          "residualReference": 0.01639321632683277,
+          "residualCurrent": 0.020781565457582474,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 253,
+          "y": 211,
+          "currentRgb": [
+            38,
+            38,
+            41
+          ],
+          "referenceRgb": [
+            48,
+            52,
+            57
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 13.293999671936035,
+          "colorShift": 4.858729362487793,
+          "multiplier": 0.7432481646537781,
+          "attenuation": 0.2567518353462219,
+          "residualReference": 0.03050994500517845,
+          "residualCurrent": 0.041014932096004486,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 254,
+          "y": 211,
+          "currentRgb": [
+            37,
+            37,
+            40
+          ],
+          "referenceRgb": [
+            48,
+            52,
+            58
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 14.36620044708252,
+          "colorShift": 5.294803619384766,
+          "multiplier": 0.7190635204315186,
+          "attenuation": 0.28093644976615906,
+          "residualReference": 0.03321709483861923,
+          "residualCurrent": 0.0461457259953022,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 9,
+        "projectionRetained": 9,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "758fada6-895f-4734-97fa-3639e8a46fa6",
+      "savedAt": "2026-10-28T03:50:16.144Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 3.7,
+          "frame": 111,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "projection",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.12,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 407,
+        "y": 216,
+        "size": 3,
+        "label": "ink",
+        "phase": "approach",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 406,
+        "y": 215,
+        "right": 409,
+        "bottom": 218
+      },
+      "pixels": [
+        {
+          "x": 406,
+          "y": 215,
+          "currentRgb": [
+            35,
+            35,
+            38
+          ],
+          "referenceRgb": [
+            39,
+            43,
+            49
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.366199970245361,
+          "colorShift": 6.722858428955078,
+          "multiplier": 0.8199619054794312,
+          "attenuation": 0.18003812432289124,
+          "residualReference": 0.049148689955472946,
+          "residualCurrent": 0.059832826256752014,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 407,
+          "y": 215,
+          "currentRgb": [
+            35,
+            35,
+            38
+          ],
+          "referenceRgb": [
+            39,
+            44,
+            49
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.081399917602539,
+          "colorShift": 7.297979831695557,
+          "multiplier": 0.8137589693069458,
+          "attenuation": 0.1862410306930542,
+          "residualReference": 0.05028261989355087,
+          "residualCurrent": 0.061672937124967575,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 408,
+          "y": 215,
+          "currentRgb": [
+            35,
+            35,
+            39
+          ],
+          "referenceRgb": [
+            39,
+            44,
+            49
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.009200096130371,
+          "colorShift": 6.539824962615967,
+          "multiplier": 0.8221235871315002,
+          "attenuation": 0.17787641286849976,
+          "residualReference": 0.04460054263472557,
+          "residualCurrent": 0.05417075380682945,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 406,
+          "y": 216,
+          "currentRgb": [
+            37,
+            37,
+            41
+          ],
+          "referenceRgb": [
+            39,
+            43,
+            49
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 5.294000148773193,
+          "colorShift": 6.127447605133057,
+          "multiplier": 0.873852014541626,
+          "attenuation": 0.12614798545837402,
+          "residualReference": 0.04591107740998268,
+          "residualCurrent": 0.05246637016534805,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 407,
+          "y": 216,
+          "currentRgb": [
+            35,
+            36,
+            40
+          ],
+          "referenceRgb": [
+            39,
+            44,
+            49
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.221799850463867,
+          "colorShift": 5.0644965171813965,
+          "multiplier": 0.8379993438720703,
+          "attenuation": 0.16200068593025208,
+          "residualReference": 0.03520740941166878,
+          "residualCurrent": 0.04197661578655243,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 408,
+          "y": 216,
+          "currentRgb": [
+            36,
+            36,
+            40
+          ],
+          "referenceRgb": [
+            39,
+            44,
+            49
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.009200096130371,
+          "colorShift": 6.623376846313477,
+          "multiplier": 0.8446568846702576,
+          "attenuation": 0.15534311532974243,
+          "residualReference": 0.04644728824496269,
+          "residualCurrent": 0.054906584322452545,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 406,
+          "y": 217,
+          "currentRgb": [
+            37,
+            37,
+            41
+          ],
+          "referenceRgb": [
+            39,
+            43,
+            49
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 5.294000148773193,
+          "colorShift": 6.127447605133057,
+          "multiplier": 0.873852014541626,
+          "attenuation": 0.12614798545837402,
+          "residualReference": 0.04591107740998268,
+          "residualCurrent": 0.05246637016534805,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 407,
+          "y": 217,
+          "currentRgb": [
+            35,
+            36,
+            40
+          ],
+          "referenceRgb": [
+            39,
+            44,
+            49
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.221799850463867,
+          "colorShift": 5.0644965171813965,
+          "multiplier": 0.8379993438720703,
+          "attenuation": 0.16200068593025208,
+          "residualReference": 0.03520740941166878,
+          "residualCurrent": 0.04197661578655243,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 408,
+          "y": 217,
+          "currentRgb": [
+            36,
+            36,
+            40
+          ],
+          "referenceRgb": [
+            39,
+            44,
+            49
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.009200096130371,
+          "colorShift": 6.623376846313477,
+          "multiplier": 0.8446568846702576,
+          "attenuation": 0.15534311532974243,
+          "residualReference": 0.04644728824496269,
+          "residualCurrent": 0.054906584322452545,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 9,
+        "projectionRetained": 9,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "4337d338-65a4-4e63-8d3c-05ba7bdc65d8",
+      "savedAt": "2026-10-28T03:52:22.215Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 3.7,
+          "frame": 111,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "projection",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.12,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 383,
+        "y": 218,
+        "size": 3,
+        "label": "paper",
+        "phase": "approach",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 382,
+        "y": 217,
+        "right": 385,
+        "bottom": 220
+      },
+      "pixels": [
+        {
+          "x": 382,
+          "y": 217,
+          "currentRgb": [
+            200,
+            194,
+            184
+          ],
+          "referenceRgb": [
+            204,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.009200096130371,
+          "colorShift": 1.6795536279678345,
+          "multiplier": 0.9619544744491577,
+          "attenuation": 0.03804550692439079,
+          "residualReference": 0.013708514161407948,
+          "residualCurrent": 0.014249241910874844,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 383,
+          "y": 217,
+          "currentRgb": [
+            200,
+            194,
+            184
+          ],
+          "referenceRgb": [
+            204,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.009200096130371,
+          "colorShift": 1.6795536279678345,
+          "multiplier": 0.9619544744491577,
+          "attenuation": 0.03804550692439079,
+          "residualReference": 0.013708514161407948,
+          "residualCurrent": 0.014249241910874844,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 384,
+          "y": 217,
+          "currentRgb": [
+            199,
+            193,
+            183
+          ],
+          "referenceRgb": [
+            203,
+            202,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.936999797821045,
+          "colorShift": 1.5436311960220337,
+          "multiplier": 0.9633402824401855,
+          "attenuation": 0.036659739911556244,
+          "residualReference": 0.012385855428874493,
+          "residualCurrent": 0.012856134213507175,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 382,
+          "y": 218,
+          "currentRgb": [
+            200,
+            194,
+            184
+          ],
+          "referenceRgb": [
+            204,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.009200096130371,
+          "colorShift": 1.6795536279678345,
+          "multiplier": 0.9619544744491577,
+          "attenuation": 0.03804550692439079,
+          "residualReference": 0.013708514161407948,
+          "residualCurrent": 0.014249241910874844,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 383,
+          "y": 218,
+          "currentRgb": [
+            200,
+            194,
+            184
+          ],
+          "referenceRgb": [
+            204,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.009200096130371,
+          "colorShift": 1.6795536279678345,
+          "multiplier": 0.9619544744491577,
+          "attenuation": 0.03804550692439079,
+          "residualReference": 0.013708514161407948,
+          "residualCurrent": 0.014249241910874844,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 384,
+          "y": 218,
+          "currentRgb": [
+            199,
+            193,
+            183
+          ],
+          "referenceRgb": [
+            203,
+            202,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.936999797821045,
+          "colorShift": 1.5436311960220337,
+          "multiplier": 0.9633402824401855,
+          "attenuation": 0.036659739911556244,
+          "residualReference": 0.012385855428874493,
+          "residualCurrent": 0.012856134213507175,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 382,
+          "y": 219,
+          "currentRgb": [
+            200,
+            194,
+            184
+          ],
+          "referenceRgb": [
+            204,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.009200096130371,
+          "colorShift": 1.6795536279678345,
+          "multiplier": 0.9619544744491577,
+          "attenuation": 0.03804550692439079,
+          "residualReference": 0.013708514161407948,
+          "residualCurrent": 0.014249241910874844,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 383,
+          "y": 219,
+          "currentRgb": [
+            200,
+            194,
+            184
+          ],
+          "referenceRgb": [
+            204,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.009200096130371,
+          "colorShift": 1.6795536279678345,
+          "multiplier": 0.9619544744491577,
+          "attenuation": 0.03804550692439079,
+          "residualReference": 0.013708514161407948,
+          "residualCurrent": 0.014249241910874844,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 384,
+          "y": 219,
+          "currentRgb": [
+            199,
+            193,
+            183
+          ],
+          "referenceRgb": [
+            203,
+            202,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.936999797821045,
+          "colorShift": 1.5436311960220337,
+          "multiplier": 0.9633402824401855,
+          "attenuation": 0.036659739911556244,
+          "residualReference": 0.012385855428874493,
+          "residualCurrent": 0.012856134213507175,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 9,
+        "projectionRetained": 9,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "7b649ce9-5591-4b31-8be4-63289ca731ad",
+      "savedAt": "2026-10-28T03:52:25.851Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 3.7,
+          "frame": 111,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "projection",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.12,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 396,
+        "y": 196,
+        "size": 3,
+        "label": "shadow",
+        "phase": "approach",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 395,
+        "y": 195,
+        "right": 398,
+        "bottom": 198
+      },
+      "pixels": [
+        {
+          "x": 395,
+          "y": 195,
+          "currentRgb": [
+            123,
+            99,
+            89
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 99.46320343017578,
+          "colorShift": 13.447763442993164,
+          "multiplier": 0.5188243389129639,
+          "attenuation": 0.4811756908893585,
+          "residualReference": 0.05850958079099655,
+          "residualCurrent": 0.11206305027008057,
+          "retainedByColor": false,
+          "retainedByProjection": true
+        },
+        {
+          "x": 396,
+          "y": 195,
+          "currentRgb": [
+            120,
+            100,
+            89
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 99.38580322265625,
+          "colorShift": 11.624799728393555,
+          "multiplier": 0.5153806209564209,
+          "attenuation": 0.4846194088459015,
+          "residualReference": 0.050861358642578125,
+          "residualCurrent": 0.098209910094738,
+          "retainedByColor": false,
+          "retainedByProjection": true
+        },
+        {
+          "x": 397,
+          "y": 195,
+          "currentRgb": [
+            118,
+            102,
+            92
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 98.16400146484375,
+          "colorShift": 9.037981986999512,
+          "multiplier": 0.520110547542572,
+          "attenuation": 0.47988948225975037,
+          "residualReference": 0.03996863216161728,
+          "residualCurrent": 0.07662051916122437,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 395,
+          "y": 196,
+          "currentRgb": [
+            120,
+            100,
+            93
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 97.38179779052734,
+          "colorShift": 10.200764656066895,
+          "multiplier": 0.525309681892395,
+          "attenuation": 0.474690318107605,
+          "residualReference": 0.04460522532463074,
+          "residualCurrent": 0.08460777997970581,
+          "retainedByColor": false,
+          "retainedByProjection": true
+        },
+        {
+          "x": 396,
+          "y": 196,
+          "currentRgb": [
+            117,
+            101,
+            93
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 97.30439758300781,
+          "colorShift": 8.369662284851074,
+          "multiplier": 0.5218279957771301,
+          "attenuation": 0.4781720042228699,
+          "residualReference": 0.03669321909546852,
+          "residualCurrent": 0.07014349848031998,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 397,
+          "y": 196,
+          "currentRgb": [
+            117,
+            102,
+            95
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 96.4448013305664,
+          "colorShift": 7.453109264373779,
+          "multiplier": 0.5267309546470642,
+          "attenuation": 0.4732690155506134,
+          "residualReference": 0.032782137393951416,
+          "residualCurrent": 0.062116775661706924,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 395,
+          "y": 197,
+          "currentRgb": [
+            118,
+            101,
+            93
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 97.091796875,
+          "colorShift": 8.879493713378906,
+          "multiplier": 0.5235520005226135,
+          "attenuation": 0.4764479696750641,
+          "residualReference": 0.0389929935336113,
+          "residualCurrent": 0.07427207380533218,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 396,
+          "y": 197,
+          "currentRgb": [
+            116,
+            101,
+            94
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 97.4448013305664,
+          "colorShift": 7.5497260093688965,
+          "multiplier": 0.521710216999054,
+          "attenuation": 0.47828975319862366,
+          "residualReference": 0.03289985656738281,
+          "residualCurrent": 0.06293652951717377,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 397,
+          "y": 197,
+          "currentRgb": [
+            117,
+            103,
+            97
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 95.58519744873047,
+          "colorShift": 6.553905010223389,
+          "multiplier": 0.5316339731216431,
+          "attenuation": 0.46836602687835693,
+          "residualReference": 0.028964895755052567,
+          "residualCurrent": 0.054402098059654236,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 6,
+        "projectionRetained": 9,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "495f2128-819e-4fba-a6d6-73675e9d1665",
+      "savedAt": "2026-10-28T03:52:34.051Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 3.7,
+          "frame": 111,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "projection",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.12,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 395,
+        "y": 177,
+        "size": 3,
+        "label": "skin",
+        "phase": "approach",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 394,
+        "y": 176,
+        "right": 397,
+        "bottom": 179
+      },
+      "pixels": [
+        {
+          "x": 394,
+          "y": 176,
+          "currentRgb": [
+            99,
+            65,
+            60
+          ],
+          "referenceRgb": [
+            204,
+            200,
+            190
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 128.26100158691406,
+          "colorShift": 25.12513542175293,
+          "multiplier": 0.3788439929485321,
+          "attenuation": 0.6211559772491455,
+          "residualReference": 0.07880660891532898,
+          "residualCurrent": 0.20365895330905914,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 395,
+          "y": 176,
+          "currentRgb": [
+            105,
+            71,
+            65
+          ],
+          "referenceRgb": [
+            204,
+            200,
+            190
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 122.33319854736328,
+          "colorShift": 23.523826599121094,
+          "multiplier": 0.40750619769096375,
+          "attenuation": 0.5924937725067139,
+          "residualReference": 0.07944297045469284,
+          "residualCurrent": 0.1913469284772873,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 396,
+          "y": 176,
+          "currentRgb": [
+            107,
+            75,
+            69
+          ],
+          "referenceRgb": [
+            204,
+            200,
+            190
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 118.7583999633789,
+          "colorShift": 21.12942123413086,
+          "multiplier": 0.4242244064807892,
+          "attenuation": 0.5757756233215332,
+          "residualReference": 0.07431324571371078,
+          "residualCurrent": 0.17254698276519775,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 394,
+          "y": 177,
+          "currentRgb": [
+            103,
+            71,
+            64
+          ],
+          "referenceRgb": [
+            203,
+            199,
+            189
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 121.83059692382812,
+          "colorShift": 22.768310546875,
+          "multiplier": 0.4044760763645172,
+          "attenuation": 0.5955239534378052,
+          "residualReference": 0.0764695256948471,
+          "residualCurrent": 0.18576742708683014,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 395,
+          "y": 177,
+          "currentRgb": [
+            106,
+            74,
+            66
+          ],
+          "referenceRgb": [
+            203,
+            199,
+            189
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 118.90280151367188,
+          "colorShift": 22.289216995239258,
+          "multiplier": 0.4180690050125122,
+          "attenuation": 0.5819309949874878,
+          "residualReference": 0.07753318548202515,
+          "residualCurrent": 0.1823461949825287,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 396,
+          "y": 177,
+          "currentRgb": [
+            108,
+            76,
+            68
+          ],
+          "referenceRgb": [
+            203,
+            199,
+            189
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 116.90280151367188,
+          "colorShift": 21.696882247924805,
+          "multiplier": 0.4282122254371643,
+          "attenuation": 0.5717877745628357,
+          "residualReference": 0.07729461044073105,
+          "residualCurrent": 0.17763471603393555,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 394,
+          "y": 178,
+          "currentRgb": [
+            107,
+            74,
+            68
+          ],
+          "referenceRgb": [
+            203,
+            199,
+            189
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 118.5457992553711,
+          "colorShift": 21.98948097229004,
+          "multiplier": 0.4230548143386841,
+          "attenuation": 0.5769451856613159,
+          "residualReference": 0.0771062821149826,
+          "residualCurrent": 0.17930687963962555,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 395,
+          "y": 178,
+          "currentRgb": [
+            109,
+            76,
+            68
+          ],
+          "referenceRgb": [
+            203,
+            199,
+            189
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 116.69020080566406,
+          "colorShift": 22.2728271484375,
+          "multiplier": 0.42995426058769226,
+          "attenuation": 0.5700457096099854,
+          "residualReference": 0.07963462918996811,
+          "residualCurrent": 0.18211904168128967,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 396,
+          "y": 178,
+          "currentRgb": [
+            108,
+            77,
+            68
+          ],
+          "referenceRgb": [
+            203,
+            199,
+            189
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 116.1875991821289,
+          "colorShift": 21.264923095703125,
+          "multiplier": 0.42991992831230164,
+          "attenuation": 0.570080041885376,
+          "residualReference": 0.07630190253257751,
+          "residualCurrent": 0.1747484654188156,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 0,
+        "projectionRetained": 0,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "c8c560bf-8589-468a-9eaa-436a0b9e4d20",
+      "savedAt": "2026-10-28T03:52:44.202Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 3.7,
+          "frame": 111,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "projection",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.12,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 383,
+        "y": 190,
+        "size": 3,
+        "label": "nail",
+        "phase": "approach",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 382,
+        "y": 189,
+        "right": 385,
+        "bottom": 192
+      },
+      "pixels": [
+        {
+          "x": 382,
+          "y": 189,
+          "currentRgb": [
+            147,
+            98,
+            86
+          ],
+          "referenceRgb": [
+            205,
+            202,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 94.2926025390625,
+          "colorShift": 25.83134651184082,
+          "multiplier": 0.5561729669570923,
+          "attenuation": 0.4438270032405853,
+          "residualReference": 0.11947376281023026,
+          "residualCurrent": 0.2100229263305664,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 383,
+          "y": 189,
+          "currentRgb": [
+            147,
+            98,
+            86
+          ],
+          "referenceRgb": [
+            204,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 93.36479949951172,
+          "colorShift": 25.96585464477539,
+          "multiplier": 0.5579165816307068,
+          "attenuation": 0.4420834183692932,
+          "residualReference": 0.12061892449855804,
+          "residualCurrent": 0.21131321787834167,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 384,
+          "y": 189,
+          "currentRgb": [
+            145,
+            96,
+            85
+          ],
+          "referenceRgb": [
+            204,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 95.2926025390625,
+          "colorShift": 26.13836669921875,
+          "multiplier": 0.5494691729545593,
+          "attenuation": 0.4505307972431183,
+          "residualReference": 0.11940570920705795,
+          "residualCurrent": 0.21235471963882446,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 382,
+          "y": 190,
+          "currentRgb": [
+            147,
+            98,
+            86
+          ],
+          "referenceRgb": [
+            204,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 95.01180267333984,
+          "colorShift": 26.691993713378906,
+          "multiplier": 0.5525937676429749,
+          "attenuation": 0.44740620255470276,
+          "residualReference": 0.12308728694915771,
+          "residualCurrent": 0.21741633117198944,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 383,
+          "y": 190,
+          "currentRgb": [
+            147,
+            98,
+            86
+          ],
+          "referenceRgb": [
+            204,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 95.01180267333984,
+          "colorShift": 26.691993713378906,
+          "multiplier": 0.5525937676429749,
+          "attenuation": 0.44740620255470276,
+          "residualReference": 0.12308728694915771,
+          "residualCurrent": 0.21741633117198944,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 384,
+          "y": 190,
+          "currentRgb": [
+            146,
+            97,
+            85
+          ],
+          "referenceRgb": [
+            204,
+            203,
+            193
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 95.9395980834961,
+          "colorShift": 26.80609703063965,
+          "multiplier": 0.5486616492271423,
+          "attenuation": 0.45133835077285767,
+          "residualReference": 0.12257847934961319,
+          "residualCurrent": 0.21803832054138184,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 382,
+          "y": 191,
+          "currentRgb": [
+            147,
+            98,
+            86
+          ],
+          "referenceRgb": [
+            205,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 95.22440338134766,
+          "colorShift": 26.412185668945312,
+          "multiplier": 0.5519400835037231,
+          "attenuation": 0.44805988669395447,
+          "residualReference": 0.12160573154687881,
+          "residualCurrent": 0.2151637226343155,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 383,
+          "y": 191,
+          "currentRgb": [
+            147,
+            98,
+            86
+          ],
+          "referenceRgb": [
+            205,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 95.22440338134766,
+          "colorShift": 26.412185668945312,
+          "multiplier": 0.5519400835037231,
+          "attenuation": 0.44805988669395447,
+          "residualReference": 0.12160573154687881,
+          "residualCurrent": 0.2151637226343155,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 384,
+          "y": 191,
+          "currentRgb": [
+            147,
+            98,
+            86
+          ],
+          "referenceRgb": [
+            205,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 95.22440338134766,
+          "colorShift": 26.412185668945312,
+          "multiplier": 0.5519400835037231,
+          "attenuation": 0.44805988669395447,
+          "residualReference": 0.12160573154687881,
+          "residualCurrent": 0.2151637226343155,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 0,
+        "projectionRetained": 0,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "7bf2e6f2-cf95-4bba-bbf8-71717e24cdfb",
+      "savedAt": "2026-10-28T03:52:48.366Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 3.766666,
+          "frame": 113,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "projection",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.12,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 387,
+        "y": 231,
+        "size": 3,
+        "label": "paper",
+        "phase": "touch",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 386,
+        "y": 230,
+        "right": 389,
+        "bottom": 233
+      },
+      "pixels": [
+        {
+          "x": 386,
+          "y": 230,
+          "currentRgb": [
+            199,
+            193,
+            183
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.57480001449585,
+          "colorShift": 0.6893598437309265,
+          "multiplier": 0.9632822275161743,
+          "attenuation": 0.036717772483825684,
+          "residualReference": 0.005570855922996998,
+          "residualCurrent": 0.005783105734735727,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 387,
+          "y": 230,
+          "currentRgb": [
+            199,
+            193,
+            183
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.57480001449585,
+          "colorShift": 0.6893598437309265,
+          "multiplier": 0.9632822275161743,
+          "attenuation": 0.036717772483825684,
+          "residualReference": 0.005570855922996998,
+          "residualCurrent": 0.005783105734735727,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 388,
+          "y": 230,
+          "currentRgb": [
+            199,
+            193,
+            183
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.57480001449585,
+          "colorShift": 0.6893598437309265,
+          "multiplier": 0.9632822275161743,
+          "attenuation": 0.036717772483825684,
+          "residualReference": 0.005570855922996998,
+          "residualCurrent": 0.005783105734735727,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 386,
+          "y": 231,
+          "currentRgb": [
+            199,
+            193,
+            183
+          ],
+          "referenceRgb": [
+            204,
+            200,
+            190
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 6.57480001449585,
+          "colorShift": 0.6764163374900818,
+          "multiplier": 0.9681436419487,
+          "attenuation": 0.03185633197426796,
+          "residualReference": 0.005482863634824753,
+          "residualCurrent": 0.005663183983415365,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 387,
+          "y": 231,
+          "currentRgb": [
+            198,
+            192,
+            182
+          ],
+          "referenceRgb": [
+            204,
+            200,
+            190
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.57480001449585,
+          "colorShift": 0.693473219871521,
+          "multiplier": 0.9630976319313049,
+          "attenuation": 0.036902375519275665,
+          "residualReference": 0.005603418685495853,
+          "residualCurrent": 0.0058180224150419235,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 388,
+          "y": 231,
+          "currentRgb": [
+            199,
+            193,
+            183
+          ],
+          "referenceRgb": [
+            204,
+            200,
+            190
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 6.57480001449585,
+          "colorShift": 0.6764163374900818,
+          "multiplier": 0.9681436419487,
+          "attenuation": 0.03185633197426796,
+          "residualReference": 0.005482863634824753,
+          "residualCurrent": 0.005663183983415365,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 386,
+          "y": 232,
+          "currentRgb": [
+            198,
+            192,
+            182
+          ],
+          "referenceRgb": [
+            204,
+            200,
+            190
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.57480001449585,
+          "colorShift": 0.693473219871521,
+          "multiplier": 0.9630976319313049,
+          "attenuation": 0.036902375519275665,
+          "residualReference": 0.005603418685495853,
+          "residualCurrent": 0.0058180224150419235,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 387,
+          "y": 232,
+          "currentRgb": [
+            198,
+            192,
+            182
+          ],
+          "referenceRgb": [
+            204,
+            200,
+            190
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.57480001449585,
+          "colorShift": 0.693473219871521,
+          "multiplier": 0.9630976319313049,
+          "attenuation": 0.036902375519275665,
+          "residualReference": 0.005603418685495853,
+          "residualCurrent": 0.0058180224150419235,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 388,
+          "y": 232,
+          "currentRgb": [
+            198,
+            192,
+            182
+          ],
+          "referenceRgb": [
+            204,
+            200,
+            190
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.57480001449585,
+          "colorShift": 0.693473219871521,
+          "multiplier": 0.9630976319313049,
+          "attenuation": 0.036902375519275665,
+          "residualReference": 0.005603418685495853,
+          "residualCurrent": 0.0058180224150419235,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 9,
+        "projectionRetained": 9,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "ff1e6b7b-5775-47ce-9b95-0a7e5e469867",
+      "savedAt": "2026-10-28T03:53:24.492Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 3.766666,
+          "frame": 113,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "projection",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.12,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 397,
+        "y": 194,
+        "size": 3,
+        "label": "shadow",
+        "phase": "touch",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 396,
+        "y": 193,
+        "right": 399,
+        "bottom": 196
+      },
+      "pixels": [
+        {
+          "x": 396,
+          "y": 193,
+          "currentRgb": [
+            120,
+            94,
+            84
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 104.03800201416016,
+          "colorShift": 15.280237197875977,
+          "multiplier": 0.4973072409629822,
+          "attenuation": 0.5026927590370178,
+          "residualReference": 0.06366012990474701,
+          "residualCurrent": 0.12697355449199677,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 397,
+          "y": 193,
+          "currentRgb": [
+            119,
+            96,
+            87
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 102.60359954833984,
+          "colorShift": 13.075806617736816,
+          "multiplier": 0.5037466287612915,
+          "attenuation": 0.4962534010410309,
+          "residualReference": 0.05507679283618927,
+          "residualCurrent": 0.10868663340806961,
+          "retainedByColor": false,
+          "retainedByProjection": true
+        },
+        {
+          "x": 398,
+          "y": 193,
+          "currentRgb": [
+            118,
+            97,
+            92
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 100.0248031616211,
+          "colorShift": 10.450215339660645,
+          "multiplier": 0.5151841640472412,
+          "attenuation": 0.4848158657550812,
+          "residualReference": 0.04467630386352539,
+          "residualCurrent": 0.08639485388994217,
+          "retainedByColor": false,
+          "retainedByProjection": true
+        },
+        {
+          "x": 396,
+          "y": 194,
+          "currentRgb": [
+            120,
+            95,
+            84
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 103.32279968261719,
+          "colorShift": 14.936811447143555,
+          "multiplier": 0.49899178743362427,
+          "attenuation": 0.5010082125663757,
+          "residualReference": 0.06279069930315018,
+          "residualCurrent": 0.1248505562543869,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 397,
+          "y": 194,
+          "currentRgb": [
+            120,
+            96,
+            87
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 102.39099884033203,
+          "colorShift": 13.585772514343262,
+          "multiplier": 0.5054560303688049,
+          "attenuation": 0.49454396963119507,
+          "residualReference": 0.05737212300300598,
+          "residualCurrent": 0.11278147995471954,
+          "retainedByColor": false,
+          "retainedByProjection": true
+        },
+        {
+          "x": 398,
+          "y": 194,
+          "currentRgb": [
+            119,
+            98,
+            93
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 100.73999786376953,
+          "colorShift": 10.482770919799805,
+          "multiplier": 0.5166751146316528,
+          "attenuation": 0.48332488536834717,
+          "residualReference": 0.04497331380844116,
+          "residualCurrent": 0.08671581745147705,
+          "retainedByColor": false,
+          "retainedByProjection": true
+        },
+        {
+          "x": 396,
+          "y": 195,
+          "currentRgb": [
+            121,
+            95,
+            85
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 103.03800201416016,
+          "colorShift": 15.103979110717773,
+          "multiplier": 0.5022944211959839,
+          "attenuation": 0.4977055788040161,
+          "residualReference": 0.06354527920484543,
+          "residualCurrent": 0.1255096197128296,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 397,
+          "y": 195,
+          "currentRgb": [
+            117,
+            95,
+            86
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 103.81620025634766,
+          "colorShift": 12.713123321533203,
+          "multiplier": 0.497050017118454,
+          "attenuation": 0.5029500126838684,
+          "residualReference": 0.052897464483976364,
+          "residualCurrent": 0.10582523047924042,
+          "retainedByColor": false,
+          "retainedByProjection": true
+        },
+        {
+          "x": 398,
+          "y": 195,
+          "currentRgb": [
+            119,
+            97,
+            92
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 101.52739715576172,
+          "colorShift": 11.118401527404785,
+          "multiplier": 0.5133973360061646,
+          "attenuation": 0.48660266399383545,
+          "residualReference": 0.04738819971680641,
+          "residualCurrent": 0.09191245585680008,
+          "retainedByColor": false,
+          "retainedByProjection": true
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 0,
+        "projectionRetained": 6,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "a36aa8f6-39e8-4b52-8859-c9dd447ee5b4",
+      "savedAt": "2026-10-28T03:53:33.537Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 3.766666,
+          "frame": 113,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "projection",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.12,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 372,
+        "y": 188,
+        "size": 3,
+        "label": "skin",
+        "phase": "touch",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 371,
+        "y": 187,
+        "right": 374,
+        "bottom": 190
+      },
+      "pixels": [
+        {
+          "x": 371,
+          "y": 187,
+          "currentRgb": [
+            118,
+            84,
+            72
+          ],
+          "referenceRgb": [
+            150,
+            146,
+            138
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 55.91080093383789,
+          "colorShift": 21.68387794494629,
+          "multiplier": 0.634743869304657,
+          "attenuation": 0.365256130695343,
+          "residualReference": 0.11544153839349747,
+          "residualCurrent": 0.17893578112125397,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 372,
+          "y": 187,
+          "currentRgb": [
+            136,
+            90,
+            76
+          ],
+          "referenceRgb": [
+            216,
+            213,
+            204
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 114.21920013427734,
+          "colorShift": 27.820219039916992,
+          "multiplier": 0.4792690873146057,
+          "attenuation": 0.5207309126853943,
+          "residualReference": 0.11194728314876556,
+          "residualCurrent": 0.22745665907859802,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 373,
+          "y": 187,
+          "currentRgb": [
+            142,
+            89,
+            74
+          ],
+          "referenceRgb": [
+            203,
+            201,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 101.5905990600586,
+          "colorShift": 31.867284774780273,
+          "multiplier": 0.5142309665679932,
+          "attenuation": 0.48576903343200684,
+          "residualReference": 0.137272909283638,
+          "residualCurrent": 0.2579163908958435,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 371,
+          "y": 188,
+          "currentRgb": [
+            124,
+            92,
+            82
+          ],
+          "referenceRgb": [
+            148,
+            145,
+            136
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 46.90679931640625,
+          "colorShift": 18.13535499572754,
+          "multiplier": 0.697501003742218,
+          "attenuation": 0.302498996257782,
+          "residualReference": 0.10523662716150284,
+          "residualCurrent": 0.14918817579746246,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 372,
+          "y": 188,
+          "currentRgb": [
+            136,
+            91,
+            79
+          ],
+          "referenceRgb": [
+            211,
+            208,
+            199
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 108.28739929199219,
+          "colorShift": 26.270227432250977,
+          "multiplier": 0.4972681403160095,
+          "attenuation": 0.5027318596839905,
+          "residualReference": 0.10918264091014862,
+          "residualCurrent": 0.21445642411708832,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 373,
+          "y": 188,
+          "currentRgb": [
+            144,
+            92,
+            78
+          ],
+          "referenceRgb": [
+            203,
+            201,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 98.73100280761719,
+          "colorShift": 30.088647842407227,
+          "multiplier": 0.5292300581932068,
+          "attenuation": 0.4707699716091156,
+          "residualReference": 0.133177250623703,
+          "residualCurrent": 0.24403531849384308,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 371,
+          "y": 189,
+          "currentRgb": [
+            137,
+            103,
+            94
+          ],
+          "referenceRgb": [
+            146,
+            144,
+            135
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 34.196800231933594,
+          "colorShift": 16.995807647705078,
+          "multiplier": 0.7884267568588257,
+          "attenuation": 0.21157324314117432,
+          "residualReference": 0.11115933209657669,
+          "residualCurrent": 0.13960805535316467,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 372,
+          "y": 189,
+          "currentRgb": [
+            142,
+            96,
+            85
+          ],
+          "referenceRgb": [
+            208,
+            206,
+            197
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 100.79000091552734,
+          "colorShift": 25.2967529296875,
+          "multiplier": 0.5305399894714355,
+          "attenuation": 0.46946004033088684,
+          "residualReference": 0.11190246045589447,
+          "residualCurrent": 0.20638105273246765,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 373,
+          "y": 189,
+          "currentRgb": [
+            146,
+            95,
+            79
+          ],
+          "referenceRgb": [
+            203,
+            201,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 96.08799743652344,
+          "colorShift": 29.489723205566406,
+          "multiplier": 0.5393672585487366,
+          "attenuation": 0.46063271164894104,
+          "residualReference": 0.13363958895206451,
+          "residualCurrent": 0.24049879610538483,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 0,
+        "projectionRetained": 0,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "da30de33-e7d3-4746-af40-afdcce957dd1",
+      "savedAt": "2026-10-28T03:53:42.589Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 3.766666,
+          "frame": 113,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "projection",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.12,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 385,
+        "y": 190,
+        "size": 3,
+        "label": "nail",
+        "phase": "touch",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 384,
+        "y": 189,
+        "right": 387,
+        "bottom": 192
+      },
+      "pixels": [
+        {
+          "x": 384,
+          "y": 189,
+          "currentRgb": [
+            146,
+            96,
+            83
+          ],
+          "referenceRgb": [
+            204,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 95.22440338134766,
+          "colorShift": 27.2719669342041,
+          "multiplier": 0.5479670763015747,
+          "attenuation": 0.4520329535007477,
+          "residualReference": 0.12460524588823318,
+          "residualCurrent": 0.2217349410057068,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 385,
+          "y": 189,
+          "currentRgb": [
+            146,
+            96,
+            83
+          ],
+          "referenceRgb": [
+            204,
+            200,
+            190
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 94.43699645996094,
+          "colorShift": 26.97808837890625,
+          "multiplier": 0.5500866770744324,
+          "attenuation": 0.44991335272789,
+          "residualReference": 0.12368061393499374,
+          "residualCurrent": 0.21936213970184326,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 386,
+          "y": 189,
+          "currentRgb": [
+            144,
+            93,
+            79
+          ],
+          "referenceRgb": [
+            204,
+            200,
+            190
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 97.29660034179688,
+          "colorShift": 28.626773834228516,
+          "multiplier": 0.5350674390792847,
+          "attenuation": 0.46493256092071533,
+          "residualReference": 0.12785333395004272,
+          "residualCurrent": 0.232405424118042,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 384,
+          "y": 190,
+          "currentRgb": [
+            147,
+            96,
+            83
+          ],
+          "referenceRgb": [
+            204,
+            203,
+            193
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 96.58660125732422,
+          "colorShift": 28.2846622467041,
+          "multiplier": 0.545455276966095,
+          "attenuation": 0.45454469323158264,
+          "residualReference": 0.1287173628807068,
+          "residualCurrent": 0.22967319190502167,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 385,
+          "y": 190,
+          "currentRgb": [
+            147,
+            96,
+            83
+          ],
+          "referenceRgb": [
+            204,
+            202,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 95.79920196533203,
+          "colorShift": 27.99469566345215,
+          "multiplier": 0.5475671291351318,
+          "attenuation": 0.4524328410625458,
+          "residualReference": 0.12782812118530273,
+          "residualCurrent": 0.22733494639396667,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 386,
+          "y": 190,
+          "currentRgb": [
+            144,
+            93,
+            79
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 98.29660034179688,
+          "colorShift": 28.63971710205078,
+          "multiplier": 0.532365620136261,
+          "attenuation": 0.467634379863739,
+          "residualReference": 0.12727583944797516,
+          "residualCurrent": 0.232523113489151,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 384,
+          "y": 191,
+          "currentRgb": [
+            148,
+            97,
+            84
+          ],
+          "referenceRgb": [
+            205,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 95.87139892578125,
+          "colorShift": 27.87569808959961,
+          "multiplier": 0.5487465858459473,
+          "attenuation": 0.45125341415405273,
+          "residualReference": 0.12773960828781128,
+          "residualCurrent": 0.22672249376773834,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 385,
+          "y": 191,
+          "currentRgb": [
+            147,
+            96,
+            83
+          ],
+          "referenceRgb": [
+            205,
+            202,
+            193
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 96.08399963378906,
+          "colorShift": 27.859663009643555,
+          "multiplier": 0.5458618402481079,
+          "attenuation": 0.4541381299495697,
+          "residualReference": 0.1269409954547882,
+          "residualCurrent": 0.22650735080242157,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 386,
+          "y": 191,
+          "currentRgb": [
+            145,
+            94,
+            80
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 97.29660034179688,
+          "colorShift": 28.346277236938477,
+          "multiplier": 0.5373863577842712,
+          "attenuation": 0.46261364221572876,
+          "residualReference": 0.12715545296669006,
+          "residualCurrent": 0.23026016354560852,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 0,
+        "projectionRetained": 0,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "b787720b-be22-4f18-99f1-581c6d389ce6",
+      "savedAt": "2026-10-28T03:53:46.369Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 3.766666,
+          "frame": 113,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "projection",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.12,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 405,
+        "y": 211,
+        "size": 3,
+        "label": "ink",
+        "phase": "touch",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 404,
+        "y": 210,
+        "right": 407,
+        "bottom": 213
+      },
+      "pixels": [
+        {
+          "x": 404,
+          "y": 210,
+          "currentRgb": [
+            40,
+            38,
+            40
+          ],
+          "referenceRgb": [
+            43,
+            46,
+            50
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.081399917602539,
+          "colorShift": 7.555785655975342,
+          "multiplier": 0.8457850217819214,
+          "attenuation": 0.154215008020401,
+          "residualReference": 0.05456378683447838,
+          "residualCurrent": 0.0643787682056427,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 405,
+          "y": 210,
+          "currentRgb": [
+            38,
+            37,
+            39
+          ],
+          "referenceRgb": [
+            42,
+            46,
+            52
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.225799560546875,
+          "colorShift": 8.5,
+          "multiplier": 0.8089307546615601,
+          "attenuation": 0.19106926023960114,
+          "residualReference": 0.06239800155162811,
+          "residualCurrent": 0.0769079327583313,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 406,
+          "y": 210,
+          "currentRgb": [
+            37,
+            37,
+            39
+          ],
+          "referenceRgb": [
+            43,
+            47,
+            52
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 9.36620044708252,
+          "colorShift": 6.277265548706055,
+          "multiplier": 0.7923691272735596,
+          "attenuation": 0.20763087272644043,
+          "residualReference": 0.04465889558196068,
+          "residualCurrent": 0.05627191811800003,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 404,
+          "y": 211,
+          "currentRgb": [
+            39,
+            37,
+            40
+          ],
+          "referenceRgb": [
+            44,
+            47,
+            51
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 9.009200096130371,
+          "colorShift": 6.718674182891846,
+          "multiplier": 0.8145567774772644,
+          "attenuation": 0.1854432225227356,
+          "residualReference": 0.04557262361049652,
+          "residualCurrent": 0.05586040019989014,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 405,
+          "y": 211,
+          "currentRgb": [
+            37,
+            37,
+            39
+          ],
+          "referenceRgb": [
+            42,
+            46,
+            52
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.438400268554688,
+          "colorShift": 6.995575428009033,
+          "multiplier": 0.8025516271591187,
+          "attenuation": 0.19744835793972015,
+          "residualReference": 0.052745308727025986,
+          "residualCurrent": 0.06558053195476532,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 406,
+          "y": 211,
+          "currentRgb": [
+            37,
+            37,
+            39
+          ],
+          "referenceRgb": [
+            42,
+            46,
+            52
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.438400268554688,
+          "colorShift": 6.995575428009033,
+          "multiplier": 0.8025516271591187,
+          "attenuation": 0.19744835793972015,
+          "residualReference": 0.052745308727025986,
+          "residualCurrent": 0.06558053195476532,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 404,
+          "y": 212,
+          "currentRgb": [
+            37,
+            35,
+            38
+          ],
+          "referenceRgb": [
+            43,
+            46,
+            50
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 10.009200096130371,
+          "colorShift": 6.8878350257873535,
+          "multiplier": 0.7890177965164185,
+          "attenuation": 0.21098221838474274,
+          "residualReference": 0.04522054269909859,
+          "residualCurrent": 0.057218555361032486,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 405,
+          "y": 212,
+          "currentRgb": [
+            36,
+            36,
+            38
+          ],
+          "referenceRgb": [
+            41,
+            45,
+            51
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.438400268554688,
+          "colorShift": 7.140676975250244,
+          "multiplier": 0.7981607913970947,
+          "attenuation": 0.20183922350406647,
+          "residualReference": 0.05350956320762634,
+          "residualCurrent": 0.06689093261957169,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 406,
+          "y": 212,
+          "currentRgb": [
+            35,
+            35,
+            37
+          ],
+          "referenceRgb": [
+            41,
+            45,
+            51
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 9.438400268554688,
+          "colorShift": 7.097346305847168,
+          "multiplier": 0.7764388918876648,
+          "attenuation": 0.2235611230134964,
+          "residualReference": 0.05157856643199921,
+          "residualCurrent": 0.06628356128931046,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 9,
+        "projectionRetained": 9,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "76bd2228-3f74-4e10-acd9-0bec469b59c3",
+      "savedAt": "2026-10-28T03:53:49.202Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 3.933333,
+          "frame": 118,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "projection",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.12,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 386,
+        "y": 221,
+        "size": 3,
+        "label": "paper",
+        "phase": "release",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 385,
+        "y": 220,
+        "right": 388,
+        "bottom": 223
+      },
+      "pixels": [
+        {
+          "x": 385,
+          "y": 220,
+          "currentRgb": [
+            198,
+            192,
+            182
+          ],
+          "referenceRgb": [
+            203,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.1496000289917,
+          "colorShift": 1.2692307233810425,
+          "multiplier": 0.9615296721458435,
+          "attenuation": 0.03847033157944679,
+          "residualReference": 0.010176350362598896,
+          "residualCurrent": 0.010582908987998962,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 386,
+          "y": 220,
+          "currentRgb": [
+            198,
+            192,
+            182
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.574799537658691,
+          "colorShift": 0.7064167261123657,
+          "multiplier": 0.9582614898681641,
+          "attenuation": 0.04173850268125534,
+          "residualReference": 0.005691531114280224,
+          "residualCurrent": 0.005939329508692026,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 387,
+          "y": 220,
+          "currentRgb": [
+            199,
+            193,
+            183
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.57480001449585,
+          "colorShift": 0.6893598437309265,
+          "multiplier": 0.9632822275161743,
+          "attenuation": 0.036717772483825684,
+          "residualReference": 0.005570855922996998,
+          "residualCurrent": 0.005783105734735727,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 385,
+          "y": 221,
+          "currentRgb": [
+            198,
+            192,
+            182
+          ],
+          "referenceRgb": [
+            204,
+            201,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.434399604797363,
+          "colorShift": 1.1335524320602417,
+          "multiplier": 0.9583364725112915,
+          "attenuation": 0.0416635125875473,
+          "residualReference": 0.00946078822016716,
+          "residualCurrent": 0.00987161323428154,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 386,
+          "y": 221,
+          "currentRgb": [
+            198,
+            192,
+            182
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.574799537658691,
+          "colorShift": 0.7064167261123657,
+          "multiplier": 0.9582614898681641,
+          "attenuation": 0.04173850268125534,
+          "residualReference": 0.005691531114280224,
+          "residualCurrent": 0.005939329508692026,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 387,
+          "y": 221,
+          "currentRgb": [
+            199,
+            193,
+            183
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.57480001449585,
+          "colorShift": 0.6893598437309265,
+          "multiplier": 0.9632822275161743,
+          "attenuation": 0.036717772483825684,
+          "residualReference": 0.005570855922996998,
+          "residualCurrent": 0.005783105734735727,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 385,
+          "y": 222,
+          "currentRgb": [
+            198,
+            192,
+            182
+          ],
+          "referenceRgb": [
+            204,
+            202,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 9.1496000289917,
+          "colorShift": 1.279264211654663,
+          "multiplier": 0.9567083716392517,
+          "attenuation": 0.043291639536619186,
+          "residualReference": 0.010213003493845463,
+          "residualCurrent": 0.01067453995347023,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 386,
+          "y": 222,
+          "currentRgb": [
+            198,
+            192,
+            182
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.574799537658691,
+          "colorShift": 0.7064167261123657,
+          "multiplier": 0.9582614898681641,
+          "attenuation": 0.04173850268125534,
+          "residualReference": 0.005691531114280224,
+          "residualCurrent": 0.005939329508692026,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 387,
+          "y": 222,
+          "currentRgb": [
+            199,
+            193,
+            183
+          ],
+          "referenceRgb": [
+            205,
+            201,
+            191
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 7.57480001449585,
+          "colorShift": 0.6893598437309265,
+          "multiplier": 0.9632822275161743,
+          "attenuation": 0.036717772483825684,
+          "residualReference": 0.005570855922996998,
+          "residualCurrent": 0.005783105734735727,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 9,
+        "projectionRetained": 9,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "454b9bea-5814-494c-8243-dee3af49a9dc",
+      "savedAt": "2026-10-28T03:54:37.490Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 3.933333,
+          "frame": 118,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "projection",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.12,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 387,
+        "y": 201,
+        "size": 3,
+        "label": "shadow",
+        "phase": "release",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 386,
+        "y": 200,
+        "right": 389,
+        "bottom": 203
+      },
+      "pixels": [
+        {
+          "x": 386,
+          "y": 200,
+          "currentRgb": [
+            121,
+            103,
+            96
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 96.52220153808594,
+          "colorShift": 9.017548561096191,
+          "multiplier": 0.5332962870597839,
+          "attenuation": 0.46670374274253845,
+          "residualReference": 0.039982810616493225,
+          "residualCurrent": 0.07476315647363663,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 387,
+          "y": 200,
+          "currentRgb": [
+            120,
+            103,
+            95
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 96.80699920654297,
+          "colorShift": 8.822089195251465,
+          "multiplier": 0.5299935936927795,
+          "attenuation": 0.47000637650489807,
+          "residualReference": 0.03905782103538513,
+          "residualCurrent": 0.07349558919668198,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 388,
+          "y": 200,
+          "currentRgb": [
+            119,
+            103,
+            96
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 96.94740295410156,
+          "colorShift": 8.02020263671875,
+          "multiplier": 0.5298774242401123,
+          "attenuation": 0.4701225757598877,
+          "residualReference": 0.03536003828048706,
+          "residualCurrent": 0.06658439338207245,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 386,
+          "y": 201,
+          "currentRgb": [
+            119,
+            102,
+            94
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 97.80699920654297,
+          "colorShift": 8.929007530212402,
+          "multiplier": 0.5250064134597778,
+          "attenuation": 0.4749935567378998,
+          "residualReference": 0.039169736206531525,
+          "residualCurrent": 0.07440131902694702,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 387,
+          "y": 201,
+          "currentRgb": [
+            119,
+            102,
+            94
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 97.80699920654297,
+          "colorShift": 8.929007530212402,
+          "multiplier": 0.5250064134597778,
+          "attenuation": 0.4749935567378998,
+          "residualReference": 0.039169736206531525,
+          "residualCurrent": 0.07440131902694702,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 388,
+          "y": 201,
+          "currentRgb": [
+            117,
+            102,
+            94
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 98.2322006225586,
+          "colorShift": 7.915162563323975,
+          "multiplier": 0.521587610244751,
+          "attenuation": 0.478412389755249,
+          "residualReference": 0.03457856550812721,
+          "residualCurrent": 0.06614962965250015,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 386,
+          "y": 202,
+          "currentRgb": [
+            117,
+            103,
+            96
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 97.37259674072266,
+          "colorShift": 7.010231018066406,
+          "multiplier": 0.5264586210250854,
+          "attenuation": 0.47354140877723694,
+          "residualReference": 0.030741626396775246,
+          "residualCurrent": 0.05829394608736038,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 387,
+          "y": 202,
+          "currentRgb": [
+            118,
+            104,
+            97
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 96.37259674072266,
+          "colorShift": 6.921692848205566,
+          "multiplier": 0.5314458012580872,
+          "attenuation": 0.46855422854423523,
+          "residualReference": 0.030633389949798584,
+          "residualCurrent": 0.057546090334653854,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 388,
+          "y": 202,
+          "currentRgb": [
+            119,
+            105,
+            98
+          ],
+          "referenceRgb": [
+            206,
+            203,
+            192
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 95.37259674072266,
+          "colorShift": 6.834804534912109,
+          "multiplier": 0.5364329814910889,
+          "attenuation": 0.4635670483112335,
+          "residualReference": 0.030525505542755127,
+          "residualCurrent": 0.056812696158885956,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 9,
+        "projectionRetained": 9,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "22bab143-be83-476f-ab02-518f2fd32a64",
+      "savedAt": "2026-10-28T03:54:41.623Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 3.933333,
+          "frame": 118,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "projection",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.12,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 388,
+        "y": 181,
+        "size": 3,
+        "label": "skin",
+        "phase": "release",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 387,
+        "y": 180,
+        "right": 390,
+        "bottom": 183
+      },
+      "pixels": [
+        {
+          "x": 387,
+          "y": 180,
+          "currentRgb": [
+            107,
+            72,
+            62
+          ],
+          "referenceRgb": [
+            203,
+            199,
+            189
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 120.4094009399414,
+          "colorShift": 25.626935958862305,
+          "multiplier": 0.40990808606147766,
+          "attenuation": 0.5900918841362,
+          "residualReference": 0.08773162215948105,
+          "residualCurrent": 0.20928770303726196,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 388,
+          "y": 180,
+          "currentRgb": [
+            106,
+            74,
+            64
+          ],
+          "referenceRgb": [
+            203,
+            199,
+            189
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 119.04720306396484,
+          "colorShift": 23.189855575561523,
+          "multiplier": 0.4148252308368683,
+          "attenuation": 0.5851747393608093,
+          "residualReference": 0.08051054924726486,
+          "residualCurrent": 0.1905277967453003,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 389,
+          "y": 180,
+          "currentRgb": [
+            107,
+            77,
+            66
+          ],
+          "referenceRgb": [
+            203,
+            199,
+            189
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 116.54460144042969,
+          "colorShift": 21.55116844177246,
+          "multiplier": 0.42493414878845215,
+          "attenuation": 0.5750658512115479,
+          "residualReference": 0.07706678658723831,
+          "residualCurrent": 0.17845065891742706,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 387,
+          "y": 181,
+          "currentRgb": [
+            109,
+            74,
+            63
+          ],
+          "referenceRgb": [
+            203,
+            199,
+            189
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 118.48159790039062,
+          "colorShift": 25.398971557617188,
+          "multiplier": 0.418429434299469,
+          "attenuation": 0.581570565700531,
+          "residualReference": 0.08901634067296982,
+          "residualCurrent": 0.20808260142803192,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 388,
+          "y": 181,
+          "currentRgb": [
+            111,
+            78,
+            67
+          ],
+          "referenceRgb": [
+            203,
+            199,
+            189
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 114.90679931640625,
+          "colorShift": 22.97757339477539,
+          "multiplier": 0.4352318346500397,
+          "attenuation": 0.5647681951522827,
+          "residualReference": 0.08388087153434753,
+          "residualCurrent": 0.1892443150281906,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 389,
+          "y": 181,
+          "currentRgb": [
+            110,
+            78,
+            67
+          ],
+          "referenceRgb": [
+            203,
+            199,
+            189
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 115.11940002441406,
+          "colorShift": 22.41116714477539,
+          "multiplier": 0.4334897994995117,
+          "attenuation": 0.5665102005004883,
+          "residualReference": 0.08156497776508331,
+          "residualCurrent": 0.18491406738758087,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 387,
+          "y": 182,
+          "currentRgb": [
+            114,
+            78,
+            68
+          ],
+          "referenceRgb": [
+            203,
+            199,
+            189
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 114.1968002319336,
+          "colorShift": 24.218860626220703,
+          "multiplier": 0.4420797824859619,
+          "attenuation": 0.5579202175140381,
+          "residualReference": 0.08932605385780334,
+          "residualCurrent": 0.19805602729320526,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 388,
+          "y": 182,
+          "currentRgb": [
+            113,
+            80,
+            69
+          ],
+          "referenceRgb": [
+            203,
+            199,
+            189
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 112.90679931640625,
+          "colorShift": 22.3920841217041,
+          "multiplier": 0.4453750550746918,
+          "attenuation": 0.5546249747276306,
+          "residualReference": 0.0836310163140297,
+          "residualCurrent": 0.1845511496067047,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 389,
+          "y": 182,
+          "currentRgb": [
+            113,
+            80,
+            69
+          ],
+          "referenceRgb": [
+            203,
+            199,
+            189
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 112.90679931640625,
+          "colorShift": 22.3920841217041,
+          "multiplier": 0.4453750550746918,
+          "attenuation": 0.5546249747276306,
+          "residualReference": 0.0836310163140297,
+          "residualCurrent": 0.1845511496067047,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 0,
+        "projectionRetained": 0,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "70dcf90a-5fc9-4772-a7b8-953a3f4abc61",
+      "savedAt": "2026-10-28T03:54:47.891Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 3.933333,
+          "frame": 118,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "projection",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.12,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 379,
+        "y": 191,
+        "size": 3,
+        "label": "nail",
+        "phase": "release",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 378,
+        "y": 190,
+        "right": 381,
+        "bottom": 193
+      },
+      "pixels": [
+        {
+          "x": 378,
+          "y": 190,
+          "currentRgb": [
+            139,
+            92,
+            80
+          ],
+          "referenceRgb": [
+            206,
+            204,
+            195
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 102.64959716796875,
+          "colorShift": 27.144615173339844,
+          "multiplier": 0.5160841345787048,
+          "attenuation": 0.48391589522361755,
+          "residualReference": 0.11698448657989502,
+          "residualCurrent": 0.22106876969337463,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 379,
+          "y": 190,
+          "currentRgb": [
+            136,
+            91,
+            81
+          ],
+          "referenceRgb": [
+            205,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 102.9303970336914,
+          "colorShift": 25.76185417175293,
+          "multiplier": 0.5135021209716797,
+          "attenuation": 0.4864978790283203,
+          "residualReference": 0.11014797538518906,
+          "residualCurrent": 0.20973263680934906,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 380,
+          "y": 190,
+          "currentRgb": [
+            135,
+            90,
+            80
+          ],
+          "referenceRgb": [
+            205,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 103.9303970336914,
+          "colorShift": 26.03330421447754,
+          "multiplier": 0.508521556854248,
+          "attenuation": 0.49147844314575195,
+          "residualReference": 0.11023275554180145,
+          "residualCurrent": 0.21185079216957092,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 378,
+          "y": 191,
+          "currentRgb": [
+            140,
+            94,
+            82
+          ],
+          "referenceRgb": [
+            204,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 99.64959716796875,
+          "colorShift": 26.418943405151367,
+          "multiplier": 0.5275566577911377,
+          "attenuation": 0.4724433720111847,
+          "residualReference": 0.11645898222923279,
+          "residualCurrent": 0.21556179225444794,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 379,
+          "y": 191,
+          "currentRgb": [
+            138,
+            92,
+            82
+          ],
+          "referenceRgb": [
+            205,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 101.7177963256836,
+          "colorShift": 25.952913284301758,
+          "multiplier": 0.5201786756515503,
+          "attenuation": 0.4798212945461273,
+          "residualReference": 0.11237208545207977,
+          "residualCurrent": 0.21115508675575256,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 380,
+          "y": 191,
+          "currentRgb": [
+            136,
+            91,
+            81
+          ],
+          "referenceRgb": [
+            206,
+            204,
+            195
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 103.9303970336914,
+          "colorShift": 25.77095603942871,
+          "multiplier": 0.5109480023384094,
+          "attenuation": 0.4890519976615906,
+          "residualReference": 0.10964518785476685,
+          "residualCurrent": 0.2098150998353958,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 378,
+          "y": 192,
+          "currentRgb": [
+            141,
+            95,
+            83
+          ],
+          "referenceRgb": [
+            204,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 98.64959716796875,
+          "colorShift": 26.155858993530273,
+          "multiplier": 0.532545804977417,
+          "attenuation": 0.467454195022583,
+          "residualReference": 0.11638334393501282,
+          "residualCurrent": 0.2135024517774582,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 379,
+          "y": 192,
+          "currentRgb": [
+            139,
+            94,
+            82
+          ],
+          "referenceRgb": [
+            205,
+            203,
+            194
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 100.07479858398438,
+          "colorShift": 25.688261032104492,
+          "multiplier": 0.5252337455749512,
+          "attenuation": 0.4747662842273712,
+          "residualReference": 0.1127488911151886,
+          "residualCurrent": 0.20988290011882782,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        },
+        {
+          "x": 380,
+          "y": 192,
+          "currentRgb": [
+            136,
+            92,
+            80
+          ],
+          "referenceRgb": [
+            206,
+            204,
+            195
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 103.28739929199219,
+          "colorShift": 25.77095603942871,
+          "multiplier": 0.5110217332839966,
+          "attenuation": 0.4889782667160034,
+          "residualReference": 0.11012238264083862,
+          "residualCurrent": 0.2106587439775467,
+          "retainedByColor": false,
+          "retainedByProjection": false
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 0,
+        "projectionRetained": 0,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "397a0125-73c3-4572-91d6-f025d08ee03d",
+      "savedAt": "2026-10-28T03:54:51.333Z"
+    },
+    {
+      "context": {
+        "source": {
+          "id": "eda30322-61c2-4b5f-9387-cdc23cde709a",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 3.933333,
+          "frame": 118,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "6125eaac-ae19-4512-a3d3-4dfcc7816c5c",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "settings": {
+        "method": "projection",
+        "maximumColorShift": 10,
+        "maximumResidual": 0.12,
+        "noiseFloor": 5,
+        "fullScale": 120,
+        "residualScale": 0.3,
+        "minimumReferenceLuma": 40
+      },
+      "selection": {
+        "x": 406,
+        "y": 211,
+        "size": 3,
+        "label": "ink",
+        "phase": "release",
+        "note": ""
+      },
+      "analysis": {
+        "width": 640,
+        "height": 427,
+        "coordinateSpace": "downsampled-analysis-pixels"
+      },
+      "bounds": {
+        "x": 405,
+        "y": 210,
+        "right": 408,
+        "bottom": 213
+      },
+      "pixels": [
+        {
+          "x": 405,
+          "y": 210,
+          "currentRgb": [
+            38,
+            37,
+            39
+          ],
+          "referenceRgb": [
+            42,
+            46,
+            52
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.225799560546875,
+          "colorShift": 8.5,
+          "multiplier": 0.8089307546615601,
+          "attenuation": 0.19106926023960114,
+          "residualReference": 0.06239800155162811,
+          "residualCurrent": 0.0769079327583313,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 406,
+          "y": 210,
+          "currentRgb": [
+            36,
+            36,
+            40
+          ],
+          "referenceRgb": [
+            43,
+            47,
+            52
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 10.221799850463867,
+          "colorShift": 4.745975971221924,
+          "multiplier": 0.7867494821548462,
+          "attenuation": 0.2132505178451538,
+          "residualReference": 0.030986810103058815,
+          "residualCurrent": 0.03935535252094269,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 407,
+          "y": 210,
+          "currentRgb": [
+            36,
+            36,
+            40
+          ],
+          "referenceRgb": [
+            42,
+            46,
+            52
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 9.293999671936035,
+          "colorShift": 5.464285850524902,
+          "multiplier": 0.797083854675293,
+          "attenuation": 0.20291616022586823,
+          "residualReference": 0.03677459433674812,
+          "residualCurrent": 0.046087395399808884,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 405,
+          "y": 211,
+          "currentRgb": [
+            38,
+            37,
+            39
+          ],
+          "referenceRgb": [
+            42,
+            46,
+            52
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.225799560546875,
+          "colorShift": 8.5,
+          "multiplier": 0.8089307546615601,
+          "attenuation": 0.19106926023960114,
+          "residualReference": 0.06239800155162811,
+          "residualCurrent": 0.0769079327583313,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 406,
+          "y": 211,
+          "currentRgb": [
+            36,
+            36,
+            40
+          ],
+          "referenceRgb": [
+            42,
+            46,
+            52
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 9.293999671936035,
+          "colorShift": 5.464285850524902,
+          "multiplier": 0.797083854675293,
+          "attenuation": 0.20291616022586823,
+          "residualReference": 0.03677459433674812,
+          "residualCurrent": 0.046087395399808884,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 407,
+          "y": 211,
+          "currentRgb": [
+            36,
+            36,
+            40
+          ],
+          "referenceRgb": [
+            42,
+            46,
+            52
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 9.293999671936035,
+          "colorShift": 5.464285850524902,
+          "multiplier": 0.797083854675293,
+          "attenuation": 0.20291616022586823,
+          "residualReference": 0.03677459433674812,
+          "residualCurrent": 0.046087395399808884,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 405,
+          "y": 212,
+          "currentRgb": [
+            36,
+            36,
+            40
+          ],
+          "referenceRgb": [
+            41,
+            45,
+            51
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.293999671936035,
+          "colorShift": 5.650417327880859,
+          "multiplier": 0.8143332600593567,
+          "attenuation": 0.18566672503948212,
+          "residualReference": 0.03898236155509949,
+          "residualCurrent": 0.04781552404165268,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 406,
+          "y": 212,
+          "currentRgb": [
+            36,
+            36,
+            40
+          ],
+          "referenceRgb": [
+            41,
+            45,
+            51
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 8.293999671936035,
+          "colorShift": 5.650417327880859,
+          "multiplier": 0.8143332600593567,
+          "attenuation": 0.18566672503948212,
+          "residualReference": 0.03898236155509949,
+          "residualCurrent": 0.04781552404165268,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        },
+        {
+          "x": 407,
+          "y": 212,
+          "currentRgb": [
+            35,
+            35,
+            39
+          ],
+          "referenceRgb": [
+            41,
+            45,
+            51
+          ],
+          "currentAlpha": 255,
+          "referenceAlpha": 255,
+          "valid": true,
+          "projectionValid": true,
+          "lumaDrop": 9.293999671936035,
+          "colorShift": 5.56686544418335,
+          "multiplier": 0.7926113605499268,
+          "attenuation": 0.20738860964775085,
+          "residualReference": 0.03721664473414421,
+          "residualCurrent": 0.046902790665626526,
+          "retainedByColor": true,
+          "retainedByProjection": true
+        }
+      ],
+      "counts": {
+        "total": 9,
+        "colorRetained": 9,
+        "projectionRetained": 9,
+        "colorUnknown": 0,
+        "projectionUnknown": 0
+      },
+      "id": "3b7cefe9-f436-48b4-95b7-c74d7f2fcc09",
+      "savedAt": "2026-10-28T03:54:54.640Z"
+    }
+  ]
+}

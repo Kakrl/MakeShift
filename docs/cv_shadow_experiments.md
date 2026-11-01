@@ -1,5 +1,9 @@
 # CV shadow contact experiments
 
+For the current user-reviewed automatic fingertip/DFS handoff, settings,
+artifacts, limitations and resume commands, start with
+[shadow detection status and next steps](cv_shadow_detection_status_and_next_steps.md#start-here-user-reviewed-handoff-2026-11-01).
+
 This plan records shadow-based contact ideas to evaluate in small steps. It is
 an experiment plan, not an implementation or an accuracy claim. Keep candidate
 measurements visible in the visual debugger before allowing them to trigger
@@ -686,3 +690,66 @@ Compare both approaches on the same labeled press, hold, and release clips.
 Report press/release TP, FP, and FN, transition delay, lighting/camera setup,
 and cases where the cue is absent or ambiguous. Keep onset and release signals
 separately visible in the debugger while evaluating them.
+
+## Follow-up: fingertip and shadow regions (planned)
+
+First, review the existing three-ray line experiment on labeled hover,
+approach, press, hold, and lift examples. Keep those rays as a baseline and
+continue to record whether the shadow directly below the fingertip shrinks or
+disappears near a press. Do not tune the ray thresholds from this quick review.
+
+The next visual experiment is to show candidate fingertip and shadow regions
+separately. It tests whether the image processing can find the two regions
+reliably before trying to infer contact from their relationship. Use the
+existing fingertip estimates as seeds and compare live pixels with the captured
+empty-sheet frame to propose shadow pixels. Draw the fingertip mask in one
+color, candidate shadow pixels in another, and ambiguous pixels distinctly.
+Keep the three rays overlaid so it is clear which parts of the regions they
+sample.
+
+The experiment does not need to assign a shadow to the finger that cast it.
+For this contact hypothesis, any plausible shadow region under a fingertip can
+provide evidence; overlapping shadows may remain one merged region. Inspect
+whether the candidate region is actually shadow rather than printed key marks,
+other dark objects, or camera/exposure changes. Near-hover frames are important
+negative examples. Treat unavailable or ambiguous segmentation as unknown,
+not as proof that no shadow exists.
+
+Review the overlays on the same labeled examples and record whether the
+fingertip and plausible shadow are both visible, whether they appear to touch
+or overlap, and the common failure cases. Compare D-only shadow pixels with
+D+L as described above, keeping both visual results available. This pass is
+visual only: do not dispatch notes or select a size-ratio threshold. If the
+regions are consistently plausible, a later experiment can compare local
+fingertip-shadow gap/overlap and region-size measurements, including how they
+change with fingertip height. The overall size ratio is only a candidate cue;
+it may be unreliable when the shadow is distant, merged, or partly hidden.
+
+## Local comparison of the three darkness hypotheses (2026-10-27)
+
+The image tool and video replay share `measureShadowEvidence()` from
+`darkShadowRegion.ts`. Compare strict dark-pixel presence/area, background-
+relative darkness strength and spatial sharpness without combining near-tip
+and forward-shadow regions. Temporal differences expose whether those regions
+change in opposite directions. No new thresholds or note decisions are enabled.
+See [measurement definitions and initial results](cv_image_tests.md#comparing-darkness-hypotheses-locally-2026-10-27)
+and [frame-by-frame video review](cv_video_tests.md#shadow-evidence-frame-review).
+The initial still results overlap; these features are experimental evidence,
+not a demonstrated improvement in contact detection.
+
+Dark-pixel bounds are now adjustable in both replay pages, with matching-pixel
+overlays and recorded run settings. Tune the segmentation visually before
+contact thresholds: inspect presses and close hovers together, then validate
+chosen values on other clips. Four simultaneous bounds can hide the reason a
+pixel is rejected; loosen one at a time and watch whether useful shadow or
+unwanted finger/ink enters. Default bounds are starting guesses, not a final
+shadow model. The live note detector is not changed by these controls.
+
+## Current focus: continuous subtraction heatmap
+
+The `/cv-shadow-test` diagnostic focuses on finding darkened pixels before
+assigning them to fingers or grouping regions. It shows positive luma drop
+against an empty reference and normalized RGB color change separately. Neither
+map is a semantic shadow mask: finger occlusion and illumination changes can
+produce darkening too. See [the viewer guide](cv_shadow_heatmap.md). Existing
+strict thresholds and contact behavior are unchanged.

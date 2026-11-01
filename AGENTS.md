@@ -47,6 +47,7 @@ it separates existing behavior from planned work and links implementation issues
 | `frontend/public/audio/` | Static AudioWorklet and shared fixed-voice DSP |
 | `frontend/src/app/audio/` | Browser audio owner and user-triggered sound check |
 | `frontend/src/app/share/` | Shared recordings UI (mock data until the recordings API lands): store, post-recording save dialog, songs dialog (Shared and My recordings tabs), piano roll; `play/[id]/` share links open the shared-songs dialog |
+| `frontend/src/app/cv-shadow-test/` | Finger-independent image/video darkening and color-change heatmaps |
 | `frontend/src/app/cv-image-test/` | Local still-image replay for labeled synchronous shadow diagnostics |
 | `frontend/src/diagnostics/` | Shared bounded metrics and explicit camera-video registry |
 | `frontend/src/events/` | Shared browser note schema, clocks, session dispatch and audio adapter |

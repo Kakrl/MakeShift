@@ -27,6 +27,15 @@ import {
   LiveContactPipeline,
   SHADOW_CROP_RADIUS,
 } from "../cv/liveContactPipeline";
+import type { ShadowPressLiveMeasurement } from "../cv/liveContactPipeline";
+import {
+  SHADOW_PROBE_ANGLES_DEGREES,
+  SHADOW_PROBE_LENGTH_PX,
+} from "../cv/darkShadowRegion";
+import {
+  LARGE_SHADOW_AREA_PX,
+  SMALL_SHADOW_AREA_PX,
+} from "../cv/shadowPressHysteresis";
 import {
   getKnuckleBoundaryY,
   getHandDepthCalibration,
@@ -755,6 +764,7 @@ interface FingerDebugState {
   shadowPeakArea: number | null;
   shadowAreaRatio: number | null;
   synchronousShadow: SynchronousShadowMeasurement | null;
+  shadowPress: ShadowPressLiveMeasurement | null;
 }
 
 export type ContactFrameHandler = (
@@ -796,6 +806,7 @@ export default function MarkerTrackingOverlay({
   const processingCanvasRef = useRef<HTMLCanvasElement>(null);
   const markerBackgroundFrameRef = useRef<HTMLCanvasElement | null>(null);
   const shadowBackgroundPixelsRef = useRef<ImageData | null>(null);
+  const shadowPressBackgroundPixelsRef = useRef<ImageData | null>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const shadowBackgroundRef = useRef<HTMLCanvasElement>(null);
   const shadowDifferenceSourceRef = useRef<HTMLCanvasElement>(null);
@@ -858,7 +869,7 @@ export default function MarkerTrackingOverlay({
   const [fingerDebug, setFingerDebug] = useState<FingerDebugState[]>([]);
   const shadowPreviewFinger =
     !showVisualDebug ||
-    !(CONTACT_TECHNIQUES.shadows || CONTACT_TECHNIQUES.synchronousShadows || shadowDiagnosticsOnly || synchronousShadowDiagnosticsOnly)
+    !(CONTACT_TECHNIQUES.shadows || CONTACT_TECHNIQUES.synchronousShadows || CONTACT_TECHNIQUES.shadowPressHysteresis || shadowDiagnosticsOnly || synchronousShadowDiagnosticsOnly)
       ? undefined
       : (fingertips.find(
           (finger) =>
@@ -924,6 +935,7 @@ export default function MarkerTrackingOverlay({
     }
     markerBackgroundFrameRef.current = null;
     shadowBackgroundPixelsRef.current = null;
+    shadowPressBackgroundPixelsRef.current = null;
     queueMicrotask(() => setCapturedBackground(null));
   }, [stream, cameraReady]);
 
@@ -958,6 +970,7 @@ export default function MarkerTrackingOverlay({
             const observation = pipeline.observations.get(finger.id);
             const contact = pipeline.shadowContacts.get(finger.id);
             const synchronousShadow = pipeline.synchronousMeasurements.get(finger.id);
+            const shadowPress = pipeline.shadowPressComparisons.get(finger.id);
             return {
               ...finger,
               state: pipeline.contacts.get(finger.id)?.state ?? "unavailable",
@@ -974,11 +987,12 @@ export default function MarkerTrackingOverlay({
                   }
                 : {}),
               synchronousShadow: synchronousShadow ?? null,
+              shadowPress: shadowPress ?? null,
             };
           }),
         );
       },
-      onShadowCameraPreview: (crop, center, origin) => {
+      onShadowCameraPreview: (crop, center, origin, shadowPress) => {
         if (!showVisualDebugRef.current) return;
         const previewCanvas = shadowPreviewCanvasRef.current;
         const previewContext = previewCanvas?.getContext("2d");
@@ -1003,6 +1017,58 @@ export default function MarkerTrackingOverlay({
           y: SHADOW_PREVIEW_RADIUS + SHADOW_CUTOFF_OFFSET_Y,
         };
         drawGrayShadowArc(previewContext, arcAnchor, scale);
+        if (CONTACT_TECHNIQUES.shadowPressHysteresis) {
+          previewContext.save();
+          previewContext.lineWidth = 1.5;
+          previewContext.setLineDash([3, 3]);
+          previewContext.strokeStyle = getComputedStyle(document.documentElement)
+            .getPropertyValue("--color-info").trim();
+          for (const degrees of SHADOW_PROBE_ANGLES_DEGREES) {
+            const radians = (degrees * Math.PI) / 180;
+            previewContext.beginPath();
+            previewContext.moveTo(SHADOW_PREVIEW_RADIUS, SHADOW_PREVIEW_RADIUS);
+            previewContext.lineTo(
+              SHADOW_PREVIEW_RADIUS + Math.sin(radians) * SHADOW_PROBE_LENGTH_PX,
+              SHADOW_PREVIEW_RADIUS + Math.cos(radians) * SHADOW_PROBE_LENGTH_PX,
+            );
+            previewContext.stroke();
+          }
+          previewContext.setLineDash([]);
+          if (shadowPress?.shadowEllipse) {
+            const ellipse = shadowPress.shadowEllipse;
+            const toPreview = (point: Point) => ({
+              x: SHADOW_PREVIEW_RADIUS + point.x - shadowPress.fingertipX,
+              y: SHADOW_PREVIEW_RADIUS + point.y - shadowPress.fingertipY,
+            });
+            previewContext.strokeStyle = getComputedStyle(document.documentElement)
+              .getPropertyValue("--color-purple").trim();
+            previewContext.lineWidth = 2;
+            previewContext.beginPath();
+            const ellipseCenter = toPreview(ellipse.center);
+            previewContext.ellipse(
+              ellipseCenter.x,
+              ellipseCenter.y,
+              ellipse.majorRadius,
+              ellipse.minorRadius,
+              ellipse.rotation,
+              0,
+              2 * Math.PI,
+            );
+            previewContext.stroke();
+            previewContext.strokeStyle = getComputedStyle(document.documentElement)
+              .getPropertyValue("--color-blue").trim();
+            for (const run of ellipse.runs) {
+              previewContext.beginPath();
+              run.points.forEach((point, index) => {
+                const mapped = toPreview(point);
+                if (index === 0) previewContext.moveTo(mapped.x, mapped.y);
+                else previewContext.lineTo(mapped.x, mapped.y);
+              });
+              previewContext.stroke();
+            }
+          }
+          previewContext.restore();
+        }
         if (SHOW_EXTRA_SHADOW_DEBUG_OVERLAYS) {
           drawShadowSamplingGuides(previewContext, arcAnchor, scale);
           const gradientCounts = drawTipGradientCandidates(
@@ -1245,6 +1311,20 @@ export default function MarkerTrackingOverlay({
                   );
                   markerDetectionRef.current = detection;
                   if (detection.missingIds.length === 0) {
+                    if (
+                      CONTACT_TECHNIQUES.shadowPressHysteresis &&
+                      !shadowPressBackgroundPixelsRef.current
+                    ) {
+                      shadowPressBackgroundPixelsRef.current =
+                        processingCanvas
+                          .getContext("2d", { willReadFrequently: true })
+                          ?.getImageData(
+                            0,
+                            0,
+                            processingCanvas.width,
+                            processingCanvas.height,
+                          ) ?? null;
+                    }
                     const snapshot = markerBackgroundFrameRef.current ??
                       document.createElement("canvas");
                     markerBackgroundFrameRef.current = snapshot;
@@ -1404,7 +1484,11 @@ export default function MarkerTrackingOverlay({
     const detectionStartedAt = pipelineMetrics.enabled ? performance.now() : null;
     const capturedShadowFrame = pipeline.processFrame({
       video,
-      background: showVisualDebug ? shadowBackgroundPixelsRef.current : null,
+      background: CONTACT_TECHNIQUES.shadowPressHysteresis
+        ? shadowPressBackgroundPixelsRef.current
+        : showVisualDebug
+          ? shadowBackgroundPixelsRef.current
+          : null,
       fingertips,
       hands,
       whiteKeys: projectedWhiteKeysRef.current,
@@ -1425,6 +1509,7 @@ export default function MarkerTrackingOverlay({
         const shadowObservation = pipeline.observations.get(fingertip.id);
         const shadowContact = pipeline.shadowContacts.get(fingertip.id);
         const synchronousShadow = pipeline.synchronousMeasurements.get(fingertip.id);
+        const shadowPress = pipeline.shadowPressComparisons.get(fingertip.id);
         nextDebug.push({
           id: fingertip.id,
           handIndex: fingertip.handIndex,
@@ -1453,6 +1538,7 @@ export default function MarkerTrackingOverlay({
           shadowPeakArea: shadowContact?.peakArea ?? null,
           shadowAreaRatio: shadowContact?.areaRatio ?? null,
           synchronousShadow: synchronousShadow ?? null,
+          shadowPress: shadowPress ?? null,
         });
       }
 
@@ -1749,6 +1835,7 @@ export default function MarkerTrackingOverlay({
               Techniques: knuckles {CONTACT_TECHNIQUES.knuckles ? "on" : "off"}{" "}
               · shadows {CONTACT_TECHNIQUES.shadows ? "on" : "off"}{" "}
               · sync shadows {CONTACT_TECHNIQUES.synchronousShadows ? "on" : "off"}{" "}
+              · Y/shadow press {CONTACT_TECHNIQUES.shadowPressHysteresis ? "on" : "off"}{" "}
               · z motion {CONTACT_TECHNIQUES.zMotion ? "on" : "off"}
             </div>
             {!CONTACT_TECHNIQUES.shadows && (
@@ -1777,7 +1864,7 @@ export default function MarkerTrackingOverlay({
                 Synchronous shadow analysis only (same frame, no note events)
               </label>
             )}
-            {(CONTACT_TECHNIQUES.shadows || CONTACT_TECHNIQUES.synchronousShadows || shadowDiagnosticsOnly || synchronousShadowDiagnosticsOnly) && (
+            {(CONTACT_TECHNIQUES.shadows || CONTACT_TECHNIQUES.synchronousShadows || CONTACT_TECHNIQUES.shadowPressHysteresis || shadowDiagnosticsOnly || synchronousShadowDiagnosticsOnly) && (
               <div className="mb-3 border-b border-white/20 pb-2">
                 <div className="mb-1 font-bold">
                   Shadow analysis preview
@@ -1790,12 +1877,19 @@ export default function MarkerTrackingOverlay({
                     ? `Mask unavailable: ${shadowWorkerError}`
                     : !shadowPreviewFinger
                       ? "Show your index finger to start the mask."
-                      : synchronousShadowDiagnosticsOnly || CONTACT_TECHNIQUES.synchronousShadows
-                        ? `Synchronous profile active · ${shadowBackgroundCaptured ? "sheet background ready" : "waiting for a valid marker capture"}`
+                      : CONTACT_TECHNIQUES.shadowPressHysteresis
+                        ? `Y/shadow detector ${shadowBackgroundCaptured ? "ready; start with fingers off the sheet" : "waiting for a valid marker capture"}`
+                        : synchronousShadowDiagnosticsOnly || CONTACT_TECHNIQUES.synchronousShadows
+                          ? `Synchronous profile active · ${shadowBackgroundCaptured ? "sheet background ready" : "waiting for a valid marker capture"}`
                         : shadowMaskCount === 0
                         ? "Waiting for the first mask…"
                         : `Mask active · ${shadowMaskCount} frames received`}
                 </div>
+                {shadowPreviewDebug?.shadowPress && CONTACT_TECHNIQUES.shadowPressHysteresis && (
+                  <div className="mb-2" role="status">
+                    Motion rule: {shadowPreviewDebug.shadowPress.state}; Y decreased {String(shadowPreviewDebug.shadowPress.yDecreased)}; shadow {shadowPreviewDebug.shadowPress.shadowTransition}; area {shadowPreviewDebug.shadowPress.shadowAreaPx?.toFixed(0) ?? "unavailable"} px² (large ≥{LARGE_SHADOW_AREA_PX}, small ≤{SMALL_SHADOW_AREA_PX}). Dotted blue lines are probe paths; solid blue segments show runs when an oval is fitted; purple is the fitted oval.
+                  </div>
+                )}
                 <div className="mb-2 flex items-center gap-2">
                   <span>
                     {shadowBackgroundCaptured
@@ -1906,7 +2000,7 @@ export default function MarkerTrackingOverlay({
                   Red is darkest, blue is middle, and green is brightest. The
                   labels show distinct levels and run lengths in pixels. The
                   gray curve is raw luma; the colored curve is smoothed. Orange
-                  marks the valley's left edge in blue, bottom in orange, and
+                  marks the valley&apos;s left edge in blue, bottom in orange, and
                   sharp-rise point in yellow
                   point. Candidate means an 8–50 luma drop from the local
                   shoulder to the minimum, followed by a rise of at least 20
@@ -1993,7 +2087,19 @@ export default function MarkerTrackingOverlay({
                       ? finger.shadowContact
                       : "disabled"}
                     {" "}· sync shadow={finger.synchronousShadow?.state ?? "unavailable"}
+                    {" "}· motion shadow={finger.shadowPress?.state ?? "unavailable"}
                   </div>
+                  {finger.shadowPress && (
+                    <div>
+                      Y={finger.shadowPress.fingertipY.toFixed(1)}
+                      {finger.shadowPress.yDecreased === null
+                        ? " (no prior sample)"
+                        : finger.shadowPress.yDecreased ? " (decreased)" : " (not decreased)"}
+                      · oval={finger.shadowPress.shadowAreaPx?.toFixed(0) ?? "n/a"} px²
+                      · transition={finger.shadowPress.shadowTransition}
+                      · press={finger.shadowPress.pressCandidate ? "yes" : "no"}
+                    </div>
+                  )}
                   {finger.synchronousShadow && (
                     <div>
                       dip={finger.synchronousShadow.rays[0]?.dipDepth?.toFixed(0) ?? "n/a"}

@@ -1,0 +1,3624 @@
+{
+  "schemaVersion": 1,
+  "exportedAt": "2026-10-28T04:42:44.645Z",
+  "records": [
+    {
+      "id": "034f09a4-7b0b-4500-8e56-bd593ee4dfc4",
+      "savedAt": "2026-10-28T04:41:27.122Z",
+      "finger": "index",
+      "phase": "hover",
+      "context": {
+        "source": {
+          "id": "02d3c887-701b-4ffe-b750-f74a23dab650",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 4.933333,
+          "frame": 148,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "2eba8edb-c58b-4218-8e55-790744f63258",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "measurement": {
+        "coordinateSpace": "analysis-pixels",
+        "tip": {
+          "x": 318,
+          "y": 195
+        },
+        "outward": {
+          "x": 318,
+          "y": 207
+        },
+        "direction": {
+          "x": 0,
+          "y": 1
+        },
+        "settings": {
+          "method": "color",
+          "maximumColorShift": 10,
+          "maximumResidual": 0.12,
+          "noiseFloor": 5,
+          "fullScale": 120,
+          "residualScale": 0.3,
+          "minimumReferenceLuma": 40,
+          "maxDistance": 24,
+          "halfWidth": 2
+        },
+        "status": "insufficient-evidence",
+        "medianWidth": null,
+        "measuredRays": 0,
+        "totalRays": 5,
+        "rays": [
+          {
+            "offset": -2,
+            "origin": {
+              "x": 320,
+              "y": 195
+            },
+            "status": "censored",
+            "width": null,
+            "lowerBound": 23,
+            "firstShadowDistance": 2,
+            "endDistance": 24,
+            "profile": [
+              {
+                "distance": 1,
+                "x": 320,
+                "y": 196,
+                "state": "below-floor",
+                "lumaDrop": 0.08139999955892563,
+                "colorShift": 1.7085427045822144,
+                "residualCurrent": 0.014774708077311516
+              },
+              {
+                "distance": 2,
+                "x": 320,
+                "y": 197,
+                "state": "shadow-compatible",
+                "lumaDrop": 8.221799850463867,
+                "colorShift": 1.442421555519104,
+                "residualCurrent": 0.012353564612567425
+              },
+              {
+                "distance": 3,
+                "x": 320,
+                "y": 198,
+                "state": "shadow-compatible",
+                "lumaDrop": 8.221799850463867,
+                "colorShift": 1.442421555519104,
+                "residualCurrent": 0.012353564612567425
+              },
+              {
+                "distance": 4,
+                "x": 320,
+                "y": 199,
+                "state": "shadow-compatible",
+                "lumaDrop": 8.647000312805176,
+                "colorShift": 0.8610038161277771,
+                "residualCurrent": 0.007788063492625952
+              },
+              {
+                "distance": 5,
+                "x": 320,
+                "y": 200,
+                "state": "shadow-compatible",
+                "lumaDrop": 8.574799537658691,
+                "colorShift": 0.7064167261123657,
+                "residualCurrent": 0.005939329508692026
+              },
+              {
+                "distance": 6,
+                "x": 320,
+                "y": 201,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 7,
+                "x": 320,
+                "y": 202,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 8,
+                "x": 320,
+                "y": 203,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.289999961853027,
+                "colorShift": 0.8874989748001099,
+                "residualCurrent": 0.0074308342300355434
+              },
+              {
+                "distance": 9,
+                "x": 320,
+                "y": 204,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.289999961853027,
+                "colorShift": 0.8874989748001099,
+                "residualCurrent": 0.0074308342300355434
+              },
+              {
+                "distance": 10,
+                "x": 320,
+                "y": 205,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.289999961853027,
+                "colorShift": 0.8874989748001099,
+                "residualCurrent": 0.0074308342300355434
+              },
+              {
+                "distance": 11,
+                "x": 320,
+                "y": 206,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.289999961853027,
+                "colorShift": 0.8874989748001099,
+                "residualCurrent": 0.0074308342300355434
+              },
+              {
+                "distance": 12,
+                "x": 320,
+                "y": 207,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.289999961853027,
+                "colorShift": 0.8874989748001099,
+                "residualCurrent": 0.0074308342300355434
+              },
+              {
+                "distance": 13,
+                "x": 320,
+                "y": 208,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.289999961853027,
+                "colorShift": 0.8874989748001099,
+                "residualCurrent": 0.0074308342300355434
+              },
+              {
+                "distance": 14,
+                "x": 320,
+                "y": 209,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 15,
+                "x": 320,
+                "y": 210,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 16,
+                "x": 320,
+                "y": 211,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 17,
+                "x": 320,
+                "y": 212,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.745734453201294,
+                "residualCurrent": 0.006300888955593109
+              },
+              {
+                "distance": 18,
+                "x": 320,
+                "y": 213,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 19,
+                "x": 320,
+                "y": 214,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.745734453201294,
+                "residualCurrent": 0.006300888955593109
+              },
+              {
+                "distance": 20,
+                "x": 320,
+                "y": 215,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.647000312805176,
+                "colorShift": 0.9028900861740112,
+                "residualCurrent": 0.00821657944470644
+              },
+              {
+                "distance": 21,
+                "x": 320,
+                "y": 216,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.719200134277344,
+                "colorShift": 1.118115782737732,
+                "residualCurrent": 0.010490926913917065
+              },
+              {
+                "distance": 22,
+                "x": 320,
+                "y": 217,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.719200134277344,
+                "colorShift": 1.118115782737732,
+                "residualCurrent": 0.010490926913917065
+              },
+              {
+                "distance": 23,
+                "x": 320,
+                "y": 218,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7504532337188721,
+                "residualCurrent": 0.0063415407203137875
+              },
+              {
+                "distance": 24,
+                "x": 320,
+                "y": 219,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.574799537658691,
+                "colorShift": 0.7635281682014465,
+                "residualCurrent": 0.006467838305979967
+              }
+            ]
+          },
+          {
+            "offset": -1,
+            "origin": {
+              "x": 319,
+              "y": 195
+            },
+            "status": "censored",
+            "width": null,
+            "lowerBound": 23,
+            "firstShadowDistance": 2,
+            "endDistance": 24,
+            "profile": [
+              {
+                "distance": 1,
+                "x": 319,
+                "y": 196,
+                "state": "below-floor",
+                "lumaDrop": 0.08139999955892563,
+                "colorShift": 1.7085427045822144,
+                "residualCurrent": 0.014774708077311516
+              },
+              {
+                "distance": 2,
+                "x": 319,
+                "y": 197,
+                "state": "shadow-compatible",
+                "lumaDrop": 8.221799850463867,
+                "colorShift": 1.442421555519104,
+                "residualCurrent": 0.012353564612567425
+              },
+              {
+                "distance": 3,
+                "x": 319,
+                "y": 198,
+                "state": "shadow-compatible",
+                "lumaDrop": 8.221799850463867,
+                "colorShift": 1.442421555519104,
+                "residualCurrent": 0.012353564612567425
+              },
+              {
+                "distance": 4,
+                "x": 319,
+                "y": 199,
+                "state": "shadow-compatible",
+                "lumaDrop": 8.647000312805176,
+                "colorShift": 0.8610038161277771,
+                "residualCurrent": 0.007788063492625952
+              },
+              {
+                "distance": 5,
+                "x": 319,
+                "y": 200,
+                "state": "shadow-compatible",
+                "lumaDrop": 8.574799537658691,
+                "colorShift": 0.7064167261123657,
+                "residualCurrent": 0.005939329508692026
+              },
+              {
+                "distance": 6,
+                "x": 319,
+                "y": 201,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 7,
+                "x": 319,
+                "y": 202,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.289999961853027,
+                "colorShift": 0.8874989748001099,
+                "residualCurrent": 0.0074308342300355434
+              },
+              {
+                "distance": 8,
+                "x": 319,
+                "y": 203,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 9,
+                "x": 319,
+                "y": 204,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 10,
+                "x": 319,
+                "y": 205,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 11,
+                "x": 319,
+                "y": 206,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 12,
+                "x": 319,
+                "y": 207,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 13,
+                "x": 319,
+                "y": 208,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.289999961853027,
+                "colorShift": 0.8874989748001099,
+                "residualCurrent": 0.0074308342300355434
+              },
+              {
+                "distance": 14,
+                "x": 319,
+                "y": 209,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 15,
+                "x": 319,
+                "y": 210,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 16,
+                "x": 319,
+                "y": 211,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 17,
+                "x": 319,
+                "y": 212,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.745734453201294,
+                "residualCurrent": 0.006300888955593109
+              },
+              {
+                "distance": 18,
+                "x": 319,
+                "y": 213,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 19,
+                "x": 319,
+                "y": 214,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.745734453201294,
+                "residualCurrent": 0.006300888955593109
+              },
+              {
+                "distance": 20,
+                "x": 319,
+                "y": 215,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.745734453201294,
+                "residualCurrent": 0.006300888955593109
+              },
+              {
+                "distance": 21,
+                "x": 319,
+                "y": 216,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7504532337188721,
+                "residualCurrent": 0.0063415407203137875
+              },
+              {
+                "distance": 22,
+                "x": 319,
+                "y": 217,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7504532337188721,
+                "residualCurrent": 0.0063415407203137875
+              },
+              {
+                "distance": 23,
+                "x": 319,
+                "y": 218,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.574799537658691,
+                "colorShift": 0.7635281682014465,
+                "residualCurrent": 0.006467838305979967
+              },
+              {
+                "distance": 24,
+                "x": 319,
+                "y": 219,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.574799537658691,
+                "colorShift": 0.7635281682014465,
+                "residualCurrent": 0.006467838305979967
+              }
+            ]
+          },
+          {
+            "offset": 0,
+            "origin": {
+              "x": 318,
+              "y": 195
+            },
+            "status": "censored",
+            "width": null,
+            "lowerBound": 23,
+            "firstShadowDistance": 2,
+            "endDistance": 24,
+            "profile": [
+              {
+                "distance": 1,
+                "x": 318,
+                "y": 196,
+                "state": "below-floor",
+                "lumaDrop": -0.9186000227928162,
+                "colorShift": 1.6871858835220337,
+                "residualCurrent": 0.01457045879215002
+              },
+              {
+                "distance": 2,
+                "x": 318,
+                "y": 197,
+                "state": "shadow-compatible",
+                "lumaDrop": 6.294000148773193,
+                "colorShift": 1.554832935333252,
+                "residualCurrent": 0.013818190433084965
+              },
+              {
+                "distance": 3,
+                "x": 318,
+                "y": 198,
+                "state": "shadow-compatible",
+                "lumaDrop": 6.294000148773193,
+                "colorShift": 1.554832935333252,
+                "residualCurrent": 0.013818190433084965
+              },
+              {
+                "distance": 4,
+                "x": 318,
+                "y": 199,
+                "state": "shadow-compatible",
+                "lumaDrop": 8.647000312805176,
+                "colorShift": 0.8610038161277771,
+                "residualCurrent": 0.007788063492625952
+              },
+              {
+                "distance": 5,
+                "x": 318,
+                "y": 200,
+                "state": "shadow-compatible",
+                "lumaDrop": 8.574799537658691,
+                "colorShift": 0.7064167261123657,
+                "residualCurrent": 0.005939329508692026
+              },
+              {
+                "distance": 6,
+                "x": 318,
+                "y": 201,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 7,
+                "x": 318,
+                "y": 202,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.289999961853027,
+                "colorShift": 0.8874989748001099,
+                "residualCurrent": 0.0074308342300355434
+              },
+              {
+                "distance": 8,
+                "x": 318,
+                "y": 203,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 9,
+                "x": 318,
+                "y": 204,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 10,
+                "x": 318,
+                "y": 205,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 11,
+                "x": 318,
+                "y": 206,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 12,
+                "x": 318,
+                "y": 207,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 13,
+                "x": 318,
+                "y": 208,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 14,
+                "x": 318,
+                "y": 209,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 15,
+                "x": 318,
+                "y": 210,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 16,
+                "x": 318,
+                "y": 211,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 17,
+                "x": 318,
+                "y": 212,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.745734453201294,
+                "residualCurrent": 0.006300888955593109
+              },
+              {
+                "distance": 18,
+                "x": 318,
+                "y": 213,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.745734453201294,
+                "residualCurrent": 0.006300888955593109
+              },
+              {
+                "distance": 19,
+                "x": 318,
+                "y": 214,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.745734453201294,
+                "residualCurrent": 0.006300888955593109
+              },
+              {
+                "distance": 20,
+                "x": 318,
+                "y": 215,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.745734453201294,
+                "residualCurrent": 0.006300888955593109
+              },
+              {
+                "distance": 21,
+                "x": 318,
+                "y": 216,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.745734453201294,
+                "residualCurrent": 0.006300888955593109
+              },
+              {
+                "distance": 22,
+                "x": 318,
+                "y": 217,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.745734453201294,
+                "residualCurrent": 0.006300888955593109
+              },
+              {
+                "distance": 23,
+                "x": 318,
+                "y": 218,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.745734453201294,
+                "residualCurrent": 0.006300888955593109
+              },
+              {
+                "distance": 24,
+                "x": 318,
+                "y": 219,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.9051040410995483,
+                "residualCurrent": 0.007563378196209669
+              }
+            ]
+          },
+          {
+            "offset": 1,
+            "origin": {
+              "x": 317,
+              "y": 195
+            },
+            "status": "censored",
+            "width": null,
+            "lowerBound": 23,
+            "firstShadowDistance": 2,
+            "endDistance": 24,
+            "profile": [
+              {
+                "distance": 1,
+                "x": 317,
+                "y": 196,
+                "state": "below-floor",
+                "lumaDrop": 0.08139999955892563,
+                "colorShift": 1.7085427045822144,
+                "residualCurrent": 0.014774708077311516
+              },
+              {
+                "distance": 2,
+                "x": 317,
+                "y": 197,
+                "state": "shadow-compatible",
+                "lumaDrop": 5.294000148773193,
+                "colorShift": 1.533571481704712,
+                "residualCurrent": 0.013606775552034378
+              },
+              {
+                "distance": 3,
+                "x": 317,
+                "y": 198,
+                "state": "shadow-compatible",
+                "lumaDrop": 6.294000148773193,
+                "colorShift": 1.554832935333252,
+                "residualCurrent": 0.013818190433084965
+              },
+              {
+                "distance": 4,
+                "x": 317,
+                "y": 199,
+                "state": "shadow-compatible",
+                "lumaDrop": 8.647000312805176,
+                "colorShift": 0.8610038161277771,
+                "residualCurrent": 0.007788063492625952
+              },
+              {
+                "distance": 5,
+                "x": 317,
+                "y": 200,
+                "state": "shadow-compatible",
+                "lumaDrop": 8.574799537658691,
+                "colorShift": 0.7064167261123657,
+                "residualCurrent": 0.005939329508692026
+              },
+              {
+                "distance": 6,
+                "x": 317,
+                "y": 201,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 7,
+                "x": 317,
+                "y": 202,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 8,
+                "x": 317,
+                "y": 203,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 9,
+                "x": 317,
+                "y": 204,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 10,
+                "x": 317,
+                "y": 205,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 11,
+                "x": 317,
+                "y": 206,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 12,
+                "x": 317,
+                "y": 207,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 13,
+                "x": 317,
+                "y": 208,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 14,
+                "x": 317,
+                "y": 209,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 15,
+                "x": 317,
+                "y": 210,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 16,
+                "x": 317,
+                "y": 211,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 17,
+                "x": 317,
+                "y": 212,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 18,
+                "x": 317,
+                "y": 213,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 19,
+                "x": 317,
+                "y": 214,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 20,
+                "x": 317,
+                "y": 215,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 21,
+                "x": 317,
+                "y": 216,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 22,
+                "x": 317,
+                "y": 217,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 23,
+                "x": 317,
+                "y": 218,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 24,
+                "x": 317,
+                "y": 219,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              }
+            ]
+          },
+          {
+            "offset": 2,
+            "origin": {
+              "x": 316,
+              "y": 195
+            },
+            "status": "censored",
+            "width": null,
+            "lowerBound": 23,
+            "firstShadowDistance": 2,
+            "endDistance": 24,
+            "profile": [
+              {
+                "distance": 1,
+                "x": 316,
+                "y": 196,
+                "state": "below-floor",
+                "lumaDrop": 0.15360000729560852,
+                "colorShift": 1.8583269119262695,
+                "residualCurrent": 0.016632458195090294
+              },
+              {
+                "distance": 2,
+                "x": 316,
+                "y": 197,
+                "state": "shadow-compatible",
+                "lumaDrop": 5.294000148773193,
+                "colorShift": 1.533571481704712,
+                "residualCurrent": 0.013606775552034378
+              },
+              {
+                "distance": 3,
+                "x": 316,
+                "y": 198,
+                "state": "shadow-compatible",
+                "lumaDrop": 6.294000148773193,
+                "colorShift": 1.554832935333252,
+                "residualCurrent": 0.013818190433084965
+              },
+              {
+                "distance": 4,
+                "x": 316,
+                "y": 199,
+                "state": "shadow-compatible",
+                "lumaDrop": 8.647000312805176,
+                "colorShift": 0.8610038161277771,
+                "residualCurrent": 0.007788063492625952
+              },
+              {
+                "distance": 5,
+                "x": 316,
+                "y": 200,
+                "state": "shadow-compatible",
+                "lumaDrop": 8.574799537658691,
+                "colorShift": 0.7064167261123657,
+                "residualCurrent": 0.005939329508692026
+              },
+              {
+                "distance": 6,
+                "x": 316,
+                "y": 201,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 7,
+                "x": 316,
+                "y": 202,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 8,
+                "x": 316,
+                "y": 203,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 9,
+                "x": 316,
+                "y": 204,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 10,
+                "x": 316,
+                "y": 205,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 11,
+                "x": 316,
+                "y": 206,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 12,
+                "x": 316,
+                "y": 207,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 13,
+                "x": 316,
+                "y": 208,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 14,
+                "x": 316,
+                "y": 209,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 15,
+                "x": 316,
+                "y": 210,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 16,
+                "x": 316,
+                "y": 211,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 17,
+                "x": 316,
+                "y": 212,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 18,
+                "x": 316,
+                "y": 213,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.574799537658691,
+                "colorShift": 0.7586779594421387,
+                "residualCurrent": 0.0064258580096066
+              },
+              {
+                "distance": 19,
+                "x": 316,
+                "y": 214,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.574799537658691,
+                "colorShift": 0.7586779594421387,
+                "residualCurrent": 0.0064258580096066
+              },
+              {
+                "distance": 20,
+                "x": 316,
+                "y": 215,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 21,
+                "x": 316,
+                "y": 216,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 22,
+                "x": 316,
+                "y": 217,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 23,
+                "x": 316,
+                "y": 218,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 24,
+                "x": 316,
+                "y": 219,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "c34c7413-63d6-4b8b-a355-980e3d8e8e68",
+      "savedAt": "2026-10-28T04:41:55.141Z",
+      "finger": "index",
+      "phase": "hover",
+      "context": {
+        "source": {
+          "id": "02d3c887-701b-4ffe-b750-f74a23dab650",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 4.866666,
+          "frame": 146,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "2eba8edb-c58b-4218-8e55-790744f63258",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "measurement": {
+        "coordinateSpace": "analysis-pixels",
+        "tip": {
+          "x": 315,
+          "y": 173
+        },
+        "outward": {
+          "x": 316,
+          "y": 194
+        },
+        "direction": {
+          "x": 0.04756514941544941,
+          "y": 0.9988681377244377
+        },
+        "settings": {
+          "method": "color",
+          "maximumColorShift": 10,
+          "maximumResidual": 0.12,
+          "noiseFloor": 5,
+          "fullScale": 120,
+          "residualScale": 0.3,
+          "minimumReferenceLuma": 40,
+          "maxDistance": 24,
+          "halfWidth": 2
+        },
+        "status": "insufficient-evidence",
+        "medianWidth": null,
+        "measuredRays": 0,
+        "totalRays": 5,
+        "rays": [
+          {
+            "offset": -2,
+            "origin": {
+              "x": 316.99773627544886,
+              "y": 172.9048697011691
+            },
+            "status": "censored",
+            "width": null,
+            "lowerBound": 24,
+            "firstShadowDistance": 1,
+            "endDistance": 24,
+            "profile": [
+              {
+                "distance": 1,
+                "x": 317,
+                "y": 174,
+                "state": "shadow-compatible",
+                "lumaDrop": 72.4448013305664,
+                "colorShift": 5.687483310699463,
+                "residualCurrent": 0.047213755548000336
+              },
+              {
+                "distance": 2,
+                "x": 317,
+                "y": 175,
+                "state": "shadow-compatible",
+                "lumaDrop": 69.79779815673828,
+                "colorShift": 4.4214768409729,
+                "residualCurrent": 0.03674831986427307
+              },
+              {
+                "distance": 3,
+                "x": 317,
+                "y": 176,
+                "state": "shadow-compatible",
+                "lumaDrop": 66.0103988647461,
+                "colorShift": 3.802145004272461,
+                "residualCurrent": 0.03165723755955696
+              },
+              {
+                "distance": 4,
+                "x": 317,
+                "y": 177,
+                "state": "shadow-compatible",
+                "lumaDrop": 61.652198791503906,
+                "colorShift": 3.407252073287964,
+                "residualCurrent": 0.028945600613951683
+              },
+              {
+                "distance": 5,
+                "x": 317,
+                "y": 178,
+                "state": "shadow-compatible",
+                "lumaDrop": 61.29520034790039,
+                "colorShift": 3.334315061569214,
+                "residualCurrent": 0.02769242785871029
+              },
+              {
+                "distance": 6,
+                "x": 317,
+                "y": 179,
+                "state": "shadow-compatible",
+                "lumaDrop": 59.222999572753906,
+                "colorShift": 3.0371859073638916,
+                "residualCurrent": 0.02543521672487259
+              },
+              {
+                "distance": 7,
+                "x": 317,
+                "y": 180,
+                "state": "shadow-compatible",
+                "lumaDrop": 52.720401763916016,
+                "colorShift": 2.2537879943847656,
+                "residualCurrent": 0.01876080594956875
+              },
+              {
+                "distance": 8,
+                "x": 317,
+                "y": 181,
+                "state": "shadow-compatible",
+                "lumaDrop": 50.222999572753906,
+                "colorShift": 2.7249104976654053,
+                "residualCurrent": 0.02303476259112358
+              },
+              {
+                "distance": 9,
+                "x": 317,
+                "y": 182,
+                "state": "shadow-compatible",
+                "lumaDrop": 51.29520034790039,
+                "colorShift": 2.9635682106018066,
+                "residualCurrent": 0.0246549341827631
+              },
+              {
+                "distance": 10,
+                "x": 317,
+                "y": 183,
+                "state": "shadow-compatible",
+                "lumaDrop": 44.720401763916016,
+                "colorShift": 2.003983736038208,
+                "residualCurrent": 0.01679001748561859
+              },
+              {
+                "distance": 11,
+                "x": 318,
+                "y": 184,
+                "state": "shadow-compatible",
+                "lumaDrop": 44.07740020751953,
+                "colorShift": 1.9875071048736572,
+                "residualCurrent": 0.016797976568341255
+              },
+              {
+                "distance": 12,
+                "x": 318,
+                "y": 185,
+                "state": "shadow-compatible",
+                "lumaDrop": 42.720401763916016,
+                "colorShift": 1.9297863245010376,
+                "residualCurrent": 0.016213979572057724
+              },
+              {
+                "distance": 13,
+                "x": 318,
+                "y": 186,
+                "state": "shadow-compatible",
+                "lumaDrop": 40.720401763916016,
+                "colorShift": 1.873511552810669,
+                "residualCurrent": 0.015787992626428604
+              },
+              {
+                "distance": 14,
+                "x": 318,
+                "y": 187,
+                "state": "shadow-compatible",
+                "lumaDrop": 39.57600021362305,
+                "colorShift": 1.5567506551742554,
+                "residualCurrent": 0.014573758468031883
+              },
+              {
+                "distance": 15,
+                "x": 318,
+                "y": 188,
+                "state": "shadow-compatible",
+                "lumaDrop": 36.35820007324219,
+                "colorShift": 0.726391613483429,
+                "residualCurrent": 0.006766915787011385
+              },
+              {
+                "distance": 16,
+                "x": 318,
+                "y": 189,
+                "state": "shadow-compatible",
+                "lumaDrop": 33.145599365234375,
+                "colorShift": 1.0000602006912231,
+                "residualCurrent": 0.008982502855360508
+              },
+              {
+                "distance": 17,
+                "x": 318,
+                "y": 190,
+                "state": "shadow-compatible",
+                "lumaDrop": 31.6481990814209,
+                "colorShift": 1.4215055704116821,
+                "residualCurrent": 0.013092108070850372
+              },
+              {
+                "distance": 18,
+                "x": 318,
+                "y": 191,
+                "state": "shadow-compatible",
+                "lumaDrop": 27.720399856567383,
+                "colorShift": 1.5037198066711426,
+                "residualCurrent": 0.013019622303545475
+              },
+              {
+                "distance": 19,
+                "x": 318,
+                "y": 192,
+                "state": "shadow-compatible",
+                "lumaDrop": 25.720399856567383,
+                "colorShift": 1.4593102931976318,
+                "residualCurrent": 0.012728895992040634
+              },
+              {
+                "distance": 20,
+                "x": 318,
+                "y": 193,
+                "state": "shadow-compatible",
+                "lumaDrop": 22.50779914855957,
+                "colorShift": 1.70348060131073,
+                "residualCurrent": 0.01476937998086214
+              },
+              {
+                "distance": 21,
+                "x": 318,
+                "y": 194,
+                "state": "shadow-compatible",
+                "lumaDrop": 18.6481990814209,
+                "colorShift": 1.2859930992126465,
+                "residualCurrent": 0.011748699471354485
+              },
+              {
+                "distance": 22,
+                "x": 318,
+                "y": 195,
+                "state": "shadow-compatible",
+                "lumaDrop": 16.6481990814209,
+                "colorShift": 1.2843252420425415,
+                "residualCurrent": 0.011591407470405102
+              },
+              {
+                "distance": 23,
+                "x": 318,
+                "y": 196,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.289999961853027,
+                "colorShift": 0.8973629474639893,
+                "residualCurrent": 0.007526703644543886
+              },
+              {
+                "distance": 24,
+                "x": 318,
+                "y": 197,
+                "state": "shadow-compatible",
+                "lumaDrop": 8.574799537658691,
+                "colorShift": 0.7064167261123657,
+                "residualCurrent": 0.005939329508692026
+              }
+            ]
+          },
+          {
+            "offset": -1,
+            "origin": {
+              "x": 315.99886813772446,
+              "y": 172.95243485058455
+            },
+            "status": "censored",
+            "width": null,
+            "lowerBound": 24,
+            "firstShadowDistance": 1,
+            "endDistance": 24,
+            "profile": [
+              {
+                "distance": 1,
+                "x": 316,
+                "y": 174,
+                "state": "shadow-compatible",
+                "lumaDrop": 81.4448013305664,
+                "colorShift": 6.320516109466553,
+                "residualCurrent": 0.052527062594890594
+              },
+              {
+                "distance": 2,
+                "x": 316,
+                "y": 175,
+                "state": "shadow-compatible",
+                "lumaDrop": 78.79779815673828,
+                "colorShift": 4.945793628692627,
+                "residualCurrent": 0.041046809405088425
+              },
+              {
+                "distance": 3,
+                "x": 316,
+                "y": 176,
+                "state": "shadow-compatible",
+                "lumaDrop": 78.79779815673828,
+                "colorShift": 4.945793628692627,
+                "residualCurrent": 0.041046809405088425
+              },
+              {
+                "distance": 4,
+                "x": 316,
+                "y": 177,
+                "state": "shadow-compatible",
+                "lumaDrop": 75.36740112304688,
+                "colorShift": 4.279081344604492,
+                "residualCurrent": 0.03597225248813629
+              },
+              {
+                "distance": 5,
+                "x": 316,
+                "y": 178,
+                "state": "shadow-compatible",
+                "lumaDrop": 76.29519653320312,
+                "colorShift": 4.045764923095703,
+                "residualCurrent": 0.0336783304810524
+              },
+              {
+                "distance": 6,
+                "x": 316,
+                "y": 179,
+                "state": "shadow-compatible",
+                "lumaDrop": 72.50779724121094,
+                "colorShift": 3.4137485027313232,
+                "residualCurrent": 0.02840692549943924
+              },
+              {
+                "distance": 7,
+                "x": 316,
+                "y": 180,
+                "state": "shadow-compatible",
+                "lumaDrop": 64.7926025390625,
+                "colorShift": 2.908113479614258,
+                "residualCurrent": 0.024432865902781487
+              },
+              {
+                "distance": 8,
+                "x": 316,
+                "y": 181,
+                "state": "shadow-compatible",
+                "lumaDrop": 61.29520034790039,
+                "colorShift": 3.364001512527466,
+                "residualCurrent": 0.0279383547604084
+              },
+              {
+                "distance": 9,
+                "x": 316,
+                "y": 182,
+                "state": "shadow-compatible",
+                "lumaDrop": 62.29520034790039,
+                "colorShift": 3.407252073287964,
+                "residualCurrent": 0.028297506272792816
+              },
+              {
+                "distance": 10,
+                "x": 316,
+                "y": 183,
+                "state": "shadow-compatible",
+                "lumaDrop": 58.43960189819336,
+                "colorShift": 3.668318271636963,
+                "residualCurrent": 0.030946584418416023
+              },
+              {
+                "distance": 11,
+                "x": 317,
+                "y": 184,
+                "state": "shadow-compatible",
+                "lumaDrop": 39.720401763916016,
+                "colorShift": 1.8458995819091797,
+                "residualCurrent": 0.015581038780510426
+              },
+              {
+                "distance": 12,
+                "x": 317,
+                "y": 185,
+                "state": "shadow-compatible",
+                "lumaDrop": 36.860801696777344,
+                "colorShift": 1.2457399368286133,
+                "residualCurrent": 0.011747442185878754
+              },
+              {
+                "distance": 13,
+                "x": 317,
+                "y": 186,
+                "state": "shadow-compatible",
+                "lumaDrop": 32.57600021362305,
+                "colorShift": 1.5275386571884155,
+                "residualCurrent": 0.013734248466789722
+              },
+              {
+                "distance": 14,
+                "x": 317,
+                "y": 187,
+                "state": "shadow-compatible",
+                "lumaDrop": 32.57600021362305,
+                "colorShift": 1.5275386571884155,
+                "residualCurrent": 0.013734248466789722
+              },
+              {
+                "distance": 15,
+                "x": 317,
+                "y": 188,
+                "state": "shadow-compatible",
+                "lumaDrop": 33.43040084838867,
+                "colorShift": 0.8439995646476746,
+                "residualCurrent": 0.007070634048432112
+              },
+              {
+                "distance": 16,
+                "x": 317,
+                "y": 189,
+                "state": "shadow-compatible",
+                "lumaDrop": 31.145599365234375,
+                "colorShift": 0.9578959941864014,
+                "residualCurrent": 0.008740759454667568
+              },
+              {
+                "distance": 17,
+                "x": 317,
+                "y": 190,
+                "state": "shadow-compatible",
+                "lumaDrop": 30.6481990814209,
+                "colorShift": 1.399175763130188,
+                "residualCurrent": 0.01296789851039648
+              },
+              {
+                "distance": 18,
+                "x": 317,
+                "y": 191,
+                "state": "shadow-compatible",
+                "lumaDrop": 24.792600631713867,
+                "colorShift": 1.6051077842712402,
+                "residualCurrent": 0.013438142836093903
+              },
+              {
+                "distance": 19,
+                "x": 317,
+                "y": 192,
+                "state": "shadow-compatible",
+                "lumaDrop": 22.579999923706055,
+                "colorShift": 1.8694169521331787,
+                "residualCurrent": 0.015650421380996704
+              },
+              {
+                "distance": 20,
+                "x": 317,
+                "y": 193,
+                "state": "shadow-compatible",
+                "lumaDrop": 22.43560028076172,
+                "colorShift": 1.538159966468811,
+                "residualCurrent": 0.014346911571919918
+              },
+              {
+                "distance": 21,
+                "x": 317,
+                "y": 194,
+                "state": "shadow-compatible",
+                "lumaDrop": 18.6481990814209,
+                "colorShift": 1.2859930992126465,
+                "residualCurrent": 0.011748699471354485
+              },
+              {
+                "distance": 22,
+                "x": 317,
+                "y": 195,
+                "state": "shadow-compatible",
+                "lumaDrop": 16.86079978942871,
+                "colorShift": 1.1314475536346436,
+                "residualCurrent": 0.009700235910713673
+              },
+              {
+                "distance": 23,
+                "x": 317,
+                "y": 196,
+                "state": "shadow-compatible",
+                "lumaDrop": 13.574799537658691,
+                "colorShift": 0.7944570183753967,
+                "residualCurrent": 0.006764791905879974
+              },
+              {
+                "distance": 24,
+                "x": 317,
+                "y": 197,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.574799537658691,
+                "colorShift": 0.7764716148376465,
+                "residualCurrent": 0.006593882571905851
+              }
+            ]
+          },
+          {
+            "offset": 0,
+            "origin": {
+              "x": 315,
+              "y": 173
+            },
+            "status": "censored",
+            "width": null,
+            "lowerBound": 24,
+            "firstShadowDistance": 1,
+            "endDistance": 24,
+            "profile": [
+              {
+                "distance": 1,
+                "x": 315,
+                "y": 174,
+                "state": "shadow-compatible",
+                "lumaDrop": 89.79779815673828,
+                "colorShift": 5.703850269317627,
+                "residualCurrent": 0.047343410551548004
+              },
+              {
+                "distance": 2,
+                "x": 315,
+                "y": 175,
+                "state": "shadow-compatible",
+                "lumaDrop": 89.79779815673828,
+                "colorShift": 5.703850269317627,
+                "residualCurrent": 0.047343410551548004
+              },
+              {
+                "distance": 3,
+                "x": 315,
+                "y": 176,
+                "state": "shadow-compatible",
+                "lumaDrop": 88.79779815673828,
+                "colorShift": 5.628690242767334,
+                "residualCurrent": 0.04671580716967583
+              },
+              {
+                "distance": 4,
+                "x": 315,
+                "y": 177,
+                "state": "shadow-compatible",
+                "lumaDrop": 87.29519653320312,
+                "colorShift": 4.791407108306885,
+                "residualCurrent": 0.0400647334754467
+              },
+              {
+                "distance": 5,
+                "x": 315,
+                "y": 178,
+                "state": "shadow-compatible",
+                "lumaDrop": 82.86479949951172,
+                "colorShift": 4.0633416175842285,
+                "residualCurrent": 0.03553267940878868
+              },
+              {
+                "distance": 6,
+                "x": 315,
+                "y": 179,
+                "state": "shadow-compatible",
+                "lumaDrop": 81.29519653320312,
+                "colorShift": 4.367904186248779,
+                "residualCurrent": 0.0364261195063591
+              },
+              {
+                "distance": 7,
+                "x": 315,
+                "y": 180,
+                "state": "shadow-compatible",
+                "lumaDrop": 77.15480041503906,
+                "colorShift": 4.835686683654785,
+                "residualCurrent": 0.04058084636926651
+              },
+              {
+                "distance": 8,
+                "x": 315,
+                "y": 181,
+                "state": "shadow-compatible",
+                "lumaDrop": 73.4395980834961,
+                "colorShift": 4.413632392883301,
+                "residualCurrent": 0.037622805684804916
+              },
+              {
+                "distance": 9,
+                "x": 315,
+                "y": 182,
+                "state": "shadow-compatible",
+                "lumaDrop": 71.01439666748047,
+                "colorShift": 5.151515007019043,
+                "residualCurrent": 0.043476466089487076
+              },
+              {
+                "distance": 10,
+                "x": 315,
+                "y": 183,
+                "state": "shadow-compatible",
+                "lumaDrop": 66.22699737548828,
+                "colorShift": 4.454317569732666,
+                "residualCurrent": 0.03762148320674896
+              },
+              {
+                "distance": 11,
+                "x": 316,
+                "y": 184,
+                "state": "shadow-compatible",
+                "lumaDrop": 55.652198791503906,
+                "colorShift": 3.1300265789031982,
+                "residualCurrent": 0.026456814259290695
+              },
+              {
+                "distance": 12,
+                "x": 316,
+                "y": 185,
+                "state": "shadow-compatible",
+                "lumaDrop": 52.5078010559082,
+                "colorShift": 2.606104850769043,
+                "residualCurrent": 0.02168496884405613
+              },
+              {
+                "distance": 13,
+                "x": 316,
+                "y": 186,
+                "state": "shadow-compatible",
+                "lumaDrop": 46.5078010559082,
+                "colorShift": 2.4047183990478516,
+                "residualCurrent": 0.02007593959569931
+              },
+              {
+                "distance": 14,
+                "x": 316,
+                "y": 187,
+                "state": "shadow-compatible",
+                "lumaDrop": 43.64820098876953,
+                "colorShift": 1.7683961391448975,
+                "residualCurrent": 0.015496465377509594
+              },
+              {
+                "distance": 15,
+                "x": 316,
+                "y": 188,
+                "state": "shadow-compatible",
+                "lumaDrop": 44.93299865722656,
+                "colorShift": 1.63246488571167,
+                "residualCurrent": 0.013731532730162144
+              },
+              {
+                "distance": 16,
+                "x": 316,
+                "y": 189,
+                "state": "shadow-compatible",
+                "lumaDrop": 41.720401763916016,
+                "colorShift": 1.9014716148376465,
+                "residualCurrent": 0.01599895767867565
+              },
+              {
+                "distance": 17,
+                "x": 316,
+                "y": 190,
+                "state": "shadow-compatible",
+                "lumaDrop": 38.64820098876953,
+                "colorShift": 1.5979857444763184,
+                "residualCurrent": 0.014165392145514488
+              },
+              {
+                "distance": 18,
+                "x": 316,
+                "y": 191,
+                "state": "shadow-compatible",
+                "lumaDrop": 32.00519943237305,
+                "colorShift": 1.4548991918563843,
+                "residualCurrent": 0.012112189084291458
+              },
+              {
+                "distance": 19,
+                "x": 316,
+                "y": 192,
+                "state": "shadow-compatible",
+                "lumaDrop": 28.07740020751953,
+                "colorShift": 1.5371004343032837,
+                "residualCurrent": 0.012830101884901524
+              },
+              {
+                "distance": 20,
+                "x": 316,
+                "y": 193,
+                "state": "shadow-compatible",
+                "lumaDrop": 29.290000915527344,
+                "colorShift": 1.2267417907714844,
+                "residualCurrent": 0.01028577983379364
+              },
+              {
+                "distance": 21,
+                "x": 316,
+                "y": 194,
+                "state": "shadow-compatible",
+                "lumaDrop": 26.145599365234375,
+                "colorShift": 0.8276130557060242,
+                "residualCurrent": 0.007854212075471878
+              },
+              {
+                "distance": 22,
+                "x": 316,
+                "y": 195,
+                "state": "shadow-compatible",
+                "lumaDrop": 21.145599365234375,
+                "colorShift": 0.8172146677970886,
+                "residualCurrent": 0.007494762074202299
+              },
+              {
+                "distance": 23,
+                "x": 316,
+                "y": 196,
+                "state": "shadow-compatible",
+                "lumaDrop": 17.502599716186523,
+                "colorShift": 0.7064167261123657,
+                "residualCurrent": 0.005881130695343018
+              },
+              {
+                "distance": 24,
+                "x": 316,
+                "y": 197,
+                "state": "shadow-compatible",
+                "lumaDrop": 15.21780014038086,
+                "colorShift": 0.812637209892273,
+                "residualCurrent": 0.007323835045099258
+              }
+            ]
+          },
+          {
+            "offset": 1,
+            "origin": {
+              "x": 314.00113186227554,
+              "y": 173.04756514941545
+            },
+            "status": "censored",
+            "width": null,
+            "lowerBound": 24,
+            "firstShadowDistance": 1,
+            "endDistance": 24,
+            "profile": [
+              {
+                "distance": 1,
+                "x": 314,
+                "y": 174,
+                "state": "shadow-compatible",
+                "lumaDrop": 93.58519744873047,
+                "colorShift": 6.527886867523193,
+                "residualCurrent": 0.05417667329311371
+              },
+              {
+                "distance": 2,
+                "x": 314,
+                "y": 175,
+                "state": "shadow-compatible",
+                "lumaDrop": 93.58519744873047,
+                "colorShift": 6.527886867523193,
+                "residualCurrent": 0.05417667329311371
+              },
+              {
+                "distance": 3,
+                "x": 314,
+                "y": 176,
+                "state": "shadow-compatible",
+                "lumaDrop": 93.58519744873047,
+                "colorShift": 6.527886867523193,
+                "residualCurrent": 0.05417667329311371
+              },
+              {
+                "distance": 4,
+                "x": 314,
+                "y": 177,
+                "state": "shadow-compatible",
+                "lumaDrop": 92.4395980834961,
+                "colorShift": 5.723470211029053,
+                "residualCurrent": 0.04947692155838013
+              },
+              {
+                "distance": 5,
+                "x": 314,
+                "y": 178,
+                "state": "shadow-compatible",
+                "lumaDrop": 90.86479949951172,
+                "colorShift": 4.560700416564941,
+                "residualCurrent": 0.040199436247348785
+              },
+              {
+                "distance": 6,
+                "x": 314,
+                "y": 179,
+                "state": "shadow-compatible",
+                "lumaDrop": 89.08260345458984,
+                "colorShift": 5.420286178588867,
+                "residualCurrent": 0.04527677223086357
+              },
+              {
+                "distance": 7,
+                "x": 314,
+                "y": 180,
+                "state": "shadow-compatible",
+                "lumaDrop": 88.87000274658203,
+                "colorShift": 5.847665786743164,
+                "residualCurrent": 0.04876641184091568
+              },
+              {
+                "distance": 8,
+                "x": 314,
+                "y": 181,
+                "state": "shadow-compatible",
+                "lumaDrop": 84.01439666748047,
+                "colorShift": 6.022508144378662,
+                "residualCurrent": 0.05117257684469223
+              },
+              {
+                "distance": 9,
+                "x": 314,
+                "y": 182,
+                "state": "shadow-compatible",
+                "lumaDrop": 80.72959899902344,
+                "colorShift": 5.995670795440674,
+                "residualCurrent": 0.050181642174720764
+              },
+              {
+                "distance": 10,
+                "x": 314,
+                "y": 183,
+                "state": "shadow-compatible",
+                "lumaDrop": 77.94619750976562,
+                "colorShift": 6.556473731994629,
+                "residualCurrent": 0.05675983056426048
+              },
+              {
+                "distance": 11,
+                "x": 315,
+                "y": 184,
+                "state": "shadow-compatible",
+                "lumaDrop": 62.43960189819336,
+                "colorShift": 3.85107159614563,
+                "residualCurrent": 0.03257526829838753
+              },
+              {
+                "distance": 12,
+                "x": 315,
+                "y": 185,
+                "state": "shadow-compatible",
+                "lumaDrop": 61.51179885864258,
+                "colorShift": 4.02618408203125,
+                "residualCurrent": 0.03463052958250046
+              },
+              {
+                "distance": 13,
+                "x": 315,
+                "y": 186,
+                "state": "shadow-compatible",
+                "lumaDrop": 59.29520034790039,
+                "colorShift": 3.2793493270874023,
+                "residualCurrent": 0.027237700298428535
+              },
+              {
+                "distance": 14,
+                "x": 315,
+                "y": 187,
+                "state": "shadow-compatible",
+                "lumaDrop": 57.29520034790039,
+                "colorShift": 3.1970760822296143,
+                "residualCurrent": 0.026559846475720406
+              },
+              {
+                "distance": 15,
+                "x": 315,
+                "y": 188,
+                "state": "shadow-compatible",
+                "lumaDrop": 52.58000183105469,
+                "colorShift": 2.8333332538604736,
+                "residualCurrent": 0.023592013865709305
+              },
+              {
+                "distance": 16,
+                "x": 315,
+                "y": 189,
+                "state": "shadow-compatible",
+                "lumaDrop": 47.792598724365234,
+                "colorShift": 2.292083740234375,
+                "residualCurrent": 0.019067049026489258
+              },
+              {
+                "distance": 17,
+                "x": 315,
+                "y": 190,
+                "state": "shadow-compatible",
+                "lumaDrop": 42.93299865722656,
+                "colorShift": 1.5926859378814697,
+                "residualCurrent": 0.013441858813166618
+              },
+              {
+                "distance": 18,
+                "x": 315,
+                "y": 191,
+                "state": "shadow-compatible",
+                "lumaDrop": 39.720401763916016,
+                "colorShift": 1.8605680465698242,
+                "residualCurrent": 0.015699531883001328
+              },
+              {
+                "distance": 19,
+                "x": 315,
+                "y": 192,
+                "state": "shadow-compatible",
+                "lumaDrop": 35.93299865722656,
+                "colorShift": 1.4140383005142212,
+                "residualCurrent": 0.012160553596913815
+              },
+              {
+                "distance": 20,
+                "x": 315,
+                "y": 193,
+                "state": "shadow-compatible",
+                "lumaDrop": 35.574798583984375,
+                "colorShift": 1.2457399368286133,
+                "residualCurrent": 0.011256450787186623
+              },
+              {
+                "distance": 21,
+                "x": 315,
+                "y": 194,
+                "state": "shadow-compatible",
+                "lumaDrop": 30.574800491333008,
+                "colorShift": 1.1328381299972534,
+                "residualCurrent": 0.010108926333487034
+              },
+              {
+                "distance": 22,
+                "x": 315,
+                "y": 195,
+                "state": "shadow-compatible",
+                "lumaDrop": 26.430400848388672,
+                "colorShift": 0.7064167261123657,
+                "residualCurrent": 0.006106031127274036
+              },
+              {
+                "distance": 23,
+                "x": 315,
+                "y": 196,
+                "state": "shadow-compatible",
+                "lumaDrop": 21.430400848388672,
+                "colorShift": 0.6147560477256775,
+                "residualCurrent": 0.005564394872635603
+              },
+              {
+                "distance": 24,
+                "x": 315,
+                "y": 197,
+                "state": "shadow-compatible",
+                "lumaDrop": 20.430400848388672,
+                "colorShift": 0.5970372557640076,
+                "residualCurrent": 0.005471617449074984
+              }
+            ]
+          },
+          {
+            "offset": 2,
+            "origin": {
+              "x": 313.00226372455114,
+              "y": 173.0951302988309
+            },
+            "status": "censored",
+            "width": null,
+            "lowerBound": 24,
+            "firstShadowDistance": 1,
+            "endDistance": 24,
+            "profile": [
+              {
+                "distance": 1,
+                "x": 313,
+                "y": 174,
+                "state": "shadow-compatible",
+                "lumaDrop": 96.79779815673828,
+                "colorShift": 6.271102428436279,
+                "residualCurrent": 0.05209781229496002
+              },
+              {
+                "distance": 2,
+                "x": 313,
+                "y": 175,
+                "state": "shadow-compatible",
+                "lumaDrop": 95.79779815673828,
+                "colorShift": 6.185360908508301,
+                "residualCurrent": 0.05137738212943077
+              },
+              {
+                "distance": 3,
+                "x": 313,
+                "y": 176,
+                "state": "shadow-compatible",
+                "lumaDrop": 94.58519744873047,
+                "colorShift": 6.614989280700684,
+                "residualCurrent": 0.054905004799366
+              },
+              {
+                "distance": 4,
+                "x": 313,
+                "y": 177,
+                "state": "shadow-compatible",
+                "lumaDrop": 94.36740112304688,
+                "colorShift": 5.584244251251221,
+                "residualCurrent": 0.04751802980899811
+              },
+              {
+                "distance": 5,
+                "x": 313,
+                "y": 178,
+                "state": "shadow-compatible",
+                "lumaDrop": 94.58000183105469,
+                "colorShift": 5.063900470733643,
+                "residualCurrent": 0.04335993900895119
+              },
+              {
+                "distance": 6,
+                "x": 313,
+                "y": 179,
+                "state": "shadow-compatible",
+                "lumaDrop": 93.29519653320312,
+                "colorShift": 5.211800575256348,
+                "residualCurrent": 0.04370638355612755
+              },
+              {
+                "distance": 7,
+                "x": 313,
+                "y": 180,
+                "state": "shadow-compatible",
+                "lumaDrop": 91.79779815673828,
+                "colorShift": 5.858372688293457,
+                "residualCurrent": 0.0486355684697628
+              },
+              {
+                "distance": 8,
+                "x": 313,
+                "y": 181,
+                "state": "shadow-compatible",
+                "lumaDrop": 91.94219970703125,
+                "colorShift": 6.371610641479492,
+                "residualCurrent": 0.05369815602898598
+              },
+              {
+                "distance": 9,
+                "x": 313,
+                "y": 182,
+                "state": "shadow-compatible",
+                "lumaDrop": 89.72959899902344,
+                "colorShift": 6.696969509124756,
+                "residualCurrent": 0.0562366247177124
+              },
+              {
+                "distance": 10,
+                "x": 313,
+                "y": 183,
+                "state": "shadow-compatible",
+                "lumaDrop": 86.15879821777344,
+                "colorShift": 6.728976249694824,
+                "residualCurrent": 0.058947380632162094
+              },
+              {
+                "distance": 11,
+                "x": 314,
+                "y": 184,
+                "state": "shadow-compatible",
+                "lumaDrop": 74.8740005493164,
+                "colorShift": 6.083759784698486,
+                "residualCurrent": 0.05188426375389099
+              },
+              {
+                "distance": 12,
+                "x": 314,
+                "y": 185,
+                "state": "shadow-compatible",
+                "lumaDrop": 69.37139892578125,
+                "colorShift": 5.091768264770508,
+                "residualCurrent": 0.044510893523693085
+              },
+              {
+                "distance": 13,
+                "x": 314,
+                "y": 186,
+                "state": "shadow-compatible",
+                "lumaDrop": 66.29920196533203,
+                "colorShift": 4.685548782348633,
+                "residualCurrent": 0.040173713117837906
+              },
+              {
+                "distance": 14,
+                "x": 314,
+                "y": 187,
+                "state": "shadow-compatible",
+                "lumaDrop": 63.652198791503906,
+                "colorShift": 3.495671033859253,
+                "residualCurrent": 0.029746005311608315
+              },
+              {
+                "distance": 15,
+                "x": 314,
+                "y": 188,
+                "state": "shadow-compatible",
+                "lumaDrop": 60.43960189819336,
+                "colorShift": 3.7583770751953125,
+                "residualCurrent": 0.031748365610837936
+              },
+              {
+                "distance": 16,
+                "x": 314,
+                "y": 189,
+                "state": "shadow-compatible",
+                "lumaDrop": 57.652198791503906,
+                "colorShift": 3.237921714782715,
+                "residualCurrent": 0.027417749166488647
+              },
+              {
+                "distance": 17,
+                "x": 314,
+                "y": 190,
+                "state": "shadow-compatible",
+                "lumaDrop": 53.00519943237305,
+                "colorShift": 2.0817766189575195,
+                "residualCurrent": 0.01738426275551319
+              },
+              {
+                "distance": 18,
+                "x": 314,
+                "y": 191,
+                "state": "shadow-compatible",
+                "lumaDrop": 49.720401763916016,
+                "colorShift": 2.156981945037842,
+                "residualCurrent": 0.017987703904509544
+              },
+              {
+                "distance": 19,
+                "x": 314,
+                "y": 192,
+                "state": "shadow-compatible",
+                "lumaDrop": 45.00519943237305,
+                "colorShift": 1.8398268222808838,
+                "residualCurrent": 0.015299146063625813
+              },
+              {
+                "distance": 20,
+                "x": 314,
+                "y": 193,
+                "state": "shadow-compatible",
+                "lumaDrop": 44.574798583984375,
+                "colorShift": 1.4673583507537842,
+                "residualCurrent": 0.013531693257391453
+              },
+              {
+                "distance": 21,
+                "x": 314,
+                "y": 194,
+                "state": "shadow-compatible",
+                "lumaDrop": 40.574798583984375,
+                "colorShift": 1.3657573461532593,
+                "residualCurrent": 0.012485597282648087
+              },
+              {
+                "distance": 22,
+                "x": 314,
+                "y": 195,
+                "state": "shadow-compatible",
+                "lumaDrop": 36.502601623535156,
+                "colorShift": 1.0874927043914795,
+                "residualCurrent": 0.009261319413781166
+              },
+              {
+                "distance": 23,
+                "x": 314,
+                "y": 196,
+                "state": "shadow-compatible",
+                "lumaDrop": 30.430400848388672,
+                "colorShift": 0.7836426496505737,
+                "residualCurrent": 0.006628861650824547
+              },
+              {
+                "distance": 24,
+                "x": 314,
+                "y": 197,
+                "state": "shadow-compatible",
+                "lumaDrop": 26.358200073242188,
+                "colorShift": 0.6911235451698303,
+                "residualCurrent": 0.006033466197550297
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "aece58e1-9986-424f-ab8c-1d37cd35adc3",
+      "savedAt": "2026-10-28T04:42:43.682Z",
+      "finger": "index",
+      "phase": "release",
+      "context": {
+        "source": {
+          "id": "02d3c887-701b-4ffe-b750-f74a23dab650",
+          "name": "cv_automation_test_1.mov",
+          "kind": "video",
+          "nativeWidth": 1620,
+          "nativeHeight": 1080,
+          "timeSeconds": 5.1,
+          "frame": 153,
+          "frameIdentity": "approximate",
+          "fps": 30
+        },
+        "reference": {
+          "id": "2eba8edb-c58b-4218-8e55-790744f63258",
+          "name": "background.png",
+          "timeSeconds": null
+        }
+      },
+      "measurement": {
+        "coordinateSpace": "analysis-pixels",
+        "tip": {
+          "x": 319,
+          "y": 186
+        },
+        "outward": {
+          "x": 320,
+          "y": 201
+        },
+        "direction": {
+          "x": 0.06651901052377392,
+          "y": 0.9977851578566088
+        },
+        "settings": {
+          "method": "color",
+          "maximumColorShift": 10,
+          "maximumResidual": 0.12,
+          "noiseFloor": 5,
+          "fullScale": 120,
+          "residualScale": 0.3,
+          "minimumReferenceLuma": 40,
+          "maxDistance": 24,
+          "halfWidth": 2
+        },
+        "status": "insufficient-evidence",
+        "medianWidth": null,
+        "measuredRays": 0,
+        "totalRays": 5,
+        "rays": [
+          {
+            "offset": -2,
+            "origin": {
+              "x": 320.9955703157132,
+              "y": 185.86696197895245
+            },
+            "status": "ambiguous-boundary",
+            "width": null,
+            "lowerBound": null,
+            "firstShadowDistance": 3,
+            "endDistance": null,
+            "profile": [
+              {
+                "distance": 1,
+                "x": 321,
+                "y": 187,
+                "state": "color-change",
+                "lumaDrop": 94.61160278320312,
+                "colorShift": 14.754058837890625,
+                "residualCurrent": 0.12601034343242645
+              },
+              {
+                "distance": 2,
+                "x": 321,
+                "y": 188,
+                "state": "color-change",
+                "lumaDrop": 100.95659637451172,
+                "colorShift": 11.439322471618652,
+                "residualCurrent": 0.09493660926818848
+              },
+              {
+                "distance": 3,
+                "x": 321,
+                "y": 189,
+                "state": "shadow-compatible",
+                "lumaDrop": 99.08779907226562,
+                "colorShift": 7.4033660888671875,
+                "residualCurrent": 0.06136468052864075
+              },
+              {
+                "distance": 4,
+                "x": 321,
+                "y": 190,
+                "state": "shadow-compatible",
+                "lumaDrop": 98.30039978027344,
+                "colorShift": 6.799495697021484,
+                "residualCurrent": 0.05638078600168228
+              },
+              {
+                "distance": 5,
+                "x": 321,
+                "y": 191,
+                "state": "shadow-compatible",
+                "lumaDrop": 96.93820190429688,
+                "colorShift": 5.103560447692871,
+                "residualCurrent": 0.04236018657684326
+              },
+              {
+                "distance": 6,
+                "x": 321,
+                "y": 192,
+                "state": "shadow-compatible",
+                "lumaDrop": 95.15080261230469,
+                "colorShift": 4.4590277671813965,
+                "residualCurrent": 0.037018924951553345
+              },
+              {
+                "distance": 7,
+                "x": 321,
+                "y": 193,
+                "state": "shadow-compatible",
+                "lumaDrop": 80.64820098876953,
+                "colorShift": 2.966552972793579,
+                "residualCurrent": 0.024667728692293167
+              },
+              {
+                "distance": 8,
+                "x": 322,
+                "y": 194,
+                "state": "shadow-compatible",
+                "lumaDrop": 78.43560028076172,
+                "colorShift": 3.323436737060547,
+                "residualCurrent": 0.02761148102581501
+              },
+              {
+                "distance": 9,
+                "x": 322,
+                "y": 195,
+                "state": "shadow-compatible",
+                "lumaDrop": 58.43560028076172,
+                "colorShift": 2.5260682106018066,
+                "residualCurrent": 0.02114018052816391
+              },
+              {
+                "distance": 10,
+                "x": 322,
+                "y": 196,
+                "state": "shadow-compatible",
+                "lumaDrop": 46.07740020751953,
+                "colorShift": 1.9991964101791382,
+                "residualCurrent": 0.017078157514333725
+              },
+              {
+                "distance": 11,
+                "x": 322,
+                "y": 197,
+                "state": "shadow-compatible",
+                "lumaDrop": 34.290000915527344,
+                "colorShift": 1.3461874723434448,
+                "residualCurrent": 0.011384296230971813
+              },
+              {
+                "distance": 12,
+                "x": 322,
+                "y": 198,
+                "state": "shadow-compatible",
+                "lumaDrop": 16.290000915527344,
+                "colorShift": 0.9774414300918579,
+                "residualCurrent": 0.008130058646202087
+              },
+              {
+                "distance": 13,
+                "x": 322,
+                "y": 199,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.362199783325195,
+                "colorShift": 1.0350695848464966,
+                "residualCurrent": 0.008670445531606674
+              },
+              {
+                "distance": 14,
+                "x": 322,
+                "y": 200,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.362199783325195,
+                "colorShift": 1.0350695848464966,
+                "residualCurrent": 0.008670445531606674
+              },
+              {
+                "distance": 15,
+                "x": 322,
+                "y": 201,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.362199783325195,
+                "colorShift": 1.0350695848464966,
+                "residualCurrent": 0.008670445531606674
+              },
+              {
+                "distance": 16,
+                "x": 322,
+                "y": 202,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 17,
+                "x": 322,
+                "y": 203,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 18,
+                "x": 322,
+                "y": 204,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.574799537658691,
+                "colorShift": 0.7586779594421387,
+                "residualCurrent": 0.0064258580096066
+              },
+              {
+                "distance": 19,
+                "x": 322,
+                "y": 205,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.574799537658691,
+                "colorShift": 0.7485056519508362,
+                "residualCurrent": 0.0063200443983078
+              },
+              {
+                "distance": 20,
+                "x": 322,
+                "y": 206,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.502599716186523,
+                "colorShift": 0.5495594143867493,
+                "residualCurrent": 0.004769114777445793
+              },
+              {
+                "distance": 21,
+                "x": 322,
+                "y": 207,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.502599716186523,
+                "colorShift": 0.5903789401054382,
+                "residualCurrent": 0.00503662321716547
+              },
+              {
+                "distance": 22,
+                "x": 322,
+                "y": 208,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.21780014038086,
+                "colorShift": 0.7238849401473999,
+                "residualCurrent": 0.00682244636118412
+              },
+              {
+                "distance": 23,
+                "x": 323,
+                "y": 209,
+                "state": "below-floor",
+                "lumaDrop": 3.3622000217437744,
+                "colorShift": 0.9632666707038879,
+                "residualCurrent": 0.00801386870443821
+              },
+              {
+                "distance": 24,
+                "x": 323,
+                "y": 210,
+                "state": "below-floor",
+                "lumaDrop": 3.077399969100952,
+                "colorShift": 1.1329460144042969,
+                "residualCurrent": 0.00965170282870531
+              }
+            ]
+          },
+          {
+            "offset": -1,
+            "origin": {
+              "x": 319.9977851578566,
+              "y": 185.93348098947624
+            },
+            "status": "ambiguous-boundary",
+            "width": null,
+            "lowerBound": null,
+            "firstShadowDistance": 3,
+            "endDistance": null,
+            "profile": [
+              {
+                "distance": 1,
+                "x": 320,
+                "y": 187,
+                "state": "color-change",
+                "lumaDrop": 93.82420349121094,
+                "colorShift": 14.123451232910156,
+                "residualCurrent": 0.12102089077234268
+              },
+              {
+                "distance": 2,
+                "x": 320,
+                "y": 188,
+                "state": "color-change",
+                "lumaDrop": 100.6666030883789,
+                "colorShift": 10.095673561096191,
+                "residualCurrent": 0.08454630523920059
+              },
+              {
+                "distance": 3,
+                "x": 320,
+                "y": 189,
+                "state": "shadow-compatible",
+                "lumaDrop": 98.30039978027344,
+                "colorShift": 6.799495697021484,
+                "residualCurrent": 0.05638078600168228
+              },
+              {
+                "distance": 4,
+                "x": 320,
+                "y": 190,
+                "state": "shadow-compatible",
+                "lumaDrop": 98.0103988647461,
+                "colorShift": 5.471073150634766,
+                "residualCurrent": 0.04565797373652458
+              },
+              {
+                "distance": 5,
+                "x": 320,
+                "y": 191,
+                "state": "shadow-compatible",
+                "lumaDrop": 95.64820098876953,
+                "colorShift": 3.724200487136841,
+                "residualCurrent": 0.031240394338965416
+              },
+              {
+                "distance": 6,
+                "x": 320,
+                "y": 192,
+                "state": "shadow-compatible",
+                "lumaDrop": 90.86080169677734,
+                "colorShift": 2.9560341835021973,
+                "residualCurrent": 0.024776000529527664
+              },
+              {
+                "distance": 7,
+                "x": 320,
+                "y": 193,
+                "state": "shadow-compatible",
+                "lumaDrop": 76.43560028076172,
+                "colorShift": 3.23227858543396,
+                "residualCurrent": 0.026849014684557915
+              },
+              {
+                "distance": 8,
+                "x": 321,
+                "y": 194,
+                "state": "shadow-compatible",
+                "lumaDrop": 72.43560028076172,
+                "colorShift": 3.058398723602295,
+                "residualCurrent": 0.02540801651775837
+              },
+              {
+                "distance": 9,
+                "x": 321,
+                "y": 195,
+                "state": "shadow-compatible",
+                "lumaDrop": 54.720401763916016,
+                "colorShift": 2.221524238586426,
+                "residualCurrent": 0.018459893763065338
+              },
+              {
+                "distance": 10,
+                "x": 321,
+                "y": 196,
+                "state": "shadow-compatible",
+                "lumaDrop": 39.86479949951172,
+                "colorShift": 2.2184360027313232,
+                "residualCurrent": 0.018591852858662605
+              },
+              {
+                "distance": 11,
+                "x": 321,
+                "y": 197,
+                "state": "shadow-compatible",
+                "lumaDrop": 25.149599075317383,
+                "colorShift": 1.6628073453903198,
+                "residualCurrent": 0.014116978272795677
+              },
+              {
+                "distance": 12,
+                "x": 321,
+                "y": 198,
+                "state": "shadow-compatible",
+                "lumaDrop": 13.1496000289917,
+                "colorShift": 1.390674352645874,
+                "residualCurrent": 0.011640302836894989
+              },
+              {
+                "distance": 13,
+                "x": 321,
+                "y": 199,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.1496000289917,
+                "colorShift": 1.3280309438705444,
+                "residualCurrent": 0.011085947044193745
+              },
+              {
+                "distance": 14,
+                "x": 321,
+                "y": 200,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.1496000289917,
+                "colorShift": 1.3280309438705444,
+                "residualCurrent": 0.011085947044193745
+              },
+              {
+                "distance": 15,
+                "x": 321,
+                "y": 201,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.1496000289917,
+                "colorShift": 1.3280309438705444,
+                "residualCurrent": 0.011085947044193745
+              },
+              {
+                "distance": 16,
+                "x": 321,
+                "y": 202,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.362199783325195,
+                "colorShift": 1.0350695848464966,
+                "residualCurrent": 0.008670445531606674
+              },
+              {
+                "distance": 17,
+                "x": 321,
+                "y": 203,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 18,
+                "x": 321,
+                "y": 204,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.574799537658691,
+                "colorShift": 0.7586779594421387,
+                "residualCurrent": 0.0064258580096066
+              },
+              {
+                "distance": 19,
+                "x": 321,
+                "y": 205,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.574799537658691,
+                "colorShift": 0.7586779594421387,
+                "residualCurrent": 0.0064258580096066
+              },
+              {
+                "distance": 20,
+                "x": 321,
+                "y": 206,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.574799537658691,
+                "colorShift": 0.7586779594421387,
+                "residualCurrent": 0.0064258580096066
+              },
+              {
+                "distance": 21,
+                "x": 321,
+                "y": 207,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 22,
+                "x": 321,
+                "y": 208,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              },
+              {
+                "distance": 23,
+                "x": 322,
+                "y": 209,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.574799537658691,
+                "colorShift": 0.7084659337997437,
+                "residualCurrent": 0.005991226993501186
+              },
+              {
+                "distance": 24,
+                "x": 322,
+                "y": 210,
+                "state": "shadow-compatible",
+                "lumaDrop": 13.574799537658691,
+                "colorShift": 0.7310758233070374,
+                "residualCurrent": 0.006213359069079161
+              }
+            ]
+          },
+          {
+            "offset": 0,
+            "origin": {
+              "x": 319,
+              "y": 186
+            },
+            "status": "ambiguous-boundary",
+            "width": null,
+            "lowerBound": null,
+            "firstShadowDistance": 2,
+            "endDistance": null,
+            "profile": [
+              {
+                "distance": 1,
+                "x": 319,
+                "y": 187,
+                "state": "color-change",
+                "lumaDrop": 91.38980102539062,
+                "colorShift": 12.095807075500488,
+                "residualCurrent": 0.103998102247715
+              },
+              {
+                "distance": 2,
+                "x": 319,
+                "y": 188,
+                "state": "shadow-compatible",
+                "lumaDrop": 102.30439758300781,
+                "colorShift": 8.745227813720703,
+                "residualCurrent": 0.07380855828523636
+              },
+              {
+                "distance": 3,
+                "x": 319,
+                "y": 189,
+                "state": "shadow-compatible",
+                "lumaDrop": 99.72560119628906,
+                "colorShift": 5.916945457458496,
+                "residualCurrent": 0.049102332442998886
+              },
+              {
+                "distance": 4,
+                "x": 319,
+                "y": 190,
+                "state": "shadow-compatible",
+                "lumaDrop": 98.43560028076172,
+                "colorShift": 4.428471088409424,
+                "residualCurrent": 0.03711455315351486
+              },
+              {
+                "distance": 5,
+                "x": 319,
+                "y": 191,
+                "state": "shadow-compatible",
+                "lumaDrop": 90.86080169677734,
+                "colorShift": 2.9560341835021973,
+                "residualCurrent": 0.024776000529527664
+              },
+              {
+                "distance": 6,
+                "x": 319,
+                "y": 192,
+                "state": "shadow-compatible",
+                "lumaDrop": 80.86080169677734,
+                "colorShift": 2.5130293369293213,
+                "residualCurrent": 0.02091209590435028
+              },
+              {
+                "distance": 7,
+                "x": 319,
+                "y": 193,
+                "state": "shadow-compatible",
+                "lumaDrop": 66.64820098876953,
+                "colorShift": 2.410944700241089,
+                "residualCurrent": 0.020074492320418358
+              },
+              {
+                "distance": 8,
+                "x": 320,
+                "y": 194,
+                "state": "shadow-compatible",
+                "lumaDrop": 64.64820098876953,
+                "colorShift": 2.3408195972442627,
+                "residualCurrent": 0.019516674801707268
+              },
+              {
+                "distance": 9,
+                "x": 320,
+                "y": 195,
+                "state": "shadow-compatible",
+                "lumaDrop": 52.64820098876953,
+                "colorShift": 1.9595131874084473,
+                "residualCurrent": 0.016611753031611443
+              },
+              {
+                "distance": 10,
+                "x": 320,
+                "y": 196,
+                "state": "shadow-compatible",
+                "lumaDrop": 35.07740020751953,
+                "colorShift": 1.7388054132461548,
+                "residualCurrent": 0.014559266157448292
+              },
+              {
+                "distance": 11,
+                "x": 320,
+                "y": 197,
+                "state": "shadow-compatible",
+                "lumaDrop": 18.149599075317383,
+                "colorShift": 1.4996858835220337,
+                "residualCurrent": 0.01262070331722498
+              },
+              {
+                "distance": 12,
+                "x": 320,
+                "y": 198,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.1496000289917,
+                "colorShift": 1.3280309438705444,
+                "residualCurrent": 0.011085947044193745
+              },
+              {
+                "distance": 13,
+                "x": 320,
+                "y": 199,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.1496000289917,
+                "colorShift": 1.3280309438705444,
+                "residualCurrent": 0.011085947044193745
+              },
+              {
+                "distance": 14,
+                "x": 320,
+                "y": 200,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.1496000289917,
+                "colorShift": 1.3280309438705444,
+                "residualCurrent": 0.011085947044193745
+              },
+              {
+                "distance": 15,
+                "x": 320,
+                "y": 201,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.1496000289917,
+                "colorShift": 1.3280309438705444,
+                "residualCurrent": 0.011085947044193745
+              },
+              {
+                "distance": 16,
+                "x": 320,
+                "y": 202,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.362199783325195,
+                "colorShift": 1.0350695848464966,
+                "residualCurrent": 0.008670445531606674
+              },
+              {
+                "distance": 17,
+                "x": 320,
+                "y": 203,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.289999961853027,
+                "colorShift": 0.8874989748001099,
+                "residualCurrent": 0.0074308342300355434
+              },
+              {
+                "distance": 18,
+                "x": 320,
+                "y": 204,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.289999961853027,
+                "colorShift": 0.8874989748001099,
+                "residualCurrent": 0.0074308342300355434
+              },
+              {
+                "distance": 19,
+                "x": 320,
+                "y": 205,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.289999961853027,
+                "colorShift": 0.8874989748001099,
+                "residualCurrent": 0.0074308342300355434
+              },
+              {
+                "distance": 20,
+                "x": 320,
+                "y": 206,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.289999961853027,
+                "colorShift": 0.8874989748001099,
+                "residualCurrent": 0.0074308342300355434
+              },
+              {
+                "distance": 21,
+                "x": 320,
+                "y": 207,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.9051040410995483,
+                "residualCurrent": 0.007563378196209669
+              },
+              {
+                "distance": 22,
+                "x": 320,
+                "y": 208,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.9051040410995483,
+                "residualCurrent": 0.007563378196209669
+              },
+              {
+                "distance": 23,
+                "x": 321,
+                "y": 209,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.647000312805176,
+                "colorShift": 0.8806136250495911,
+                "residualCurrent": 0.007960536517202854
+              },
+              {
+                "distance": 24,
+                "x": 321,
+                "y": 210,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7326595187187195,
+                "residualCurrent": 0.0061757490038871765
+              }
+            ]
+          },
+          {
+            "offset": 1,
+            "origin": {
+              "x": 318.0022148421434,
+              "y": 186.06651901052376
+            },
+            "status": "censored",
+            "width": null,
+            "lowerBound": 24,
+            "firstShadowDistance": 1,
+            "endDistance": 24,
+            "profile": [
+              {
+                "distance": 1,
+                "x": 318,
+                "y": 187,
+                "state": "shadow-compatible",
+                "lumaDrop": 63.73759841918945,
+                "colorShift": 7.044065475463867,
+                "residualCurrent": 0.062181729823350906
+              },
+              {
+                "distance": 2,
+                "x": 318,
+                "y": 188,
+                "state": "shadow-compatible",
+                "lumaDrop": 69.15879821777344,
+                "colorShift": 5.460144996643066,
+                "residualCurrent": 0.04733815789222717
+              },
+              {
+                "distance": 3,
+                "x": 318,
+                "y": 189,
+                "state": "shadow-compatible",
+                "lumaDrop": 77.6521987915039,
+                "colorShift": 4.153807163238525,
+                "residualCurrent": 0.03575844317674637
+              },
+              {
+                "distance": 4,
+                "x": 318,
+                "y": 190,
+                "state": "shadow-compatible",
+                "lumaDrop": 81.43560028076172,
+                "colorShift": 3.4658396244049072,
+                "residualCurrent": 0.028811054304242134
+              },
+              {
+                "distance": 5,
+                "x": 318,
+                "y": 191,
+                "state": "shadow-compatible",
+                "lumaDrop": 76.43560028076172,
+                "colorShift": 3.23227858543396,
+                "residualCurrent": 0.026849014684557915
+              },
+              {
+                "distance": 6,
+                "x": 318,
+                "y": 192,
+                "state": "shadow-compatible",
+                "lumaDrop": 62.720401763916016,
+                "colorShift": 2.487760305404663,
+                "residualCurrent": 0.020696131512522697
+              },
+              {
+                "distance": 7,
+                "x": 318,
+                "y": 193,
+                "state": "shadow-compatible",
+                "lumaDrop": 54.222999572753906,
+                "colorShift": 2.7645928859710693,
+                "residualCurrent": 0.02317832224071026
+              },
+              {
+                "distance": 8,
+                "x": 319,
+                "y": 194,
+                "state": "shadow-compatible",
+                "lumaDrop": 57.43560028076172,
+                "colorShift": 2.4919872283935547,
+                "residualCurrent": 0.02087646722793579
+              },
+              {
+                "distance": 9,
+                "x": 319,
+                "y": 195,
+                "state": "shadow-compatible",
+                "lumaDrop": 42.43560028076172,
+                "colorShift": 2.0319995880126953,
+                "residualCurrent": 0.017481103539466858
+              },
+              {
+                "distance": 10,
+                "x": 319,
+                "y": 196,
+                "state": "shadow-compatible",
+                "lumaDrop": 18.07740020751953,
+                "colorShift": 1.3362685441970825,
+                "residualCurrent": 0.011109554208815098
+              },
+              {
+                "distance": 11,
+                "x": 319,
+                "y": 197,
+                "state": "shadow-compatible",
+                "lumaDrop": 13.864800453186035,
+                "colorShift": 1.5500891208648682,
+                "residualCurrent": 0.012904811650514603
+              },
+              {
+                "distance": 12,
+                "x": 319,
+                "y": 198,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.1496000289917,
+                "colorShift": 1.3280309438705444,
+                "residualCurrent": 0.011085947044193745
+              },
+              {
+                "distance": 13,
+                "x": 319,
+                "y": 199,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.1496000289917,
+                "colorShift": 1.3280309438705444,
+                "residualCurrent": 0.011085947044193745
+              },
+              {
+                "distance": 14,
+                "x": 319,
+                "y": 200,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.1496000289917,
+                "colorShift": 1.3280309438705444,
+                "residualCurrent": 0.011085947044193745
+              },
+              {
+                "distance": 15,
+                "x": 319,
+                "y": 201,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.1496000289917,
+                "colorShift": 1.3280309438705444,
+                "residualCurrent": 0.011085947044193745
+              },
+              {
+                "distance": 16,
+                "x": 319,
+                "y": 202,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.077400207519531,
+                "colorShift": 1.1814956665039062,
+                "residualCurrent": 0.009864193387329578
+              },
+              {
+                "distance": 17,
+                "x": 319,
+                "y": 203,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 18,
+                "x": 319,
+                "y": 204,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 19,
+                "x": 319,
+                "y": 205,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 20,
+                "x": 319,
+                "y": 206,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 21,
+                "x": 319,
+                "y": 207,
+                "state": "shadow-compatible",
+                "lumaDrop": 13.289999961853027,
+                "colorShift": 0.9171658754348755,
+                "residualCurrent": 0.007652544882148504
+              },
+              {
+                "distance": 22,
+                "x": 319,
+                "y": 208,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.9051040410995483,
+                "residualCurrent": 0.007563378196209669
+              },
+              {
+                "distance": 23,
+                "x": 320,
+                "y": 209,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.574799537658691,
+                "colorShift": 0.7586779594421387,
+                "residualCurrent": 0.0064258580096066
+              },
+              {
+                "distance": 24,
+                "x": 320,
+                "y": 210,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.574799537658691,
+                "colorShift": 0.7586779594421387,
+                "residualCurrent": 0.0064258580096066
+              }
+            ]
+          },
+          {
+            "offset": 2,
+            "origin": {
+              "x": 317.0044296842868,
+              "y": 186.13303802104755
+            },
+            "status": "censored",
+            "width": null,
+            "lowerBound": 24,
+            "firstShadowDistance": 1,
+            "endDistance": 24,
+            "profile": [
+              {
+                "distance": 1,
+                "x": 317,
+                "y": 187,
+                "state": "shadow-compatible",
+                "lumaDrop": 32.01839828491211,
+                "colorShift": 4.196629047393799,
+                "residualCurrent": 0.035896092653274536
+              },
+              {
+                "distance": 2,
+                "x": 317,
+                "y": 188,
+                "state": "shadow-compatible",
+                "lumaDrop": 40.367401123046875,
+                "colorShift": 2.7496860027313232,
+                "residualCurrent": 0.022842401638627052
+              },
+              {
+                "distance": 3,
+                "x": 317,
+                "y": 189,
+                "state": "shadow-compatible",
+                "lumaDrop": 39.58000183105469,
+                "colorShift": 2.3749451637268066,
+                "residualCurrent": 0.019732708111405373
+              },
+              {
+                "distance": 4,
+                "x": 317,
+                "y": 190,
+                "state": "shadow-compatible",
+                "lumaDrop": 39.43560028076172,
+                "colorShift": 1.9501820802688599,
+                "residualCurrent": 0.016917236149311066
+              },
+              {
+                "distance": 5,
+                "x": 317,
+                "y": 191,
+                "state": "shadow-compatible",
+                "lumaDrop": 37.720401763916016,
+                "colorShift": 1.7420153617858887,
+                "residualCurrent": 0.014692508615553379
+              },
+              {
+                "distance": 6,
+                "x": 317,
+                "y": 192,
+                "state": "shadow-compatible",
+                "lumaDrop": 29.720399856567383,
+                "colorShift": 1.5491622686386108,
+                "residualCurrent": 0.01332462951540947
+              },
+              {
+                "distance": 7,
+                "x": 317,
+                "y": 193,
+                "state": "shadow-compatible",
+                "lumaDrop": 25.222999572753906,
+                "colorShift": 1.9177078008651733,
+                "residualCurrent": 0.017127225175499916
+              },
+              {
+                "distance": 8,
+                "x": 318,
+                "y": 194,
+                "state": "shadow-compatible",
+                "lumaDrop": 41.938201904296875,
+                "colorShift": 2.533433198928833,
+                "residualCurrent": 0.022238945588469505
+              },
+              {
+                "distance": 9,
+                "x": 318,
+                "y": 195,
+                "state": "shadow-compatible",
+                "lumaDrop": 21.938199996948242,
+                "colorShift": 1.9868178367614746,
+                "residualCurrent": 0.018737593665719032
+              },
+              {
+                "distance": 10,
+                "x": 318,
+                "y": 196,
+                "state": "shadow-compatible",
+                "lumaDrop": 8.077400207519531,
+                "colorShift": 1.1328381299972534,
+                "residualCurrent": 0.009511658921837807
+              },
+              {
+                "distance": 11,
+                "x": 318,
+                "y": 197,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.1496000289917,
+                "colorShift": 1.3280309438705444,
+                "residualCurrent": 0.011085947044193745
+              },
+              {
+                "distance": 12,
+                "x": 318,
+                "y": 198,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.1496000289917,
+                "colorShift": 1.3280309438705444,
+                "residualCurrent": 0.011085947044193745
+              },
+              {
+                "distance": 13,
+                "x": 318,
+                "y": 199,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.1496000289917,
+                "colorShift": 1.3280309438705444,
+                "residualCurrent": 0.011085947044193745
+              },
+              {
+                "distance": 14,
+                "x": 318,
+                "y": 200,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.1496000289917,
+                "colorShift": 1.3280309438705444,
+                "residualCurrent": 0.011085947044193745
+              },
+              {
+                "distance": 15,
+                "x": 318,
+                "y": 201,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.1496000289917,
+                "colorShift": 1.3280309438705444,
+                "residualCurrent": 0.011085947044193745
+              },
+              {
+                "distance": 16,
+                "x": 318,
+                "y": 202,
+                "state": "shadow-compatible",
+                "lumaDrop": 11.077400207519531,
+                "colorShift": 1.1814956665039062,
+                "residualCurrent": 0.009864193387329578
+              },
+              {
+                "distance": 17,
+                "x": 318,
+                "y": 203,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 18,
+                "x": 318,
+                "y": 204,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 19,
+                "x": 318,
+                "y": 205,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 20,
+                "x": 318,
+                "y": 206,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 21,
+                "x": 318,
+                "y": 207,
+                "state": "shadow-compatible",
+                "lumaDrop": 12.289999961853027,
+                "colorShift": 0.899560809135437,
+                "residualCurrent": 0.007517901714891195
+              },
+              {
+                "distance": 22,
+                "x": 318,
+                "y": 208,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.7410728335380554,
+                "residualCurrent": 0.0062607391737401485
+              },
+              {
+                "distance": 23,
+                "x": 319,
+                "y": 209,
+                "state": "shadow-compatible",
+                "lumaDrop": 10.574799537658691,
+                "colorShift": 0.745734453201294,
+                "residualCurrent": 0.006300888955593109
+              },
+              {
+                "distance": 24,
+                "x": 319,
+                "y": 210,
+                "state": "shadow-compatible",
+                "lumaDrop": 9.574799537658691,
+                "colorShift": 0.7281293272972107,
+                "residualCurrent": 0.00613691471517086
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

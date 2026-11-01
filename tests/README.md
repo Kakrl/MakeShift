@@ -1,5 +1,499 @@
 # MakeShift Testing
 
+## Plateau and local lobe correction (2026-11-01)
+
+Final review: the user said the replacement images look good and requested a
+handoff. This is qualitative feedback, not measured accuracy. Resume from the
+[user-reviewed handoff](../docs/cv_shadow_detection_status_and_next_steps.md#start-here-user-reviewed-handoff-2026-11-01).
+The review/handoff update changes documentation only and runs no new tests.
+
+User-authorized correction and replacement of the50 candidate PNGs. Command:
+`cd frontend && npm run experiment:fingertips-filtered`. Shared extraction now
+checks both outer neighbors of a complete plateau and skips rejected plateaus.
+Filtered mode additionally uses raw-valley prominence>=2 for every input and
+valley-bounded width at tip-minus8;legacy prominence remains4. No mask cropping,
+new suppression radius,per-finger gates or DFS changes. Raw mask remains the
+same as the filtered-darkening boundary utility.
+
+`fingertip-filtered/pre-lobe-results.json` retains old50 records/364 proposals;
+new results and `changes.json` record its hash. `changes.html` reports all50
+old/new counts and coordinates in seven post-detection review regions. These
+rectangles never enter the detector. Source hashes are asserted. Total364→351
+(still139→140,sequence225→211),background zero. Counts are not correctness.
+Allsix middle111–116 missing index regions now contain one proposal;the189
+pinky review region changes two→one. Ten cards visually reviewed:seven reported
+examples plus index148,pinky199,ring184;40 others not individually reviewed.
+Spurious clothing and inner-gap proposals remain. Merged mask contact can stay
+UNKNOWN despite successful localization;no automatic29/29 contact claim.
+
+Verification:19 candidate cases and80 focused cases passed,including four new
+regressions:whole-plateau shoulders,a touching shorter lobe with two-pixel raw
+valley/local width,less-than-two prominence rejection,and distinct14px-separated
+tips preserved. Eight legacy candidate cases remain passing. Full Vitest:
+621 passed,25 known recording/velocity/synchronous-contact fixture failures,
+one skipped. Lint passed with three existing image warnings;TypeScript,39
+contrast checks and the network-enabled production build passed.
+Logs are retained with the ignored gallery. No live/browser camera-audio smoke
+rerun for this offline change;CI unchanged and Actions evidence pending. See
+[handoff](../docs/cv_shadow_detection_status_and_next_steps.md#resume-here-plateaulobe-correction-and-replacement-images-2026-11-01).
+
+## Close-finger candidate trace (2026-11-01)
+
+Diagnostic-only follow-up to user review;no source classifier/test change.
+Traced middle-first111–116 plus hover_right-index000189-6300. Index pixels exist
+but prominence1–3 fails minimum4;in112–116 width50–51 exceeds maximum44 because
+the tip-minus8 row spans its neighbor. Pinky double count exposes plateau-edge
+validation before complete plateau grouping: a shoulder suppresses the real
+peak,and a second shoulder14px away survives the13.6px duplicate distance.
+Seven source hashes and final proposal lists match the current gallery.
+Ignored `fingertip-trace/results.json` contains raw/smoothed outlines and all
+peak measurements;`findings.md` records exact coordinates/reasons. No thresholds,
+DFS behavior or canonical gallery images changed. No new unit/build/CI or
+physical accuracy claim. See the
+[diagnostic handoff](../docs/cv_shadow_detection_status_and_next_steps.md#current-investigation-missing-close-index-and-duplicate-pinky-2026-11-01).
+
+## Automatic filtered-boundary fingertips (2026-11-01)
+
+User-requested automatic fingertip proposals, adapting the existing color-cluster
+pilot to the filtered mask used by DFS. `identifyFilteredFingertips` consumes only
+reference-relative measurements,with no saved anchor,width,anatomical identity,
+per-finger gate or phase. Shared component/silhouette extraction preserves the
+legacy color-cluster API. The pure filtered-mask helper moved to `shadowHeatmap`
+with its existing `shadowTipEvidence` re-export preserved. Downward-facing fingers
+remain assumed;no tracking or live detector changes.
+
+Run from frontend:`npm run experiment:fingertips-filtered`.
+The existing exporter now supports `--filtered-boundary --sequence`,writing a
+separate ignored `fingertip-filtered` gallery:20 stills including background plus
+30 saved native sequence frames,50 PNGs,overview,JSON and per-candidate tables.
+Every proposal runs locality4 DFS at all cutoffs. Source/reference hashes are
+verified;cached phase/group/review labels remain display metadata. No replay seek
+or target selection is performed. Background produces zero candidates;139 still
+and225 sequence proposals,364 total. Counts do not establish correctness.
+
+Four final cards inspected:index148,first-middle119,second-middle164,pinky199;
+46 others not individually reviewed. Fingers are proposed alongside spurious
+clothing/background and curled/merged-region shapes. Keyboard eligibility and
+contact tracking remain integration work. No held-out dataset,physical accuracy/
+latency or transfer of the previous fixed-anchor29/29 result is claimed.
+
+Verification:15 fingertip cases passed (eight preserved legacy cases plus seven
+new filtered-mask cases);76 focused cases passed. New cases cover non-reddish
+filter-rejected tips without anchors,three connected anonymous lobes,background/
+neutral/speckle/broad/clipped rejection,exact DFS-mask equivalence with side
+shadow excluded,invalid/low-signal exclusions,determinism/input preservation and
+both filters,invalid arrays/bounded settings. Lint passed (three existing image
+warnings),types,39 contrast checks and network-enabled production build passed.
+Full Vitest:616 passed,26 failed,one skipped;25 documented recording/velocity/
+synchronous-contact fixture failures plus a384kHz audio timeout during concurrent
+export/checks. Isolated audio rerun passed all72. Production camera/audio browser
+smoke not rerun for the offline helper/exporter. CI workflow unchanged;Actions
+evidence pending. Logs are preserved with the ignored gallery. See
+[handoff](../docs/cv_shadow_detection_status_and_next_steps.md#resume-here-automatic-filtered-boundary-fingertip-proposals-2026-11-01).
+
+## Curved boundary DFS comparison (2026-11-01)
+
+User-requested offline locality experiment, removal of D80, replacement of30
+canonical PNGs and comparison with original/D80 results. Run from frontend:
+`npm run experiment:shadow-dfs` (`--dfs --local-corridor`). Corridor: exterior
+Chebyshev band4 around the selected lower/side arc, PLUS straight-down extension
+from its lowest pixels to the saved d row within the same lateral margin. Both
+searches use that corridor and the old per-seed width cap; lateral stops are
+normal. Shared cutoffs5/20/40/60, fixed filtered geometry/tips/widths/c=d=e=4.
+Native/reference hashes remain asserted. No motion, sweep or live integration.
+
+The initial band wrongly capped forward depth, falsely accepting index146/147;
+a temporary unreachable-row UNKNOWN guard still hid the intended traversal.
+The user challenged it; both were superseded by actual forward extension with
+unchanged saved anchors. Final index146/147 reject at all cutoffs and have
+actual40-luma witnesses at(312,176)/(315,191). Geometry reachability metadata
+is diagnostic only. UNKNOWN remains reserved for actual missing measurements/
+incomplete geometry, not an artificial forward cap.
+
+`previous-results.json` preserves original decisions/paths; `d80-results.json`
+preserves D80. Both snapshots are hash-checked/reused on repeats. `changes.html`,
+CSV and JSON compare all120 original/D80/new decisions and phase agreement.
+Assertions verified30 PNGs,120 comparisons,matching cutoffs,no D80 and every
+visited pixel within the exported corridor. New PNGs show its boundary in purple.
+
+Against approximate user phases, new pass/fail/unknown counts at5/20/40/60:
+12/17/0,29/0/0,29/0/0,26/3/0 (one wrong-target excluded at each setting).
+At40,original23/6/0 and D80 24/5/0 become29/0/0. All17 labeled touches and12
+valid non-touch phases agree at20/40. Middle119 rejects for missing upward
+support rather than a downward veto. At60 second-middle166–168 lose support.
+These are selected same-clip agreements, not validated physical accuracy or
+held-out evidence. No cutoff chosen as a live detector.
+
+Four corrected final cards reviewed:index146/147/151,first-middle119;26 other
+final cards not individually reviewed. Earlier locality export reviews remain
+historical. Verification:39 evidence cases /69 focused cases passed. Five
+locality cases cover side-excursion stops without unknown,inclusive d-row
+without D80,curved exterior geometry,in-band unknown/invalid radii,and a real
+straight-down veto despite saved-tip/boundary offset. Lint passed with three
+existing image warnings; TypeScript,39 contrast checks and the network-enabled
+production build passed. Final full Vitest:610 passed,25 failed,one skipped;
+failures remain in the documented recording/velocity/synchronous-contact groups. Production camera/audio browser smoke not rerun for this offline helper;
+CI workflow unchanged and Actions evidence pending. Logs are retained with the
+ignored gallery. See the
+[handoff](../docs/cv_shadow_detection_status_and_next_steps.md#resume-here-lateral-locality-with-forward-reach-d80-removed-2026-11-01).
+
+## Stronger downward DFS comparison (2026-11-01)
+
+User-requested local rerun replacing all30 canonical `shadow-dfs` PNGs and
+retaining old/new pass/fail. `cd frontend && npm run experiment:shadow-dfs` now
+runs `--dfs --strong-downward`: filtered boundary, downward darkening strictly
+>80 at seeds AND every traversal pixel; upward thresholds remain5/20/40/60.
+Saved anchors, widths, c/d/e and color filters stay fixed. No sweep/live changes.
+`previous-results.json` retains original DFS decisions/paths; repeated exports
+reuse that baseline. `changes.html`, `changes.csv` and `changes.json` contain
+per-frame old/new decisions, phase agreement and aggregate counts. Native source
+and reference hashes are asserted before exporting. Other galleries/caches stay.
+
+Against approximate user phases, old pass/fail counts at upward5/20/40/60 were
+12/17,24/5,23/6,22/7; new counts are24/5 at every setting. Zero unknowns;
+wrong-target first-middle120 is excluded. Index148–150 improve,151/152 still
+reject. New false presses at upward40: first-middle111 and second-middle164;
+first-middle119 remains a false press. Index hover/approach/release still rejects.
+The earlier filtered-boundary run matched all original primary decisions.
+These are same-clip exploratory agreements, not validated physical accuracy.
+
+Verification:34 tip-evidence cases /64 focused cases passed. Three new cases
+cover independent downward strength with unchanged upward paths, strong seeds/
+strict per-step cutoff (including equality), retained unknowns and invalid
+thresholds. Full Vitest:605 passed,25 failed,one skipped; same documented
+recording/velocity/synchronous-contact fixture groups. Lint passed with three
+existing image warnings; types,39 contrast checks and the network-enabled
+production build passed. The initial npm-command rerun could not launch Chrome
+inside the sandbox; an escalated rerun was used.
+Production camera/audio smoke not rerun for this offline-only helper/exporter;
+no Actions execution claim. Nine cards inspected: index147–152, first-middle
+111/119, second-middle164;21 others not individually reviewed. Logs are retained
+with the ignored gallery.
+
+## Filtered fingertip boundary comparison (2026-11-01)
+
+Local offline comparison authorized by the user; no live detector behavior or
+GitHub workflow changes. Run from root:
+`node tests/frontend/shadowDirectional.experiment.mjs --dfs --filtered-boundary`.
+The original DFS gallery is preserved; output is ignored under
+`frontend/test-results/shadow-dfs-filtered-boundary/`, including `comparison.html`
+for paired index148–152 cards, all30 PNGs, HTML, CSV and full path JSON.
+
+Geometry comes from valid darkening >5 rejected by the projection color filter
+(residual >0.12), or shift >10 for the secondary color-filter comparison. This
+excludes invalid/clear black pixels and uses no clustering/morphology. Saved
+anchors/widths, c=d=e=4 and DFS semantics remain fixed. Native source/reference
+hashes are verified. At148/149 the a-row cross-section loses its left flare
+(x300–327 becomes308–326), but side paths still veto all five index touches.
+All120 primary decisions are unchanged versus the original export; the known
+middle counterexamples remain. Seven cards inspected: index148–152 and
+middle119/171; 23 others exported without individual review. Same clip and
+approximate phases; no held-out/physical accuracy or latency claim.
+
+Verification: 31 tip-evidence cases /61 focused cases passed. Three new cases
+cover clear/shadow/invalid black exclusions, raw filter predicates and strict
+floor, and neutral side-flare removal with unchanged tip/settings. Full Vitest:
+602 passed, 25 failed, one skipped; failures remain in the documented recording,
+velocity and synchronous-contact fixture groups. Lint passed with three existing
+image warnings; TypeScript, all39 contrast checks and the production build passed.
+The sandbox build failed fetching Google Fonts; the network-enabled retry passed.
+Full-suite and build logs are preserved with the ignored comparison gallery.
+Production camera/audio browser smoke was not rerun: the helper is used only
+by the offline exporter/tests. No Actions execution claim. See
+[definitions and findings](../docs/cv_shadow_detection_status_and_next_steps.md#filtered-fingertip-boundary-comparison-2026-11-01).
+
+## Bounded directional DFS experiment (2026-10-31)
+
+End-of-session review: the user reported that the DFS images appear to work well
+with significantly fewer false positives and requested a handoff. This is a
+qualitative user assessment, not a measured comparative false-positive rate.
+The known false-positive and rejected-touch examples below remain unresolved.
+Resume from the [current handoff](../docs/cv_shadow_detection_status_and_next_steps.md#end-of-session-handoff--user-review-2026-10-31);
+no new code or tests were changed for this review/handoff.
+
+Local-only implementation of the user's algorithm at the bottom of `thoughts.txt`
+and subsequent clarifications: any downward path reaching d below the fingertip
+vetoes the finger, while at least one upward path from an actual attached shadow
+supports it. Run from `frontend/`: `npm run experiment:shadow-dfs` (existing
+exporter with `--dfs`). Previous experiment outputs are preserved.
+
+Fixed settings: c=d=e=4 analysis pixels; a=tipY−c; downward rejection at y≥tipY+d;
+upward support at y≤a−e. Arc includes the lower outline and both side envelopes
+below a. Per-attachment horizontal budget is one saved estimated finger width,
+centered on that seed, shared between its down/up searches. DFS allows sideways
+steps, but down cannot climb and up cannot descend. A width-cap boundary or known
+color-filter exclusion stops normally; actual unavailable measurements and
+incomplete geometry remain unknown. No whole-component endpoint requirement,
+prior upward-width minimum, motion or live notes. All four fixed darkening
+cutoffs 5/20/40/60 and both exclusion methods are exported. Same 640×427 analysis,
+reference cutoff40, projection residual≤0.12 / color shift≤10 as before.
+
+Final macOS / Node24.2.0 / Chrome156.0.8078.75 export completed all 30 frames,
+verifying native source/reference hashes and reusing saved anchors. Masks are
+recomputed; first-middle116 recomputed X383 differs from saved384. Current JSON
+records the difference, and earlier reconstruction variation remains a limit.
+Wrong-target first-middle120 is retained/marked INVALID TARGET and excluded
+from interpretation. Approximate user viewer labels are not verified physical
+or encoded-frame truth; no held-out accuracy or latency claim.
+
+Among 29 target-valid frames, PRESS/NO PRESS/UNKNOWN counts are 0/29/0 at5,
+12/17/0 at20, 13/16/0 at40, 14/15/0 at60. Both middle touch intervals pass at
+20/40/60, but index touch148–152 is rejected at every cutoff by side-shadow
+paths. Middle separation119 passes at40/60; near-touch111 passes at60. These
+counterexamples remain visible. Second-middle released171 is rejected by the
+new global veto. No constant/threshold sweep or phase-dependent tuning.
+
+Ignored gallery: `frontend/test-results/shadow-dfs/index.html`, CSV, JSON and
+30 PNGs. Banners show per-cutoff PRESS/NO PRESS/UNKNOWN; paths show the labeled
+first matching cutoff, otherwise40, for visualization only. Blue=arc,
+purple=attachments/a row, red=down/rejection, green=up/support; dashed width
+bounds show rejection witness, otherwise upward/first search. Visited pixels,
+per-seed bounds, actual paths/endpoints and unknown flags are exported. Six final
+cards inspected: index148, first-middle112/119, second-middle164/165/171; other
+24 exported without individual review. See [definitions and findings](../docs/cv_shadow_detection_status_and_next_steps.md#resume-here-bounded-directional-dfs-2026-10-31).
+
+Verification: **28** tip-evidence cases passed (eight new DFS cases); **58**
+focused heatmap/band/fingertip/evidence cases passed. Coverage includes real
+attached evidence versus clear paper; upward path support; later-attachment
+global veto; exact d-row rejection; no backward vertical traversal; lateral
+budget without UNKNOWN; c-based side-arc selection; unavailable versus known
+filter exclusions; all cutoffs, invalid settings and missing geometry. A first
+contour draft omitted side edges; its new synthetic c-case caught this, and the
+arc was corrected before the final passing tests/export.
+
+Full Vitest: **598 passed, 26 failed, one skipped**, retaining 25 documented
+recording-canvas/velocity/synchronous-contact fixture failures plus one 384kHz
+ADSR case timing out at five seconds during concurrent export/checks. Isolated
+browserAudio rerun passed all **72**. Lint passed with three existing image
+warnings; TypeScript, all 39 contrast checks and the network-enabled production
+build passed (existing Google Fonts require network).
+No live pages import the helper; camera/audio production browser smoke was not
+rerun for this offline experiment. Actions evidence pending; exporter remains
+local-only and CI workflow is unchanged.
+
+
+## At-least-one edge-shadow region experiment (2026-10-31)
+
+Local-only user-requested change: require **at least one** edge-attached shadow
+with limited downward extent and upward width; do not require all rays or let
+unrelated long shadows veto a candidate. Run from `frontend/`:
+`npm run experiment:shadow-edge-regions` (existing exporter with `--edge-regions`).
+Prior strict-fan export and static comparison remain preserved.
+
+Final Chrome export completed all 30 saved index/middle frames on macOS / Node
+24.2.0 / Chrome 156.0.8078.75, without an app server. Source/reference hashes
+matched; saved anchors remain fixed. Masks are recomputed with unchanged defaults;
+current recomputed tips match the saved tips. Earlier reconstruction variation
+remains a reproducibility limit. No motion, live notes, sidecars, new dependency,
+GitHub changes, held-out verification or physical accuracy/latency claim.
+
+Eight-connected compatible shadow components must touch the distal estimated
+mask edge, measured in a bounded tip neighborhood (±24 rows, half-width+8
+laterally). Each qualifying component has downward Y extent ≤8 pixels and
+contiguous upward width ≥2 pixels on ≥3 rows in the same component's visible
+side strips. The width/row settings are initial defaults, not validated contact
+thresholds. Unknown/excluded endpoints and cropped side/bottom components cannot
+establish a short extent. Any qualifying region wins over other rejected/unknown
+regions. All four darkening cutoffs 5/20/40/60 are exported; none chosen as a
+classifier. Reference cutoff 40; projection residual ≤0.12 primary, color shift
+≤10 secondary. Seed/candidate pixels, endpoints, width rows and unknown flags
+are exported. Missing shadow cannot become a positive candidate.
+
+Ignoring wrong-target first-middle 120, final PRESS/NO PRESS/UNKNOWN counts
+are 0/7/22 at 5, 0/5/24 at 20, 0/2/27 at 40 and 3/2/24 at 60. The three matches
+are index 148/149 and second-middle 171; the latter is user-labeled **released**,
+so the rule does not validate contact. Many unknowns reach a lateral boundary
+or meet excluded pixels. Preserve the counterexample and uncertainty.
+
+Ignored gallery: `frontend/test-results/shadow-edge-regions/index.html`, CSV,
+JSON and 30 PNGs with per-cutoff PRESS / NO PRESS / UNKNOWN banners; wrong-target
+shows INVALID TARGET. Component overlay displays first matching cutoff if any,
+otherwise 40, for visualization only. Purple qualifies, red is other seeded
+shadow, blue is edge/seed evidence, green is upward strip. Five final cards
+inspected: index 147/148, first-middle 112, second-middle 164/171. Other 25 cards
+exported without individual review. See [full rule and findings](../docs/cv_shadow_detection_status_and_next_steps.md#resume-here-at-least-one-qualifying-edge-shadow-region-2026-10-31).
+
+Verification: **20** tip-evidence synthetic cases passed, including seven new
+connected-region cases; **50** focused heatmap/band/fingertip/evidence cases
+passed. New cases cover unrelated long-shadow non-veto, attached evidence versus
+clear paper, inclusive eight versus nine downward pixels, same-component upward
+width, unknown endpoint versus another valid region, a shared long component
+and censoring, all four intensity cutoffs, invalid inputs and missing boundaries.
+Full Vitest: **591 passed, 25 failed, one skipped**, retaining the previously
+documented 23 recording-canvas and single velocity/synchronous-contact fixture
+failures. Lint passed with three existing image warnings; TypeScript and all 39
+contrast checks passed. Network-enabled production build passed (existing
+Google Fonts require network). No live page imports the new
+helper; production camera/audio browser smoke was not rerun. New Vitest Actions
+evidence pending; exploratory exporter is local only, no workflow change.
+
+
+## Directional shadow-pattern experiment (2026-10-31)
+
+Local-only continuation of the user hypothesis: upward shadow present, thin
+fingertip rim, clear downward region. Run from `frontend/`:
+`npm run experiment:shadow-directional`. Requires the prior ignored
+`shadow-hypothesis/results.json`, saved first-middle native PNGs, original
+reference and later full-frame sequence cache. Installed Chrome is the default;
+no app server, model, new dependency or live-note change.
+
+Export completed all 30 frames on macOS / Node 24.2.0 / Chrome 156.0.8078.75.
+Native source/reference SHA-256 checks passed. Saved tips are fixed; masks are
+recomputed, not frozen from the earlier export. Initial-run candidates shifted
+one X pixel at first-middle 116 and second-middle 170. The PNG-label rerun
+reproduces saved tips on all 30 frames, but intermediate profiles at index 149
+and first-middle 116 differ; all pattern decisions/counts are unchanged. JSON
+records current recomputed candidates. The cause is unestablished. The old wrong-target first-middle 120 remains visible
+and excluded from target interpretation. Old directional-limit flags describe
+the previous central strip.
+
+Fixed settings: 640×427 analysis, reference cutoff 40, projection residual ≤0.12
+primary, color-shift ≤10 secondary; seven directions −60..+60° at 20° intervals,
+24-step scan, −8/+6 local boundary search, two-step rim allowance, three-step
+attachment window; all four luma cutoffs 5/20/40/60 reported. Upward context uses
+six-pixel visible side strips over up to 24 rows, excluding two tip rows;
+positive evidence needs three distinct strong rows. Missing/occluded forward
+samples cannot establish absence. Sparse rays, side interference, unvalidated
+mask edges and approximate contact labels remain limits.
+
+No strict full-fan matches: among 29 target-valid rows, rejects/unknowns are
+29/0 at 5, 29/0 at 20, 26/3 at 40 and 20/9 at 60. At 40, upward evidence is
+present in all 29. Diagonal scans recover second-middle's missed lobe, but outer
+rays also include persistent side shadow at labeled touch. This does not
+establish a contact rule. See [definitions, findings and next work](../docs/cv_shadow_detection_status_and_next_steps.md#latest-continuation-upward-shadow--thin-rim--clear-forward-region-2026-10-31).
+
+Ignored output: `frontend/test-results/shadow-directional/index.html`, CSV,
+JSON raw profiles and 30 four-panel cards with explicit sampled regions.
+PNG presentation follow-up: each card now includes prominent PRESS / NO PRESS /
+UNKNOWN banners for all four cutoffs, separate from the user phase label.
+Wrong-target rows show INVALID TARGET. These labels expose the existing pattern
+result without selecting a cutoff or changing measurement logic. All 30 PNGs
+regenerated; syntax and exporter lint passed; labeled index 148 and invalid-target
+first-middle 120 cards inspected for legibility.
+Five final cards inspected: index 148, first-middle 111/112 and second-middle
+164/165. Other 25 cards exported but not individually reviewed. Previous exports,
+sidecars, manual anchors and live behavior remain preserved.
+
+Verification: 13 tip-evidence cases passed (five new synthetic regressions),
+43 focused heatmap/band/fingertip/evidence cases passed. New cases cover a thin
+rim supported by upward shadow versus clear paper alone; diagonal evidence
+missed by the central strip; unknown/occluded/image-censored forward evidence;
+four-cutoff weak-shadow behavior; multi-row upward support and unknown coverage.
+Full Vitest: **583 passed, 26 failed, one skipped** during concurrent build.
+Failures include the same 25 documented recording/velocity/synchronous-contact
+fixture failures plus one five-second browserAudio timeout. Isolated rerun of
+browserAudio and final tip evidence passed **85 cases**. Lint passed with three
+existing image warnings; TypeScript and 39 contrast checks passed. Sandboxed
+production build failed fetching the existing Google Fonts; network-enabled
+production build passed. This helper/export is not imported by live pages, so
+production browser smokes were not rerun. No physical accuracy/latency, held-out
+evaluation or GitHub Actions pass is claimed. Vitest is discovered by existing
+CI; the exploratory runner is local only.
+
+
+## Static shadow-hypothesis comparison (2026-10-29)
+
+Local-only continuation authorized by the user after reviewing fingertip
+proposals as generally useful; pinky/overlap refinement is deferred and motion
+is excluded. From `frontend/`, run `npm run experiment:shadow-hypothesis`.
+The runner needs the original clip/reference and the existing ignored sequence
+cache files; missing input fails explicitly. Installed Chrome is the default
+(`CV_BROWSER_CHANNEL` override). No app server or model download is needed.
+
+Thirty frames were exported: index 146–154, first-middle 110–120 and
+second-middle 163–172. First-middle's old cache contains only enlarged crops,
+so full native frames are recovered from paused browser video seeks; later
+sequences reuse their existing full frames. Input hashes, fixed association
+gates, requested/decoded times, raw profiles and source-review flags are in
+`frontend/test-results/shadow-hypothesis/results.json`. Approximate frame/time
+labels are preserved; decoded offsets can reach about one 30-FPS frame.
+There is no exact encoded-frame, physical-onset or latency claim.
+
+The ignored `index.html` report links a CSV summary, 30 four-panel cards, three
+five-frame comparison sheets and the full JSON. All three key-frame sheets
+were inspected against native source. Eight additional detailed cards were
+inspected (index 147/148, first-middle 111/120, second-middle 163/164/165/172).
+The 15 intermediate frames are exported but not individually source-reviewed.
+One fixed gate selects a neighboring fingertip at first-middle 120; that row
+is retained with `wrong-target`. Second-middle 163/164 carry `directional-limit`.
+Thirty automatic target selections and 26 complete 40-luma medians are
+availability counts, not correctness results.
+
+Settings stay fixed: 640×427 analysis, reference cutoff 40, unchanged fingertip
+estimator, projection `e_I ≤0.12` primary and color shift ≤10 secondary, display
+floor/full scale 5/120, 24-pixel scans, three-pixel attachment window, central
+distal rays anchored independently to the estimated curved edge. All four
+predeclared intensity cutoffs (5, 20, 40, 60) are reported. Zero means three
+known clear initial samples at that cutoff; unavailable/ambiguous/censored
+measurements stay null. Near-forward intensity, compatible coverage, raw tip
+darkening and side/back evidence are separate. No per-frame tuning or press
+classifier was added.
+
+At the reported 40-luma column, index near-touch 147 → touch 148 contracts
+9 → 1 analysis pixels; first-six-pixel mean darkening falls 86.85 → 16.17.
+First-middle 111 → 112 shows mean 55.54 → 19.82, but the near-touch extent is
+unavailable (4/11 complete rays). Second-middle 164 → 165 has 1 → 1 px and mean
+23.09 → 27.80: this strip does not separate those phases. The source/map review
+shows a broad diagonal-right lobe beyond the central strip. This is evidence
+to improve the sampled front region, not justification for a universal 1-pixel
+contact threshold. Boundary/antialiasing sensitivity and shadow ownership
+remain unverified. See [full findings and next step](../docs/cv_shadow_detection_status_and_next_steps.md#static-shadow-hypothesis-comparison-2026-10-29).
+
+Local macOS / Node 24.2.0 / Chrome 156.0.8078.73: the final browser export
+completed all 30 frames. Eight synthetic `shadowTipEvidence.test.ts` cases
+passed, and the focused heatmap/band/tip/evidence run passed **38 cases**.
+Full Vitest: **579 passed, 25 failed, one skipped**, in the same documented
+recording-canvas, velocity and synchronous-contact failure groups. Lint passed
+with three existing image-element warnings; TypeScript, 39 contrast checks
+and the network-enabled production build passed. Existing production browser
+smoke results/limits from the fingertip pilot below remain the session evidence;
+this addition is an offline helper/export and is not imported by live pages.
+No new CI workflow or physical/held-out verification was added. New Vitest
+Actions execution remains pending; the exploratory runner is not invoked by CI.
+
+## Color-cluster fingertip pilot (2026-10-29)
+
+Local-only diagnostic requested by the user; motion excluded. Run from
+`frontend/`: `npm run experiment:fingertips`. Installed Chrome is used by
+default (`CV_BROWSER_CHANNEL` override); no app server or inference model is
+needed. This transpiles the actual TypeScript heatmap/band/estimator modules
+into the browser and decodes the original PNGs with Canvas. No new dependency
+or live detection behavior was added.
+
+macOS, Node 24.2.0, Chrome 156.0.8078.73: 19 labeled images plus background
+processed successfully. Background self-comparison asserts zero candidates.
+Three to five spatial proposals per labeled image, 77 total, were exported
+with input hashes, fixed settings, raw forward-band profiles, masks and local
+forward/back shadow summaries. Forty-two proposals produced complete forward
+band aggregates; 60 local boxes reached the forward limit and 68 the backward
+limit. These are diagnostic availability counts, not accuracy results.
+
+The all-image source overview and detailed index-148, pinky-199 and ring-169
+source/mask/shadow comparisons were inspected. Tip misses/shifts and merged
+regions remain, notably pinky 199. No all-fingertip, skin-segmentation,
+shadow-ownership or contact pass is claimed. Candidate numbers are spatial,
+not anatomical identities; downward-facing fingers and reddish changed regions
+are explicit pilot assumptions. Thresholds were explored on this same set.
+
+Ignored outputs: `frontend/test-results/fingertip-candidates/index.html`,
+`overview.png`, per-image `*.candidates.png` and `results.json`.
+See [algorithm, settings and limits](../docs/cv_shadow_detection_status_and_next_steps.md#local-color-cluster-fingertip-pilot-2026-10-29).
+
+Eight new synthetic cases in `frontend/fingertipCandidates.test.ts` passed;
+the focused heatmap/band/tip run passed 30 cases. Full Vitest: **571 passed,
+25 failed, one skipped**, retaining the previously documented 23 recording
+canvas-mock failures and single velocity and synchronous-contact failures.
+Lint passed with the same three existing image-element warnings; TypeScript,
+all 39 contrast checks and the production build passed. The sandboxed build
+failed to fetch the existing Google Fonts; the network-enabled build passed.
+Keyboard-layout browser smoke passed in installed Chrome. The required bundled
+Chromium audio runner could not launch because its executable is not installed.
+Deployment smoke in installed Chrome timed out after 60 seconds waiting for
+the existing home-page `MediaPipe ready/unavailable` status, matching the prior
+handoff's limitation. No deployment or bundled-Chromium audio pass is claimed.
+No CI workflow changed; new Actions evidence and physical accuracy/latency
+remain pending. The standalone experiment is not invoked by CI.
+
 ## Piano timbre verification (issue #175)
 
 CI timeout follow-up 2026-10-14: the [frontend job at e6de2fa](https://github.com/Kakrl/MakeShift/actions/runs/38662133296/job/116185643600)
@@ -1637,3 +2131,242 @@ keyboard layout and audio smoke. All deployment assertions passed with the
 previously diagnosed local --disable-gpu workaround in a removed temporary
 runner; the committed runner is unchanged. Physical hardware was not measured.
 Actions execution for this follow-up is unverified.
+
+## Local shadow evidence comparison (2026-10-27)
+
+Diagnostic work only; no new contact threshold. Focused Vitest execution of
+`darkShadowRegion`, `shadowPressHysteresis` and `liveShadowPressPipeline`:
+20 passed, including four new cases checking opposite near/forward changes,
+known darkness and spatial slope, missing references, invalid tips, zero masks,
+clipping, unavailable-band comparisons, each independently adjustable pixel bound, consistent masks/metrics/probes and overlay-span pixel counts. Lint (three existing image-element
+warnings), TypeScript, contrast and production build passed locally.
+
+The image browser replay processed 19 images / 22 targets without page errors.
+Clip 1 processed 288 frames with exported evidence. Automated frame navigation
+asserted filter-control edit/reset and exact cached display restoration for empty and hand-visible frames;
+the screenshot was inspected locally. Commands and limitations:
+[image measurements](../docs/cv_image_tests.md#comparing-darkness-hypotheses-locally-2026-10-27),
+[video review](../docs/cv_video_tests.md#shadow-evidence-frame-review).
+Generated evidence is ignored under `frontend/test-results/`: image report in
+`cv-image-cases/`, video report and `shadow-evidence-stepping.png` in `cv-video/`.
+Actions evidence remains pending; this is not live accuracy or latency evidence.
+
+The full current-worktree Vitest run reported 532 passed, 26 failed and one
+skipped: 23 recording tests fail at the background canvas mock's missing
+`getImageData`, velocity and synchronous-profile integration expectations each
+fail once, and one high-rate audio envelope case timed out. The audio file
+passed separately (72 cases). The remaining failures are outside the added
+measurement cases; the full suite is not green.
+
+Required browser smoke checks: bundled Chromium was unavailable locally.
+Installed Chrome passed keyboard-layout and audio graph/lifecycle checks;
+audio hardware was not measured. Deployment smoke timed out waiting for the
+home page's `MediaPipe ready/unavailable` text, so that check did not pass.
+The dedicated image/video replay pages completed with real MediaPipe.
+
+## Video replay inspector UI (2026-10-27)
+
+Local-only UI changes: video/finger inspector columns, selected-finger zoom,
+four charts with a common last-60-frame window and independent labeled vertical
+ranges, signed metric cards, responsive stacking, collapsible setup/table/report.
+No contact or pixel-classification changes.
+
+`CV_SHADOW_EVIDENCE=1 CV_SHADOW_STEP_CHECK=1 npm run test:cv-video:auto -- --clip 1`
+passed on installed Chrome / Apple M2, 288 frames, no browser page errors.
+The browser harness verifies control edit/reset, exact cached frame restoration,
+finger selection, four accessible charts, initialized crop canvas and no
+horizontal page overflow at 390 px. Desktop (1440 px) and mobile screenshots
+were inspected under ignored `frontend/test-results/cv-video/`:
+`shadow-evidence-stepping.png` and `shadow-evidence-mobile.png`.
+Lint (three image-element warnings), TypeScript, contrast and production build
+passed. Full Vitest: 535 passed, 25 failed, one skipped. Failures remain in
+recordingControls (23 canvas mock failures), fingerVelocity (one) and
+synchronousShadowPipeline (one), as documented above. Actions evidence pending.
+This UI check does not verify physical contact accuracy, hardware latency,
+or chart-assisted human judgment.
+
+## Finger-independent shadow heatmap (2026-10-27)
+
+The diagnostic at `/cv-shadow-test` compares an image or paused video frame to
+an empty reference, independently of MediaPipe, markers and the contact state.
+It shows positive luma drop and normalized RGB color shift separately; no
+finger removal or semantic shadow classification is claimed. Setup, resolution,
+scales, sampling limits and frame-seeking caveats are in the
+[viewer guide](../docs/cv_shadow_heatmap.md).
+
+`npx vitest run ../tests/frontend/shadowHeatmap.test.ts` from `frontend/` passed
+five synthetic cases. Lint (three pre-existing image-element warnings), types,
+contrast and production build passed locally. Full Vitest: 540 passed,
+25 failed, one skipped. The 25 failures remain in recordingControls (23 canvas
+mock failures), fingerVelocity (one) and synchronousShadowPipeline (one).
+
+With the production app running on port 3107, execute
+`npm run test:shadow-heatmap-browser` from `frontend/`. It uses installed Chrome
+by default (`CV_BROWSER_CHANNEL` override), 19 saved labeled images plus the
+reference self-comparison, and clip 1. Local browser execution passed on 2026-10-27: all 19 cases plus the reference self-comparison, scaling controls, resolution-mismatch clearing, video reference capture, step/return repeatability, decoded-source agreement (two-channel-level canvas rounding tolerance), pixel inspection and 390 px overflow check. No hand/marker inference requests or page errors occurred. Desktop and mobile screenshots were inspected.
+Reports/screenshots are ignored artifacts under
+`frontend/test-results/shadow-heatmap/`. Actions evidence is pending.
+
+Browser smoke: keyboard-layout passed using Chrome; bundled Chromium was
+unavailable. Deployment timed out on the home page's MediaPipe status text;
+the Chrome audio check timed out waiting for `Audio enabled`, so neither is
+claimed as passed for this run. These do not establish physical audio latency.
+
+## Integrated replay heatmaps (2026-10-27)
+
+`/cv-video-replay?manual=1` now defaults to **Diagnostic view → Shadow heatmaps**;
+**Finger measurements** restores the inspector. The maps reuse the standalone
+subtraction/color math and theme palette, with per-frame reference IDs and
+shared downsampled reference snapshots. Map rendering is paused-only and
+outside contact timing; it does not change contact decisions. Missing
+references remain unavailable. Raw reference pixels are not duplicated into
+each frame's JSON output. Headless runs without evidence skip reference reads.
+
+`CV_SHADOW_EVIDENCE=1 CV_SHADOW_STEP_CHECK=1 npm run test:cv-video:auto -- --clip 1`
+passed locally on installed Chrome / Apple M2: 288 frames, no page errors,
+existing finger inspector checks, heatmap view switching, 640 px map rendering,
+scale-change output, Previous/Next frame labels, pause/resume behavior and
+390 px horizontal overflow check. Desktop and mobile screenshots were inspected:
+ignored `frontend/test-results/cv-video/replay-shadow-heatmaps.png` and
+`replay-shadow-heatmaps-mobile.png`. Reference-version boundary crossings and
+semantic shadow separation are not established by this run.
+
+Five numerical heatmap tests, lint (three existing image warnings), TypeScript,
+contrast and production build passed. Full-suite results retain the existing
+recording/contact failures; see the finger-independent heatmap record above.
+Actions evidence pending. The standalone viewer remains available without the
+replay's MediaPipe/marker/sidecar requirements.
+
+
+## Brightness–chromaticity projection (2026-10-27)
+
+Local macOS / Apple M2 / Node 24.2.0, diagnostic-only addition to both
+`/cv-shadow-test` and the paused replay heatmap panel. Four raw projection
+measurements/maps (`a`, `1−a`, `e_B`, `e_I`) supplement the existing maps.
+Color-excluded darkening can use normalized RGB shift or `e_I`; initial
+thresholds are exploratory, not verified classifiers. Low-signal/invalid
+projection interpretations stay gray even when raw values can be computed.
+
+- Focused Vitest: **13 passed** (five existing and eight added numerical cases).
+  Coverage includes non-neutral attenuation, the supplied RGB examples,
+  unchanged/brightened pixels, black/weak signal, zero/transparent references,
+  reference-versus-current normalization, both exclusion filters and fractional
+  residual display scaling.
+- Full Vitest: **548 passed, 25 failed, one skipped**. The failures remain in
+  recordingControls (23 missing canvas-mock `getImageData` failures),
+  fingerVelocity (one), and synchronousShadowPipeline (one), matching the
+  previously documented failure groups. No full-suite pass is claimed.
+- Lint passed with three existing image-element warnings; TypeScript, all 39
+  contrast checks, and production build passed. The sandboxed build could not
+  fetch existing Google Fonts; the network-enabled build passed.
+- `npm run test:shadow-heatmap-browser` passed against production port 3107 in
+  installed Chrome: 19 images plus reference self-comparison, video capture and
+  stepping, all five new maps, residual scaling, method/threshold editing,
+  resolution-mismatch clearing, raw readouts and mobile overflow checks.
+  Report includes an unlabelled central coordinate/RGB/projection sample per
+  image with the reference name. Desktop screenshot and mobile map detail were
+  inspected; artifacts are ignored under `frontend/test-results/shadow-heatmap/`.
+- Integrated replay browser verification passed on clip 1: 288 frames,
+  projection map rendering and raw readout, exclusion controls, cached frame
+  navigation, mobile overflow and clearing on resume. The runner now waits for
+  its existing required multiple-finger fixture before pausing, avoiding an
+  earlier single-finger-frame failure. Initial selector accessibility failure
+  was fixed before the passing build/run. Screenshots and `projection-result.json`
+  are ignored under `frontend/test-results/cv-video/`.
+- Keyboard-layout browser smoke passed in installed Chrome. Required bundled
+  Chromium audio smoke could not launch because the browser is not installed.
+  Deployment smoke in Chrome timed out on the existing home-page MediaPipe
+  status text. No new physical audio latency or detection-accuracy evidence.
+
+GitHub Actions evidence is pending. Pixel category labels, shadow retention,
+skin leakage and held-out separation remain unmeasured; the sampled browser
+readouts are reproducible tool evidence, not semantic ground truth.
+
+
+## Labeled shadow samples (2026-10-27)
+
+Local macOS / Apple M2 / Node 24.2.0. Added source-image click or keyboard
+coordinate capture for labeled 1/3/5/9-pixel-square patches in both heatmap
+views, independent human category/contact-phase fields, bounded in-memory
+sample collection, individual removal, and schema-version-1 JSON download.
+Each sample freezes frame/reference identity, raw patch RGB/projection values,
+validity flags, settings and independent retention outcomes for both methods.
+See [collection instructions and export fields](../docs/cv_shadow_heatmap.md#save-labeled-pixels-and-patches).
+
+- Focused Vitest: **19 passed**, comprising 13 existing heatmap cases and six
+  new sample cases: raw measurements/both filter outcomes, edge clipping,
+  unknown serialization, snapshot isolation, non-darkening/noise-floor behavior,
+  and invalid selections/sizes/dimensions. New source:
+  `tests/frontend/shadowSamples.test.ts`.
+- Lint passed with the same three pre-existing image warnings; TypeScript,
+  all 39 contrast checks and production build passed. Existing Google Fonts
+  required network-enabled build access.
+- Full Vitest: **553 passed, 26 failed, one skipped**. This includes the 25
+  previously documented recording/contact fixture failures and one existing
+  384 kHz ADSR case timing out at five seconds while the build also ran.
+  Isolated `browserAudio.test.ts` passed all 72 cases. No full-suite pass claimed.
+- Standalone Chrome browser check passed on 19 saved images plus reference
+  self-comparison and clip 1. Added assertions cover label/phase/note selection,
+  clipped patch capture by coordinates, click capture, downloaded JSON structure
+  and values, frozen image samples across source/reference replacement, video
+  time/frame metadata, sample removal and capture disabled on mismatch. Existing
+  map, decoded-frame, no-inference and mobile overflow checks still passed.
+  Exports/screenshots are ignored under `frontend/test-results/shadow-heatmap/`:
+  `image-samples.json`, `video-samples.json`, `labeled-samples.png`.
+- Integrated replay Chrome check completed all **288 frames** of clip 1 with
+  sample capture, stored frame metadata, navigation persistence and capture
+  disabled during playback. Screenshot inspected under ignored
+  `frontend/test-results/cv-video/replay-shadow-heatmaps.png`; replay record is
+  `sample-result.json`. Existing inspector, projection and mobile checks passed.
+- Keyboard-layout smoke passed in installed Chrome. Deployment smoke timed out
+  on the existing home-page MediaPipe status text (60 seconds). Bundled Chromium
+  audio smoke could not launch because the browser executable is not installed.
+
+Browser test labels are assigned to exercise collection/export and are not
+human-reviewed semantic ground truth. Actual labeled transition collection,
+shadow/skin separation evaluation and physical contact/latency remain pending.
+GitHub Actions execution evidence remains pending; no CI changes were made.
+
+
+## Fingertip shadow-band measurement (2026-10-28)
+
+Local macOS / Apple M2 / Node 24.2.0. Added paused source-anchored parallel-ray
+measurement in standalone/replay heatmap views, raw profiles and per-ray complete,
+ambiguous, censored or insufficient states, majority/median width, per-frame
+anchor confirmation, bounded records and versioned band JSON export. No contact
+rules or sidecar annotations changed. See the [guide](../docs/cv_shadow_heatmap.md#measure-the-fingertip-shadow-band).
+
+- Focused Vitest: **28 passed**, including nine new cases in
+  `tests/frontend/shadowBand.test.ts` plus 19 existing heatmap/sample cases.
+  New cases cover known contiguous width/raw samples, missing/weak/brightened
+  evidence, unknown and color-mismatched boundaries, occluder prefixes, nearby
+  gaps versus distant/separate runs, scan/image censoring, majority/median,
+  method/threshold equality, nonvertical geometry and bounded invalid inputs.
+- Full Vitest: **563 passed, 25 failed, one skipped**. The failures remain in
+  recordingControls (23 missing canvas mock failures), fingerVelocity (one),
+  synchronousShadowPipeline (one). No full-suite pass claimed.
+- Lint, types, 39 contrast checks and production build passed; lint retains
+  three existing image warnings. The build used network access for existing fonts.
+- `npm run test:shadow-band-browser` passed in installed Chrome against production
+  port 3107: synthetic five-pixel width, unknown and invalid states, separate
+  source-tip/direction clicks, keyboard anchors, confirmation after frame change,
+  frozen exported measurements including null widths, last-record removal,
+  no inference requests and 390 px overflow. Desktop/mobile screenshots inspected and saved
+  under ignored `frontend/test-results/shadow-band/`; browser JSON/report passed.
+- Existing standalone heatmap browser regression passed: 19 images plus
+  reference/video and all prior sample/export checks. Integrated replay passed
+  all 288 clip-1 frames, including band capture and frame/playback anchor guards;
+  ignored record: `frontend/test-results/cv-video/band-result.json`.
+- Keyboard-layout browser smoke passed in installed Chrome. Deployment smoke
+  timed out on the existing home-page MediaPipe status text. Bundled Chromium
+  audio smoke could not launch (executable unavailable).
+
+A separate exploratory numerical pilot inspected 39 recorded frames using
+provisional source-luma edge anchors and ±2 px perturbations. This is not an
+automated contact verification test: some proposed anchors miss the distal
+source boundary. Only 11/39 frames yielded complete aggregate widths at the
+proposed anchors, and shifts changed availability materially. The diagnostic
+correctly preserves unavailable/censored evidence rather than reporting zero
+or a press. Results and conditions are in the
+[status document](../docs/cv_shadow_detection_status_and_next_steps.md#shadow-band-measurement-pilot-2026-10-28).
+Physical accuracy/latency and GitHub Actions evidence remain pending.

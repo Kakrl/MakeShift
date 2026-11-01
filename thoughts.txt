@@ -1,12 +1,56 @@
-how to communicate ebetween javascript and python: is hte latency too slow?
+“Read the CV shadow status handoff.”
+
+when I press the finger, some thigns happen
+1. the y coord of the fingertip goes down (or up mathematically I guess)
+2. a very dark shadow appears underneath the finger
+3. when pressed, the very dark shadow is either very thin or completely dissappears 
+  - regardless, a large portion of the dark shadow is gone
+
+my thoughts:
+- when the finger is going down, check for the dark shadow.
+- if there is a dark shadow, make sure to note that and its size
+- on the next frame, if the dark shadow size has gone done considerably and the finger's y has continued to move down and there is no large dark shadow anymore, consider it a press
+  - if not, go back to the beginning
+
+on release
+1. the finger has pressed (in the pressed state)
+2. finger lifts; the finger's y coord goes up and there appears a dark shadow underneath it and it grows larger
 
 
-i must finetune the shadows -> did a little
-refactor the state maching of invalid, hover, presssed, release
-consider converting knucles y-boundary to homographic coords
-use velocity to aid in finger state machine
-avoid copying all the pixels for shadow computation
-support more octaves
-get a smaller piano sheet
-could i do kmeans clustering using the gpu somehow since its just counting and adding?
-fix calibration phase and add the left hand
+how could we test?
+- the approach/about to press and the release pictures will similar. 
+  - we could do static tests by providing many photos and seeing when we detect the dark shadow and potential candidates
+
+- statically, hover and press may look identical. thats fine, without noticing the change in y's, it is hard to distinguish.
+  - we could still make static checks to see if we have the right frame of mind. ideally, there is very little DARK shadow if not any under the finger
+
+
+
+  Heatmaps
+  - if the finger has some brighterness on the tip of it, like really red heat, and the shadow heat connected to it does not extend too far past the finger
+    I conside that a press. with the images available, this technique has worked! if it goes past,t he shadow must be from another finger!
+  - i guess if you do carry a finger over, this would cause problems, but for now, this is a potential first solution.
+
+
+
+Algorithm Idea (Shadow)
+----
+Given a fingertip point f(x) and a small constant c=4, constant d=4, constant e=4.
+experiement with different constants, especially d
+1. Get the point a few pixels above a(x) -> f(x) + c
+2. get the edge of the finger to the right r(x) and left l(x) of the point a(x)
+3. get the edge of the fingertip by going along the fingertip edge below those points and connecting together.
+4. at each edge, check if it is connected to a shadow
+5. if (4) is connected to a shadow, run a biased cluster means to see how far the shadow extends down making sure it is within a limit, d
+6. run cluster mean that will try to go upwards or sideways, ensuring that the cluster extends past a(x) + e
+7. if (5) fails, conclude not a press
+8. if (6) fails, go onto next edge point
+9. if at least one point passes, conclude a press
+
+
+Algorithm in the live pipeline:
+1. get the canvas from JS
+2. run filtering on the canvas feed (try through GPU, if not then use CPU)
+3. run Shadow to get fingertips
+4. run check in parallel for each fingertip that appears
+5. tell audio and MIDI the presses

@@ -4,7 +4,9 @@
  */
 "use client";
 
-import { useRef, useState } from "react";
+import Link from "next/link";
+
+import { useEffect, useRef, useState } from "react";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
 import {
   buildDepthCalibrations,
@@ -28,23 +30,35 @@ import { computeHomography, projectPoint } from "../../cv/homography";
 import { getWhiteKeyPolygons } from "../../cv/keyboardGeometry";
 import { DEFAULT_LAYOUT, type KeyboardLayout } from "../../cv/keyboardLayout";
 import type { Point } from "../../cv/types";
+import ShadowFilterControls from "../ShadowFilterControls";
+import { DEFAULT_DARK_SHADOW_FILTER, analyzeDarkShadowRegion, darkShadowRuns, measureShadowEvidence, compareShadowEvidence, type ShadowEvidence } from "../../cv/darkShadowRegion";
 import { WASM_PATH } from "../useHandLandmarker";
+
+import ReplayHeatmapPanel from "./ReplayHeatmapPanel";
+import ReplayEvidencePanel from "./ReplayEvidencePanel";
+import styles from "./replay.module.css";
 
 const VISION_MODEL = "/models/hand_landmarker.task";
 const FINGER_LABELS = ["thumb", "index", "middle", "ring", "pinky"] as const;
 
-interface ReplayVisualFrame {
+export interface ReplayVisualFrame {
   frame: number;
   mediaTimeMs: number;
   whiteKeys: Point[][] | null;
   activeKeyIndexes: number[];
   fingertips: Array<{
+    id: string;
     point: Point;
+    darkRuns: Array<[number, number, number]>;
+    evidence: ShadowEvidence | null;
+    change: ReturnType<typeof compareShadowEvidence> | null;
+    deltaY: number | null;
     active: boolean;
     candidate: boolean;
     eligible: boolean;
   }>;
   shadowCandidates: number;
+  heatmapReferenceId: number | null;
 }
 
 type ManualReplayAction = "pause" | "resume" | "next" | "previous";
@@ -77,10 +91,21 @@ async function seekFrame(video: HTMLVideoElement, timeMs: number) {
 }
 
 export default function CvVideoReplayPage() {
+  const [diagnosticView, setDiagnosticView] = useState("heatmap");
+  const diagnosticViewRef = useRef("heatmap");
+  const heatmapReferences = useRef(new Map<number, ImageData>());
+  const [selectedFinger, setSelectedFinger] = useState<string | null>(null);
+  const selectedFingerRef = useRef<string | null>(null);
+  const historyRef = useRef<ReplayVisualFrame[]>([]);
+  const redrawRef = useRef<((frame: ReplayVisualFrame) => void) | null>(null);
+  const [filter, setFilter] = useState(DEFAULT_DARK_SHADOW_FILTER);
+  const [runFilter, setRunFilter] = useState(DEFAULT_DARK_SHADOW_FILTER);
   const [status, setStatus] = useState("Choose an MP4 and its JSON sidecar.");
   const [result, setResult] = useState<string>("");
   const [manualReview, setManualReview] = useState(false);
   const [manualPlaying, setManualPlaying] = useState(false);
+  const [sampleSource, setSampleSource] = useState({ id: "", name: "" });
+  const [evidenceFrame, setEvidenceFrame] = useState<ReplayVisualFrame | null>(null);
   const [displayedFrame, setDisplayedFrame] = useState(-1);
   const [captureLabel, setCaptureLabel] = useState<"hover" | "press" | null>(null);
   const [captureInterests, setCaptureInterests] = useState<string[]>([]);
@@ -89,6 +114,26 @@ export default function CvVideoReplayPage() {
     action: null as ManualReplayAction | null,
     wake: null as (() => void) | null,
   });
+
+  useEffect(() => {
+    diagnosticViewRef.current = diagnosticView;
+    selectedFingerRef.current = selectedFinger;
+    if (!evidenceFrame) return;
+    redrawRef.current?.(evidenceFrame);
+    const id = selectedFinger ?? evidenceFrame.fingertips.find((tip) => tip.evidence)?.id;
+    const tip = evidenceFrame.fingertips.find((item) => item.id === id);
+    const crop = document.querySelector<HTMLCanvasElement>("#finger-detail");
+    const video = document.querySelector<HTMLVideoElement>("#video");
+    const overlay = document.querySelector<HTMLCanvasElement>("#replay-overlay");
+    if (!crop) return;
+    crop.width = 210; crop.height = 140;
+    const context = crop.getContext("2d");
+    if (!context || !tip || !video || video.readyState < 2) return;
+    const left = Math.max(0, Math.min(video.videoWidth - 140, Math.round(tip.point.x) - 70));
+    const top = Math.max(0, Math.min(video.videoHeight - 94, Math.round(tip.point.y) - 24));
+    context.drawImage(video, left, top, 140, 94, 0, 0, 210, 140);
+    if (overlay) context.drawImage(overlay, left, top, 140, 94, 0, 0, 210, 140);
+  }, [selectedFinger, evidenceFrame, diagnosticView]);
 
   function sendManualAction(action: ManualReplayAction) {
     const control = manualControlRef.current;
@@ -135,6 +180,7 @@ export default function CvVideoReplayPage() {
     const videoFile = (document.querySelector("#clip") as HTMLInputElement).files?.[0];
     const sidecarFile = (document.querySelector("#sidecar") as HTMLInputElement).files?.[0];
     if (!videoFile || !sidecarFile) throw new Error("Choose both files first");
+    setSampleSource({ id: crypto.randomUUID(), name: videoFile.name });
     const videoCase = parseCvVideoCase(JSON.parse(await sidecarFile.text()));
     const searchParams = new URLSearchParams(window.location.search);
     const manual = searchParams.get("manual") === "1";
@@ -142,6 +188,10 @@ export default function CvVideoReplayPage() {
     setManualPlaying(false);
     setDisplayedFrame(-1);
     manualControlRef.current = { playing: false, action: null, wake: null };
+    setEvidenceFrame(null);
+    historyRef.current = [];
+    heatmapReferences.current.clear();
+    setRunFilter({ ...filter });
     const url = URL.createObjectURL(videoFile);
     const video = document.querySelector("#video") as HTMLVideoElement;
     let landmarker: HandLandmarker | null = null;
@@ -199,6 +249,7 @@ export default function CvVideoReplayPage() {
           replayOverlay.width,
           replayOverlay.height,
         );
+        if (diagnosticViewRef.current === "heatmap") return;
         replayOverlayContext.lineWidth = 3;
         state.whiteKeys?.forEach((key, index) => {
           replayOverlayContext.beginPath();
@@ -223,6 +274,19 @@ export default function CvVideoReplayPage() {
         replayOverlayContext.globalAlpha = 1;
         const pointRadius = Math.max(5, video.videoWidth / 180);
         for (const fingertip of state.fingertips) {
+          const selectedId = selectedFingerRef.current ?? state.fingertips.find((tip) => tip.evidence)?.id;
+          const selected = fingertip.id === selectedId;
+          replayOverlayContext.globalAlpha = selected ? 1 : 0.45;
+          if (fingertip.evidence) {
+            replayOverlayContext.fillStyle = overlayColors.blue;
+            replayOverlayContext.globalAlpha = 0.5;
+            for (const [x, y, length] of fingertip.darkRuns) replayOverlayContext.fillRect(x, y, length, 1);
+            replayOverlayContext.globalAlpha = 1;
+            replayOverlayContext.strokeStyle = overlayColors.green;
+            replayOverlayContext.strokeRect(Math.round(fingertip.point.x) - 40, Math.round(fingertip.point.y) + 2, 81, 9);
+            replayOverlayContext.strokeStyle = overlayColors.blue;
+            replayOverlayContext.strokeRect(Math.round(fingertip.point.x) - 40, Math.round(fingertip.point.y) + 11, 81, 35);
+          }
           replayOverlayContext.beginPath();
           replayOverlayContext.arc(
             fingertip.point.x,
@@ -239,11 +303,22 @@ export default function CvVideoReplayPage() {
                 ? overlayColors.blue
                 : overlayColors.muted;
           replayOverlayContext.fill();
+          if (selected) {
+            replayOverlayContext.strokeStyle = overlayColors.ink;
+            replayOverlayContext.lineWidth = 2;
+            replayOverlayContext.strokeRect(fingertip.point.x - 44, fingertip.point.y - 10, 88, 60);
+          }
+          replayOverlayContext.font = `${Math.max(14, video.videoWidth / 85)}px sans-serif`;
+          replayOverlayContext.fillStyle = overlayColors.ink;
+          replayOverlayContext.fillText(fingertip.id, fingertip.point.x - 40, fingertip.point.y - 14);
+          replayOverlayContext.globalAlpha = 1;
         }
       };
+      redrawRef.current = drawReplayOverlay;
       const context = canvas.getContext("2d", { willReadFrequently: true });
       if (!context) throw new Error("Unable to create video frame canvas");
       const backgroundCanvas = document.createElement("canvas");
+      let backgroundImageData: ImageData | null = null;
 
       const layout = layoutFromCase(videoCase.calibration.keyboard.layoutId,
         videoCase.calibration.keyboard.startingMidiNote);
@@ -299,17 +374,24 @@ export default function CvVideoReplayPage() {
       let synchronousShadowCandidates = 0;
       let cachedWhiteKeys: Point[][] | null = null;
       const visualFrames: ReplayVisualFrame[] = [];
+      historyRef.current = visualFrames;
+      const evidenceEnabled = manual || searchParams.get("shadowEvidence") === "1";
+      let evidenceBackground: ImageData | null = null;
+      let heatmapBackground: ImageData | null = null;
+      let heatmapReferenceId: number | null = null;
+      let previousEvidence = new Map<string, { evidence: ShadowEvidence; y: number }>();
       let displayCursor = -1;
       const showCachedFrame = async (index: number) => {
         const state = visualFrames[index];
         if (!state) return;
         await seekFrame(video, state.mediaTimeMs);
         drawReplayOverlay(state);
+        setEvidenceFrame(state);
         displayCursor = index;
         setDisplayedFrame(index);
         const activeKeys = [...state.activeKeyIndexes].sort((a, b) => a - b);
         setStatus(
-          `Frame ${state.frame + 1} / ${lastFrame + 1} · active keys: ${activeKeys.length ? activeKeys.join(", ") : "none"} · shadow candidates: ${state.shadowCandidates}`,
+          `Frame ${state.frame} / ${lastFrame} · active keys: ${activeKeys.length ? activeKeys.join(", ") : "none"} · shadow candidates: ${state.shadowCandidates}`,
         );
       };
       const replayStartedMs = performance.now();
@@ -351,6 +433,8 @@ export default function CvVideoReplayPage() {
                   if (backgroundCanvas.height !== canvas.height)
                     backgroundCanvas.height = canvas.height;
                   backgroundCanvas.getContext("2d")?.drawImage(canvas, 0, 0);
+                  backgroundImageData = backgroundCanvas.getContext("2d")
+                    ?.getImageData(0, 0, canvas.width, canvas.height) ?? null;
                 }
               }
             }
@@ -371,7 +455,7 @@ export default function CvVideoReplayPage() {
           video.videoWidth, video.videoHeight);
         const contactStartedMs = performance.now();
         if (pipeline.processFrame({ video,
-          background: markerAcquired ? backgroundCanvas : null,
+          background: markerAcquired ? backgroundImageData : null,
           hands, fingertips, whiteKeys,
           calibration: depthModels,
           previewFingerId: null })) shadowSamplesSubmitted += 1;
@@ -397,29 +481,67 @@ export default function CvVideoReplayPage() {
           for (const key of pipeline.gates.get(id)?.keyIndexes ?? [])
             activeKeyIndexes.add(key);
         }
+        // Extra diagnostic reads happen outside contact timing and are opt-in.
+        let evidencePixels: ImageData | null = null;
+        if (evidenceEnabled && backgroundImageData) {
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          evidencePixels = context.getImageData(0, 0, canvas.width, canvas.height);
+        }
+        if (evidenceEnabled && backgroundImageData && heatmapBackground !== backgroundImageData) {
+          const small = document.createElement("canvas");
+          const scale = Math.min(1, 640 / Math.max(canvas.width, canvas.height));
+          small.width = Math.max(1, Math.round(canvas.width * scale));
+          small.height = Math.max(1, Math.round(canvas.height * scale));
+          const smallContext = small.getContext("2d", { willReadFrequently: true })!;
+          smallContext.drawImage(backgroundCanvas, 0, 0, small.width, small.height);
+          heatmapReferenceId = heatmapReferences.current.size + 1;
+          heatmapReferences.current.set(heatmapReferenceId, smallContext.getImageData(0, 0, small.width, small.height));
+          heatmapBackground = backgroundImageData;
+        }
+        if (evidenceBackground !== backgroundImageData) previousEvidence.clear();
+        evidenceBackground = backgroundImageData;
+        const nextEvidence = new Map<string, { evidence: ShadowEvidence; y: number }>();
         const visualState: ReplayVisualFrame = {
           frame,
           mediaTimeMs,
           whiteKeys,
           activeKeyIndexes: [...activeKeyIndexes],
-          fingertips: fingertips.map((fingertip) => ({
-            point: fingertip.point,
-            active: pipeline?.contacts.get(fingertip.id)?.active ?? false,
-            candidate: pipeline?.synchronousMeasurements.get(
-              fingertip.id,
-            )?.state === "press candidate",
-            eligible: pipeline?.gates.get(fingertip.id)?.knuckleEligible ?? false,
-          })),
+          fingertips: fingertips.map((fingertip) => {
+            const hand = hands[fingertip.handIndex]?.handedness ?? "Unknown";
+            const fingerName = FINGER_LABELS[[4, 8, 12, 16, 20].indexOf(fingertip.landmarkIndex)] ?? fingertip.landmarkIndex;
+            const id = `${hand}-${fingerName}`;
+            const uniqueHand = hand !== "Unknown" && hands.filter((item) => item.handedness === hand).length === 1;
+            const evidence = evidencePixels && uniqueHand
+              ? measureShadowEvidence(evidencePixels, backgroundImageData, fingertip.point, filter) : null;
+            const previous = previousEvidence.get(id);
+            if (evidence) nextEvidence.set(id, { evidence, y: fingertip.point.y });
+            return {
+              id,
+              darkRuns: evidencePixels && uniqueHand ? darkShadowRuns(analyzeDarkShadowRegion(evidencePixels, backgroundImageData, fingertip.point, filter)) : [],
+              evidence,
+              change: evidence && previous ? compareShadowEvidence(previous.evidence, evidence) : null,
+              deltaY: evidence && previous ? fingertip.point.y - previous.y : null,
+              point: fingertip.point,
+              active: pipeline?.contacts.get(fingertip.id)?.active ?? false,
+              candidate: pipeline?.synchronousMeasurements.get(
+                fingertip.id,
+              )?.state === "press candidate",
+              eligible: pipeline?.gates.get(fingertip.id)?.knuckleEligible ?? false,
+            };
+          }),
           shadowCandidates: frameSynchronousCandidates,
+          heatmapReferenceId,
         };
+        previousEvidence = nextEvidence;
         visualFrames.push(visualState);
+        if (evidenceEnabled) setEvidenceFrame(visualState);
         displayCursor = frame;
         setDisplayedFrame(frame);
         drawReplayOverlay(visualState);
         keys.push({ frame, mediaTimeMs, activeKeyIndexes: [...activeKeyIndexes] });
         if (manual) {
           setStatus(
-            `Frame ${frame + 1} / ${lastFrame + 1} · active keys: ${activeKeyIndexes.size ? [...activeKeyIndexes].sort((a, b) => a - b).join(", ") : "none"} · shadow candidates: ${frameSynchronousCandidates}`,
+            `Frame ${frame} / ${lastFrame} · active keys: ${activeKeyIndexes.size ? [...activeKeyIndexes].sort((a, b) => a - b).join(", ") : "none"} · shadow candidates: ${frameSynchronousCandidates}`,
           );
           let continueProcessing = false;
           while (!continueProcessing) {
@@ -456,7 +578,7 @@ export default function CvVideoReplayPage() {
         } else if (visualReplayDelayMs > 0) {
           const activeKeys = [...activeKeyIndexes].sort((a, b) => a - b);
           setStatus(
-            `Frame ${frame + 1} / ${lastFrame + 1} · active keys: ${activeKeys.length ? activeKeys.join(", ") : "none"} · shadow candidates: ${frameSynchronousCandidates}`,
+            `Frame ${frame} / ${lastFrame} · active keys: ${activeKeys.length ? activeKeys.join(", ") : "none"} · shadow candidates: ${frameSynchronousCandidates}`,
           );
           await new Promise((resolve) =>
             window.setTimeout(resolve, visualReplayDelayMs),
@@ -512,6 +634,8 @@ export default function CvVideoReplayPage() {
           markerAcquireIntervalMs: MARKER_ACQUIRE_INTERVAL_MS,
           markerCheckIntervalMs: MARKER_CHECK_INTERVAL_MS,
           frameStages },
+        darkPixelFilter: { ...filter },
+        shadowEvidenceFrames: evidenceEnabled ? visualFrames : undefined,
         contactTechniques: pipeline.techniques,
         replayMode: "ordered-paused-frame-stepping-with-live-marker-cadence" };
       setResult(JSON.stringify(output, null, 2));
@@ -524,17 +648,24 @@ export default function CvVideoReplayPage() {
     }
   }
 
-  return <main style={{ padding: 24 }}>
+  return <main className={styles.page}>
     <h1>CV video replay</h1>
-    <p>Paused frame stepping; each decoded frame is processed in order by MediaPipe and the live contact pipeline.</p>
+    <p><Link href="/cv-shadow-test">Open shadow heatmap · images and video, without finger tracking</Link></p>
+    <p className={styles.subtitle}>Compare finger motion and shadow changes, one frame at a time.</p>
+    <details className={styles.setup} open={!evidenceFrame}>
+    <summary>Source files & filter tuning</summary>
+    <div className={styles.files}>
     <label>Video <input id="clip" type="file" accept="video/mp4,video/*" /></label>
     <label style={{ marginLeft: 16 }}>Sidecar <input id="sidecar" type="file" accept="application/json,.json" /></label>
-    <button type="button" onClick={() => void runReplay().catch((error: unknown) =>
+    </div>
+    {diagnosticView === "finger" && <ShadowFilterControls value={filter} onChange={setFilter} />}
+    <button className={styles.primary} type="button" onClick={() => void runReplay().catch((error: unknown) =>
       setStatus(`Replay failed: ${error instanceof Error ? error.message : String(error)}`))}>
       Run replay
     </button>
+    </details>
     {manualReview && (
-      <div style={{ display: "flex", gap: 8, marginTop: 12, marginBottom: 12 }}>
+      <div className={styles.controls}>
         <button
           type="button"
           onClick={() => sendManualAction(manualPlaying ? "pause" : "resume")}
@@ -619,10 +750,15 @@ export default function CvVideoReplayPage() {
         </div>
       </form>
     )}
-    <p role="status">{status}</p>
-    <div
-      style={{ position: "relative", display: "inline-block", maxWidth: 640, width: "100%" }}
-    >
+    <p role="status" className={styles.status}>{status}</p>
+    <label className={styles.viewControl}>Diagnostic view
+      <select aria-label="Diagnostic view" value={diagnosticView} onChange={(event) => setDiagnosticView(event.target.value)}>
+        <option value="heatmap">Shadow heatmaps</option><option value="finger">Finger measurements</option>
+      </select>
+    </label>
+    <div className={styles.workspace}>
+    <div className={styles.videoPanel}>
+    <div className={styles.video}>
       <video
         id="video"
         muted
@@ -632,16 +768,19 @@ export default function CvVideoReplayPage() {
       <canvas
         id="replay-overlay"
         aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          pointerEvents: "none",
-        }}
+        className={styles.overlay}
       />
     </div>
+    {diagnosticView === "finger" && <div className={styles.legend}>
+      <span><i className={styles.swatch} style={{ color: "var(--color-green)" }} />Near band · 2–10 px</span>
+      <span><i className={styles.swatch} style={{ color: "var(--color-blue)" }} />Forward band · 11–45 px</span>
+      <span>Blue fill = dark-pixel matches</span>
+    </div>}
+    <p className={styles.muted}>{diagnosticView === "finger" ? <>Recorded filter: drop ≥ {runFilter.minLumaDrop} · luma ≤ {runFilter.maxLuma} · RGB ≤ {runFilter.maxRgbChannel} · R−G ≤ {runFilter.maxRedGreenDifference}. Edit settings and rerun to apply changes.</> : "Heatmaps use this replay’s saved empty-sheet frame. Pause and use Previous/Next to inspect. Display settings update immediately."}</p>
+    </div>
+    {diagnosticView === "heatmap" ? <ReplayHeatmapPanel sampleSource={sampleSource} frame={evidenceFrame} reference={evidenceFrame?.heatmapReferenceId ? heatmapReferences.current.get(evidenceFrame.heatmapReferenceId) ?? null : null} playing={manualPlaying} /> : evidenceFrame ? <ReplayEvidencePanel frame={evidenceFrame} history={historyRef.current} selected={selectedFinger} onSelect={setSelectedFinger} /> : <div className={styles.evidence}><h2>Frame inspector</h2><p className={styles.muted}>Run a manual replay to inspect a finger, compare measurements and follow their changes over time.</p></div>}
+    </div>
     <canvas id="frame" hidden />
-    <pre>{result}</pre>
+    <details className={styles.report}><summary>Raw replay report</summary><pre>{result}</pre></details>
   </main>;
 }

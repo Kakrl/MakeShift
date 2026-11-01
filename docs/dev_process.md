@@ -30,6 +30,8 @@ MakeShift/
 │       └── __init__.py
 ├── docs/
 │   ├── architecture.md              # browser target, tooling, delivery boundaries
+│   ├── cv_shadow_detection_status_and_next_steps.md # shadow progress and RGB projection experiment
+│   ├── cv_shadow_heatmap.md         # finger-independent subtraction viewer
 │   ├── cv_image_tests.md             # labeled still-image shadow diagnostic replay
 │   ├── cv_automated_testing.md       # working plan for labeled CV recordings and metrics
 │   ├── cv_video_tests.md             # quick guide for preparing and running CV video tests
@@ -62,6 +64,7 @@ MakeShift/
 │   │   └── models/                  # MediaPipe hand landmarker model
 │   ├── src/
 │   │   ├── app/
+│   │   │   ├── cv-shadow-test/      # image/video heatmaps, patch collection and source-anchored shadow bands
 │   │   │   ├── cv-image-test/       # labeled still-image shadow diagnostics
 │   │   │   ├── api/health/          # recordings database health route
 │   │   │   ├── audio/                  # browser owner and Audio check page
@@ -92,6 +95,8 @@ MakeShift/
 │   │   │   ├── finger.ts             # per-finger state owner and checkState entry point
 │   │   │   ├── fingerVelocity.ts     # bounded palm-normalized speed and onset velocity
 │   │   │   ├── shadowHeuristics.ts   # prototype RGB k-means dark-region segmentation
+│   │   │   ├── fingertipCandidates.ts # offline filtered/color masks, anonymous distal-tip and shadow proposals
+│   │   │   ├── shadowTipEvidence.ts # static distal-edge profiles and separate side/back context
 │   │   │   └── shadowWorker.ts       # bounded background shadow segmentation
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
 │   │   ├── lib/                     # shared utilities (versioned storage, recordings API schema)
@@ -117,6 +122,11 @@ MakeShift/
 │   │   └── rca.test.cjs             # RCA parser, validation, publication tests
 │   ├── frontend/
 │   │   ├── cvImageCases.browser.mjs # Playwright runner for labeled still-image CV cases
+│   │   ├── fingertipCandidates.experiment.mjs # offline legacy/filtered source-mask-tip galleries (not accuracy verification)
+│   │   ├── fingertipCandidates.test.ts # synthetic mask/plateau/local-lobe and shadow regressions
+│   │   ├── shadowHypothesis.experiment.mjs # cached index/middle static shadow comparison
+│   │   ├── shadowDirectional.experiment.mjs # strict-fan, edge-region and bounded directional DFS galleries
+│   │   ├── shadowTipEvidence.test.ts # curved-edge, directional pattern, censoring and ambiguity regressions
 │   │   ├── runCvImageCases.mjs      # builds app and runs the still-image CV replay
 │   │   ├── performanceMetrics.test.ts # bounded aggregation, clocks and resource counts
 │   │   ├── performanceResources.test.tsx # camera provider lifecycle accounting
