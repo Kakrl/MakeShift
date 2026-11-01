@@ -224,9 +224,15 @@ Enable audio action. Tempo/meter controls are available before calibration. Paus
 Resume counts in; Stop recording returns to live accompaniment. A muted count-in
 still advances. Generation tokens reject stale notifications after cancellation,
 and page cleanup closes the tracked context, node and message port. The same
-owner can prepare again after StrictMode cleanup. Processor errors or context
-suspension switch the metronome off, show a plain error and interrupt any active
-piano session. Piano tracking interruption alone leaves standalone clicks
+owner can prepare again after StrictMode cleanup. Unsuccessful preparation
+closes its context and any partially connected node, clears callbacks and the
+message port, and permits a fresh attempt. Cleanup checks context ownership so
+a retired initialization cannot release a newer graph. Processor errors or context
+suspension switch the metronome off and show a separate plain error. They cancel
+a pending start/resume count-in, leaving the take stopped or paused, but do not
+interrupt piano playback or an already active recording. Enable audio prepares
+only piano audio; starting/resuming recording also prepares the count-in. Failed
+count-in preparation leaves piano playback available and reports a retry instruction. Piano tracking interruption alone leaves standalone clicks
 running; count-ins are cancelled and the take is closed as before. Backgrounding
 switches clicks off, requiring another toggle gesture after returning. Clicks bypass musical-event dispatch and MIDI.
 

@@ -171,3 +171,74 @@ it("recreates a failed processor and rejects notifications from the retired node
   expect(complete).toHaveBeenCalledTimes(1);
   clock.close();
 });
+
+function preparationFixture() {
+  const context = {
+    state: "suspended" as AudioContextState,
+    destination: {},
+    onstatechange: null as null | (() => void),
+    audioWorklet: { addModule: vi.fn(async () => {}) },
+    resume: vi.fn(async () => { context.state = "running"; }),
+    close: vi.fn(async () => { context.state = "closed"; }),
+  };
+  const node = {
+    port: { onmessage: null, postMessage: vi.fn(), close: vi.fn() },
+    onprocessorerror: null,
+    connect: vi.fn(), disconnect: vi.fn(),
+  };
+  return { context, node };
+}
+
+it.each(["resume throw", "resume rejection", "module", "connect"])(
+  "releases failed %s preparation and retries with a fresh context",
+  async failure => {
+    const first = preparationFixture(), second = preparationFixture();
+    if (failure === "resume throw") first.context.resume.mockImplementationOnce(() => { throw new Error("resume"); });
+    if (failure === "resume rejection") first.context.resume.mockRejectedValueOnce(new Error("resume"));
+    if (failure === "module") first.context.audioWorklet.addModule.mockRejectedValueOnce(new Error("module"));
+    if (failure === "connect") first.node.connect.mockImplementationOnce(() => { throw new Error("connect"); });
+    const createContext = vi.fn()
+      .mockReturnValueOnce(first.context)
+      .mockReturnValueOnce(second.context);
+    const createNode = vi.fn((context: AudioContext) =>
+      (context === (first.context as unknown as AudioContext) ? first.node : second.node) as unknown as AudioWorkletNode);
+    const clock = createMetronome(createContext, createNode);
+    expect(await clock.prepare()).toBe(false);
+    expect(first.context.close).toHaveBeenCalledOnce();
+    expect(first.context.onstatechange).toBeNull();
+    if (failure === "connect") {
+      expect(first.node.port.close).toHaveBeenCalledOnce();
+      expect(first.node.disconnect).toHaveBeenCalledOnce();
+      expect(first.node.port.onmessage).toBeNull();
+      expect(first.node.onprocessorerror).toBeNull();
+    }
+    expect(await clock.prepare()).toBe(true);
+    expect(createContext).toHaveBeenCalledTimes(2);
+    expect(second.context.close).not.toHaveBeenCalled();
+    clock.close();
+  },
+);
+
+it("does not let a retired module failure close a newer successful preparation", async () => {
+  const first = preparationFixture(), second = preparationFixture();
+  let rejectModule!: (error: Error) => void;
+  first.context.audioWorklet.addModule.mockImplementationOnce(() =>
+    new Promise<void>((_resolve, reject) => { rejectModule = reject; }));
+  const createContext = vi.fn()
+    .mockReturnValueOnce(first.context)
+    .mockReturnValueOnce(second.context);
+  const clock = createMetronome(createContext, () => second.node as unknown as AudioWorkletNode);
+  const retired = clock.prepare();
+  await Promise.resolve();
+  expect(first.context.audioWorklet.addModule).toHaveBeenCalledOnce();
+  clock.close();
+  expect(await clock.prepare()).toBe(true);
+  rejectModule(new Error("late module failure"));
+  expect(await retired).toBe(false);
+  expect(first.context.close).toHaveBeenCalledOnce();
+  expect(second.context.close).not.toHaveBeenCalled();
+  expect(second.node.disconnect).not.toHaveBeenCalled();
+  expect(await clock.prepare()).toBe(true);
+  expect(createContext).toHaveBeenCalledTimes(2);
+  clock.close();
+});

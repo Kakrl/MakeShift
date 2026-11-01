@@ -909,6 +909,9 @@ defect report is filed.
 | D21 | High | Calibration | (Req 6.2, 1.1, 2.1) #148 replaced the reachable result capture with depth buttons and navigated before validation/save. Final depth capture now creates the primary result; completion retains its model and saves both records before navigation. 6.2.3's expected failures are restored as passing regressions. | `frontend/src/app/calibration/page.tsx` | [#162](https://github.com/Kakrl/MakeShift/issues/162) | Fix verified locally 2026-10-06; review/merge and physical check pending |
 
 | D24 | Medium | Audio | User camera-device testing of the initial #206 implementation found no live accompaniment and unstable clicks during page actions. | `frontend/src/app/audio/metronome.ts` | [#206](https://github.com/Kakrl/MakeShift/issues/206) | Worklet revision verified automatically; [user-reported behavior retest passed](manual/2026-10-25_MET-04.md), tested device commit 2cf30d0 confirmed |
+| D25 | Medium | MIDI / UI | Confirmed No, delete it plus accepted browser confirmation leaves the take accessible through Recordings; reload persistence not yet separately confirmed. | `frontend/src/app/midi/RecordingsLibraryPanel.tsx`, `frontend/src/app/share/SaveTakeDialog.tsx` | [#224](https://github.com/Kakrl/MakeShift/issues/224) | Open; user-reported manual reproduction, exact follow-up commit pending |
+| D26 | Medium | Audio / UI | Visual count-in falls behind audible beats, especially at 300 BPM; offset and recording-start alignment unmeasured. | `frontend/src/app/page.tsx`, `frontend/src/app/audio/metronome.ts` | [#225](https://github.com/Kakrl/MakeShift/issues/225) | Open; [MET-04 observation](manual/2026-10-25_MET-04.md), 300 BPM follow-up reported 2026-10-26 |
+| D27 | Medium | Calibration / UI | Moving the sheet after calibration leaves audio/record controls disabled while the marker overlay appears valid, without clear mismatch/recovery feedback. | `frontend/src/events/liveSession.ts`, `frontend/src/app/MarkerTrackingOverlay.tsx`, `frontend/src/app/page.tsx` | [#226](https://github.com/Kakrl/MakeShift/issues/226) | Open; overlaps broader recovery/alignment work in [#220](https://github.com/Kakrl/MakeShift/issues/220) |
 | D23 | Medium | Audio | (Req 2.4, related 2.2) User reports high-velocity strikes are not loud enough and wants more apparent velocity dynamics. Listening report 2026-10-14; cause and hardware verification pending. | `frontend/src/cv/fingerVelocity.ts`, `frontend/public/audio/synth.js` | [#209](https://github.com/Kakrl/MakeShift/issues/209) | DSP tuning implemented locally; [verification and listening limits](manual/2026-10-14_209-velocity.md); user confirmed audible velocity changes locally 2026-10-14; measured trials/chord distortion checks pending |
 
 ## Root Cause Analysis Log
@@ -1825,3 +1828,38 @@ playback/mute (RMS 0.14496), audio-thread timing under a 1.8-second UI stall,
 and keyboard-layout/audio regressions. Deployment smoke passed with the
 established temporary local GPU workaround; committed runner unchanged,
 temporary copy removed, database unconfigured. Actions execution pending.
+
+## Metronome failure isolation (PR #223 review comment 1)
+
+Local verification 2026-10-31: Enable audio prepares piano audio independently.
+Failed count-in preparation leaves new recordings stopped or existing takes
+paused, with a separate retry error. Click interruption cancels a pending
+count-in without interrupting piano playback or an already active recording.
+Four added simulated Home regressions cover these paths; recordingControls
+passed 37 cases with one existing skip. The full Vitest suite passed 600 cases
+with one existing skip across 33 files. Lint, TypeScript, all 37 contrast pairs
+and the production build passed (font downloads required network access).
+Production Chromium 151.0.7922.34 keyboard-layout and audio browser checks
+passed. Deployment smoke first failed on sandbox CDN access; the network-enabled
+retry stalled without a result and was stopped, so deployment smoke is unverified.
+Physical camera/audio testing and new CI execution remain pending.
+Count-in timestamp alignment and failed-context cleanup are separate review
+comments and are not changed by this follow-up.
+
+## Metronome preparation cleanup (PR #223 review comment 3)
+
+Local verification 2026-10-31: unsuccessful preparation now releases its owned
+context, callbacks, partial node and message port. Shared close logic preserves
+ownership checks so a late failure from a retired attempt cannot close a newer
+context. Resume is called inside the guarded preparation path, still directly
+from the gesture before awaiting module loading.
+
+Five new controller regressions cover synchronous resume exceptions, rejected
+resume, module loading failure, connection failure, fresh-context retries and a
+late rejected module after close/reprepare. All 14 metronome cases passed; the
+full suite passed 605 cases with one existing skip across 33 files. Lint,
+TypeScript, all 37 contrast pairs and the production build passed. Production
+Chromium 151.0.7922.34 audio and keyboard-layout browser checks passed.
+Deployment smoke was not repeated after the earlier stalled run documented
+above; physical camera/audio testing and new CI evidence remain pending.
+Recording-clock synchronization remains follow-up issue #225.

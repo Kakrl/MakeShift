@@ -334,10 +334,14 @@ export default function Home() {
       onCountInBeat: setCountInBeat,
       onCountInComplete: finishCountIn,
       onUnavailable: () => {
-      setMetronome(false);
-      setMetronomeError("Metronome audio interrupted. Turn it on again to retry.");
-      session.interrupt("Metronome audio interrupted. Select Enable audio to retry playing.");
-    },
+        setMetronome(false);
+        const countInPending = countInActionRef.current !== null;
+        countInActionRef.current = null;
+        setCountInBeat(null);
+        setMetronomeError(countInPending
+          ? "Count-in audio interrupted. Select Start or Resume recording to retry."
+          : "Metronome audio interrupted. Turn it on again to retry.");
+      },
     });
   }, [metronomeController, tempo, beatsPerMeasure, metronome, finishCountIn, session]);
 
@@ -399,23 +403,25 @@ export default function Home() {
       window.removeEventListener("pagehide", leave);
     };
   }, [session, recorder, completeTake, metronomeController, cancelMetronomeRequest]);
-  const enableAudio = async () => {
+  const enableAudio = async (withCountIn = false) => {
     if (!canPlay || audioPreparingRef.current) return false;
     const request = playRequestRef.current;
     audioPreparingRef.current = true;
     setAudioPreparing(true);
     try {
-      // Both contexts are prepared from this gesture; Stop can cancel either.
-      const clicksReady = metronomeController.prepare();
+      // Count-in prepares both contexts from the gesture; ordinary playing only needs piano audio.
+      const clicksReady = withCountIn ? metronomeController.prepare() : null;
       const prepared = session.status.state === "playing" || await session.prepare();
-      const clickPrepared = await clicksReady;
-      if (request !== playRequestRef.current) return false;
-      if (!prepared) return false;
+      const pianoReady = request === playRequestRef.current && prepared &&
+        (session.status.state === "playing" || session.play() !== null);
+      const clickPrepared = clicksReady === null || await clicksReady;
+      if (request !== playRequestRef.current || !pianoReady) return false;
       if (!clickPrepared) {
-        session.interrupt("Metronome audio could not start. Select Enable audio to retry.");
+        setMetronomeError("Count-in audio could not start. Select Start or Resume recording to retry.");
         return false;
       }
-      return session.status.state === "playing" || session.play() !== null;
+      if (withCountIn) setMetronomeError(null);
+      return true;
     } finally {
       if (request === playRequestRef.current) {
         audioPreparingRef.current = false;
@@ -453,7 +459,7 @@ export default function Home() {
     }
     if (!canPlay || !libraryLoaded) return;
     const request = ++playRequestRef.current;
-    if (!await enableAudio() || request !== playRequestRef.current) return;
+    if (!await enableAudio(true) || request !== playRequestRef.current) return;
     if (countInBeat !== null) return; // already counting in
     if (isRecording && isPaused) {
       // Keep the existing take paused until the count-in finishes.
@@ -811,7 +817,7 @@ export default function Home() {
 
           <div className="relative flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
           <button
-            onClick={enableAudio}
+            onClick={() => enableAudio()}
             disabled={!canPlay || audioPreparing || liveStatus.state === "starting" || liveStatus.state === "playing"}
             className="ms-key ms-transport-key"
           >

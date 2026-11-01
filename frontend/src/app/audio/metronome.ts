@@ -49,6 +49,21 @@ export function createMetronome(
     counting = false;
     send("stop");
   }
+  function releaseContext(owner: AudioContext) {
+    // A retired preparation must not release a newer attempt's resources.
+    if (context !== owner) return;
+    stop();
+    context = null;
+    owner.onstatechange = null;
+    if (node) {
+      node.port.onmessage = null;
+      node.onprocessorerror = null;
+      node.port.close();
+      node.disconnect();
+      node = null;
+    }
+    void closeTrackedAudioContext(owner);
+  }
   function prepare(): Promise<boolean> {
     if (pending) return pending;
     let owner: AudioContext;
@@ -57,11 +72,11 @@ export function createMetronome(
     } catch {
       return Promise.resolve(false);
     }
-    // Resume synchronously from the gesture, before awaiting module loading.
-    const resumed =
-      owner.state === "suspended" ? owner.resume() : Promise.resolve();
     const task = (async () => {
       try {
+        // Resume synchronously from the gesture, before awaiting module loading.
+        const resumed =
+          owner.state === "suspended" ? owner.resume() : Promise.resolve();
         await resumed;
         if (context !== owner) return false;
         if (!node) {
@@ -99,8 +114,13 @@ export function createMetronome(
             }
           };
         }
-        return owner.state === "running";
+        if (owner.state !== "running") {
+          releaseContext(owner);
+          return false;
+        }
+        return true;
       } catch {
+        releaseContext(owner);
         return false;
       }
     })();
@@ -153,20 +173,9 @@ export function createMetronome(
     },
     stop,
     close() {
-      stop();
-      const previous = context;
-      context = null;
+      if (context) releaseContext(context);
+      else stop();
       pending = null;
-      if (node) {
-        node.port.onmessage = null;
-        node.port.close();
-        node.disconnect();
-        node = null;
-      }
-      if (previous) {
-        previous.onstatechange = null;
-        void closeTrackedAudioContext(previous);
-      }
     },
   };
 }
