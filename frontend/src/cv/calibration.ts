@@ -198,6 +198,26 @@ export function compatibleCalibration(
     )
   );
 }
+
+export type CalibrationReason = "calibration-missing" | "calibration-invalid" |
+  "camera-unavailable" | "camera-device" | "camera-dimensions" | "camera-facing" |
+  "layout-changed" | "markers-unavailable" | "geometry-mismatch";
+
+/** Ordered diagnostics; compatibility remains the authoritative safety gate. */
+export function calibrationReason(value: unknown, camera: CameraSignature | null,
+  corners: Point[] | null, layout: KeyboardLayout): CalibrationReason | null {
+  if (value == null) return "calibration-missing";
+  const saved = validateCalibration(value);
+  if (!saved) return "calibration-invalid";
+  if (!camera || !validCamera(camera)) return "camera-unavailable";
+  if (saved.camera.deviceId !== camera.deviceId) return "camera-device";
+  if (saved.camera.width !== camera.width || saved.camera.height !== camera.height)
+    return "camera-dimensions";
+  if (saved.camera.facingMode !== camera.facingMode) return "camera-facing";
+  if (!usableLayout(layout) || !sameLayout(saved.layout, layout)) return "layout-changed";
+  if (!corners || !validCorners(corners, camera)) return "markers-unavailable";
+  return compatibleCalibration(saved, camera, corners, layout) ? null : "geometry-mismatch";
+}
 type StorageAccess = () => Pick<Storage, "getItem" | "setItem" | "removeItem">;
 const browserStorage: StorageAccess = () => window.localStorage;
 export function loadCalibration(

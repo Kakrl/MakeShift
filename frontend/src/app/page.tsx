@@ -324,7 +324,7 @@ export default function Home() {
     if (!action) return;
     if (session.status.state !== "playing") {
       metronomeController.stop();
-      session.interrupt("Readiness changed during count-in. Wait for tracking, then select Enable audio.");
+      session.interrupt();
       return;
     }
     setCountInBeat(null);
@@ -556,6 +556,8 @@ export default function Home() {
         >
           <span aria-hidden="true" className={`mt-[7px] size-1.5 shrink-0 rounded-full transition-colors duration-200 ${statusTone}`} />
           {liveStatus.message}
+          {liveStatus.action === "calibrate" && !devMode && <a href="/calibration" className="shrink-0 underline underline-offset-2">Calibrate</a>}
+          {liveStatus.action === "reload" && <button onClick={() => window.location.reload()} className="shrink-0 underline underline-offset-2">Reload tracker</button>}
         </p>
       </PageTopBar>
       <div aria-live="polite" className="sr-only">
@@ -741,7 +743,6 @@ export default function Home() {
           )}
 
           {!canPlay && devMode && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Dev mode: show all four sheet markers and your hands to play.</span></p>}
-          {!canPlay && !devMode && isCalibrated === true && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Show the calibrated sheet and camera, or <a href="/calibration" className="underline underline-offset-2 font-medium">calibrate again</a>. Saved data is checked before playing.</span></p>}
         </div>
 
         {/* Right sidebar (below the camera under lg) */}

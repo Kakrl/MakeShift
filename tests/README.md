@@ -1170,6 +1170,8 @@ defect report is filed.
 | D24 | Medium | Audio | (Req 2.2, related 2.4) Higher notes dominated the procedural sound; +4 dB gain was insufficient. User selected sampled Salamander piano at +6 dB after RMS normalization. | `frontend/public/audio/sampled-piano.js`, `frontend/src/app/audio/pianoSamples.ts` | [#210](https://github.com/Kakrl/MakeShift/issues/210) | Sampled production implemented; [software and qualitative prototype evidence](manual/2026-10-19_210-register-balance.md); production hardware listening and review/merge pending |
 | D25 | Medium | Audio / UI | (Req 3.2, #207) Immediate per-beat clicks depended on React/main-thread timer delivery, allowing uneven intervals and accumulated drift under CV/render work. | `frontend/src/app/page.tsx`, `frontend/src/app/audio/countIn.ts` | [#232](https://github.com/Kakrl/MakeShift/issues/232) | Fix implemented; digital audio/timer regressions pass locally; physical listening, review/merge and Actions pending |
 
+| D25 | Medium | Calibration / UI | (Req 3.2, 6.2) A moved sheet can have all four markers and a visible debug keyboard while saved calibration is incompatible, leaving Enable audio/Record disabled without a clear recovery explanation. | `frontend/src/events/liveSession.ts`, `frontend/src/app/page.tsx`, `frontend/src/app/SheetAlignment.tsx` | [#226](https://github.com/Kakrl/MakeShift/issues/226) | Addressed with #220 in [PR #238](https://github.com/Kakrl/MakeShift/pull/238); 2.1.5/REC-03 automated recovery checks passed; physical recovery, including knuckles enabled, remains pending in REC-04; review/merge pending |
+
 ## Root Cause Analysis Log
 
 Every completed RCA is listed here. Add its row in the fix PR so it receives
@@ -2073,6 +2075,79 @@ live-CV profiling and physical latency evidence remain pending.
 
 Issue #205 user follow-up (2026-10-27): Carl Xu tested the localhost build at 4ea7a38 and confirmed it works as intended. See the CI-04 report's user confirmation; detailed hardware/scenario and physical measurement evidence remains pending.
 
+## Playing recovery and alignment (issue #220)
+
+Local verification on 2026-10-29, Windows, Node 22.20.0, branch
+`feature/220-playing-recovery-alignment` (working tree based on `99bd9fd`):
+
+- `npm run lint` and `npx tsc --noEmit` passed.
+- `npx vitest run`: **710 passed, one existing frame-loss test skipped**, 37 files.
+  Added structured reason precedence/copy and realignment/stale-session cases in
+  liveSession; nine sheetAlignment component cases; three Home/coordinator/marker
+  integration cases for displacement/miss/realignment, audio/camera and tracking
+  recovery. Existing count-in audio failure retains its distinct message.
+- `npm run test:contrast`: all 37 existing token pairs passed. Legend uses
+  ink/surface (16.67:1); comparison strokes white/dark (19.91:1) and
+  accent-light/dark (9.87:1) with a dark backing stroke. Video-pixel contrast is
+  not a measured guarantee; solid/dashed shapes provide non-color cues.
+- `npm run build` passed. The sandbox's initial font downloads failed;
+  rerunning with network access succeeded without source/config changes.
+- Production server, `MAKE_SHIFT_URL=http://127.0.0.1:3001`, Edge
+  **156.0.4314.50**: deployment, keyboard-layout and browser-audio runners passed.
+  Deployment loaded eight assets and five routes, exercised three local audio
+  rounds without note requests, and camera denial/retry/loss/recovery. Database
+  was unconfigured. Browser audio decoded 19 samples at 48 kHz, reported
+  111,179,616 decoded bytes and 0.5716 ten-voice peak; offline registers,
+  suspension recovery and navigation cleanup passed. This is graph output,
+  not physical audibility or latency.
+- `BROWSER_CHANNEL=msedge node ../tests/frontend/recovery.browser.mjs`
+  passed: 320/390/1440px legend/page bounds, saved outline with missing current
+  geometry, one primary resolution-mismatch status, non-live legend, Tab/Enter
+  calibration navigation. Fake camera, no physical sheet/hand verification.
+- Chromium checks were attempted with the installed browser path but could not
+  spawn (`spawn UNKNOWN`); Edge supplied the browser evidence. The sandboxed
+  server was unreachable from the external browser; an external production
+  server resolved it. Vitest initially hit temporary-file rename permissions;
+  the complete reported run used the external execution environment.
+
+No new Actions execution is claimed. No real screen-reader, physical camera,
+listening, usability or latency pass is claimed. The dated human procedure and
+pending environment/step results are in [REC-04](manual/2026-10-29_REC-04.md).
+Existing thresholds and contact/session safety remain unchanged. Source tests
+run in existing frontend CI; the new recovery browser runner is manually invoked.
+
+PR #238 also addresses defect [#226](https://github.com/Kakrl/MakeShift/issues/226) through the same readiness messages and saved/current sheet-reference comparison. Marker detection is distinguished from compatible calibration, and restoration requires a matching complete scan plus explicit Enable audio. Standalone metronome behavior is outside this change. No additional execution is claimed by this documentation/linkage update; physical recovery with knuckles enabled and recalibration at the new pose remain pending in REC-04.
+
+### Visible alignment timing guidance (PR #238 follow-up)
+
+2026-10-29: the alignment legend now visibly says, "After realigning, allow about 10 seconds for checking. Once ready, select Enable audio." This replaces screen-reader-only timing text; scan cadence and readiness gates are unchanged. REC-02 checks that the guidance is not marked sr-only. REC-05 verifies actual visible dimensions and that the complete guidance fits inside the camera at 320/390/1440px, alongside existing keyboard/status checks.
+
+Full Vitest rerun: 710 passed, one existing skip, 37 files. Lint, TypeScript, 37 contrast pairs and production build passed. Edge 156.0.4314.50 recovery, deployment, keyboard-layout and audio browser checks passed against the final port 3001 build with fake media. Prior Chromium spawn limitation remains; database unconfigured, no physical camera/audio or real screen-reader execution claimed.
+
+## PR #238 review verification (2026-11-02)
+
+Windows, Node 22.20.0: 718 Vitest tests passed across 37 files, with the
+existing frame-loss skip. TypeScript, lint, all 37 contrast pairs, the standard
+Turbopack production build and whitespace checks passed. Eight added REC-02
+cases cover hiding the guide outside alignment recovery, missing-marker display,
+restored-readiness hiding and a decorative SVG swatch. Existing camera-space,
+scan expiry and geometry tests remain in place.
+
+Edge 156.0.4314.58 passed deployment, keyboard-layout, production audio and
+recovery browser runners against the production server on port 3238. Recovery
+checked 320/390/1440px bounds, visible wait guidance, missing-current-scan
+outline, camera mismatch and keyboard calibration navigation. Audio checked
+real decoded samples, output, interruption recovery and cleanup. Fake media and
+digital output do not establish physical camera, acoustic or screen-reader
+results. Chromium launch failed with `spawn UNKNOWN`; database unconfigured;
+new Actions evidence pending.
+
+The initial sandbox test attempt was blocked by temporary-file rename permissions.
+The successful suite ran outside that sandbox. A dependency junction prevented
+Turbopack's first build attempt; a clean local dependency install allowed the
+standard build to pass. An interim Webpack attempt failed on the existing
+OpenCV `fs` import; no build configuration was changed.
+
 ### Upstream integration before PR (#206)
 
 Merged upstream main at cba7323, retaining #204/PR #218's 60 BPM default and
@@ -2121,3 +2196,20 @@ Chromium 151.0.7922.34 audio and keyboard-layout browser checks passed.
 Deployment smoke was not repeated after the earlier stalled run documented
 above; physical camera/audio testing and new CI evidence remain pending.
 Recording-clock synchronization remains follow-up issue #225.
+
+## PR #238 main merge (2026-11-02)
+
+Merged main at b1700ee after #233/#235 landed. The Home conflict retains the
+production metronome controller and count-in input gate from main, using the
+recovery session's parameter-free interruption API. Both verification histories
+and all recovery overlay changes are preserved.
+
+Windows / Node 22.20.0: 746 tests passed across 38 files, one existing frame-loss
+skip. Lint, TypeScript, all 37 contrast pairs, the standard production build and
+whitespace checks passed. Edge 156.0.4314.58 passed deployment, keyboard-layout,
+audio, recovery, count-in gate and metronome browser runners on port 3238.
+Count-in output was exactly zero while gated; independent clicks continued.
+Metronome checks included camera-denied Home playback and audio-clock spacing
+under a busy UI thread. Recovery checked 320/390/1440px and keyboard navigation.
+Database unconfigured; fake media/digital output only, no physical sensing,
+acoustic or screen-reader pass. New Actions execution remains pending.

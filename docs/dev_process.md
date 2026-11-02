@@ -79,6 +79,7 @@ MakeShift/
 │   │   │   ├── PipelineDiagnostics.tsx # opt-in metrics and report export
 │   │   │   ├── CameraContext.tsx
 │   │   │   ├── CameraStatusOverlay.tsx
+│   │   │   ├── SheetAlignment.tsx        # saved/current sheet-reference comparison and legend
 │   │   │   ├── MarkerTrackingOverlay.tsx
 │   │   │   ├── globals.css          # --color-* theme tokens
 │   │   │   ├── layout.tsx
@@ -137,6 +138,8 @@ MakeShift/
 │   │   ├── recordingsApi.test.ts     # recordings routes and client, mocked database
 │   │   ├── pianoIntegration.test.ts # deterministic note-to-audio/MIDI/feedback
 │   │   ├── fingerVelocity.test.ts   # motion estimator, lifecycle and DSP response
+│   │   ├── sheetAlignment.test.tsx     # saved/current outline freshness and camera compatibility
+│   │   ├── recovery.browser.mjs       # production recovery keyboard/status/responsive checks
 │   │   ├── liveSession.test.ts       # readiness transitions and stale-input safety
 │   │   ├── noteEvents.test.ts        # shared events, lifecycle, clocks and MessagePort
 │   │   ├── playbackTimeline.test.ts # recording playback clock and lifecycle
