@@ -36,7 +36,7 @@ export default function Tutorial() {
       step: "5",
       title: "Record your song",
       // Covers start, pause/resume, stop and export (RVTM 6.3.1 to 6.3.3).
-      body: "Press Record and play after the count-in. Piano notes and pedals are paused throughout start and resume count-ins; release held keys and press again afterward. Metronome off mutes clicks only. Press Pause for a break, Resume to count in again, or Stop to cancel or finish. Download MIDI next to your take.",
+      body: "Press Record and play after the count-in. Keys are muted during the count-in, so release held keys and press again once it ends. Press Pause for a break, Stop when you're done, then Download MIDI next to your take.",
     },
   ];
 

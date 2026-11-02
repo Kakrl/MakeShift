@@ -41,7 +41,7 @@ try {
     const { BrowserAudio } = await import(urls.audio);
     const { NoteSession } = await import(urls.notes);
     const { createAudioSink } = await import(urls.sink);
-    const { scheduleCountInClicks } = await import(urls.clicks);
+    const { COUNT_IN_LOOKAHEAD_SECONDS, scheduleCountInClicks } = await import(urls.clicks);
     const owner = new BrowserAudio(); await owner.initialize();
     const context = owner.context; // Instrument the actual owner's private graph.
     const analyser = context.createAnalyser(); analyser.fftSize = 2048;
@@ -76,8 +76,11 @@ try {
         const clickContext = new OfflineAudioContext(1, 48000, 48000);
         scheduleCountInClicks(clickContext, 240, { numerator: 4, denominator: 4 });
         const pcm = (await clickContext.startRendering()).getChannelData(0);
+        const leadFrames = Math.round(COUNT_IN_LOOKAHEAD_SECONDS * 48000);
+        if (pcm.subarray(0, leadFrames).some(x => x !== 0)) throw Error("Click before scheduling lead");
         for (let beat = 0; beat < 4; beat++) {
-          if (!pcm.subarray(beat * 12000, beat * 12000 + 2400).some(x => Math.abs(x) > 0.01)) throw Error("Missing metronome click");
+          const onset = leadFrames + beat * 12000;
+          if (!pcm.subarray(onset, onset + 2400).some(x => Math.abs(x) > 0.01)) throw Error("Missing metronome click");
         }
         if (rms() !== 0) throw Error("Piano leaked during clicks");
         session.resumeInput(); owner.resumeInput();

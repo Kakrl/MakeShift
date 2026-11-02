@@ -1,6 +1,6 @@
-import { isMeter, restoreMeter } from "../../lib/meter";
 // Browser client for the recordings API (#119, #122, #128). Same shape as
 // the mock store, so the share UI does not care which one it is using.
+import { isMeter, restoreMeter } from "../../lib/meter";
 import type {
   DeleteRecordingResponse,
   RecordingApiError,

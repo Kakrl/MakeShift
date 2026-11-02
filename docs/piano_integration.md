@@ -28,8 +28,12 @@ the take for MIDI export. Restore tracking and select Enable audio after an
 interruption.
 
 Highlighted keys now represent accepted musical events. A fingertip over a key
-while stopped does not highlight it as sounding. The preview detector still
-uses polygon overlap, which can trigger on hovering; it is not intentional
+is not enough to mark it as sounding during live play: `soundFeedbackOnly`
+disables raw collision coloring while `activePitches` retains accepted-note
+highlights. This also prevents muted keys held through a count-in from lighting
+up before a fresh press.
+
+The preview detector uses polygon overlap, which can trigger on hovering; it is not intentional
 contact recognition. Live velocity now comes from recent fingertip motion;
 calibrated contact and camera-specific tuning remain #34/#29. Do not treat this
 preview as completed physical piano detection.
