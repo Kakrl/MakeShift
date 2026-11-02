@@ -1,5 +1,25 @@
 # MakeShift Testing
 
+## PR #235 review verification (2026-11-02)
+
+The count-in live region now keeps one start announcement across beat updates;
+the existing recording-controls case observes zero DOM mutations during the
+three intermediate beats and retains pause/resume/completion checks. Visible
+copy drops the em dash, and the tutorial recording card is shorter. Accepted
+note highlights remain enabled through `activePitches`; raw collision coloring
+stays disabled during live play so muted held contacts do not appear sounding.
+
+Verified an isolated snapshot of PR head `99bd9fd` plus these review changes,
+because concurrent work was editing the shared checkout. Windows / Node 22.20.0:
+lint, TypeScript, 696 Vitest tests (one existing skip), all 37 contrast pairs
+and production Turbopack build passed. The temporary build expanded only its
+Turbopack root to include the dependency junction; no repository build config
+change is proposed. Edge 156.0.4314.58 deployment, keyboard-layout and audio
+browser checks passed against port 3235 with fake media; database unconfigured.
+Chromium was attempted for all three but failed to launch (`spawn UNKNOWN`).
+Real screen-reader and physical camera/audio verification remain pending;
+stable DOM content is not a screen-reader listening test. Actions pending.
+
 ## Count-in input gate (issue #205)
 
 2026-10-27, Windows / Node 22.20.0, branch

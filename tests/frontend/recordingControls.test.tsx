@@ -394,13 +394,24 @@ it.each([2, 3])("uses %i-octave live geometry, shifted notes and feedback after 
 it("announces capture state through pause, resume count-in and completion", async () => {
   const status = () => host.querySelector('[aria-live="polite"]')?.textContent;
   await click(button("Start recording"));
-  expect(status()).toBe("Count-in — piano input paused. Beat 1 of 4. Select Stop to cancel.");
-  await countIn();
+  expect(status()).toBe("Count-in started. Piano paused. Select Stop to cancel.");
+  const mutations: MutationRecord[] = [];
+  const observer = new window.MutationObserver(records => mutations.push(...records));
+  observer.observe(host.querySelector('[aria-live="polite"]')!, {
+    childList: true, characterData: true, subtree: true,
+  });
+  for (let beat = 2; beat <= 4; beat++) {
+    await advance(500);
+    expect(status()).toBe("Count-in started. Piano paused. Select Stop to cancel.");
+  }
+  expect(mutations).toHaveLength(0);
+  observer.disconnect();
+  await advance(500);
   expect(status()).toBe("Recording started");
   await click(button("Pause recording"));
   expect(status()).toBe("Recording paused");
   await click(button("Resume recording"));
-  expect(status()).toBe("Count-in — piano input paused. Beat 1 of 4. Select Stop to cancel.");
+  expect(status()).toBe("Count-in started. Piano paused. Select Stop to cancel.");
   await countIn();
   expect(status()).toBe("Recording started");
   await click(button("Stop recording"));

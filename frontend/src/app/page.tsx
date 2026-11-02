@@ -530,7 +530,7 @@ export default function Home() {
         </p>
       </PageTopBar>
       <div aria-live="polite" className="sr-only">
-        {countInBeat !== null ? `Count-in — piano input paused. Beat ${countInBeat} of ${beatsPerMeasure}. Select Stop to cancel.` : isPaused ? "Recording paused" : isRecording ? "Recording started" : showRecordingComplete ? "Recording complete" : ""}
+        {countInBeat !== null ? "Count-in started. Piano paused. Select Stop to cancel." : isPaused ? "Recording paused" : isRecording ? "Recording started" : showRecordingComplete ? "Recording complete" : ""}
       </div>
 
       {/* ── Welcome Modal (first visit) ─────────────────────────────────────── */}
@@ -692,7 +692,7 @@ export default function Home() {
           {/* Count-in overlay, one measure of beats before recording */}
           {countInBeat !== null && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-dark/60 z-40 pointer-events-none">
-              <p className="text-white">Count-in — piano input paused · Stop to cancel</p>
+              <p className="text-white">Piano paused for count-in · Stop to cancel</p>
               <span
                 key={countInBeat}
                 className="ms-beat font-display text-white font-bold leading-none tabular-nums"
