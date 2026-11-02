@@ -1,7 +1,7 @@
-import { restoreMeter } from "../../lib/meter";
 // The shared recordings store the share UI uses (#203, #133): the real
 // recordings API, or the mock fixtures when the page URL has `?mock=`.
 // Also keeps which local takes are shared, with their delete tokens.
+import { restoreMeter } from "../../lib/meter";
 import type { Recording } from "../midi/midiUtils";
 import {
   RECORDING_LIST_PAGE_SIZE,

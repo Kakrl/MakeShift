@@ -207,6 +207,46 @@ The previous peak was 0.08 times velocity. The new power curve uses more headroo
 
 See the [dated verification/listening report](../tests/manual/2026-10-14_209-velocity.md) for before/after digital levels and the pending hardware procedure. Digital RMS does not establish acoustic SPL or physical latency.
 
+## Continuous metronome (#206)
+
+Home owns a reusable controller in `frontend/src/app/audio/metronome.ts`.
+The separate `frontend/public/audio/metronome-worklet.js` processor owns
+sample-frame beat deadlines, accents, click synthesis and one-bar count-in.
+UI commands configure tempo, mute, live playing, pause/resume and cancellation.
+Click timing does not depend on React renders or individual JavaScript timers.
+The worklet reports visual count-in progress/completion to Home; main-thread
+stalls can still delay those notifications and the recorder's reaction. Audio
+hardware, browser suspension and live CV readiness are separate limitations.
+
+The toggle directly prepares the click context from its user gesture and
+starts standalone playback. It requires no camera, saved calibration or piano
+Enable audio action. Tempo/meter controls are available before calibration. Pause recording silences clicks;
+Resume counts in; Stop recording returns to live accompaniment. A muted count-in
+still advances. Generation tokens reject stale notifications after cancellation,
+and page cleanup closes the tracked context, node and message port. The same
+owner can prepare again after StrictMode cleanup. Unsuccessful preparation
+closes its context and any partially connected node, clears callbacks and the
+message port, and permits a fresh attempt. Cleanup checks context ownership so
+a retired initialization cannot release a newer graph. Processor errors or context
+suspension switch the metronome off and show a separate plain error. They cancel
+a pending start/resume count-in, leaving the take stopped or paused, but do not
+interrupt piano playback or an already active recording. Enable audio prepares
+only piano audio; starting/resuming recording also prepares the count-in. Failed
+count-in preparation leaves piano playback available and reports a retry instruction. Piano tracking interruption alone leaves standalone clicks
+running; count-ins are cancelled and the take is closed as before. Backgrounding
+switches clicks off, requiring another toggle gesture after returning. Clicks bypass musical-event dispatch and MIDI.
+
+Tempo text is a draft until Enter or blur, reusing the #204 input behavior.
+Invalid input restores the active value with a plain accessible error. A valid
+change affects the interval following the pending beat. Time signatures,
+including 6/8, use denominator-note intervals at quarter-note BPM (#207);
+numerators up to 32 are supported. Calibration readiness is unchanged. The
+browser harness verifies sample-frame spacing through a deliberate 1.8-second
+page-thread stall; this is software graph evidence, not a hardware timing claim.
+See the [verification record](../tests/README.md#continuous-metronome-206).
+
+The metronome starts muted on every page load. Tempo and meter are persisted; legacy
+stored toggle fields are ignored and removed when preferences are written.
 ## Sampled production piano and register balance (#210)
 
 `piano-worklet.js` uses `SampledPiano` from `sampled-piano.js` for live notes,
@@ -340,7 +380,7 @@ without transport invalidation, clearing every sampled voice, sustain/sostenuto
 capture, soft state and crossfade history. The same AudioContext/worklet stays
 alive. Piano note-ons and positive pedal activations are rejected until opening;
 release/reset paths remain available. `LiveSession` also clears audio-token
-ownership and gates validated musical delivery. Separate count-in oscillators
-remain audible. Ordinary interruption/reset still invalidates sessions.
+ownership and gates validated musical delivery. The separate metronome worklet
+remains audible when enabled. Ordinary interruption/reset still invalidates sessions.
 Pedal UI sources clear synchronously at entry; inactive assigned keydowns are
 remembered as suppressed until keyup, for both Hold and Toggle.
