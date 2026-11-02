@@ -46,15 +46,39 @@ describe("audio-thread metronome", () => {
       0, 24000, 48000, 72000, 96000, 120000,
     ]);
   });
-  it("silences pause and toggle-off but keeps muted count-in", () => {
+  it("silences accompaniment during pause and toggle-off but plays the count-off", () => {
     const h = fixture();
     h.render(100);
     h.command("playing", { active: true, paused: true });
     expect(h.render(48000).every((v) => v === 0)).toBe(true);
     h.command("configure", { tempo: 120, beats: 4, audible: false });
     h.command("count-in");
-    expect(h.render(96001).every((v) => v === 0)).toBe(true);
+    expect(h.render(96000).some((v) => Math.abs(v) > 0.1)).toBe(true);
+    expect(h.render(48000).every((v) => v === 0)).toBe(true);
     expect(h.events.filter((e) => e.type === "complete")).toHaveLength(1);
+  });
+  it.each([3, 4, 6])("plays exactly %i count-off beats with accompaniment off", beats => {
+    const h = fixture();
+    h.command("configure", { tempo: 120, beats, audible: false });
+    h.command("count-in");
+    for (let beat = 1; beat <= beats; beat++) {
+      expect(h.render(24000).some(value => Math.abs(value) > 0.1)).toBe(true);
+    }
+    expect(h.events.map(event => event.beat)).toEqual(
+      Array.from({ length: beats }, (_, i) => i + 1));
+    // Completion advances the recorder but is not an extra audible beat.
+    expect(h.render(48000).every(value => value === 0)).toBe(true);
+    expect(h.events.filter(event => event.type === "complete")).toHaveLength(1);
+  });
+  it("preserves a count-off click across toggle-off and silences cancelled count-off", () => {
+    const h = fixture();
+    h.command("count-in");
+    h.render(100);
+    h.command("configure", { tempo: 120, beats: 4, audible: false });
+    expect(h.render(100).some(value => Math.abs(value) > 0.01)).toBe(true);
+    h.command("cancel-count-in");
+    expect(h.render(96000).every(value => value === 0)).toBe(true);
+    expect(h.events.some(event => event.type === "complete")).toBe(false);
   });
   it("applies a new tempo after the pending beat", () => {
     const h = fixture();

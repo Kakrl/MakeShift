@@ -143,3 +143,13 @@ functional pass for all pedals and programmable bindings on 2026-10-23. Automate
 browser execution, specific device/environment evidence, detailed scenario checks,
 live-CV stress and physical latency remain pending. See PD inventory
 and the dated report before claiming completion.
+
+## Audible recording count-off (#227)
+
+Audible count-off clarification (#227, user decision 2026-11-01): Start and
+Resume play one audible measure independently of the continuous-metronome
+toggle. The toggle remains default-off and non-persistent, with continuous
+clicks only when enabled. Preserve selected tempo and existing meter semantics
+(including six beats for 6/8), pause silence, cancellation, readiness checks and
+MIDI exclusion. Verification: MET-01, MET-02 and MET-03 in the inventory. Visual
+and recording-clock synchronization remain separate follow-up #225.

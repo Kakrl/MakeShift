@@ -1863,3 +1863,29 @@ Chromium 151.0.7922.34 audio and keyboard-layout browser checks passed.
 Deployment smoke was not repeated after the earlier stalled run documented
 above; physical camera/audio testing and new CI evidence remain pending.
 Recording-clock synchronization remains follow-up issue #225.
+
+## Audible recording count-off (#227)
+
+Local verification 2026-11-01 on feature/227-audible-count-off, based on PR #223
+commit 88f0fa1: Start/Resume count-offs are audible independently of continuous
+accompaniment. The toggle remains unchanged and defaults off. With it off, the
+completion boundary adds no click and recording proceeds silently. Stop cancels
+remaining count-off beats. Existing tempo and meter interpretation are retained.
+
+The production processor cases cover 3/4/6-beat count-offs, silent completion,
+toggle-off during a click, cancellation, pause and enabled accompaniment. Home
+integration covers toggle-off Start/Resume, cancellation of both, unchanged
+toggle, and parsing real exported MIDI to find only one piano note-on/off pair.
+The simulated transport now observes count-off clicks even with accompaniment
+off. All 18 metronome tests passed; recordingControls passed 40 with one existing
+frame-loss skip. Full Vitest: 612 passed, one existing skip across 33 files.
+Lint, TypeScript, all 37 contrast pairs and the production build passed.
+
+Production Chromium 151.0.7922.34 metronome checks passed, including audible
+toggle-off count-off, silent completion/accompaniment, pause, standalone Home
+without camera permission, close/reprepare, and sample spacing through a busy
+UI thread. Production audio and keyboard-layout browser checks also passed.
+These are automated graph/simulated-CV results, not a physical listening pass.
+Deployment smoke again stalled without a result and was stopped; it remains
+unverified. Manual count-off listening and new CI execution remain pending.
+No manual report is claimed. Synchronization work remains issue #225.
