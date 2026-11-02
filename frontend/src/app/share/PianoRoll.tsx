@@ -4,7 +4,7 @@ import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, type Ref 
 import { pitchToMidi } from "../../cv/noteMap";
 import type { RecordedNote } from "../midi/midiUtils";
 import type { PlaybackTimeline } from "../midi/playbackTimeline";
-import { formatDuration } from "./mockShareStore";
+import { formatDuration } from "./shareStore";
 
 const ROW = 10;
 // The deep rainbow fills (yellow-strong, not bright yellow) so every color

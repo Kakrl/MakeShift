@@ -45,6 +45,9 @@ const WASM_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${tasksV
 const ASSETS = [
   [base + "/audio/piano-worklet.js", /javascript/],
   [base + "/audio/synth.js", /javascript/],
+  [base + "/audio/sampled-piano.js", /javascript/],
+  [base + "/audio/piano-samples/manifest.json", /application\/json/],
+  [base + "/audio/piano-samples/C2.mp3", /audio\/mpeg/],
   [base + "/models/hand_landmarker.task", /^application\/octet-stream/],
   [WASM_BASE + "/vision_wasm_internal.js", /javascript/],
   [WASM_BASE + "/vision_wasm_internal.wasm", /application\/wasm/],

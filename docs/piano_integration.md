@@ -1,5 +1,11 @@
 # Browser piano integration
 
+Live CV and recording playback now share the sampled stereo piano owner (#210),
+using 19 preloaded local Salamander recordings and the selected +6 dB bass
+curve. Readiness waits for decoding and worklet preparation. Pitch, velocity,
+press/session identities and MIDI capture remain on the existing event path;
+playing notes never loads recordings. See [the audio contract and limits](browser_audio.md#sampled-production-piano-and-register-balance-210).
+
 Part of [#28](https://github.com/Kakrl/MakeShift/issues/28), built on #24.
 The default sheet has eight white keys, MIDI 48–60 (C3–C4). Issue #36 adds
 one/two/three-octave white-key layouts, with 8/15/22 keys and a configurable
@@ -41,8 +47,12 @@ relative z is a motion cue, not calibrated paper distance or physical force
 
 At contact onset the pipeline consumes the largest speed observed in the past
 100 ms. Speeds up to 0.5 palm lengths/s map to soft velocity 0.2; speed increases
-linearly to velocity 1 at 8 palm lengths/s, with saturation beyond that. The
-history has 24 fixed slots; samples less than 5 ms apart are ignored. Missing
+linearly to velocity 1 at 4 palm lengths/s, with saturation beyond that. This
+lowers the former 8 palm lengths/s endpoint to make loud notes easier to reach.
+At 2 palm lengths/s velocity is now about 0.543 (previously 0.36); velocity 0.75
+is reached at about 2.91 rather than 5.66 palm lengths/s. The stationary/noise
+floor and soft 0.2 fallback are retained. Full-velocity output gain is unchanged.
+The history has 24 fixed slots; samples less than 5 ms apart are ignored. Missing
 or invalid landmarks, degenerate palm scale, backward time, a gap over 150 ms,
 source changes, finger disappearance and session reset discard old history.
 Missing usable speed gives a soft 0.2 note rather than a spurious loud attack.

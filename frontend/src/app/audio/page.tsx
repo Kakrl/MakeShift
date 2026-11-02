@@ -26,7 +26,7 @@ export default function AudioCheck() {
     try {
       await engine.current.initialize();
       setReady(true);
-      setStatus("Audio enabled. Test tones last one second.");
+      setStatus("Audio enabled. Sampled piano notes last one second.");
     } catch (error) {
       setStatus(
         error instanceof Error
@@ -55,7 +55,7 @@ export default function AudioCheck() {
     }, 1000);
     setStatus(
       notes.length === 1
-        ? "Playing A4 (440 Hz)."
+        ? `Playing MIDI ${notes[0]} on the sampled piano.`
         : "Playing ten simultaneous tones.",
     );
   }
@@ -63,9 +63,15 @@ export default function AudioCheck() {
   return (
     <main className="flex-1 bg-surface overflow-auto pl-(--gutter-l) pr-(--gutter-r) pt-2 pb-10">
       <div className="ms-panel max-w-[640px] p-6 sm:p-8">
-        <h1 className="font-display text-[28px] sm:text-[32px] font-bold leading-tight tracking-tight text-ink">Audio check</h1>
+        <h1 className="font-display text-[28px] sm:text-[32px] font-bold leading-tight tracking-tight text-ink">
+          Audio check
+        </h1>
         <p className="mt-2 mb-6 text-[15px] leading-relaxed text-ink-muted">
           Test your sound first. Start with the volume low.
+        </p>
+        <p className="mb-4 text-[15px] text-ink-muted">
+          Recorded grand piano with +6 dB bass presence. Compare registers at
+          the same velocity (0.6) using the C2, C4 and C6 buttons.
         </p>
         <div className="flex flex-wrap gap-2.5">
           <button className="ms-key ms-key-primary" onClick={enable}>
@@ -103,9 +109,33 @@ export default function AudioCheck() {
           >
             Stop sound
           </button>
+          {[
+            { note: 36, label: "Bass C2" },
+            { note: 60, label: "Middle C4" },
+            { note: 84, label: "High C6" },
+          ].map(({ note, label }) => (
+            <button
+              key={note}
+              className="ms-key"
+              disabled={!ready}
+              onClick={() => play([note], 0.6)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-        <p className="ms-well mt-6 px-4 py-3 text-[14px] text-ink-muted" role="status">
+        <p
+          className="ms-well mt-6 px-4 py-3 text-[14px] text-ink-muted"
+          role="status"
+        >
           {status}
+        </p>
+        <p className="mt-4 text-[13px] text-ink-muted">
+          Salamander Grand Piano recordings by Alexander Holm, licensed under{" "}
+          <a className="underline" href="/audio/piano-samples/NOTICE.md">
+            CC BY 3.0 — credits
+          </a>
+          .
         </p>
       </div>
     </main>

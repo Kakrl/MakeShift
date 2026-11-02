@@ -5,6 +5,11 @@
 - Jadden Picardal
 - Francis Ozua
 
+The browser app plays a sampled Salamander grand piano locally through an
+AudioWorklet, with the selected +6 dB bass balance and velocity-sensitive gain.
+Enable audio once to preload the recordings; live notes need no network.
+See [playback, licensing and limits](docs/browser_audio.md#sampled-production-piano-and-register-balance-210).
+
 ## C++ Audio Engine Setup & Build
 The backend includes a high-performance C++ audio engine exposed to Python via nanobind and tested using GoogleTest.
 

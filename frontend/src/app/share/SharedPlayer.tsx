@@ -10,7 +10,7 @@ import {
 } from "../midi/playbackTimeline";
 import CopyLinkButton from "./CopyLinkButton";
 import PianoRoll, { ROLL_HEIGHT, ROLL_MIN_HEIGHT, ROLL_PAPER, type PianoRollHandle } from "./PianoRoll";
-import { shareUrl } from "./mockShareStore";
+import { shareUrl } from "./shareStore";
 
 function asRecording(shared: SharedRecording): Recording {
   return {

@@ -11,9 +11,34 @@ Supabase, using a secret key that bypasses row level security.
 | Schema | [`supabase/migrations/`](../supabase/migrations/) |
 | Secrets | Infisical project `makeshift`, environments `dev` and `prod` |
 | Hosting | Vercel project `make-shift`, env vars synced from Infisical |
-| Server access | [`frontend/src/server/supabase.ts`](../frontend/src/server/supabase.ts) |
+| Server access | [`frontend/src/server/supabase.ts`](../frontend/src/server/supabase.ts), route handlers in [`frontend/src/server/recordings.ts`](../frontend/src/server/recordings.ts) |
 | API contract | [`frontend/src/lib/recordings.ts`](../frontend/src/lib/recordings.ts): request/response types and upload validation shared by routes and client |
 | Health check | `GET /api/health`: `200 {"database":{"status":"ok"}}` when connected |
+
+## Recordings routes
+
+The share UI calls these through
+[`shareApi.ts`](../frontend/src/app/share/shareApi.ts). Append `?mock=1`
+(or `?mock=empty`, `?mock=error`) to a page URL to use the mock fixtures
+instead, for example without Infisical access.
+
+| Route | Result |
+| :--- | :--- |
+| `GET /api/recordings?cursor=` | `200` visible summaries, newest first, 6 per page; `nextCursor` is an opaque keyset cursor; `400` bad cursor |
+| `GET /api/recordings/:id` | `200` with notes; `404` when missing, hidden or not a UUID |
+| `POST /api/recordings` | `201 {id, deleteToken}`; `400` with `issues`; `413` over 1 MB; `503` on any Vercel deployment unless `RECORDING_UPLOADS=1` |
+| `DELETE /api/recordings/:id` | `200 {deleted: true}` when the token's SHA-256 matches; `403` wrong or missing token; `404` already gone |
+
+Every route returns `503` when Supabase is unconfigured and `502` when the
+database fails, without echoing database messages. Uploads have no rate
+limit yet, so they are refused on Vercel (production and preview) unless
+`RECORDING_UPLOADS=1`; local `npm run dev` accepts them. Keep it unset in
+`prod` until rate limiting lands (#122).
+
+A shared take keeps its delete token in the browser. Deleting the take stops
+its share first and keeps the take if that fails, so the token is never lost
+while the share is up. Shares made under `?mock=` are marked and only stopped
+in the mock store, and their links keep `?mock=1`.
 
 ## `recordings` table
 
@@ -41,6 +66,7 @@ publishable key; every access goes through a server route.
 | :--- | :--- | :--- |
 | `SUPABASE_URL` | Server routes | `https://<ref>.supabase.co` |
 | `SUPABASE_SECRET_KEY` | Server routes | `sb_secret_...`. Server only; never prefix with `NEXT_PUBLIC_` |
+| `RECORDING_UPLOADS` | Upload route | `1` opens uploads on Vercel (production and preview); leave unset in `prod` until rate limiting lands |
 | `SUPABASE_DB_PASSWORD` | Migrations | Postgres password for `supabase db push` when not using `supabase login` |
 
 Nothing is committed. `frontend/.env.example` lists the names only, and

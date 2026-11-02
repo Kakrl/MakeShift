@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   createMockShareStore,
-  loadTakeShares,
-  PAGE_SIZE,
   PLAYABLE_RANGE,
-  saveTakeShare,
-  ShareNotFoundError,
   type MockMode,
 } from "../../frontend/src/app/share/mockShareStore";
+import {
+  loadTakeShares,
+  PAGE_SIZE,
+  saveTakeShares,
+  ShareNotFoundError,
+} from "../../frontend/src/app/share/shareStore";
 import type { StorageArea } from "../../frontend/src/lib/storage";
 import { pitchToMidi } from "../../frontend/src/cv/noteMap";
 
@@ -98,9 +100,10 @@ describe("mock share store", () => {
 
   it("remembers and forgets which takes are shared", () => {
     const storage = memoryStorage();
-    saveTakeShare("take", { id: "abc", deleteToken: "t" }, storage);
+    expect(saveTakeShares({ take: { id: "abc", deleteToken: "t" } }, storage)).toEqual({ ok: true });
     expect(loadTakeShares(storage)).toEqual({ take: { id: "abc", deleteToken: "t" } });
-    saveTakeShare("take", null, storage);
+    saveTakeShares({}, storage);
     expect(loadTakeShares(storage)).toEqual({});
+    expect(saveTakeShares({}, () => null)).toEqual({ ok: false, reason: "unavailable" });
   });
 });

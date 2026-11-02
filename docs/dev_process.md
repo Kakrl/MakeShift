@@ -18,6 +18,7 @@ MakeShift/
 │       ├── preview.yml              # Vercel preview link for PRs labeled preview-link
 │       ├── rca.yml                  # validate RCA evidence; publish after merge
 │       ├── rca-tests.yml            # regression tests for RCA automation
+│       ├── sbom.yml                 # Syft CycloneDX generation, validation and artifact upload
 │       └── testing.yml              # pytest, CMake build, CTest
 ├── backend/
 │   ├── CMakeLists.txt               # audio library, nanobind module, GoogleTest
@@ -44,6 +45,8 @@ MakeShift/
 │   ├── live_session.md              # readiness states, tracking timeout and recovery
 │   ├── note_events.md               # shared browser event/session/clock contract
 │   ├── dev_process.md
+│   ├── SBOM.json                    # generated CycloneDX source inventory
+│   ├── SBOM.commit.txt              # source revision scanned for the inventory
 │   ├── piano_sheet.md               # printable sheet and ArUco marker IDs
 │   ├── generate_piano_sheets.py     # deterministic vector PDF generator
 │   ├── piano_sheet_requirements.txt # pinned generator dependency
@@ -57,19 +60,20 @@ MakeShift/
 │   └── Final Verification and Validation Plan.pdf
 ├── frontend/
 │   ├── public/
-│   │   ├── audio/                   # piano-worklet.js and shared synth.js
+│   │   ├── audio/                   # worklet, sampled-piano.js, procedural synth.js and piano-samples/
 │   │   └── models/                  # MediaPipe hand landmarker model
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── api/health/          # recordings database health route
-│   │   │   ├── audio/                  # browser owner and Audio check page
+│   │   │   ├── api/recordings/      # shared recordings list/read/upload/delete routes
+│   │   │   ├── audio/               # browser owner, pianoSamples.ts loader, and Audio check page
 │   │   │   ├── about/
 │   │   │   ├── calibration/
 │   │   │   ├── cv/                  # hand landmark overlay and drawing
 │   │   │   ├── documentation/
 │   │   │   ├── midi/                # MIDI recorder, export and playback timeline
 │   │   │   ├── play/[id]/           # share link; opens the song in the shared songs dialog
-│   │   │   ├── share/               # mock share store, save and songs dialogs, piano roll
+│   │   │   ├── share/               # share API client and store, mock fixtures, save and songs dialogs, piano roll
 │   │   │   ├── tutorial/
 │   │   │   ├── PipelineDiagnostics.tsx # opt-in metrics and report export
 │   │   │   ├── CameraContext.tsx
@@ -94,7 +98,7 @@ MakeShift/
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
 │   │   ├── lib/                     # shared utilities (versioned storage, recordings API schema)
 │   │   │   └── keyboardSettings.ts  # persisted layout and synchronous invalidation
-│   │   ├── server/                  # server-only Supabase access
+│   │   ├── server/                  # server-only Supabase access and recordings handlers
 │   │   └── shims/                   # empty fs shim and type-only MIDI declaration bridge
 │   ├── package.json
 │   ├── package-lock.json
@@ -112,7 +116,9 @@ MakeShift/
 │   │   ├── test_audio.cpp
 │   │   └── test_audio_events.cpp
 │   ├── automation/
-│   │   └── rca.test.cjs             # RCA parser, validation, publication tests
+│   │   ├── rca.test.cjs             # RCA parser, validation, publication tests
+│   │   ├── sbom.test.cjs            # SBOM validation regressions
+│   │   └── validate-sbom.cjs        # CycloneDX structural smoke check
 │   ├── frontend/
 │   │   ├── performanceMetrics.test.ts # bounded aggregation, clocks and resource counts
 │   │   ├── performanceResources.test.tsx # camera provider lifecycle accounting
@@ -120,12 +126,14 @@ MakeShift/
 │   │   ├── browserAudio.test.ts      # production DSP offline rendering
 │   │   ├── browserAudioLifecycle.test.ts # browser owner mocks
 │   │   ├── browserAudio.browser.mjs  # production browser graph check
+│   │   ├── sampledPiano.test.ts      # sample preparation, PCM, renderer, hashes and loader
 │   │   ├── pianoTimbre.test.ts       # piano modal envelopes/filter/spectra/lifecycle
 │   │   ├── pianoProfile.browser.mjs  # paired synchronous browser DSP benchmark
 │   │   ├── deployment.browser.mjs    # production assets, camera recovery, offline playing
 │   │   ├── runCvVideo.mjs             # builds app and runs a labeled CV replay
 │   │   ├── homePage.test.ts
 │   │   ├── supabaseHealth.test.ts    # /api/health database check
+│   │   ├── recordingsApi.test.ts     # recordings routes and client, mocked database
 │   │   ├── pianoIntegration.test.ts # deterministic note-to-audio/MIDI/feedback
 │   │   ├── fingerVelocity.test.ts   # motion estimator, lifecycle and DSP response
 │   │   ├── liveSession.test.ts       # readiness transitions and stale-input safety
@@ -153,6 +161,7 @@ MakeShift/
 │   └── manual/                     # manual test template and completed reports
 ├── .clang-format
 ├── .gitignore
+├── .syft.yaml                       # excludes previous SBOM output from scans
 ├── .infisical.json                  # Infisical project ID (no secrets)
 ├── AGENTS.md                        # contributor and coding agent instructions
 ├── CLAUDE.md                        # points to AGENTS.md
@@ -200,6 +209,58 @@ We use a fork-and-pull-request workflow:
   - tests passing
   - code quality/lint/cleanliness checks passing
 - PRs with failing CI checks are not eligible for merge.
+
+### Software Bill of Materials (SBOM)
+
+`Generate SBOM` (`.github/workflows/sbom.yml`, issue #229) runs on PRs targeting
+`main`, pushes to `main`, and manual dispatch. It uses Syft **v1.55.0** through
+Anchore's SBOM action **v0.24.3**; checkout, generation and upload actions are
+pinned to commit SHAs. The token has only `contents: read`, and checkout does
+not persist credentials. No dependency installation or application build is
+needed for this source inventory.
+
+Download `sbom-<full-commit-sha>` from the run's **Artifacts** section within
+30 days. It contains `SBOM.cdx.json` (CycloneDX JSON) and `commit.txt` (the
+scanned revision). PR runs scan GitHub's test merge commit, so their SHA differs
+from the PR head; main pushes scan the pushed commit. Output lives in the runner
+temporary directory and is uploaded only after a structural check confirms the
+format, specification version and nonempty named components. This check does
+not perform full CycloneDX schema validation. Generation, validation and upload
+errors fail the job. The workflow never commits generated files to `main`.
+
+The checked-in snapshot is [`docs/SBOM.json`](SBOM.json), with its scanned
+revision in [`docs/SBOM.commit.txt`](SBOM.commit.txt). `.syft.yaml` excludes both
+generated files from subsequent scans. CI continues publishing fresh artifacts;
+to refresh the repository copy, download a successful run's artifact, copy
+`SBOM.cdx.json` to `docs/SBOM.json` and `commit.txt` to `docs/SBOM.commit.txt`,
+then submit those files through a reviewed PR. Automatic repository writes are
+not configured.
+
+Syft scans the checked-out repository, including `frontend/package-lock.json`
+and Python requirements files (including development/test tools). This is a
+source dependency inventory, not a complete inventory of a deployed Vercel
+runtime or compiled native binary. CMake `FetchContent` declarations for
+PortAudio and GoogleTest, system libraries and downloaded runtime/model/audio
+assets are not guaranteed to appear; inspect those separately. Dependencies
+with no discoverable manifest or package metadata can be absent. No vulnerability
+scan or license-policy gate is included.
+
+To regenerate, use **Actions > Generate SBOM > Run workflow**, selecting the
+desired branch. For local inspection with Syft v1.55.0 and Node 22 or newer,
+scan a clean checkout and write outside it so local `node_modules`, build outputs
+and old SBOMs do not affect the inventory:
+
+```sh
+syft scan dir:. --config .syft.yaml -o cyclonedx-json=/tmp/MakeShift-SBOM.cdx.json
+node tests/automation/validate-sbom.cjs /tmp/MakeShift-SBOM.cdx.json
+node --test tests/automation/sbom.test.cjs
+actionlint .github/workflows/sbom.yml
+```
+
+Use an equivalent temporary path on Windows. When upgrading, update the Syft
+version and action SHA/version comments together, then inspect a new CI artifact.
+The implementation PR must link the actual successful run and artifact inspection;
+local success alone does not establish Actions publication.
 
 ### Preview Deployments
 

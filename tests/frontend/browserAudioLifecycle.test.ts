@@ -3,6 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAudioSession } from "../../frontend/src/events/audioSession";
 import { BrowserAudio } from "../../frontend/src/app/audio/audioEngine";
 import { createPlaybackTimeline } from "../../frontend/src/app/midi/playbackTimeline";
+import { loadPianoSamples } from "../../frontend/src/app/audio/pianoSamples";
+
+vi.mock("../../frontend/src/app/audio/pianoSamples", () => ({
+  loadPianoSamples: vi.fn(async () => []),
+}));
 
 class Context {
   static instances: Context[] = [];
@@ -28,16 +33,23 @@ class Context {
 }
 class Worklet {
   static instances: Worklet[] = [];
+  static autoReady = true;
   port = {
     postMessage: vi.fn(),
     close: vi.fn(),
-    onmessage: null as null | ((event: { data: number }) => void),
+    onmessage: null as null | ((event: { data: number | string }) => void),
   };
   connect = vi.fn();
   disconnect = vi.fn();
   onprocessorerror: (() => void) | null = null;
-  constructor() {
+  constructor(
+    public context: unknown,
+    public name: string,
+    public options: unknown,
+  ) {
     Worklet.instances.push(this);
+    if (Worklet.autoReady)
+      queueMicrotask(() => this.port.onmessage?.({ data: "ready" }));
   }
   ack() {
     this.port.onmessage?.({ data: this.port.postMessage.mock.calls.length });
@@ -47,8 +59,10 @@ class Worklet {
 beforeEach(() => {
   Context.instances = [];
   Worklet.instances = [];
+  Worklet.autoReady = true;
   Context.failLoad = false;
   Context.resumeState = "running";
+  vi.mocked(loadPianoSamples).mockReset().mockResolvedValue([]);
   vi.stubGlobal("AudioContext", Context);
   vi.stubGlobal("AudioWorkletNode", Worklet);
 });
@@ -168,6 +182,96 @@ describe("recording timeline with the production audio owner", () => {
 });
 
 describe("browser audio owner lifecycle", () => {
+  it("waits for worklet readiness, times out with retry and cancels a pending handshake on close", async () => {
+    vi.useFakeTimers();
+    Worklet.autoReady = false;
+    const audio = new BrowserAudio();
+    const pending = audio.initialize();
+    const rejection = expect(pending).rejects.toThrow("timed out");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(audio.status).toBe("loading");
+    expect(audio.noteOn(60)).toBeNull();
+    await vi.advanceTimersByTimeAsync(10000);
+    await rejection;
+    expect(Context.instances[0].close).toHaveBeenCalled();
+    const retry = audio.initialize();
+    await vi.advanceTimersByTimeAsync(0);
+    await audio.close();
+    await retry;
+    expect(audio.status).toBe("idle");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("rejects suspension while the worklet is preparing", async () => {
+    vi.useFakeTimers();
+    Worklet.autoReady = false;
+    const audio = new BrowserAudio();
+    const pending = audio.initialize();
+    const rejection = expect(pending).rejects.toThrow("suspended");
+    await vi.advanceTimersByTimeAsync(0);
+    Context.instances[0].state = "suspended";
+    Worklet.instances[0].port.onmessage?.({ data: "ready" });
+    await rejection;
+    expect(audio.status).toBe("error");
+    expect(audio.noteOn(60)).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("waits for recordings and passes the bank to the worklet, reusing it after suspension", async () => {
+    let finish!: (
+      samples: Awaited<ReturnType<typeof loadPianoSamples>>,
+    ) => void;
+    vi.mocked(loadPianoSamples).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const audio = new BrowserAudio();
+    const initializing = audio.initialize();
+    expect(audio.status).toBe("loading");
+    expect(audio.noteOn(60)).toBeNull();
+    expect(Worklet.instances).toHaveLength(0);
+    finish([]);
+    await initializing;
+    expect(Worklet.instances[0].options).toMatchObject({
+      processorOptions: { samples: [] },
+    });
+    Context.instances[0].state = "suspended";
+    Context.instances[0].onstatechange?.();
+    await audio.initialize();
+    expect(loadPianoSamples).toHaveBeenCalledTimes(1);
+    await audio.close();
+  });
+
+  it("aborts sample loading on close and retries load failures without a partial graph", async () => {
+    vi.mocked(loadPianoSamples).mockRejectedValueOnce(
+      new Error("Sample load failed"),
+    );
+    const audio = new BrowserAudio();
+    await expect(audio.initialize()).rejects.toThrow("Sample load failed");
+    expect(Worklet.instances).toHaveLength(0);
+    await audio.initialize();
+    await audio.close();
+    let signal!: AbortSignal;
+    vi.mocked(loadPianoSamples).mockImplementationOnce(
+      (_context, nextSignal) => {
+        signal = nextSignal;
+        return new Promise((_resolve, reject) =>
+          nextSignal.addEventListener("abort", () =>
+            reject(new Error("Aborted")),
+          ),
+        );
+      },
+    );
+    const loading = audio.initialize();
+    await audio.close();
+    await loading;
+    expect(signal.aborted).toBe(true);
+    expect(audio.status).toBe("idle");
+    expect(Worklet.instances).toHaveLength(1);
+  });
+
   it("never initializes from notes; shares initialization and requests interactive latency", async () => {
     const audio = new BrowserAudio();
     expect(audio.noteOn(69)).toBeNull();
@@ -352,33 +456,52 @@ describe("shared event audio adapter", () => {
   );
 });
 
-
 it("live gate survives startup reset, retires on real audio suspension and requires a fresh session", async () => {
   const audio = new BrowserAudio();
   const gate = new LiveSession(audio, () => 100);
   const detach = gate.attach();
   const saved = {
-    version: 1, coordinates: "unmirrored-frame-pixels/marker-unit-square", sheet: "aruco-0-3-white-keys-v1",
+    version: 1,
+    coordinates: "unmirrored-frame-pixels/marker-unit-square",
+    sheet: "aruco-0-3-white-keys-v1",
     camera: { deviceId: "camera", width: 1000, height: 1000, facingMode: "" },
     layout: { octaves: 1, startingMidi: 48, whiteKeys: 8 },
-    corners: [{ x: 100, y: 100 }, { x: 900, y: 100 }, { x: 900, y: 900 }, { x: 100, y: 900 }],
-    contact: { model: "landmark-reference-v1", hover: [Array(21).fill({ x: 0.5, y: 0.4, z: 0 })],
-      rest: [Array(21).fill({ x: 0.5, y: 0.5, z: 0 })] },
+    corners: [
+      { x: 100, y: 100 },
+      { x: 900, y: 100 },
+      { x: 900, y: 900 },
+      { x: 100, y: 900 },
+    ],
+    contact: {
+      model: "landmark-reference-v1",
+      hover: [Array(21).fill({ x: 0.5, y: 0.4, z: 0 })],
+      rest: [Array(21).fill({ x: 0.5, y: 0.5, z: 0 })],
+    },
   };
   try {
     gate.observeCalibration(saved, saved.camera, saved.corners);
     gate.observeTracking();
     expect(await gate.prepare()).toBe(true);
     const id = gate.play()!;
-    const event = { version: 1, type: "note-on", sessionId: id, sequence: 1,
-      timestampMs: 100, pressId: 1, pitch: 60, velocity: 0.8 };
+    const event = {
+      version: 1,
+      type: "note-on",
+      sessionId: id,
+      sequence: 1,
+      timestampMs: 100,
+      pressId: 1,
+      pitch: 60,
+      velocity: 0.8,
+    };
     expect(gate.receive(event)).toBe("accepted");
     const node = Worklet.instances[0];
     node.ack();
     Context.instances[0].state = "suspended";
     Context.instances[0].onstatechange?.();
     expect(gate.status.state).toBe("interrupted");
-    expect(node.port.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({ type: "reset" }));
+    expect(node.port.postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: "reset" }),
+    );
     expect(gate.receive(event)).toBe("stale");
     expect(await gate.prepare()).toBe(true);
     node.ack();

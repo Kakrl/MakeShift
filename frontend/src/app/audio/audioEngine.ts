@@ -1,4 +1,9 @@
-import { acquireResource, trackAudioContext, closeTrackedAudioContext } from "../../diagnostics/performanceMetrics";
+import {
+  acquireResource,
+  trackAudioContext,
+  closeTrackedAudioContext,
+} from "../../diagnostics/performanceMetrics";
+import { loadPianoSamples, type PianoSample } from "./pianoSamples";
 export type AudioStatus = "idle" | "loading" | "ready" | "suspended" | "error";
 export type PedalState = { sustain: boolean; sostenuto: boolean; soft: boolean };
 type AudioCommand =
@@ -19,6 +24,8 @@ export class BrowserAudio {
   private context: AudioContext | null = null;
   private node: AudioWorkletNode | null = null;
   private initializing: Promise<void> | null = null;
+  private samples: PianoSample[] | null = null;
+  private loading: AbortController | null = null;
   private session = 0;
   private press = 0;
   private outstanding = 0;
@@ -76,16 +83,28 @@ export class BrowserAudio {
     this.error = "";
     try {
       if (!this.context || this.context.state === "closed") {
-        this.context = trackAudioContext(new AudioContext({ latencyHint: "interactive" }));
+        this.samples = null;
+        this.context = trackAudioContext(
+          new AudioContext({ latencyHint: "interactive" }),
+        );
       }
       const context = this.context;
+      const loading = new AbortController();
+      this.loading = loading;
       // Invoke resume before any await to retain user activation.
       const resumed = context.resume();
       const loaded = this.node
         ? Promise.resolve()
         : context.audioWorklet.addModule("/audio/piano-worklet.js");
-      await Promise.all([resumed, loaded]);
+      const [, , samples] = await Promise.all([
+        resumed,
+        loaded,
+        this.samples
+          ? Promise.resolve(this.samples)
+          : loadPianoSamples(context, loading.signal),
+      ]);
       if (generation !== this.generation) return;
+      this.samples = samples;
       if (context.state !== "running")
         throw new Error("Audio is suspended. Select Enable audio to retry.");
       if (!this.node) {
@@ -93,19 +112,45 @@ export class BrowserAudio {
           numberOfInputs: 0,
           numberOfOutputs: 1,
           outputChannelCount: [2],
+          processorOptions: { samples },
         });
         this.node = node;
         this.releaseNode = acquireResource("audioNodes");
         this.outstanding = 0;
         this.recovering = false;
+        let ready: () => void;
+        let failed: (error: Error) => void;
+        const prepared = new Promise<void>((resolve, reject) => {
+          ready = resolve;
+          failed = reject;
+        });
+        const timeout = setTimeout(
+          () =>
+            failed(
+              new Error(
+                "Piano initialization timed out. Select Enable audio to retry.",
+              ),
+            ),
+          10000,
+        );
+        const aborted = () =>
+          failed(new Error("Piano initialization cancelled"));
+        loading.signal.addEventListener("abort", aborted, { once: true });
         node.port.onmessage = ({ data }) => {
           if (this.node !== node) return;
+          if (data === "ready") {
+            ready();
+            return;
+          }
           if (!Number.isSafeInteger(data) || data < 1) return;
           this.outstanding = Math.max(0, this.outstanding - data);
           if (this.outstanding === 0) this.recovering = false;
         };
         node.onprocessorerror = () => {
           if (this.node !== node) return;
+          failed(
+            new Error("Audio processing failed. Select Enable audio to retry."),
+          );
           this.status = "error";
           this.error = "Audio processing failed. Select Enable audio to retry.";
           node.disconnect();
@@ -116,6 +161,15 @@ export class BrowserAudio {
           this.recovering = false;
           this.invalidate();
         };
+        try {
+          await prepared;
+        } finally {
+          clearTimeout(timeout);
+          loading.signal.removeEventListener("abort", aborted);
+        }
+        if (generation !== this.generation) return;
+        if (context.state !== "running")
+          throw new Error("Audio is suspended. Select Enable audio to retry.");
         node.connect(context.destination);
         context.onstatechange = () => {
           if (context !== this.context || context.state === "running") return;
@@ -127,6 +181,8 @@ export class BrowserAudio {
       this.status = "ready";
     } catch (error) {
       if (generation !== this.generation) return;
+      this.loading?.abort();
+      this.samples = null;
       this.status = "error";
       this.error =
         error instanceof Error ? error.message : "Audio initialization failed.";
@@ -199,6 +255,9 @@ export class BrowserAudio {
 
   async close() {
     const generation = ++this.generation;
+    this.loading?.abort();
+    this.loading = null;
+    this.samples = null;
     this.initializing = null;
     this.node?.disconnect();
     this.node?.port.close();

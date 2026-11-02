@@ -1,25 +1,23 @@
-import { Synth } from "./synth.js";
+import { SampledPiano } from "./sampled-piano.js";
 
 /* global AudioWorkletProcessor, registerProcessor, sampleRate */
 class PianoProcessor extends AudioWorkletProcessor {
-  constructor() {
+  constructor(options) {
     super();
-    this.synth = new Synth(sampleRate);
+    this.synth = new SampledPiano(sampleRate, options.processorOptions.samples);
     this.received = 0;
     this.port.onmessage = ({ data }) => {
       // The owner permits at most 64 unacknowledged events plus one reset.
       this.synth.handle(data);
       this.received++;
     };
+    this.port.postMessage("ready");
   }
 
   process(_inputs, outputs) {
     const channels = outputs[0];
     if (channels?.[0]) {
-      this.synth.render(channels[0]);
-      for (let channel = 1; channel < channels.length; channel++) {
-        channels[channel].set(channels[0]);
-      }
+      this.synth.render(channels[0], channels[1] ?? channels[0]);
     }
     if (this.received) {
       this.port.postMessage(this.received);
