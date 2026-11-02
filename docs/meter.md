@@ -27,7 +27,8 @@ zero alongside tempo. Local library reload validates meter, rejects malformed
 stored libraries and normalizes legacy takes to 4/4; copies isolate take metadata.
 The existing version-1 playback-settings key remains compatible: meter is an
 additive field, restored independently so bad/missing meter preserves valid
-legacy tempo/metronome choices. Blocked storage uses defaults without throwing.
+legacy tempo choices. The metronome always starts off; its legacy saved toggle
+is ignored. Blocked storage uses defaults without throwing.
 
 Uploads validate optional meter (legacy omission becomes 4/4); mock and real
 API summaries/full recordings preserve it. The shared player shows meter and
@@ -43,20 +44,19 @@ and the [manual workflow report](../tests/manual/2026-10-27_METER-04.md).
 Software timer and MIDI-byte tests do not establish physical latency or audible
 click timing on hardware.
 
-## Equal click scheduling correction (#232)
+## Audio-thread count-in after main reconciliation
 
-`app/audio/countIn.ts` schedules the entire bounded measure at one audio-clock
-origin. React display updates and CV callbacks do not trigger individual clicks.
-The page independently updates the beat display and completion timer against
-absolute monotonic deadlines, skipping stale displays after delays. A late final
-callback can still delay recording startup; it never backdates physical notes.
-Stop/interruption/pagehide/unmount cleanup stops and disconnects every queued
-oscillator. Audio-context resume completes before scheduling; cancellation also
-invalidates a pending resume. Digital offline rendering confirms equal intervals;
-real camera/audio listening under load remains pending. See the #232 report in
-`tests/README.md` and METER-06/METER-07 in the inventory.
+Home uses the continuous metronome controller and production audio worklet
+introduced on main (#206). Its sample-frame deadlines now use the selected
+numerator (up to 32) and denominator; each interval is a denominator note at
+quarter-note BPM. Beat and completion messages come from that same clock.
+React renders never schedule individual clicks. Stale generation messages are
+rejected after cancellation; notifications and recording startup can still be
+delayed by a busy UI thread and are never backdated.
 
-PR #233 review: audible count-ins schedule their first click 50 ms ahead of
-the audio clock, with the visual and recording deadlines shifted by the same
-50 ms. Muted count-ins retain their existing timing. This lead is scheduling
-headroom, not a measured physical latency.
+The earlier standalone countIn.ts helper and its 50 ms scheduling-lead tests
+remain reference coverage; Home no longer uses that oscillator scheduler or
+its visual timer. The audio worklet synthesizes clicks directly at sample
+boundaries, avoiding the past-currentTime scheduling problem addressed by the
+review. Worklet tests cover 4/4, 3/4, 6/8, 7/8, 2/2 and maximum 32/32.
+Physical listening and camera-to-speaker timing remain unverified.
