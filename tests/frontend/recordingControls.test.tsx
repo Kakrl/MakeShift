@@ -733,6 +733,39 @@ it("ignores pending free-play audio initialization after calibration loss", asyn
   expect(button("Start recording").disabled).toBe(true);
 });
 
+// Quarter-note BPM count-in contract; each step ends exactly on a beat boundary.
+it.each([[4,4,500],[3,4,500],[6,8,250],[7,8,250],[2,2,1000]])(
+  "counts and resumes %s/%s with %s ms intervals, excluding both count-ins", async (numerator, denominator, interval) => {
+    await act(async () => root.unmount());
+    localStorage.setItem("makeshift:playback-settings:v1", JSON.stringify({tempo:120,metronome:false,meter:{numerator,denominator}}));
+    root = createRoot(host);
+    await act(async () => root.render(<Home />));
+    await advance(0); await keys();
+    await click(button("Start recording"));
+    expect(host.querySelector<HTMLInputElement>("#time-signature")!.disabled).toBe(true);
+    for (let beat=1; beat<=numerator; beat++) {
+      expect(host.querySelector(".ms-beat")?.textContent).toBe(String(beat));
+      expect(host.querySelectorAll(".ms-beat + div > div")).toHaveLength(numerator);
+      await advance(interval-1);
+      expect(host.querySelector(".ms-beat")?.textContent).toBe(String(beat));
+      await advance(1);
+    }
+    expect(button("Pause recording").disabled).toBe(false);
+    await keys(115); await advance(100);
+    await click(button("Pause recording"));
+    expect(host.querySelector<HTMLInputElement>("#time-signature")!.disabled).toBe(true);
+    await click(button("Resume recording"));
+    for(let beat=1;beat<=numerator;beat++) {
+      expect(host.querySelector(".ms-beat")?.textContent).toBe(String(beat));
+      await advance(interval);
+    }
+    await advance(100); await click(button("Stop recording"));
+    const take=fixtures.takes.at(-1)!;
+    expect(take.meter).toEqual({numerator,denominator});
+    expect(take.notes[0]).toMatchObject({startMs:0,durationMs:100});
+    expect(take.notes[1]).toMatchObject({startMs:100,durationMs:100});
+  });
+
 it("accompanies live playing and recording, silences pause, resumes and keeps clicks out of the take", async () => {
   await click(button("Toggle metronome"));
   await click(button("Enable audio"));

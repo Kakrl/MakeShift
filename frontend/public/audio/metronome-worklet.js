@@ -4,6 +4,7 @@ class MetronomeProcessor extends AudioWorkletProcessor {
     super();
     this.tempo = 120;
     this.beats = 4;
+    this.denominator = 4;
     this.audible = false;
     this.playing = false;
     this.paused = false;
@@ -31,12 +32,14 @@ class MetronomeProcessor extends AudioWorkletProcessor {
           m.tempo <= 300 &&
           Number.isInteger(m.beats) &&
           m.beats >= 1 &&
-          m.beats <= 16
+          m.beats <= 32 &&
+          [1, 2, 4, 8, 16, 32].includes(m.denominator ?? 4)
         )
       )
         return;
       this.tempo = m.tempo;
       this.beats = m.beats;
+      this.denominator = m.denominator ?? 4;
       this.audible = m.audible;
       if (!this.audible) this.age = Infinity;
     } else if (m.type === "playing") {
@@ -98,7 +101,7 @@ class MetronomeProcessor extends AudioWorkletProcessor {
           rate: sampleRate,
         });
         this.beat = (this.beat + 1) % this.beats;
-        this.next += (sampleRate * 60) / this.tempo;
+        this.next += (sampleRate * 60 * 4) / (this.tempo * this.denominator);
         if (!this.wanted()) this.next = null;
       }
       let value = 0;

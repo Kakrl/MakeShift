@@ -1,4 +1,5 @@
 "use client";
+import { DEFAULT_METER, DENOMINATORS, MIN_NUMERATOR, MAX_NUMERATOR, isMeter, restoreMeter, formatMeter, type Meter } from "../lib/meter";
 
 import { registerCameraVideo } from "../diagnostics/cameraVideo";
 
@@ -36,7 +37,7 @@ const MIN_TEMPO = 20;
 const MAX_TEMPO = 300;
 const SETTINGS_NAME = "playback-settings";
 const SETTINGS_VERSION = 1;
-type PlaybackSettings = { tempo: number };
+type PlaybackSettings = { tempo: number; meter?: unknown };
 const DEFAULT_SETTINGS: PlaybackSettings = { tempo: 60 };
 
 function isPlaybackSettings(value: unknown): value is PlaybackSettings {
@@ -54,14 +55,6 @@ const CVOverlayCoordinator = dynamic(
   () => import("./CVOverlayCoordinator"),
   { ssr: false },
 );
-
-function ChevronDown() {
-  return (
-    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 function RecordIcon() {
   return (
@@ -225,8 +218,20 @@ export default function Home() {
   const [tempo, setTempo] = useState(DEFAULT_SETTINGS.tempo);
   const [tempoInput, setTempoInput] = useState(String(DEFAULT_SETTINGS.tempo));
   const [tempoError, setTempoError] = useState<string | null>(null);
-  const [timeSignature, setTimeSignature] = useState("4/4");
-  const beatsPerMeasure = parseInt(timeSignature.split("/")[0]);
+  const [meter, setMeter] = useState<Meter>(DEFAULT_METER);
+  const [numeratorDraft, setNumeratorDraft] = useState("4");
+  const [meterError, setMeterError] = useState<string | null>(null);
+  const beatsPerMeasure = meter.numerator;
+  function commitMeter(denominator = meter.denominator) {
+    const next = { numerator: Number(numeratorDraft), denominator };
+    if (!numeratorDraft.trim() || !isMeter(next)) {
+      setNumeratorDraft(String(meter.numerator));
+      setMeterError(`Use an integer from ${MIN_NUMERATOR} to ${MAX_NUMERATOR}. Restored ${formatMeter(meter)}.`);
+      return;
+    }
+    setMeter(next);
+    setMeterError(null);
+  }
 
   // ── Metronome ────────────────────────────────────────────────────────────
   const [metronome, setMetronome] = useState(false);
@@ -239,8 +244,8 @@ export default function Home() {
   useEffect(() => {
     // Initial defaults must not overwrite preferences before restoration.
     if (!settingsLoaded) return;
-    writeStored(SETTINGS_NAME, SETTINGS_VERSION, { tempo });
-  }, [settingsLoaded, tempo]);
+    writeStored(SETTINGS_NAME, SETTINGS_VERSION, { tempo, meter });
+  }, [settingsLoaded, tempo, meter]);
 
   // ── Count-in beat (1 → beatsPerMeasure, then recording starts) ──────────
   const [countInBeat, setCountInBeat] = useState<number | null>(null);
@@ -294,6 +299,9 @@ export default function Home() {
       );
       setTempo(saved.tempo);
       setTempoInput(String(saved.tempo));
+      const restored = restoreMeter(saved.meter);
+      setMeter(restored);
+      setNumeratorDraft(String(restored.numerator));
       setSettingsLoaded(true);
       const dev = isDevMode();
       setDevMode(dev);
@@ -323,14 +331,14 @@ export default function Home() {
     setCountInBeat(null);
     session.flushNotes();
     if (action === "resume") recorder.resumeRecording();
-    else recorder.startRecording(tempo);
+    else recorder.startRecording(tempo, undefined, meter);
     consumersRef.current?.captureHeld();
     setRecordingState(recorder.getState());
     countInActionRef.current = null;
-  }, [session, recorder, tempo, metronomeController]);
+  }, [session, recorder, tempo, meter, metronomeController]);
 
   useEffect(() => {
-    metronomeController.configure({ tempo, beatsPerMeasure, audible: metronome }, {
+    metronomeController.configure({ tempo, beatsPerMeasure, denominator: meter.denominator, audible: metronome }, {
       onCountInBeat: setCountInBeat,
       onCountInComplete: finishCountIn,
       onUnavailable: () => {
@@ -343,7 +351,7 @@ export default function Home() {
           : "Metronome audio interrupted. Turn it on again to retry.");
       },
     });
-  }, [metronomeController, tempo, beatsPerMeasure, metronome, finishCountIn, session]);
+  }, [metronomeController, tempo, beatsPerMeasure, meter.denominator, metronome, finishCountIn, session]);
 
   useEffect(() => {
     metronomeController.setPlaying(metronome || liveStatus.state === "playing", isPaused);
@@ -522,7 +530,7 @@ export default function Home() {
   const recordDisabled = !libraryLoaded || !canPlay || countInBeat !== null || audioPreparing || liveStatus.state === "starting";
   const stopDisabled = !isRecording && countInBeat === null && !audioPreparing && liveStatus.state !== "starting";
   // Metronome settings are usable independently once preferences have loaded.
-  const settingsLocked = !settingsLoaded;
+  const settingsLocked = !settingsLoaded || isRecording || countInBeat !== null || audioPreparing;
   const needsCalibration = isCalibrated === false;
   const openCalibration = () => setShowCalibrationIntro(true);
   const settingLabel = settingsLocked ? "text-ink-muted" : "text-ink";
@@ -711,7 +719,7 @@ export default function Home() {
               >
                 {countInBeat}
               </span>
-              <div className="flex items-center gap-2.5 mt-6">
+              <div className="flex flex-wrap justify-center max-w-[240px] items-center gap-2.5 mt-6">
                 {Array.from({ length: beatsPerMeasure }, (_, i) => (
                   <div
                     key={i}
@@ -767,20 +775,27 @@ export default function Home() {
             {/* Time Signature */}
             <div className="flex flex-col gap-2">
               <label htmlFor="time-signature" className={`ms-label transition-colors ${settingLabel}`}>Time Signature</label>
-              <div className="relative">
-                <select
-                  id="time-signature"
-                  value={timeSignature}
-                  onChange={(e) => setTimeSignature(e.target.value)}
-                  disabled={settingsLocked}
-                  className="ms-input w-full"
-                >
-                  <option>4/4</option>
-                  <option>3/4</option>
-                  <option>6/8</option>
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-ink-muted"><ChevronDown /></div>
+              <div className="flex items-center gap-2">
+                <input id="time-signature" type="number" min={MIN_NUMERATOR} max={MAX_NUMERATOR} step={1}
+                  aria-label="Time signature numerator" disabled={settingsLocked} value={numeratorDraft}
+                  onChange={(e) => { setNumeratorDraft(e.target.value); setMeterError(null); }}
+                  onBlur={() => commitMeter()} onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); commitMeter(); }
+                    if (e.key === "Escape") { setNumeratorDraft(String(meter.numerator)); setMeterError(null); }
+                  }} aria-invalid={meterError !== null} aria-describedby={meterError ? "meter-help meter-error" : "meter-help"}
+                  className="ms-input w-full min-w-0" />
+                <span aria-hidden="true">/</span>
+                <div className="relative w-full min-w-0">
+                  <select aria-label="Time signature denominator" disabled={settingsLocked}
+                    value={meter.denominator} onChange={(e) => commitMeter(Number(e.target.value))}
+                    className="ms-input w-full min-w-0 pr-8">
+                    {DENOMINATORS.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted"><path d="m6 9 6 6 6-6" /></svg>
+                </div>
               </div>
+              <p id="meter-help" className="text-sm text-ink-muted">{formatMeter(meter)} · Quarter-note BPM. Stop to edit.</p>
+              {meterError && <p id="meter-error" role="alert">{meterError}</p>}
             </div>
 
             {/* Metronome toggle */}

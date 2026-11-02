@@ -239,12 +239,13 @@ switches clicks off, requiring another toggle gesture after returning. Clicks by
 Tempo text is a draft until Enter or blur, reusing the #204 input behavior.
 Invalid input restores the active value with a plain accessible error. A valid
 change affects the interval following the pending beat. Time signatures,
-including 6/8 interpretation, and calibration readiness are unchanged. The
+including 6/8, use denominator-note intervals at quarter-note BPM (#207);
+numerators up to 32 are supported. Calibration readiness is unchanged. The
 browser harness verifies sample-frame spacing through a deliberate 1.8-second
 page-thread stall; this is software graph evidence, not a hardware timing claim.
 See the [verification record](../tests/README.md#continuous-metronome-206).
 
-The metronome starts muted on every page load. Only tempo is persisted; legacy
+The metronome starts muted on every page load. Tempo and meter are persisted; legacy
 stored toggle fields are ignored and removed when preferences are written.
 ## Sampled production piano and register balance (#210)
 

@@ -162,6 +162,37 @@ describe("home page", () => {
     window.history.replaceState(null, "", "/");
   });
 
+  it.each([undefined, null, {numerator:0,denominator:4}, {numerator:7,denominator:3}])("restores corrupt/legacy meter independently of tempo and metronome", meter => {
+    saveCalibration();
+    localStorage.setItem(storageKey("playback-settings",1), JSON.stringify({tempo:180,metronome:false,meter}));
+    renderHome();
+    expect((screen.getByLabelText("Time signature numerator") as HTMLInputElement).value).toBe("4");
+    expect((screen.getByLabelText("Time signature denominator") as HTMLSelectElement).value).toBe("4");
+    expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("180");
+    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("commits meter only on Enter/blur, explains invalid drafts, and restores preferences", () => {
+    saveCalibration(); renderHome();
+    const numerator = screen.getByLabelText("Time signature numerator") as HTMLInputElement;
+    fireEvent.change(numerator, { target: { value: "" } });
+    expect(numerator.value).toBe("");
+    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!).meter.numerator).toBe(4);
+    fireEvent.keyDown(numerator, { key: "Enter" });
+    expect(numerator.value).toBe("4");
+    expect(screen.getByRole("alert").textContent).toContain("Restored 4/4");
+    fireEvent.change(numerator, { target: { value: "7.5" } });
+    fireEvent.blur(numerator);
+    expect(numerator.value).toBe("4");
+    fireEvent.change(numerator, { target: { value: "7" } });
+    fireEvent.keyDown(numerator, { key: "Enter" });
+    fireEvent.change(screen.getByLabelText("Time signature denominator"), { target: { value: "8" } });
+    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!).meter).toEqual({ numerator: 7, denominator: 8 });
+    cleanup(); renderHome();
+    expect((screen.getByLabelText("Time signature numerator") as HTMLInputElement).value).toBe("7");
+    expect((screen.getByLabelText("Time signature denominator") as HTMLSelectElement).value).toBe("8");
+  });
+
   it("restores saved preferences without overwriting them on initial render", () => {
     const key = storageKey("playback-settings", 1);
     localStorage.setItem(key, JSON.stringify({ tempo: 180, metronome: false }));
@@ -175,7 +206,7 @@ describe("home page", () => {
   it("allows metronome settings before calibration while piano audio remains unavailable", async () => {
     renderHome();
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).disabled).toBe(false);
-    expect((screen.getByLabelText("Time Signature") as HTMLSelectElement).disabled).toBe(false);
+    expect((screen.getByLabelText("Time signature numerator") as HTMLInputElement).disabled).toBe(false);
     const toggle = screen.getByLabelText("Toggle metronome") as HTMLButtonElement;
     expect(toggle.disabled).toBe(false);
     await act(async () => fireEvent.click(toggle));
@@ -193,7 +224,7 @@ describe("home page", () => {
     fireEvent.blur(screen.getByLabelText("Set Tempo"));
     fireEvent.click(screen.getByLabelText("Toggle metronome"));
     expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("true");
-    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!)).toEqual({ tempo: 175 });
+    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!)).toEqual({ tempo: 175, meter: { numerator: 4, denominator: 4 } });
     cleanup();
     renderHome();
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("175");
@@ -233,7 +264,7 @@ describe("home page", () => {
     renderHome();
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("180");
     expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
-    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!)).toEqual({ tempo: 180 });
+    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!)).toEqual({ tempo: 180, meter: { numerator: 4, denominator: 4 } });
   });
 
   it.each([20, 300])("restores valid boundary tempo %s", (tempo) => {
@@ -412,8 +443,8 @@ describe("home page", () => {
     await act(async () => {
       fireEvent.click(screen.getByLabelText("Start recording"));
     });
-    expect(screen.getByText("1")).toBeTruthy();
-    // One 4/4 measure at 60 BPM, advanced through the simulated worklet clock.
+    expect(screen.getByText("1", { selector: "span.ms-beat" })).toBeTruthy();
+    // One 4/4 measure at the default 60 BPM. Advanced through the simulated worklet clock.
     for (let beat = 0; beat < 4; beat++) act(() => vi.advanceTimersByTime(1000));
     expect(screen.getByText("Recording started")).toBeTruthy();
 

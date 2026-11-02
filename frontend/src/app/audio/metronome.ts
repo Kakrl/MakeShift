@@ -3,7 +3,7 @@ import {
   closeTrackedAudioContext,
 } from "../../diagnostics/performanceMetrics";
 
-type Settings = { tempo: number; beatsPerMeasure: number; audible: boolean };
+type Settings = { tempo: number; beatsPerMeasure: number; denominator?: number; audible: boolean };
 type Callbacks = {
   onCountInBeat(beat: number): void;
   onCountInComplete(): void;
@@ -40,6 +40,7 @@ export function createMetronome(
     send("configure", {
       tempo: settings.tempo,
       beats: settings.beatsPerMeasure,
+      denominator: settings.denominator ?? 4,
       audible: settings.audible,
     });
   }
@@ -139,7 +140,8 @@ export function createMetronome(
         next.tempo > 300 ||
         !Number.isInteger(next.beatsPerMeasure) ||
         next.beatsPerMeasure < 1 ||
-        next.beatsPerMeasure > 16
+        next.beatsPerMeasure > 32 ||
+        ![1, 2, 4, 8, 16, 32].includes(next.denominator ?? 4)
       )
         throw new Error("Invalid metronome settings");
       settings = next;
