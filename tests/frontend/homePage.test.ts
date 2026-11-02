@@ -35,6 +35,12 @@ function validCalibration() {
   };
 }
 
+vi.mock("../../frontend/src/app/audio/metronome", async original => {
+  const actual = await original<typeof import("../../frontend/src/app/audio/metronome")>();
+  const { createSimulatedMetronome } = await import("./simulatedMetronome");
+  return { ...actual, createMetronome: () => createSimulatedMetronome({ prepare: async () => true, click() {}, silence() {}, close() {} }, actual.createMetronome) };
+});
+
 const push = vi.fn();
 const camera = vi.hoisted(() => ({
   value: {
@@ -166,33 +172,47 @@ describe("home page", () => {
     expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
   });
 
-  it("keeps playback settings unavailable until a calibration is saved", () => {
-    renderHome();
-    expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).disabled).toBe(true);
-    expect((screen.getByLabelText("Time Signature") as HTMLSelectElement).disabled).toBe(true);
-    expect((screen.getByLabelText("Toggle metronome") as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(screen.getByLabelText("Toggle metronome"));
-    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("true");
-    cleanup();
-    saveCalibration();
+  it("allows metronome settings before calibration while piano audio remains unavailable", async () => {
     renderHome();
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).disabled).toBe(false);
     expect((screen.getByLabelText("Time Signature") as HTMLSelectElement).disabled).toBe(false);
-    expect((screen.getByLabelText("Toggle metronome") as HTMLButtonElement).disabled).toBe(false);
+    const toggle = screen.getByLabelText("Toggle metronome") as HTMLButtonElement;
+    expect(toggle.disabled).toBe(false);
+    await act(async () => fireEvent.click(toggle));
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "Enable audio" })).toHaveProperty("disabled", true);
+    expect(screen.getByLabelText("Start recording")).toHaveProperty("disabled", true);
   });
 
-  it("persists edited tempo and metronome across a remount", () => {
+  it("persists tempo but resets the metronome to off across a remount", () => {
     saveCalibration();
     renderHome();
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("60");
-    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
     fireEvent.change(screen.getByLabelText("Set Tempo"), { target: { value: "175" } });
     fireEvent.blur(screen.getByLabelText("Set Tempo"));
     fireEvent.click(screen.getByLabelText("Toggle metronome"));
+    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("true");
+    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!)).toEqual({ tempo: 175 });
     cleanup();
     renderHome();
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("175");
     expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("keeps the active tempo unchanged while typing and commits on Enter or blur", () => {
+    saveCalibration(); renderHome();
+    const input = screen.getByLabelText("Set Tempo") as HTMLInputElement;
+    const stored = () => JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!).tempo;
+    expect(stored()).toBe(60);
+    fireEvent.change(input, { target: { value: "75" } });
+    expect(input.value).toBe("75"); expect(stored()).toBe(60);
+    fireEvent.keyDown(input, { key: "Enter" }); expect(stored()).toBe(75);
+    fireEvent.change(input, { target: { value: "90" } }); expect(stored()).toBe(75);
+    fireEvent.blur(input); expect(stored()).toBe(90);
+    fireEvent.change(input, { target: { value: "10" } }); fireEvent.blur(input);
+    expect(input.value).toBe("90"); expect(stored()).toBe(90);
+    expect(screen.getByRole("alert").textContent).toContain("Tempo unchanged");
   });
 
   it.each([
@@ -201,13 +221,19 @@ describe("home page", () => {
     JSON.stringify({ tempo: 301, metronome: false }),
     JSON.stringify({ tempo: 120.5, metronome: false }),
     JSON.stringify({ tempo: "120", metronome: false }),
-    JSON.stringify({ tempo: 120, metronome: "false" }),
-    JSON.stringify({ tempo: 120 }),
   ])("uses defaults for invalid stored settings: %s", (raw) => {
     localStorage.setItem(storageKey("playback-settings", 1), raw);
     renderHome();
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("60");
-    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it.each([true, false, "invalid"])("ignores an old stored metronome value (%s) while restoring tempo", metronome => {
+    localStorage.setItem(storageKey("playback-settings", 1), JSON.stringify({ tempo: 180, metronome }));
+    renderHome();
+    expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("180");
+    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
+    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!)).toEqual({ tempo: 180 });
   });
 
   it.each([20, 300])("restores valid boundary tempo %s", (tempo) => {
@@ -216,7 +242,7 @@ describe("home page", () => {
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe(String(tempo));
   });
 
-  it("validates committed input and keeps controls usable when settings storage fails", () => {
+  it("rejects invalid input and keeps controls usable when settings storage fails", () => {
     // Calibration still loads; only the playback settings storage fails.
     saveCalibration();
     const read = window.localStorage.getItem.bind(window.localStorage);
@@ -238,7 +264,7 @@ describe("home page", () => {
     fireEvent.keyDown(input, { key: "Enter" });
     expect(input.getAttribute("aria-invalid")).toBe("false");
     fireEvent.click(screen.getByLabelText("Toggle metronome"));
-    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("true");
   });
 
   it("allows intermediate digits and empty input without changing saved tempo", () => {
@@ -379,7 +405,7 @@ describe("home page", () => {
     calibration.valid = true;
     localStorage.setItem(CALIBRATION_KEY, JSON.stringify(validCalibration()));
     renderHome();
-    // The metronome click needs Web Audio, which jsdom lacks.
+    // Exercise recording with the metronome explicitly on via simulated audio.
     fireEvent.click(screen.getByLabelText("Toggle metronome"));
 
     // Play awaits audio initialization before starting the count-in.
@@ -387,7 +413,7 @@ describe("home page", () => {
       fireEvent.click(screen.getByLabelText("Start recording"));
     });
     expect(screen.getByText("1")).toBeTruthy();
-    // One 4/4 measure at the default 60 BPM. Each beat schedules the next after a render.
+    // One 4/4 measure at 60 BPM, advanced through the simulated worklet clock.
     for (let beat = 0; beat < 4; beat++) act(() => vi.advanceTimersByTime(1000));
     expect(screen.getByText("Recording started")).toBeTruthy();
 
