@@ -18,7 +18,7 @@ afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 it("preserves saved sheet-reference corners and distinguishes the current scan without color", () => {
   const original = structuredClone(saved);
-  const { container } = render(createElement(SheetAlignment, { saved, camera: saved.camera, scan: scan() }));
+  const { container } = render(createElement(SheetAlignment, { reason: "geometry-mismatch", saved, camera: saved.camera, scan: scan() }));
   expect(screen.getByText(/Calibrated position \(solid\)/)).toBeTruthy();
   expect(screen.getByText(/Current position \(dashed; last complete scan\)/)).toBeTruthy();
   expect(screen.getByText(/After realigning, allow about 10 seconds/).classList.contains("sr-only")).toBe(false);
@@ -36,13 +36,13 @@ it("preserves saved sheet-reference corners and distinguishes the current scan w
 });
 
 it("expires only the current outline, hides misses, and accepts a later realigned scan", () => {
-  const { container, rerender } = render(createElement(SheetAlignment, { saved, camera: saved.camera, scan: scan() }));
+  const { container, rerender } = render(createElement(SheetAlignment, { reason: "geometry-mismatch", saved, camera: saved.camera, scan: scan() }));
   act(() => vi.advanceTimersByTime(MARKER_CHECK_INTERVAL_MS));
   expect(container.querySelectorAll("polygon")).toHaveLength(2);
   expect(screen.getByText(/Current position unavailable/)).toBeTruthy();
-  rerender(createElement(SheetAlignment, { saved, camera: saved.camera, scan: { ...scan(), corners: saved.corners } }));
+  rerender(createElement(SheetAlignment, { reason: "geometry-mismatch", saved, camera: saved.camera, scan: { ...scan(), corners: saved.corners } }));
   expect(container.querySelectorAll("polygon")).toHaveLength(4);
-  rerender(createElement(SheetAlignment, { saved, camera: saved.camera, scan: null }));
+  rerender(createElement(SheetAlignment, { reason: "geometry-mismatch", saved, camera: saved.camera, scan: null }));
   expect(container.querySelectorAll("polygon")).toHaveLength(2);
 });
 
@@ -50,17 +50,30 @@ it.each([
   { ...saved.camera, width: 800 }, { ...saved.camera, height: 800 },
   { ...saved.camera, deviceId: "other" }, { ...saved.camera, facingMode: "environment" }, null,
 ])("hides incomparable camera coordinates %j", camera => {
-  const { container } = render(createElement(SheetAlignment, { saved, camera, scan: scan() }));
+  const { container } = render(createElement(SheetAlignment, { reason: "geometry-mismatch", saved, camera, scan: scan() }));
   expect(container.innerHTML).toBe("");
 });
 
 it("hides an old camera scan while retaining the comparable saved outline", () => {
-  const { container } = render(createElement(SheetAlignment, { saved, camera: saved.camera,
+  const { container } = render(createElement(SheetAlignment, { reason: "geometry-mismatch", saved, camera: saved.camera,
     scan: { ...scan(), camera: { ...saved.camera, deviceId: "other" } } }));
   expect(container.querySelectorAll("polygon")).toHaveLength(2);
 });
 
 it("renders nothing without a validated saved calibration", () => {
-  const { container } = render(createElement(SheetAlignment, { saved: null, camera: saved.camera, scan: scan() }));
+  const { container } = render(createElement(SheetAlignment, { reason: "markers-unavailable", saved: null, camera: saved.camera, scan: scan() }));
+  expect(container.innerHTML).toBe("");
+});
+
+it.each(["playing", "ready", "audio-required", "starting", "tracking-paused", "audio-interrupted", "layout-changed"] as const)("hides the recovery guide for %s", reason => {
+  const { container } = render(createElement(SheetAlignment, { reason, saved, camera: saved.camera, scan: scan() }));
+  expect(container.innerHTML).toBe("");
+});
+
+it("shows missing-marker recovery and hides it when readiness is restored", () => {
+  const { container, rerender } = render(createElement(SheetAlignment, { reason: "markers-unavailable", saved, camera: saved.camera, scan: null }));
+  expect(screen.getByLabelText("Sheet-reference alignment")).toBeTruthy();
+  expect(container.querySelector("aside svg")?.getAttribute("aria-hidden")).toBe("true");
+  rerender(createElement(SheetAlignment, { reason: "audio-required", saved, camera: saved.camera, scan: scan() }));
   expect(container.innerHTML).toBe("");
 });

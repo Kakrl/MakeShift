@@ -2,12 +2,14 @@
 
 import { memo, useEffect, useState } from "react";
 import { calibrationReason, MARKER_CHECK_INTERVAL_MS, type CalibrationResult, type CameraSignature } from "../cv/calibration";
+import type { ReadinessReason } from "../events/liveSession";
 import type { Point } from "../cv/types";
 
 export type AlignmentScan = { camera: CameraSignature; corners: Point[]; at: number };
 
 /** Sheet-reference corners, not the printable paper boundary or piano footprint. */
-function SheetAlignment({ saved, camera, scan }: {
+function SheetAlignment({ saved, camera, scan, reason }: {
+  reason: ReadinessReason;
   saved: CalibrationResult | null;
   camera: CameraSignature | null;
   scan: AlignmentScan | null;
@@ -20,9 +22,10 @@ function SheetAlignment({ saved, camera, scan }: {
     return () => clearTimeout(timer);
   }, [scan]);
   if (!saved || !camera) return null;
-  const reason = calibrationReason(saved, camera, null, saved.layout);
+  if (reason !== "geometry-mismatch" && reason !== "markers-unavailable") return null;
+  const cameraReason = calibrationReason(saved, camera, null, saved.layout);
   // Never compare unrelated camera pixel spaces, even when dimensions match.
-  if (reason !== "markers-unavailable") return null;
+  if (cameraReason !== "markers-unavailable") return null;
   const current = scan && calibrationReason(saved, scan.camera, null, saved.layout) === "markers-unavailable" &&
     clock - scan.at < MARKER_CHECK_INTERVAL_MS ? scan.corners : null;
   const points = (corners: Point[]) => corners.map(p => `${p.x},${p.y}`).join(" ");
@@ -38,11 +41,17 @@ function SheetAlignment({ saved, camera, scan }: {
     </svg>
     <aside aria-label="Sheet-reference alignment" className="absolute top-3 left-3 right-3 z-20 w-fit max-w-[calc(100%-1.5rem)] rounded-lg bg-surface px-3 py-2 text-xs text-ink pointer-events-none">
       <p className="font-semibold">Sheet-reference alignment</p>
-      <p>― Calibrated position (solid)</p>
-      <p>{current ? "┄ Current position (dashed; last complete scan)" : "Current position unavailable — show all four markers"}</p>
+      <p><LineSwatch /> Calibrated position (solid)</p>
+      <p>{current ? <><LineSwatch dashed /> Current position (dashed; last complete scan)</> : "Current position unavailable. Show all four markers."}</p>
       <p>After realigning, allow about 10 seconds for checking. Once ready, select Enable audio.</p>
     </aside>
   </>;
+}
+
+function LineSwatch({ dashed = false }: { dashed?: boolean }) {
+  return <svg aria-hidden="true" focusable="false" viewBox="0 0 24 8" className="inline-block h-2 w-6">
+    <line x1="0" y1="4" x2="24" y2="4" stroke="currentColor" strokeWidth="2" strokeDasharray={dashed ? "5 3" : undefined} />
+  </svg>;
 }
 
 export default memo(SheetAlignment);

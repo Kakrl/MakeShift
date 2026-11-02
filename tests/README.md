@@ -1926,3 +1926,27 @@ PR #238 also addresses defect [#226](https://github.com/Kakrl/MakeShift/issues/2
 2026-10-29: the alignment legend now visibly says, "After realigning, allow about 10 seconds for checking. Once ready, select Enable audio." This replaces screen-reader-only timing text; scan cadence and readiness gates are unchanged. REC-02 checks that the guidance is not marked sr-only. REC-05 verifies actual visible dimensions and that the complete guidance fits inside the camera at 320/390/1440px, alongside existing keyboard/status checks.
 
 Full Vitest rerun: 710 passed, one existing skip, 37 files. Lint, TypeScript, 37 contrast pairs and production build passed. Edge 156.0.4314.50 recovery, deployment, keyboard-layout and audio browser checks passed against the final port 3001 build with fake media. Prior Chromium spawn limitation remains; database unconfigured, no physical camera/audio or real screen-reader execution claimed.
+
+## PR #238 review verification (2026-11-02)
+
+Windows, Node 22.20.0: 718 Vitest tests passed across 37 files, with the
+existing frame-loss skip. TypeScript, lint, all 37 contrast pairs, the standard
+Turbopack production build and whitespace checks passed. Eight added REC-02
+cases cover hiding the guide outside alignment recovery, missing-marker display,
+restored-readiness hiding and a decorative SVG swatch. Existing camera-space,
+scan expiry and geometry tests remain in place.
+
+Edge 156.0.4314.58 passed deployment, keyboard-layout, production audio and
+recovery browser runners against the production server on port 3238. Recovery
+checked 320/390/1440px bounds, visible wait guidance, missing-current-scan
+outline, camera mismatch and keyboard calibration navigation. Audio checked
+real decoded samples, output, interruption recovery and cleanup. Fake media and
+digital output do not establish physical camera, acoustic or screen-reader
+results. Chromium launch failed with `spawn UNKNOWN`; database unconfigured;
+new Actions evidence pending.
+
+The initial sandbox test attempt was blocked by temporary-file rename permissions.
+The successful suite ran outside that sandbox. A dependency junction prevented
+Turbopack's first build attempt; a clean local dependency install allowed the
+standard build to pass. An interim Webpack attempt failed on the existing
+OpenCV `fs` import; no build configuration was changed.

@@ -1,4 +1,5 @@
 "use client";
+import type { ReadinessReason } from "../events/liveSession";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import SheetAlignment, { type AlignmentScan } from "./SheetAlignment";
@@ -129,11 +130,17 @@ interface FingerDebugState {
   shadowAreaRatio: number | null;
 }
 
+function sameCamera(a: CameraSignature | null, b: CameraSignature | null) {
+  return a === b || !!a && !!b && a.deviceId === b.deviceId &&
+    a.width === b.width && a.height === b.height && a.facingMode === b.facingMode;
+}
+
 export type ContactFrameHandler = (
   fingertips: readonly Fingertip[], hands: readonly HandObservation[],
 ) => void;
 
 export default function MarkerTrackingOverlay({
+  readinessReason,
   contactFrameRef,
   videoRef,
   fingertips,
@@ -149,6 +156,7 @@ export default function MarkerTrackingOverlay({
   debugShowSheetWithoutCalibration = false,
   layout = DEFAULT_LAYOUT,
 }: {
+  readinessReason: ReadinessReason;
   contactFrameRef?: React.RefObject<ContactFrameHandler | null>;
   layout?: KeyboardLayout;
   videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -417,7 +425,7 @@ export default function MarkerTrackingOverlay({
     let animationFrame = 0;
     let detector: MarkerDetector | null = null;
     let lastDetectionTime = -Infinity;
-    let lastCameraKey = "";
+    let lastCamera: CameraSignature | null = null;
     let videoWasUnavailable = false;
 
     // Camera/source changes begin a new acquisition session.
@@ -440,9 +448,8 @@ export default function MarkerTrackingOverlay({
 
       if (!cancelled) {
         const currentCamera = cameraReady ? cameraSignature(stream, video) : null;
-        const cameraKey = JSON.stringify(currentCamera);
-        if (cameraKey !== lastCameraKey) {
-          lastCameraKey = cameraKey;
+        if (!sameCamera(currentCamera, lastCamera)) {
+          lastCamera = currentCamera;
           setAlignmentCamera(currentCamera);
           setAlignmentScan(null);
         }
@@ -551,7 +558,7 @@ export default function MarkerTrackingOverlay({
     if (markerDetection !== markerDetectionRef.current) return;
 
     const camera = cameraReady ? cameraSignature(stream, videoRef.current) : null;
-    const scanMatchesCamera = alignmentScan && JSON.stringify(alignmentScan.camera) === JSON.stringify(camera);
+    const scanMatchesCamera = alignmentScan && sameCamera(alignmentScan.camera, camera);
     const corners = camera && markerDetection && scanMatchesCamera ? markerCorners(markerDetection, camera) : null;
     const saved = loadCalibration();
 
@@ -985,7 +992,7 @@ export default function MarkerTrackingOverlay({
         height={1080}
         className="absolute inset-0 z-10 h-full w-full object-cover scale-x-[-1] pointer-events-none"
       />
-      <SheetAlignment saved={savedAlignment} camera={alignmentCamera} scan={alignmentScan} />
+      <SheetAlignment reason={readinessReason} saved={savedAlignment} camera={alignmentCamera} scan={alignmentScan} />
       <canvas ref={processingCanvasRef} className="hidden" />
       {showVisualDebug && (
         <>

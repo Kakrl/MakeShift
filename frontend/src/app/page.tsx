@@ -343,7 +343,7 @@ export default function Home() {
         const beat = Math.min(beatsPerMeasure, Math.floor(elapsed / intervalMs));
         if (elapsed >= beatsPerMeasure * intervalMs) {
           if (session.status.state !== "playing") {
-            session.interrupt("Readiness changed during count-in. Wait for tracking, then select Enable audio.");
+            session.interrupt();
             return;
           }
           setCountInBeat(null);
@@ -366,7 +366,7 @@ export default function Home() {
       if (!canceled && request === playRequestRef.current) {
         clearTimeout(timer);
         cancelClicks();
-        session.interrupt("Count-in audio could not start. Select Enable audio to retry.", "count-in-audio");
+        session.interrupt("count-in-audio");
       }
     };
     try {

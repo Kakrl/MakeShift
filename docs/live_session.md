@@ -131,3 +131,10 @@ The session owns calibration compatibility and UI readiness. The marker overlay
 uses the compatibility result returned by the session for geometry, and the page
 uses `status.canStart`. Audio token mapping is shared with `createAudioSession`;
 `LiveSession.attach()` retains ownership of its invalidation subscription.
+
+PR #238 review follow-up: the alignment guide uses the live readiness reason and
+only appears for geometry mismatch or unavailable markers. It disappears once
+alignment is restored, including while waiting for audio activation and playing.
+Legend line swatches are decorative SVGs hidden from assistive technology.
+Recovery text is owned solely by `RECOVERY_COPY`; interruption methods accept
+only the optional count-in audio reason. Camera signatures use field comparison.

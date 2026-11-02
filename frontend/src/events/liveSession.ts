@@ -51,8 +51,6 @@ export type LiveStatus = Readonly<{
 /** Readiness owner. Only receive() can deliver detected events to audio. */
 export class LiveSession {
   private state: LiveState = "stopped";
-  private message =
-    "Show the calibrated sheet and wait for tracking, then select Enable audio.";
   private calibrationAt = -Infinity;
   private trackingAt = -Infinity;
   private calibrationKey = "";
@@ -77,7 +75,7 @@ export class LiveSession {
   private invalidateLayout() {
     this.calibrationAt = -Infinity;
     this.calibrationIssue = "layout-changed";
-    this.interrupt("Keyboard settings changed. Calibrate again, then enable audio.");
+    this.interrupt();
   }
 
   constructor(
@@ -100,7 +98,7 @@ export class LiveSession {
       // initialize() resets its transport before reporting ready.
       if (this.state === "playing" || this.state === "ready") {
         this.audioIssue = "audio-interrupted";
-        this.interrupt("Audio interrupted. Select Enable audio to resume playing.");
+        this.interrupt();
       }
     });
     return () => {
@@ -165,9 +163,7 @@ export class LiveSession {
 
   private expireBeforeRefresh() {
     if (["starting", "ready", "playing"].includes(this.state) && !this.fresh())
-      this.interrupt(
-        "Tracking timed out. Wait for fresh tracking, then select Enable audio again.",
-      );
+      this.interrupt();
   }
 
   observeCalibration(
@@ -180,9 +176,7 @@ export class LiveSession {
     this.calibrationIssue = calibrationReason(value, camera, corners, this.layout);
     if (this.calibrationIssue || !valid) {
       this.calibrationAt = -Infinity;
-      this.interrupt(
-        "Calibration unavailable. Restore the original sheet/camera position or calibrate again.",
-      );
+      this.interrupt();
       return false;
     }
     return this.acceptCalibration(JSON.stringify(valid));
@@ -197,7 +191,7 @@ export class LiveSession {
       this.calibrationAt = -Infinity;
       this.calibrationIssue = !camera ? "camera-unavailable" :
         !usableLayout(this.layout) ? "layout-changed" : "markers-unavailable";
-      this.interrupt("Dev mode: show all four sheet markers to play.");
+      this.interrupt();
       return false;
     }
     this.calibrationIssue = null;
@@ -205,9 +199,7 @@ export class LiveSession {
   }
   private acceptCalibration(key: string) {
     if (this.calibrationKey && key !== this.calibrationKey)
-      this.interrupt(
-        "Calibration changed. Select Enable audio to start a new session.",
-      );
+      this.interrupt();
     this.calibrationKey = key;
     const wasFresh = this.fresh();
     this.calibrationAt = this.now();
@@ -225,22 +217,16 @@ export class LiveSession {
   trackingFailed() {
     this.detectorFailed = true;
     this.trackingAt = -Infinity;
-    this.interrupt(
-      "Tracking failed. Reload to retry the detector, then select Enable audio.",
-    );
+    this.interrupt();
   }
   private watch(wasFresh: boolean) {
     clearTimeout(this.timer);
     const remaining = this.trackingAt + TRACKING_TIMEOUT_MS - this.now();
     if (Number.isFinite(this.calibrationAt) && remaining > 0)
       this.timer = setTimeout(() => {
-        this.interrupt(
-          "Tracking timed out. Restore the camera and sheet, wait for tracking, then select Enable audio.",
-        );
+        this.interrupt();
       }, remaining);
     if (wasFresh !== this.fresh()) {
-      if (this.fresh() && (this.state === "stopped" || this.state === "interrupted"))
-        this.message = "Tracking ready. Select Enable audio to start a new session.";
       this.emit();
     }
   }
@@ -248,9 +234,7 @@ export class LiveSession {
     this.hidden = hidden;
     if (hidden) {
       this.calibrationAt = this.trackingAt = -Infinity;
-      this.interrupt(
-        "Playing stopped in the background. Return, wait for tracking, then select Enable audio.",
-      );
+      this.interrupt();
     } else this.emit();
   }
   async prepare(): Promise<boolean> {
@@ -259,19 +243,15 @@ export class LiveSession {
     const request = ++this.generation;
     this.audioIssue = null;
     this.state = "starting";
-    this.message = "Enabling audio…";
     this.emit();
     try {
       await this.audio.initialize();
       if (request !== this.generation) return false;
       if (!this.fresh() || this.audio.status !== "ready") {
-        this.interrupt(
-          "Readiness changed. Wait for tracking, then select Enable audio again.",
-        );
+        this.interrupt();
         return false;
       }
       this.state = "ready";
-      this.message = "Audio ready.";
       this.emit();
       return true;
     } catch {
@@ -279,8 +259,6 @@ export class LiveSession {
       this.audioIssue = "audio-error";
       this.state = "error";
       this.resumeInput();
-      this.message =
-        "Audio could not start. Select Enable audio to retry; check browser audio permissions.";
       this.emit();
       return false;
     }
@@ -295,7 +273,6 @@ export class LiveSession {
     const id = this.notes.start();
     this.sequence = 0;
     this.state = "playing";
-    this.message = "Playing";
     this.emit();
     return id;
   }
@@ -322,33 +299,30 @@ export class LiveSession {
   ): DispatchResult {
     if (this.state !== "playing") return "stale";
     if (!this.fresh() || this.audio.status !== "ready") {
-      this.interrupt(
-        "Readiness lost. Wait for tracking, then select Enable audio again.",
-      );
+      this.interrupt();
       return "interrupted";
     }
     const result = this.notes.receive(value, clock);
     if (!this.notes.sessionId)
-      this.interrupt("Session ended. Select Enable audio to start a clean session.");
+      this.interrupt();
     return result;
   }
   stop() {
-    this.end("stopped", "Stopped. Select Enable audio to start a new session.");
+    this.end("stopped");
   }
-  interrupt(message: string, reason?: "count-in-audio") {
+  interrupt(reason?: "count-in-audio") {
     if (reason) this.audioIssue = reason;
     if (["starting", "ready", "playing"].includes(this.state)) {
-      this.end("interrupted", message);
+      this.end("interrupted");
     } else {
       // Readiness can change while idle without ending another session or take.
       this.emit();
     }
   }
-  private end(state: LiveState, message: string) {
+  private end(state: LiveState) {
     this.generation++;
-    const changed = this.state !== state || this.message !== message;
+    const changed = this.state !== state;
     this.state = state; // Retire before audio invalidation can reenter.
-    this.message = message;
     this.notes.stop();
     this.resumeInput();
     if (changed) this.emit();
