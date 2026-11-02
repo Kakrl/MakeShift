@@ -1,5 +1,26 @@
 # MakeShift Testing
 
+## Paper-step simplification (issue #234, 2026-11-02)
+
+Branch `fix/234-remove-check-paper`, based on `233ffd4`, tested in an isolated
+worktree to preserve unrelated checkout edits. Removed the manual paper-check
+button, its duplicate scan/error path and obsolete recovery instructions. The
+automatic paper scan now reuses the initialized detector; validation, settings
+snapshots, navigation and detector readiness remain in place.
+
+Windows / Node 22.20.0: lint, TypeScript, all 37 contrast pairs and full Vitest
+passed (697 tests, one existing skip, 36 files). All 19 calibration workflow
+cases passed, including missing-marker acquisition, invalid geometry, Back to
+paper reacquisition, both hand captures, settings mismatch and persistence.
+The production Turbopack build passed after temporarily expanding its root to
+include the worktree dependency junction; the config was restored afterward.
+Vitest needed outside-sandbox execution after cache rename EPERM.
+
+Edge 156.0.4314.58 production deployment, keyboard-layout and audio browser
+checks passed against port 3234 with fake media; database unconfigured. Chromium
+was attempted for all three checks but could not launch (`spawn UNKNOWN`).
+Real camera/printed-paper verification and new Actions execution remain pending.
+
 ## PR #235 review verification (2026-11-02)
 
 The count-in live region now keeps one start announcement across beat updates;
