@@ -23,6 +23,10 @@ Edge 156.0.4314.58 deployment, keyboard-layout, production audio and 320px meter
 browser checks passed with fake media. Database unconfigured; hosted migration,
 physical camera/speaker timing and new Actions execution remain pending.
 
+The real-worklet metronome browser runner also passed: standalone Home toggle
+and mute with camera denied, beat spacing within one sample during a 1.8 s
+UI stall, pause silence, resume/muted count-in, and cleanup/reuse.
+
 
 ## PR #233 review follow-up (2026-11-02)
 
@@ -2015,8 +2019,3 @@ Chromium 151.0.7922.34 audio and keyboard-layout browser checks passed.
 Deployment smoke was not repeated after the earlier stalled run documented
 above; physical camera/audio testing and new CI evidence remain pending.
 Recording-clock synchronization remains follow-up issue #225.
-
-The real-worklet metronome browser runner also passed: standalone Home toggle
-and mute with camera denied, beat spacing within one sample during a 1.8 s
-UI stall, pause silence, resume/muted count-in, and cleanup/reuse.
-
