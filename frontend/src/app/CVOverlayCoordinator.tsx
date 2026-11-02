@@ -109,6 +109,9 @@ export default function CVOverlayCoordinator({
         debugShowZLines={DEBUG_FLAGS.showZLines}
         debugShowSheetWithoutCalibration={DEBUG_FLAGS.showSheetWithoutCalibration}
         activePitches={activePitches}
+        // activePitches supplies accepted-note highlights throughout live play.
+        // Raw overlap would also highlight muted or held-through-count-in keys.
+        soundFeedbackOnly={session.status.state === "playing"}
         onKeyTransitions={handleKeyTransitions}
         trackingEnabled={enabled}
         onCalibrationObservation={observeCalibration}

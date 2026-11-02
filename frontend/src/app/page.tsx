@@ -186,7 +186,6 @@ export default function Home() {
   const [liveStatus, setLiveStatus] = useState(session.status);
   const [activePitches, setActivePitches] = useState<ReadonlySet<number>>(new Set());
   const [recorder] = useState(createRecorder);
-  const consumersRef = useRef<ReturnType<typeof connectPianoConsumers> | null>(null);
   const recordingsLibraryRef = useRef<RecordingsLibraryHandle | null>(null);
   const [libraryLoaded, setLibraryLoaded] = useState(false);
   const [hasRecordings, setHasRecordings] = useState(false);
@@ -332,7 +331,7 @@ export default function Home() {
     session.flushNotes();
     if (action === "resume") recorder.resumeRecording();
     else recorder.startRecording(tempo, undefined, meter);
-    consumersRef.current?.captureHeld();
+    session.resumeInput();
     setRecordingState(recorder.getState());
     countInActionRef.current = null;
   }, [session, recorder, tempo, meter, metronomeController]);
@@ -346,6 +345,7 @@ export default function Home() {
         const countInPending = countInActionRef.current !== null;
         countInActionRef.current = null;
         setCountInBeat(null);
+        session.resumeInput();
         setMetronomeError(countInPending
           ? "Count-in audio interrupted. Select Start or Resume recording to retry."
           : "Metronome audio interrupted. Turn it on again to retry.");
@@ -364,7 +364,6 @@ export default function Home() {
   useEffect(() => {
     const detach = session.attach();
     const disconnectNotes = connectPianoConsumers(session, recorder, setActivePitches);
-    consumersRef.current = disconnectNotes;
     let previousState = session.status.state;
     const unsubscribe = session.subscribe(() => {
       const status = session.status;
@@ -403,7 +402,6 @@ export default function Home() {
       detach();
       session.flushNotes();
       disconnectNotes();
-      consumersRef.current = null;
       recorder.stopRecording();
       cancelMetronomeRequest();
       metronomeController.close();
@@ -457,7 +455,7 @@ export default function Home() {
     }
   };
   const handlePlay = async () => {
-    if (audioPreparingRef.current || countInBeat !== null || session.status.state === "starting") return;
+    if (audioPreparingRef.current || countInActionRef.current !== null || session.status.state === "starting") return;
     if (isRecording && !isPaused) {
       session.flushNotes();
       recorder.pauseRecording();
@@ -466,8 +464,18 @@ export default function Home() {
       return;
     }
     if (!canPlay || !libraryLoaded) return;
+    countInActionRef.current = isRecording && isPaused ? "resume" : "start";
     const request = ++playRequestRef.current;
-    if (!await enableAudio(true) || request !== playRequestRef.current) return;
+    session.pauseInput();
+    pedalClearRef.current?.();
+    if (request !== playRequestRef.current) return;
+    if (!await enableAudio(true) || request !== playRequestRef.current) {
+      if (request === playRequestRef.current) {
+        countInActionRef.current = null;
+        session.resumeInput();
+      }
+      return;
+    }
     if (countInBeat !== null) return; // already counting in
     if (isRecording && isPaused) {
       // Keep the existing take paused until the count-in finishes.
@@ -498,6 +506,7 @@ export default function Home() {
     playRequestRef.current += 1;
     countInActionRef.current = null;
     setCountInBeat(null);
+    session.resumeInput();
     // An initial count-in has no take; a resume count-in does.
     if (!isRecording) return;
     const recording = recorder.stopRecording();
@@ -550,7 +559,7 @@ export default function Home() {
         </p>
       </PageTopBar>
       <div aria-live="polite" className="sr-only">
-        {countInBeat !== null ? (isPaused ? "Count-in to resume recording" : "Count-in to start recording") : isPaused ? "Recording paused" : isRecording ? "Recording started" : showRecordingComplete ? "Recording complete" : ""}
+        {countInBeat !== null ? "Count-in started. Piano paused. Select Stop to cancel." : isPaused ? "Recording paused" : isRecording ? "Recording started" : showRecordingComplete ? "Recording complete" : ""}
       </div>
 
       {/* ── Welcome Modal (first visit) ─────────────────────────────────────── */}
@@ -712,6 +721,7 @@ export default function Home() {
           {/* Count-in overlay, one measure of beats before recording */}
           {countInBeat !== null && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-dark/60 z-40 pointer-events-none">
+              <p className="text-white">Piano paused for count-in · Stop to cancel</p>
               <span
                 key={countInBeat}
                 className="ms-beat font-display text-white font-bold leading-none tabular-nums"
@@ -820,7 +830,7 @@ export default function Home() {
         </SideNav>
       </div>
 
-      <PedalControls active={liveStatus.state === "playing"} clearRef={pedalClearRef} />
+      <PedalControls active={liveStatus.state === "playing" && countInBeat === null && !audioPreparing} clearRef={pedalClearRef} />
       {/* Bottom: Listen (left) + transport (centre) */}
       <div className="flex items-center shrink-0 pl-(--gutter-l) pr-(--gutter-r) pb-[clamp(16px,3dvh,36px)] pt-[clamp(16px,2.5dvh,28px)]">
         <div className="flex-1 relative flex flex-wrap items-center justify-center gap-x-4 gap-y-3">

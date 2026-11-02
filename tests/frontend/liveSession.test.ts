@@ -38,6 +38,8 @@ let audio: {
   initialize: ReturnType<typeof vi.fn>;
   noteOn: ReturnType<typeof vi.fn>;
   noteOff: ReturnType<typeof vi.fn>;
+  pauseInput: ReturnType<typeof vi.fn>;
+  resumeInput: ReturnType<typeof vi.fn>;
   releaseAll: ReturnType<typeof vi.fn>;
   subscribeInvalidation: (fn: () => void) => () => void;
 };
@@ -51,6 +53,8 @@ beforeEach(() => {
     }),
     noteOn: vi.fn(() => ({ session: 1, press: 1 })),
     noteOff: vi.fn(() => true),
+    pauseInput: vi.fn(),
+    resumeInput: vi.fn(),
     releaseAll: vi.fn(() => invalidate()),
     subscribeInvalidation: (fn) => {
       invalidate = fn;

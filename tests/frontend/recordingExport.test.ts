@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { createRecorder, downloadMidi } from "../../frontend/src/app/midi/midiUtils";
+import { NoteSession } from "../../frontend/src/events/noteSession";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -60,6 +61,34 @@ function readMidi(uri: string) {
   expect(ended).toBe(true);
   return { tempo, notes, meter };
 }
+
+it("exports zero gated onsets and excludes start/resume count-in time", () => {
+  let now = 1000;
+  vi.spyOn(performance, "now").mockImplementation(() => now);
+  const link = { href: "", download: "", click: vi.fn() };
+  vi.stubGlobal("document", { createElement: () => link });
+  const recorder = createRecorder();
+  const session = new NoteSession(() => true, () => now), id = session.start();
+  session.subscribe(({ event }) => {
+    if (event.type === "release-all") recorder.releaseAllNotes(event.timestampMs);
+    else if (event.type === "note-on") recorder.noteOn("C4", 80, event.timestampMs, String(event.pressId));
+    else recorder.noteOff("C4", event.timestampMs, String(event.pressId));
+  });
+  let sequence = 0;
+  const event = (type: "note-on" | "note-off", pressId: number) => session.receive({
+    version: 1, sessionId: id, sequence: ++sequence, timestampMs: now, type, pressId, pitch: 60, velocity: 0.8,
+  });
+  session.pauseInput(); event("note-on", 1); now += 2000;
+  recorder.startRecording(120); session.resumeInput();
+  event("note-off", 1); event("note-on", 2); session.flushObservers();
+  now += 500; recorder.pauseRecording(); session.pauseInput(); event("note-on", 3);
+  now += 3000; recorder.resumeRecording(); session.resumeInput();
+  event("note-off", 2); event("note-off", 3); event("note-on", 4); session.flushObservers();
+  now += 250; session.stop(); session.flushObservers();
+  const take = recorder.stopRecording()!; downloadMidi(take);
+  expect(take.notes.map(n => [n.startMs, n.durationMs])).toEqual([[0, 500], [500, 250]]);
+  expect(readMidi(link.href).notes.map(n => [n.tick, n.on])).toEqual([[0, true], [128, false], [128, true], [192, false]]);
+});
 
 it("exports chords, split held notes and stop boundaries with the real writer", () => {
   let now = 1000;

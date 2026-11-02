@@ -1,5 +1,105 @@
 # MakeShift Testing
 
+## PR #235 main merge (2026-11-02)
+
+Merged main at a205fde into the count-in input gate. Retained the continuous
+metronome controller/worklet and its selected-meter clock, standalone playback,
+failure isolation and StrictMode behavior. The gate closes before preparation,
+opens only after recorder start/resume, clears pedal sources, and preserves
+release/repress policy. Count-in preparation failure or interruption restores
+free play without capturing muted holds. Retained the stable announcement and
+shortened tutorial copy from review.
+
+The page tests now use main's real controller/worklet over simulated transport;
+click-continuity and preparation-failure/retry cases replace oscillator-specific
+fixtures. The gate browser runner accounts for the reference helper's 50 ms lead
+and checks silence before it; that helper is no longer Home's clock. Historical
+execution records below retain their original scope.
+
+Windows / Node 22.20.0: lint, TypeScript, 724 Vitest tests (one existing skip),
+37 contrast pairs and production Turbopack build passed in an isolated worktree.
+The temporary verification config expanded Turbopack root to include the existing
+dependency junction and was restored before commit. Edge 156.0.4314.58 deployment,
+keyboard-layout, production audio, input-gate and metronome browser checks passed
+against port 3236 with fake media. The gate measured exact-zero PCM during both
+sustain and sostenuto suppression, with fresh sound afterward and no context
+invalidation; the metronome runner retained sample-accurate spacing under UI
+load, standalone operation, pause/resume and muted count-in behavior.
+Chromium's three required runners were attempted but failed to launch (spawn
+UNKNOWN). Database unconfigured; acoustic, real camera, screen-reader and new
+Actions execution evidence remain pending.
+
+
+## PR #235 review verification (2026-11-02)
+
+The count-in live region now keeps one start announcement across beat updates;
+the existing recording-controls case observes zero DOM mutations during the
+three intermediate beats and retains pause/resume/completion checks. Visible
+copy drops the em dash, and the tutorial recording card is shorter. Accepted
+note highlights remain enabled through `activePitches`; raw collision coloring
+stays disabled during live play so muted held contacts do not appear sounding.
+
+Verified an isolated snapshot of PR head `99bd9fd` plus these review changes,
+because concurrent work was editing the shared checkout. Windows / Node 22.20.0:
+lint, TypeScript, 696 Vitest tests (one existing skip), all 37 contrast pairs
+and production Turbopack build passed. The temporary build expanded only its
+Turbopack root to include the dependency junction; no repository build config
+change is proposed. Edge 156.0.4314.58 deployment, keyboard-layout and audio
+browser checks passed against port 3235 with fake media; database unconfigured.
+Chromium was attempted for all three but failed to launch (`spawn UNKNOWN`).
+Real screen-reader and physical camera/audio verification remain pending;
+stable DOM content is not a screen-reader listening test. Actions pending.
+
+## Count-in input gate (issue #205)
+
+2026-10-27, Windows / Node 22.20.0, branch
+`feature/205-count-in-input-gate`: full Vitest **696 passed**, one existing
+frame-loss skip, 36 files. Lint, TypeScript, all 37 contrast pairs and production
+build passed. Vitest needed outside-sandbox execution after EPERM cache renames;
+build needed network access for the configured Google Fonts.
+
+Start/resume gate notes and positive pedal activation synchronously before
+startup/first beat. Entry retires accepted feedback/history and clears voices,
+pedal tails and captures without invalidating the live session. Physical
+identities and sequence validation continue; suppressed releases retire them.
+The final complete meter callback drains history, opens/resumes the recorder,
+then opens input. Equal timestamps are eligible only if delivered after opening;
+earlier observations and held identities stay suppressed until release. The home
+page never captures held notes at that boundary. Tests revise former count-in
+free-play and resumed-held-capture expectations; cover every requested 120 BPM
+meter, 20 BPM 1/1 and 300 BPM 32/32 extrema, taps on every start beat, holds across resume, cancellation at
+0/500/1000/1500/1999 ms on both paths, zero gated MIDI-export notes, and free play
+outside count-in. Existing startup/Stop/background/interruption/navigation and
+stale-callback cases passed, including count-in AudioContext construction failure. Hold/Toggle UI tests require keyup and a fresh press
+after inactive count-in keydown.
+
+Edge 156.0.4314.42 deployment, keyboard-layout and production audio checks
+passed against a temporary port 3235 production server with fake media.
+`countInGate.browser.mjs` passed using actual owner/session/sink source modules,
+the production worklet and decoded stereo sample bank at 48 kHz: sustain and
+sostenuto retained tails were nonzero before entry, exactly zero while gated,
+and nonzero on a fresh press afterward. Each case independently rendered all
+four scheduled metronome clicks; zero owner invalidations and the same context.
+The runner transpiles source modules into data URLs and reuses the decoded bank;
+it does not test full-page camera interaction or physical speakers. Run with
+a production server:
+
+```powershell
+$env:MAKE_SHIFT_URL = 'http://127.0.0.1:3235'
+$env:AUDIO_BROWSER_CHANNEL = 'msedge'
+node tests/frontend/countInGate.browser.mjs
+```
+
+All four browser runners were attempted with Chromium but failed before
+execution (`spawn UNKNOWN`); Chromium remains pending. Database unconfigured.
+Human camera/audio, physical pedals, screen reader and MIDI-import checks
+remain pending in [CI-04](manual/2026-10-27_CI-04.md). No physical accuracy or
+latency pass and no new Actions execution is claimed.
+
+This branch builds on the existing unmerged #207/#232 scheduler commit
+`4cbc67c` in PR #233. The #205 draft targets main and depends on #233;
+its dependency commit remains visible until that PR merges.
+
 ## PR #233 main reconciliation (2026-11-02)
 
 Merged main at 65bb20f into the configurable-meter PR. Retained main's separate
@@ -1970,6 +2070,8 @@ localhost pedal branch on 2026-10-23 and confirmed all pedals behave as intended
 and can be programmed. This is a reported functional pass; automated browser
 checks, specific device/environment details, detailed edge-case verification,
 live-CV profiling and physical latency evidence remain pending.
+
+Issue #205 user follow-up (2026-10-27): Carl Xu tested the localhost build at 4ea7a38 and confirmed it works as intended. See the CI-04 report's user confirmation; detailed hardware/scenario and physical measurement evidence remains pending.
 
 ### Upstream integration before PR (#206)
 
