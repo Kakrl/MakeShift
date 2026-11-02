@@ -763,6 +763,12 @@ it("accents only the first denominator beat when the metronome is audible", asyn
   await advance(500); expect(frequencies).toEqual([1050,820,820,820]);
   await advance(500); await advance(500); await advance(500);
   expect(frequencies).toEqual([1050,820,820,820]);
+  // The recording deadline includes the same 50 ms lead as the audio.
+  expect(host.querySelector(".ms-beat")?.textContent).toBe("4");
+  await advance(49);
+  expect(host.querySelector(".ms-beat")?.textContent).toBe("4");
+  await advance(1);
+  expect(button("Pause recording").disabled).toBe(false);
   await click(button("Stop recording"));
 });
 

@@ -24,7 +24,7 @@ it.each([[4,4,0.5],[3,4,0.5],[6,8,0.25],[7,8,0.25],[2,2,1],[32,32,0.0625]])(
     const cancel=scheduleCountInClicks(ctx as unknown as AudioContext,120,{numerator,denominator});
     expect(oscillators).toHaveLength(numerator);
     for(let beat=0;beat<numerator;beat++) {
-      const time=10+beat*interval;
+      const time=10.05+beat*interval;
       expect(oscillators[beat].start).toHaveBeenCalledExactlyOnceWith(time);
       expect(oscillators[beat].stop).toHaveBeenCalledExactlyOnceWith(time+0.06);
       expect(oscillators[beat].frequency.value).toBe(beat===0?1050:820);
@@ -32,7 +32,7 @@ it.each([[4,4,0.5],[3,4,0.5],[6,8,0.25],[7,8,0.25],[2,2,1],[32,32,0.0625]])(
     }
     // Simulated UI/CV work cannot change already-submitted audio times.
     ctx.currentTime+=0.137;
-    expect(oscillators[1].start).toHaveBeenCalledExactlyOnceWith(10+interval);
+    expect(oscillators[1].start).toHaveBeenCalledExactlyOnceWith(10.05+interval);
     cancel(); cancel();
     for(const node of oscillators) {
       expect(node.stop).toHaveBeenLastCalledWith();

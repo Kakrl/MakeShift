@@ -55,3 +55,8 @@ oscillator. Audio-context resume completes before scheduling; cancellation also
 invalidates a pending resume. Digital offline rendering confirms equal intervals;
 real camera/audio listening under load remains pending. See the #232 report in
 `tests/README.md` and METER-06/METER-07 in the inventory.
+
+PR #233 review: audible count-ins schedule their first click 50 ms ahead of
+the audio clock, with the visual and recording deadlines shifted by the same
+50 ms. Muted count-ins retain their existing timing. This lead is scheduling
+headroom, not a measured physical latency.

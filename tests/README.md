@@ -1,5 +1,24 @@
 # MakeShift Testing
 
+## PR #233 review follow-up (2026-11-02)
+
+Isolated PR head `4cbc67c`, Windows / Node 22.20.0: Vitest 681 passed,
+one existing skip (36 files); lint, TypeScript and all 37 contrast pairs passed.
+Updated numerator queries use its explicit accessible name. Audible count-in
+regressions assert a 50 ms audio lead and matching recording completion deadline.
+Edge 156.0.4314.58 offline rendering at 48 kHz confirms silence for the first
+2400 samples, equal denominator-beat spacing and silent cancellation.
+
+Production Turbopack build passed with a temporary filesystem-root override
+covering the shared dependency junction; committed Next configuration is unchanged.
+The initial normal build rejected that junction; webpack fallback lacked the
+Turbopack-only fs alias. Edge deployment, keyboard-layout, production audio and
+320px meter browser runners passed against port 3233 with fake media.
+Database was unconfigured; hosted migration and live round trips, physical
+listening/camera timing and new Actions execution remain pending.
+Supabase CLI lookup failed with npm ENOTFOUND; no hosted migration was applied.
+
+
 ## Count-in timing correction (issue #232, 2026-10-27)
 
 The user heard swung/unequal count-in intervals on localhost. Code audit found

@@ -148,3 +148,10 @@ invalid meter returns 400, and list/read return validated meter. Existing rows
 receive 4/4. [Meter semantics](meter.md) apply to previews and MIDI downloads.
 Local migration execution is pending: Supabase CLI/project credentials are not
 available in this checkout. Mocked API tests are not evidence of live migration.
+
+Preview uses Infisical `dev` and Production uses `prod`; those environment
+names do not prove database isolation. Compare their configured `SUPABASE_URL`
+project refs before rollout. If both point to the documented hosted project,
+apply the additive meter migration there before deploying either environment.
+Verify `supabase migration list --linked` and a live recordings list/read
+request before merging/deploying. Hosted migration status remains unverified.

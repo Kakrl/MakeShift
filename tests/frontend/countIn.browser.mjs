@@ -17,13 +17,14 @@ try {
     const {scheduleCountInClicks}=await import(moduleUrl);
     const rows=[];
     for(const [numerator,denominator] of [[4,4],[3,4],[6,8],[7,8],[2,2]]) {
-      const rate=48000, spacing=rate*0.5*4/denominator;
-      const context=new OfflineAudioContext(1,numerator*spacing,rate);
+      const rate=48000, lead=2400, spacing=rate*0.5*4/denominator;
+      const context=new OfflineAudioContext(1,lead+numerator*spacing,rate);
       scheduleCountInClicks(context,120,{numerator,denominator});
       const pcm=(await context.startRendering()).getChannelData(0);
+      if(pcm.subarray(0,lead).some(sample => sample!==0)) throw new Error("Click before scheduling lead");
       const onsets=[];
       for(let beat=0;beat<numerator;beat++) {
-        const boundary=beat*spacing;
+        const boundary=lead+beat*spacing;
         let onset=boundary;
         while(onset<boundary+32 && Math.abs(pcm[onset])<0.0001) onset++;
         if(onset>=boundary+32) throw new Error("Missing click at expected audio deadline");
@@ -31,7 +32,7 @@ try {
         for(let sample=boundary+Math.floor(spacing*0.8);sample<boundary+spacing;sample++)
           if(pcm[sample]!==0) throw new Error("Unexpected late click/tail");
       }
-      const canceled=new OfflineAudioContext(1,numerator*spacing,rate);
+      const canceled=new OfflineAudioContext(1,lead+numerator*spacing,rate);
       const cancel=scheduleCountInClicks(canceled,120,{numerator,denominator});
       cancel();
       if((await canceled.startRendering()).getChannelData(0).some(sample => sample!==0)) throw new Error("Canceled clicks still rendered");

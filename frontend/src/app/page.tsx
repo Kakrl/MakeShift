@@ -19,7 +19,7 @@ import {
 } from "./midi/midiUtils";
 import { trackAudioContext, closeTrackedAudioContext } from "../diagnostics/performanceMetrics";
 import { browserAudio } from "./audio/audioEngine";
-import { scheduleCountInClicks } from "./audio/countIn";
+import { COUNT_IN_LOOKAHEAD_SECONDS, scheduleCountInClicks } from "./audio/countIn";
 import { LiveSession } from "../events/liveSession";
 import { loadCalibration } from "../cv/calibration";
 import { connectPianoConsumers } from "../events/pianoConsumers";
@@ -333,12 +333,13 @@ export default function Home() {
     let cancelClicks = () => {};
     const begin = () => {
       if (canceled || countInActionRef.current === null) return;
-      const origin = performance.now();
+      const lookaheadMs = metronome ? COUNT_IN_LOOKAHEAD_SECONDS * 1000 : 0;
+      const origin = performance.now() + lookaheadMs;
       const intervalMs = beatIntervalMs(tempo, meter);
       if (metronome) cancelClicks = scheduleCountInClicks(audioCtxRef.current!, tempo, meter);
       const tick = () => {
         if (canceled || countInActionRef.current === null) return;
-        const elapsed = performance.now() - origin;
+        const elapsed = Math.max(0, performance.now() - origin);
         const beat = Math.min(beatsPerMeasure, Math.floor(elapsed / intervalMs));
         if (elapsed >= beatsPerMeasure * intervalMs) {
           if (session.status.state !== "playing") {
@@ -737,25 +738,28 @@ export default function Home() {
 
             {/* Time Signature */}
             <div className="flex flex-col gap-2">
-              <label htmlFor="time-signature" className={`ms-label transition-colors ${settingLabel}`}>Time Signature numerator</label>
+              <label htmlFor="time-signature" className={`ms-label transition-colors ${settingLabel}`}>Time Signature</label>
               <div className="flex items-center gap-2">
                 <input id="time-signature" type="number" min={MIN_NUMERATOR} max={MAX_NUMERATOR} step={1}
-                  disabled={settingsLocked} value={numeratorDraft}
+                  aria-label="Time signature numerator" disabled={settingsLocked} value={numeratorDraft}
                   onChange={(e) => { setNumeratorDraft(e.target.value); setMeterError(null); }}
                   onBlur={() => commitMeter()} onKeyDown={(e) => {
                     if (e.key === "Enter") { e.preventDefault(); commitMeter(); }
                     if (e.key === "Escape") { setNumeratorDraft(String(meter.numerator)); setMeterError(null); }
-                  }} aria-invalid={meterError !== null} aria-describedby="meter-help meter-error"
+                  }} aria-invalid={meterError !== null} aria-describedby={meterError ? "meter-help meter-error" : "meter-help"}
                   className="ms-input w-full min-w-0" />
                 <span aria-hidden="true">/</span>
-                <select aria-label="Time signature denominator" disabled={settingsLocked}
-                  value={meter.denominator} onChange={(e) => commitMeter(Number(e.target.value))}
-                  className="ms-input w-full min-w-0">
-                  {DENOMINATORS.map((d) => <option key={d} value={d}>{d}</option>)}
-                </select>
+                <div className="relative w-full min-w-0">
+                  <select aria-label="Time signature denominator" disabled={settingsLocked}
+                    value={meter.denominator} onChange={(e) => commitMeter(Number(e.target.value))}
+                    className="ms-input w-full min-w-0 pr-8">
+                    {DENOMINATORS.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted"><path d="m6 9 6 6 6-6" /></svg>
+                </div>
               </div>
-              <p id="meter-help" className="text-sm text-ink-muted">{formatMeter(meter)} · Numerator / denominator. Quarter-note BPM. Stop the take to change settings.</p>
-              <p id="meter-error" role={meterError ? "alert" : undefined}>{meterError}</p>
+              <p id="meter-help" className="text-sm text-ink-muted">{formatMeter(meter)} · Quarter-note BPM. Stop to edit.</p>
+              {meterError && <p id="meter-error" role="alert">{meterError}</p>}
             </div>
 
             {/* Metronome toggle */}

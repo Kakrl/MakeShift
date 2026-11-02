@@ -160,7 +160,7 @@ describe("home page", () => {
     saveCalibration();
     localStorage.setItem(storageKey("playback-settings",1), JSON.stringify({tempo:180,metronome:false,meter}));
     renderHome();
-    expect((screen.getByLabelText("Time Signature numerator") as HTMLInputElement).value).toBe("4");
+    expect((screen.getByLabelText("Time signature numerator") as HTMLInputElement).value).toBe("4");
     expect((screen.getByLabelText("Time signature denominator") as HTMLSelectElement).value).toBe("4");
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("180");
     expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
@@ -168,7 +168,7 @@ describe("home page", () => {
 
   it("commits meter only on Enter/blur, explains invalid drafts, and restores preferences", () => {
     saveCalibration(); renderHome();
-    const numerator = screen.getByLabelText("Time Signature numerator") as HTMLInputElement;
+    const numerator = screen.getByLabelText("Time signature numerator") as HTMLInputElement;
     fireEvent.change(numerator, { target: { value: "" } });
     expect(numerator.value).toBe("");
     expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!).meter.numerator).toBe(4);
@@ -183,7 +183,7 @@ describe("home page", () => {
     fireEvent.change(screen.getByLabelText("Time signature denominator"), { target: { value: "8" } });
     expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!).meter).toEqual({ numerator: 7, denominator: 8 });
     cleanup(); renderHome();
-    expect((screen.getByLabelText("Time Signature numerator") as HTMLInputElement).value).toBe("7");
+    expect((screen.getByLabelText("Time signature numerator") as HTMLInputElement).value).toBe("7");
     expect((screen.getByLabelText("Time signature denominator") as HTMLSelectElement).value).toBe("8");
   });
 
@@ -200,7 +200,7 @@ describe("home page", () => {
   it("keeps playback settings unavailable until a calibration is saved", () => {
     renderHome();
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).disabled).toBe(true);
-    expect((screen.getByLabelText("Time Signature numerator") as HTMLSelectElement).disabled).toBe(true);
+    expect((screen.getByLabelText("Time signature numerator") as HTMLSelectElement).disabled).toBe(true);
     expect((screen.getByLabelText("Toggle metronome") as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByLabelText("Toggle metronome"));
     expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("true");
@@ -208,7 +208,7 @@ describe("home page", () => {
     saveCalibration();
     renderHome();
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).disabled).toBe(false);
-    expect((screen.getByLabelText("Time Signature numerator") as HTMLSelectElement).disabled).toBe(false);
+    expect((screen.getByLabelText("Time signature numerator") as HTMLSelectElement).disabled).toBe(false);
     expect((screen.getByLabelText("Toggle metronome") as HTMLButtonElement).disabled).toBe(false);
   });
 
