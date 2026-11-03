@@ -72,6 +72,7 @@ vi.mock("../../frontend/src/app/audio/audioEngine", () => ({
     noteOn: vi.fn(() => ({ session: 1, press: 1 })),
     noteOff: vi.fn(() => true),
     pauseInput: vi.fn(),
+    setVolume: vi.fn(),
     resumeInput: vi.fn(),
     releaseAll: vi.fn(),
   },

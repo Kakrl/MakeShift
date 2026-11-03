@@ -1,5 +1,20 @@
 # Verification Test Inventory
 
+## Piano volume (#228)
+
+| Test ID | Level | Requirement | Description / source | Owner | Tool | Automated? | Implementation Status | CI Integrated? | Execution evidence |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| VOL-01 | Unit/UI | VOL-1, 2.2/2.4 | Invalid saved levels, unity/fourfold gain curve, labeled native slider, synchronized copies, mute reload, blocked-save feedback ([source](frontend/volume.test.tsx)) | Jadden Picardal (UI), Harry Deng (storage) | Vitest/jsdom | Yes | Implemented; real keyboard in VOL-03 | Yes (`frontend-ci.yml` existing Vitest discovery) | Local pass 2026-11-02; [record](README.md#piano-volume-issue-228); Actions pending |
+| VOL-02 | Unit/integration | VOL-1, 2.2/2.4 | Production owner initial AudioParam, unity output/compressor routing, cancel/hold + 30 ms expression ramp, invalid rejection, unchanged note/pedal commands, disconnect/reopen ([owner](frontend/browserAudioLifecycle.test.ts)); four strike velocities at maximum, downward scaling and audio-rate held-note mute ([DSP](frontend/sampledPiano.test.ts)); existing playback cases rerun | Carl Xu | Vitest mocked AudioContext and actual sampler | Yes | Implemented; no acoustic claim | Yes (`frontend-ci.yml` existing Vitest discovery) | Local pass 2026-11-02; [record](README.md#piano-volume-issue-228); Actions pending |
+| VOL-03 | Browser integration | VOL-1, 2.2/2.4 | Decoded bank through sampler expression + production output helper: C2/C4/C6 gentle/medium boost ratios, 128 coherent ten-voice pedal chords plus mixed chord, mute/ramped mute; real owner/worklet parameter delivery and held-note mute/unmute; real Home/End/arrows, reload, Songs-dialog synchronization and 320px width ([source](frontend/volume.browser.mjs)) | Carl Xu (audio), Jadden Picardal (UI) | Playwright / Edge, OfflineAudioContext and live worklet | Yes, manual runner | Implemented; 48 kHz, first 1.2 s, digital samples only; no acoustic or full-duration true-peak claim | No | Local Edge 156 pass 2026-11-02; [record](README.md#piano-volume-issue-228); Chromium launch unavailable, Actions pending |
+| VOL-04 | System | VOL-1, 2.2/2.4 | Fixed-system-volume headphone/speaker comparison, real CV/live/playback, chord/pedal listening, sweep, persistence and MIDI import ([procedure](manual/2026-11-02_VOL-04.md)) | Carl Xu, Jadden Picardal, Harry Deng | Human / camera / audio / MIDI importer | No | Planned; procedure prepared, not run | No | Pending |
+
+Existing homePage and recordingControls tests only add the volume-method mock;
+coverage in their existing rows is unchanged. CI-03's source loader now resolves
+the volume/storage dependencies; assertions and historical scope are unchanged.
+Local rerun evidence for these files is in the #228 testing record; no new
+Actions run or integration is claimed.
+
 Every verification test for MakeShift. Test Case IDs and Req. IDs match the
 RVTM. Tests added since the RVTM are marked **Added** and numbered after the
 RVTM tests for the same requirement. Update this table in the same PR that

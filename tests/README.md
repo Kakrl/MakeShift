@@ -1,5 +1,51 @@
 # MakeShift Testing
 
+## Piano volume (issue #228)
+
+2026-11-02, Windows / Node 22.20.0, isolated `feature/228-volume` worktree from
+`b1700ee`: lint, TypeScript, **733 Vitest passes** (one existing skip, 38 files),
+all 37 contrast pairs and production build passed. Vitest required execution
+outside the sandbox after EPERM cache renames. The build temporarily expanded
+Turbopack's root to include the existing dependency junction and used network
+access for Google Fonts; the repository config is unchanged.
+
+Edge 156.0.4314.58 passed production deployment, keyboard-layout, audio and
+count-in-gate checks against port 3229 (fake media, database unconfigured).
+`volume.browser.mjs` passed at 48 kHz using all 19 decoded recordings and the
+actual output graph helper. Following user listening feedback that soft notes
+were too loud with uniform gain, volume now adjusts each voice's velocity math.
+C2/C4/C6 at velocity 0.6 gained 6.3613 dB (2.08x) from 100% to 200%; velocity
+0.3 gained only 1.27x. Offline unit cases cover 0.1/0.3/0.6/1 strikes (respective
+maximum multipliers 1.03/1.27/2.08/4), downward gain and audio-rate held-note mute.
+The real BrowserAudio owner/worklet passed parameter delivery, held-note mute
+and unmute; original note/MIDI velocity data is unchanged. All 128 pitches with ten coherent
+sustain-held voices plus a mixed-register chord stayed below full scale over
+the first 1.2 s; worst absolute sample was 0.969187. Both initial mute and
+30 ms ramp-to-mute had exact-zero output after settling. Native End/Home/arrows,
+reload persistence and 320px page width passed. An earlier -3 dB threshold
+iteration exceeded full scale on MIDI 0; final -6 dB threshold passed all cases.
+Songs-dialog keyboard control and synchronization back to Home also passed.
+
+The initial uniform-gain preview was rejected by the user for over-amplifying
+low-velocity notes. Acceptance of the revised expressive curve remains pending;
+the software pass does not supersede the listening result.
+
+Chromium was attempted outside the sandbox and failed before execution with
+`spawn UNKNOWN`; sandbox Edge could not write its profile, so successful Edge
+checks ran outside the sandbox. Browser PCM is digital evidence, not a listening
+or physical latency result. The compressor has makeup gain/lookahead and may
+change loud chord dynamics. Speaker/headphone maximum usability, full-duration
+peaks, other sample rates and latency under real CV remain pending in
+[VOL-04](manual/2026-11-02_VOL-04.md). No new Actions execution is claimed.
+
+Run the volume browser check with a production server:
+
+```powershell
+$env:MAKE_SHIFT_URL = 'http://127.0.0.1:3229'
+$env:AUDIO_BROWSER_CHANNEL = 'msedge'
+node tests/frontend/volume.browser.mjs
+```
+
 ## PR #235 main merge (2026-11-02)
 
 Merged main at a205fde into the count-in input gate. Retained the continuous
