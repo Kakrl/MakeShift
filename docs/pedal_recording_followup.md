@@ -71,8 +71,12 @@ context and decoded bank. Reentrant live release cannot reset the new claim.
 
 ## Verification
 
-See PR-01 through PR-06 in the verification inventory and the prepared
-[manual report](../tests/manual/2026-11-02_PR-05.md). Deterministic/reference DSP,
+See PR-01 through PR-06 in the verification inventory and the
+[manual report](../tests/manual/2026-11-02_PR-05.md). Carl Xu confirmed expected
+functionality on the production localhost build on 2026-11-02; individual
+scenario results, device metadata and external MIDI-import evidence were not
+provided. The [Frontend CI job](https://github.com/Kakrl/MakeShift/actions/runs/41550485293/job/125636554008)
+passed for head 41a81e5, including 763 tests and Chromium smoke checks. Deterministic/reference DSP,
 mocked transport and parsed MIDI bytes do not establish external instrument
 compatibility, actual speaker output or physical latency. Database migration
 `20261102000000_recording_pedals.sql` must precede API deployment.

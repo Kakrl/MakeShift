@@ -2,6 +2,12 @@
 
 ## Ordered pedal performances (issue #222)
 
+Carl Xu tested the production implementation at `http://localhost:3222` on
+2026-11-02 and confirmed "it works as intended," requesting PR #253 be made
+ready for review. [PR-05](manual/2026-11-02_PR-05.md) records this general
+functional pass; individual scenarios, device details and measurements were
+not supplied. External MIDI import and live database verification remain pending.
+
 2026-11-02, Windows / Node 22.20.0, isolated branch
 `feature/222-pedal-recording`: after reconciling main at d6ff155,
 763 Vitest cases passed, one existing skip, 39 files. Lint, TypeScript and all 37 contrast pairs passed. Initial sandbox
@@ -17,13 +23,17 @@ repeated-pitch channels, deterministic reference-DSP capture/soft semantics,
 bounded long-history seek restoration, stolen-held-voice retirement, interruption,
 canceled initialization, idle/retired disposal, same-context playback claims,
 source-side stale-token rejection and audio-before-recording UI observation.
-PR-01 through PR-04 map individual scopes; Actions execution remains pending.
+PR-01 through PR-04 map individual scopes. The [Frontend CI job](https://github.com/Kakrl/MakeShift/actions/runs/41550485293/job/125636554008)
+for head `41a81e5` passed on 2026-11-02 (local date): 763 tests, one existing
+skip, lint, types, contrast, build and Chromium 151.0.7922.34 deployment/layout/
+audio smoke checks. The job logs list the pedal, owner, API and UI suites.
+The manually invoked PR-06 runner is not included in that workflow.
 
 Edge 156.0.4314.58 deployment, keyboard-layout and production audio smoke checks
 passed against port 3222 with fake media; database unconfigured. The production
 bank decoded all 19 recordings at 48 kHz, using 111,179,616 bytes; the existing
 ten-voice peak check reported 0.571588. Chromium was attempted but could not
-launch (spawn UNKNOWN); its execution is pending. All three smoke checks and PR-06 passed again against the final production build.
+launch locally (spawn UNKNOWN); CI Chromium execution is verified above. All three smoke checks and PR-06 passed again against the final production build.
 
 The new source-timeline/real-worklet runner PR-06 passed in Edge at 48 kHz.
 Sustain/sostenuto retained RMS was 0.004638/0.004954 before pause, exactly zero
@@ -42,12 +52,14 @@ node tests/frontend/recordedPedals.browser.mjs
 Apply `20261102000000_recording_pedals.sql` before API deployment. The local
 Supabase CLI was unavailable; `npx --no-install supabase db push --linked`
 failed resolving the package (ENOTFOUND). Live migration/round trips, external
-MIDI-instrument listening, physical camera/audio and physical latency remain
-pending in the prepared [PR-05 procedure](manual/2026-11-02_PR-05.md).
+MIDI-instrument import, detailed camera/audio conditions and physical latency
+remain unverified in [PR-05](manual/2026-11-02_PR-05.md), alongside the user-reported
+localhost functional pass.
 Main reconciliation retains the new metronome and recovery work without changing
 their test cases. Edge deployment, layout, audio, PR-06 pedal replay, input-gate,
 metronome and recovery browser runners all passed on the combined build.
-No hardware or latency-compliance pass is claimed.
+The general user confirmation does not establish specific hardware compatibility
+or physical latency compliance.
 
 ## PR #235 main merge (2026-11-02)
 

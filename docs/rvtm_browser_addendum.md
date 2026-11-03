@@ -207,7 +207,7 @@ pending in the [manual procedure](../tests/manual/2026-10-27_CI-04.md).
 | :--- | :--- | :--- | :--- | :--- |
 | PR-1 | Physical note durations; validated, versioned effective pedal ordering and legacy storage | PR-01, PR-04 | Harry Deng | Automated; Actions pending |
 | PR-2 | Binary CC64/66/67, isolated repeated-pitch channels, deterministic physical edges and ten-voice policy | PR-02, PR-05 | Harry Deng | Byte parsing automated; external MIDI import pending |
-| PR-3 | Bounded replay, capture/strike semantics, pause/seek/stop/interruption silence and generation rejection | PR-03, PR-05 | Carl Xu | Deterministic/reference DSP and mocked audio; physical checks pending |
+| PR-3 | Bounded replay, capture/strike semantics, pause/seek/stop/interruption silence and generation rejection | PR-03, PR-05 | Carl Xu | Automated checks and general localhost functional confirmation (PR-05); detailed hardware/scenario checks pending |
 
 See [contract](pedal_recording_followup.md). Seeking into released retained voices
 leaves them silent; only spanning physical presses rearticulate. No physical
