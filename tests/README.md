@@ -27,8 +27,9 @@ iteration exceeded full scale on MIDI 0; final -6 dB threshold passed all cases.
 Songs-dialog keyboard control and synchronization back to Home also passed.
 
 The initial uniform-gain preview was rejected by the user for over-amplifying
-low-velocity notes. Acceptance of the revised expressive curve remains pending;
-the software pass does not supersede the listening result.
+low-velocity notes. Carl Xu subsequently confirmed the revised preview:
+"now it sounds good." This is a qualitative listening pass; device metadata
+and individual VOL-04 steps remain pending.
 
 Chromium was attempted outside the sandbox and failed before execution with
 `spawn UNKNOWN`; sandbox Edge could not write its profile, so successful Edge
