@@ -1,3 +1,4 @@
+import { validRecordedPedals } from "../midi/recordedPedals";
 import { isMeter, restoreMeter } from "../../lib/meter";
 // Browser client for the recordings API (#119, #122, #128). Same shape as
 // the mock store, so the share UI does not care which one it is using.
@@ -56,10 +57,12 @@ export function createShareApi(fetchImpl: typeof fetch = (...args) => fetch(...a
       if (response.status === 404) return null;
       if (!response.ok) throw await apiError(response);
       const recording = (await response.json()) as SharedRecording;
+      if (recording.pedals !== undefined && (!Array.isArray(recording.notes) || !validRecordedPedals(recording.pedals, recording.notes))) throw new Error("Invalid recorded pedal controls");
       return { ...recording, meter: restoreMeter(recording.meter) };
     },
 
     upload(request) {
+      if (!validRecordedPedals(request.pedals, request.notes)) return Promise.reject(new Error("Invalid recorded pedal controls"));
       if (request.meter !== undefined && !isMeter(request.meter)) return Promise.reject(new Error("Invalid time signature"));
       return call("", sendJson("POST", request));
     },

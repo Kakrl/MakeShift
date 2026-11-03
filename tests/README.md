@@ -1,5 +1,51 @@
 # MakeShift Testing
 
+## Ordered pedal performances (issue #222)
+
+2026-11-02, Windows / Node 22.20.0, isolated branch
+`feature/222-pedal-recording`: 713 Vitest cases passed, one existing skip,
+37 files. Lint, TypeScript and all 37 contrast pairs passed. Initial sandbox
+Vitest cache renames failed before execution; the outside-sandbox suite passed.
+Production build passed with Google Fonts access and a temporary Turbopack
+root expansion to include the dependency junction. The config was restored;
+no root/dependency configuration change is proposed.
+
+The tests cover physical note pairing with separately ordered pedal transitions,
+snapshot isolation, pause/stop handling, version/malformed-control rejection and
+legacy persistence, mocked API round trips, actual MIDI bytes with separate
+repeated-pitch channels, deterministic reference-DSP capture/soft semantics,
+bounded long-history seek restoration, stolen-held-voice retirement, interruption,
+canceled initialization, idle/retired disposal, same-context playback claims,
+source-side stale-token rejection and audio-before-recording UI observation.
+PR-01 through PR-04 map individual scopes; Actions execution remains pending.
+
+Edge 156.0.4314.58 deployment, keyboard-layout and production audio smoke checks
+passed against port 3222 with fake media; database unconfigured. The production
+bank decoded all 19 recordings at 48 kHz, using 111,179,616 bytes; the existing
+ten-voice peak check reported 0.571588. Chromium was attempted but could not
+launch (spawn UNKNOWN); its execution is pending. All three smoke checks and PR-06 passed again against the final production build.
+
+The new source-timeline/real-worklet runner PR-06 passed in Edge at 48 kHz.
+Sustain/sostenuto retained RMS was 0.004638/0.004954 before pause, exactly zero
+after pause/resume into released tails and after stop, and nonzero after seek
+to a fresh onset. Old callbacks remained silent and the same context was used.
+It loads actual TypeScript modules as data URLs and reuses the actual decoded
+sample bank; it does not exercise full-page CV capture or physical speakers.
+Run against a production server (PowerShell):
+
+```powershell
+$env:MAKE_SHIFT_URL = 'http://127.0.0.1:3222'
+$env:AUDIO_BROWSER_CHANNEL = 'msedge'
+node tests/frontend/recordedPedals.browser.mjs
+```
+
+Apply `20261102000000_recording_pedals.sql` before API deployment. The local
+Supabase CLI was unavailable; `npx --no-install supabase db push --linked`
+failed resolving the package (ENOTFOUND). Live migration/round trips, external
+MIDI-instrument listening, physical camera/audio and physical latency remain
+pending in the prepared [PR-05 procedure](manual/2026-11-02_PR-05.md).
+No hardware or latency-compliance pass is claimed.
+
 ## PR #235 review verification (2026-11-02)
 
 The count-in live region now keeps one start announcement across beat updates;

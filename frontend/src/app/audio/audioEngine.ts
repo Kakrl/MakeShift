@@ -221,9 +221,23 @@ export class BrowserAudio {
   }
 
   setPedals(state: PedalState) {
+    if (!state || [state.sustain, state.sostenuto, state.soft].some(value => typeof value !== "boolean")) return false;
     if (this.inputPaused && (state.sustain || state.sostenuto || state.soft)) return false;
-    return this.send({ type: "pedals", version: 1, session: this.session, ...state });
+    return this.send({ type: "pedals", version: 1, session: this.session, sustain: state.sustain, sostenuto: state.sostenuto, soft: state.soft });
   }
+
+  /** Retire live/other-player identities while preserving the loaded audio graph. */
+  claimPlayback() {
+    if (this.status !== "ready" || this.recovering) return false;
+    if (this.outstanding >= 64) { this.releaseAll(); return false; }
+    this.recovering = true;
+    this.reset(); // Reentrant live-session releaseAll is suppressed by recovering.
+    this.inputPaused = false;
+    this.recovering = false;
+    return true;
+  }
+
+  silencePlayback() { return this.send({ type: "release-all", session: this.session }); }
 
   /** Ordered voice/pedal clear without transport invalidation or context restart. */
   pauseInput() {
@@ -254,6 +268,7 @@ export class BrowserAudio {
   }
 
   noteOff(token: { session: number; press: number }) {
+    if (token.session !== this.session) return false;
     return this.send({ type: "note-off", ...token });
   }
 

@@ -5,11 +5,13 @@ import { allowedCode, defaultBindings, pedalIds, PedalController, validBindings,
 import { browserStorage, readStored, storageKey, writeStored } from "../lib/storage";
 
 const labels = { sustain: "Sustain (damper)", sostenuto: "Sostenuto", soft: "Soft (una corda)", none: "No pedals" };
-export default function PedalControls({ active, clearRef }: { active: boolean; clearRef?: { current: (() => void) | null } }) {
+export default function PedalControls({ active, clearRef, onTransition }: { onTransition?: (state: PedalState) => void; active: boolean; clearRef?: { current: (() => void) | null } }) {
   const [state, setState] = useState<PedalState>({ sustain: false, sostenuto: false, soft: false });
   const [bindings, setBindings] = useState(defaultBindings);
   const [capture, setCapture] = useState<Pedal | null>(null);
   const [feedback, setFeedback] = useState("");
+  const transition = useRef(onTransition);
+  transition.current = onTransition;
   const controller = useRef<PedalController | null>(null);
   useEffect(() => {
     const loaded = readStored("pedal-bindings", 1, defaultBindings(), validBindings);
@@ -19,7 +21,7 @@ export default function PedalControls({ active, clearRef }: { active: boolean; c
       const raw = area?.getItem(storageKey("pedal-bindings", 1));
       if (!area || (raw && !validBindings(JSON.parse(raw)))) setFeedback("Saved bindings unavailable or invalid; using unassigned defaults.");
     } catch { setFeedback("Saved bindings could not be read; using unassigned defaults."); }
-    const owner = new PedalController(loaded, s => browserAudio.setPedals(s), setState);
+    const owner = new PedalController(loaded, s => browserAudio.setPedals(s), s => { setState(s); transition.current?.(s); });
     controller.current = owner;
     if (clearRef) clearRef.current = () => owner.clear();
     const unsubscribe = browserAudio.subscribeInvalidation(() => owner.clear(false));
@@ -77,11 +79,11 @@ export default function PedalControls({ active, clearRef }: { active: boolean; c
         </button>;
       })}
     </div>
-    <p className="text-sm text-ink-muted">Live sound only: pedals are not recorded or exported. <a className="underline" href="/documentation#pedal-recording">Recording/replay follow-up</a>.</p>
+    <p className="text-sm text-ink-muted">Pedals are included in new recordings and MIDI exports. <a className="underline" href="/documentation#pedal-recording">Recording and replay help</a>.</p>
     <details><summary>Pedal keys and hardware setup</summary>
       <p id="pedal-help">No pedals clears all pedal sources and captures, keeping physically held notes sounding. Release and press held pedal keys again after clearing. Losing focus clears pedals.</p>
       <p>Configure keyboard-style USB/Bluetooth hardware with matching keys. Hold uses keydown/keyup; Toggle uses a tap per action. Test while playing. Compatibility depends on the device. Bindings use physical KeyboardEvent.code positions; printed letters may differ by layout. OS/browser intercepted shortcuts may never arrive.</p>
-      <p>Pedals affect live sound only; recordings and MIDI exports contain physical notes without pedals. Pedal recording/replay remains a follow-up: <a className="underline" href="/documentation#pedal-recording">pedal recording/replay</a>.</p>
+      <p>Recordings preserve physical key durations and store pedals separately. Pause or seek clears released pedal tails; held notes restart. See <a className="underline" href="/documentation#pedal-recording">pedal recording/replay</a>.</p>
       {pedalIds.map(id => <div key={id} className="flex flex-wrap gap-2 items-center py-1">
         <span>{labels[id]}: {bindings[id].code || "Unassigned"}</span>
         <button type="button" className="ms-key" onClick={() => { controller.current?.clear(); setCapture(id); setFeedback("Press a letter or digit to assign; Escape cancels."); }}>Assign {labels[id]}</button>

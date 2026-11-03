@@ -148,3 +148,12 @@ invalid meter returns 400, and list/read return validated meter. Existing rows
 receive 4/4. [Meter semantics](meter.md) apply to previews and MIDI downloads.
 Local migration execution is pending: Supabase CLI/project credentials are not
 available in this checkout. Mocked API tests are not evidence of live migration.
+
+## Pedal migration (#222)
+
+Apply `20261102000000_recording_pedals.sql` before the new API. It adds nullable
+`pedals` JSONB; old rows remain note-only. Read/upload routes preserve controls
+and compute duration through the last control boundary. The shared validator
+rejects malformed/unsupported control data before any database request.
+Migration execution and live round trips remain pending until the linked
+Supabase CLI/environment is available.

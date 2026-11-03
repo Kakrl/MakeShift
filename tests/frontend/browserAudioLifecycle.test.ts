@@ -76,6 +76,9 @@ it("silences piano and pedals in order without invalidation and rejects gated ac
   const invalidate = vi.fn(); audio.subscribeInvalidation(invalidate);
   const node = Worklet.instances[0]; node.ack();
   const token = audio.noteOn(60)!;
+  expect(audio.setPedals({ sustain: "true", sostenuto: false, soft: false } as never)).toBe(false);
+  expect(audio.setPedals({ sustain: true, sostenuto: false, soft: false, type: "reset", session: -1 } as never)).toBe(true);
+  expect(node.port.postMessage.mock.lastCall?.[0]).toEqual({ type: "pedals", version: 1, session: token.session, sustain: true, sostenuto: false, soft: false });
   audio.setPedals({ sustain: true, sostenuto: true, soft: true });
   audio.noteOff(token);
   audio.pauseInput();
@@ -86,6 +89,22 @@ it("silences piano and pedals in order without invalidation and rejects gated ac
   expect(node.port.postMessage.mock.calls).toHaveLength(count);
   expect(invalidate).not.toHaveBeenCalled();
   audio.resumeInput(); expect(audio.noteOn(61)).not.toBeNull();
+  expect(Context.instances).toHaveLength(1);
+  await audio.close();
+});
+
+it("silences recorded pedal tails without a context reset or input gate", async () => {
+  const audio = new BrowserAudio(); await audio.initialize();
+  const worklet = Worklet.instances[0]; worklet.ack();
+  const invalidate = vi.fn(); audio.subscribeInvalidation(invalidate);
+  const token = audio.noteOn(60)!;
+  audio.setPedals({ sustain: true, sostenuto: true, soft: true });
+  audio.noteOff(token);
+  expect(audio.silencePlayback()).toBe(true);
+  expect(worklet.port.postMessage.mock.lastCall?.[0]).toEqual({ type: "release-all", session: token.session });
+  expect(invalidate).not.toHaveBeenCalled();
+  expect(audio.isInputPaused).toBe(false);
+  expect(audio.noteOn(62)).not.toBeNull();
   expect(Context.instances).toHaveLength(1);
   await audio.close();
 });
@@ -103,6 +122,23 @@ it("orders pedal commands with physical notes and resets on pedal queue overload
   expect(audio.noteOff(token)).toBe(false);
   worklet.ack();
   expect(audio.noteOn(61)).not.toBeNull();
+  await audio.close();
+});
+
+it("claims playback in a fresh session without recreating audio or accepting stale releases", async () => {
+  const audio = new BrowserAudio(); await audio.initialize();
+  const worklet = Worklet.instances[0]; worklet.ack();
+  const old = audio.noteOn(60)!;
+  const invalidate = vi.fn(() => audio.releaseAll());
+  audio.subscribeInvalidation(invalidate);
+  expect(audio.claimPlayback()).toBe(true);
+  expect(invalidate).toHaveBeenCalledTimes(1);
+  const fresh = audio.noteOn(60)!;
+  expect(fresh.session).toBeGreaterThan(old.session);
+  expect(audio.noteOff(old)).toBe(false);
+  expect(audio.noteOff(fresh)).toBe(true);
+  expect(Context.instances).toHaveLength(1);
+  expect(worklet.port.postMessage.mock.calls.filter(([event]) => event.type === "reset")).toHaveLength(2);
   await audio.close();
 });
 
@@ -348,11 +384,9 @@ describe("browser audio owner lifecycle", () => {
     node.ack();
     const fresh = audio.noteOn(60)!;
     expect(fresh.session).toBeGreaterThan(old.session);
-    audio.noteOff(old);
-    expect(node.port.postMessage).toHaveBeenLastCalledWith({
-      type: "note-off",
-      ...old,
-    });
+    const sent = node.port.postMessage.mock.calls.length;
+    expect(audio.noteOff(old)).toBe(false);
+    expect(node.port.postMessage).toHaveBeenCalledTimes(sent);
     await audio.close();
   });
 
