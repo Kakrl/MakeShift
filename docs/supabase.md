@@ -164,4 +164,3 @@ and compute duration through the last control boundary. The shared validator
 rejects malformed/unsupported control data before any database request.
 Migration execution and live round trips remain pending until the linked
 Supabase CLI/environment is available.
-
