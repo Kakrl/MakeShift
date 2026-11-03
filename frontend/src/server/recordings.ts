@@ -1,5 +1,4 @@
 import type { RecordedPedals } from "../app/midi/recordedPedals";
-import { restoreMeter } from "../lib/meter";
 /**
  * Server-only recordings API (#119, #122, #128) over the Supabase REST API.
  * Route files stay thin and call these handlers, so the specs can run them
@@ -7,6 +6,7 @@ import { restoreMeter } from "../lib/meter";
  * never be imported from client code. Error bodies never echo keys or
  * database messages.
  */
+import { restoreMeter } from "../lib/meter";
 import {
   RECORDING_LIST_PAGE_SIZE,
   recordingDurationMs,

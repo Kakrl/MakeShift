@@ -1,9 +1,11 @@
 import { beatIntervalMs, type Meter } from "../../lib/meter";
 
+export const COUNT_IN_LOOKAHEAD_SECONDS = 0.05;
+
 /** Schedule the bounded measure once; UI/frame delays cannot move its clicks. */
-export function scheduleCountInClicks(ctx: AudioContext, bpm: number, meter: Meter): () => void {
+export function scheduleCountInClicks(ctx: AudioContext, bpm: number, meter: Meter,
+  origin = ctx.currentTime + COUNT_IN_LOOKAHEAD_SECONDS): () => void {
   const intervalSeconds = beatIntervalMs(bpm, meter) / 1000;
-  const origin = ctx.currentTime;
   const voices: { oscillator: OscillatorNode; gain: GainNode; started: boolean }[] = [];
   const cancel = () => {
     for (const { oscillator, gain, started } of voices) {

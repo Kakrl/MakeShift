@@ -79,6 +79,7 @@ MakeShift/
 │   │   │   ├── PipelineDiagnostics.tsx # opt-in metrics and report export
 │   │   │   ├── CameraContext.tsx
 │   │   │   ├── CameraStatusOverlay.tsx
+│   │   │   ├── SheetAlignment.tsx        # saved/current sheet-reference comparison and legend
 │   │   │   ├── MarkerTrackingOverlay.tsx
 │   │   │   ├── globals.css          # --color-* theme tokens
 │   │   │   ├── layout.tsx
@@ -137,6 +138,8 @@ MakeShift/
 │   │   ├── recordingsApi.test.ts     # recordings routes and client, mocked database
 │   │   ├── pianoIntegration.test.ts # deterministic note-to-audio/MIDI/feedback
 │   │   ├── fingerVelocity.test.ts   # motion estimator, lifecycle and DSP response
+│   │   ├── sheetAlignment.test.tsx     # saved/current outline freshness and camera compatibility
+│   │   ├── recovery.browser.mjs       # production recovery keyboard/status/responsive checks
 │   │   ├── liveSession.test.ts       # readiness transitions and stale-input safety
 │   │   ├── noteEvents.test.ts        # shared events, lifecycle, clocks and MessagePort
 │   │   ├── playbackTimeline.test.ts # recording playback clock and lifecycle
@@ -433,6 +436,16 @@ meeting, so they always reflect current state:
   issues drop off as they are closed during review, carried-over issues stay,
   and the newly scoped issues from planning are added in. The view should only
   ever contain work that is in scope for the current sprint.
+
+Metronome implementation: `frontend/src/app/audio/metronome.ts` owns the click graph and lifecycle.
+`frontend/public/audio/metronome-worklet.js` renders the shared audio-thread
+count-in/accompaniment clock and clicks. Its controller tests are in
+`tests/frontend/metronome.test.ts`; the manually invoked real-Web-Audio
+harness is `tests/frontend/metronome.browser.mjs`.
+`tests/frontend/metronomeHarness.ts` loads the actual processor in a VM;
+`tests/frontend/simulatedMetronome.ts` supplies its simulated audio transport
+to the real controller. Home integration stays in
+`tests/frontend/recordingControls.test.tsx`.
 
 ### Pedal implementation files (#176)
 

@@ -1,10 +1,10 @@
 import { validRecordedPedals } from "../midi/recordedPedals";
-import { isMeter, restoreMeter } from "../../lib/meter";
 // Mock shared recordings (#203), with the same #117 shapes as the real
 // recordings API. Append `?mock=1` to a page URL to use these fixtures
 // instead of the API, or `?mock=empty` / `?mock=error` for those states.
 // Shares made in the browser are kept in localStorage so a copied link
 // opens in a new tab.
+import { isMeter, restoreMeter } from "../../lib/meter";
 import type { RecordedNote, Recording } from "../midi/midiUtils";
 import {
   RECORDING_LIST_PAGE_SIZE,

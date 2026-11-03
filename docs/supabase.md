@@ -149,6 +149,13 @@ receive 4/4. [Meter semantics](meter.md) apply to previews and MIDI downloads.
 Local migration execution is pending: Supabase CLI/project credentials are not
 available in this checkout. Mocked API tests are not evidence of live migration.
 
+Preview uses Infisical `dev` and Production uses `prod`; those environment
+names do not prove database isolation. Compare their configured `SUPABASE_URL`
+project refs before rollout. If both point to the documented hosted project,
+apply the additive meter migration there before deploying either environment.
+Verify `supabase migration list --linked` and a live recordings list/read
+request before merging/deploying. Hosted migration status remains unverified.
+
 ## Pedal migration (#222)
 
 Apply `20261102000000_recording_pedals.sql` before the new API. It adds nullable
@@ -157,3 +164,4 @@ and compute duration through the last control boundary. The shared validator
 rejects malformed/unsupported control data before any database request.
 Migration execution and live round trips remain pending until the linked
 Supabase CLI/environment is available.
+
