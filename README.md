@@ -41,6 +41,7 @@ and playback behavior.
 
 ## Testing and Documentation
 
+- [Tutorial: play and record with MakeShift](docs/tutorial.md)
 - [Print and assemble the actual-size piano sheets](docs/piano_sheet.md)
 - [Testing guide, known defects, and RCA log](tests/README.md)
 - [Verification Test Inventory](tests/verification_test_inventory.md)
