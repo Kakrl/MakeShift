@@ -66,12 +66,15 @@ export default function SongsDialog({
   initialSongId = null,
   mine,
   onClose,
+  onPlayAlong,
 }: {
   initialTab?: SongsTab;
   /** Opens straight to this shared song (a share link); Back leads to the list. */
   initialSongId?: string | null;
   mine: MyRecordings;
   onClose: () => void;
+  /** Starts a song on the keyboard; resolves to an error message, or null once it started. */
+  onPlayAlong?: (recording: Recording) => Promise<string | null>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -79,6 +82,11 @@ export default function SongsDialog({
   const listScroll = useRef(0);
   const sentinelRef = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true, onClose);
+  const playAlong = onPlayAlong && (async (recording: Recording) => {
+    const message = await onPlayAlong(recording);
+    if (message === null) onClose();
+    return message;
+  });
 
   const [tab, setTab] = useState<SongsTab>(initialTab);
   const [recordings, setRecordings] = useState<RecordingSummary[]>([]);
@@ -244,6 +252,7 @@ export default function SongsDialog({
                 song={song}
                 headingRef={headingRef}
                 onBack={back}
+                onPlayAlong={playAlong}
               />
             )}
             {view.kind === "mine" && take && (
@@ -254,6 +263,7 @@ export default function SongsDialog({
                 headingRef={headingRef}
                 onShare={() => push({ kind: "share", id: take.recording.id })}
                 onDeleted={back}
+                onPlayAlong={playAlong}
               />
             )}
             {view.kind === "share" && take && (
@@ -437,11 +447,13 @@ function SharedSongView({
   song,
   headingRef,
   onBack,
+  onPlayAlong,
 }: {
   summary: RecordingSummary | null;
   song: SongLoad;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   onBack: () => void;
+  onPlayAlong?: (recording: Recording) => Promise<string | null>;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -472,7 +484,7 @@ function SharedSongView({
           </button>
         </div>
       ) : (
-        <SharedPlayer recording={song === "loading" ? null : song} fill />
+        <SharedPlayer recording={song === "loading" ? null : song} fill onPlayAlong={onPlayAlong} />
       )}
     </div>
   );
@@ -488,6 +500,7 @@ function MySongView({
   headingRef,
   onShare,
   onDeleted,
+  onPlayAlong,
 }: {
   entry: LibraryEntry;
   share: TakeShare | null;
@@ -495,6 +508,7 @@ function MySongView({
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   onShare: () => void;
   onDeleted: () => void;
+  onPlayAlong?: (recording: Recording) => Promise<string | null>;
 }) {
   const { recording, saved } = entry;
   const [preview] = useState(() => asSharedRecording(recording));
@@ -585,6 +599,7 @@ function MySongView({
         recording={preview}
         fill
         shareActions={false}
+        onPlayAlong={onPlayAlong}
         actions={
           <>
             <button type="button" className={KEY} onClick={() => downloadMidi(recording)}>

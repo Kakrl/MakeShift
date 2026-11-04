@@ -1,5 +1,5 @@
 /**
- * Server-only recordings API (#119, #122, #128) over the Supabase REST API.
+ * Server-only recordings API (#119, #122, #128, #129) over the Supabase REST API.
  * Route files stay thin and call these handlers, so the specs can run them
  * with a mocked `fetch`. Like ./supabase, this holds the secret key and must
  * never be imported from client code. Error bodies never echo keys or
@@ -24,7 +24,7 @@ export type RecordingsDeps = {
   env: SupabaseEnv & {
     /** Set on every Vercel deployment (`production`, `preview`). */
     VERCEL_ENV?: string;
-    /** `1` allows uploads on Vercel; off until rate limiting lands (#122). */
+    /** `1` allows uploads on Vercel once the rate limit migration is applied. */
     RECORDING_UPLOADS?: string;
   };
   fetchImpl?: typeof fetch;
@@ -45,6 +45,9 @@ export function recordingsDeps(): RecordingsDeps {
 // 10,000 notes of ~80 bytes each fit well inside this.
 export const MAX_UPLOAD_BYTES = 1_000_000;
 
+/** Accepted uploads per client network in a sliding window (#129). */
+export const UPLOAD_RATE_LIMIT = { uploads: 5, windowSeconds: 600 } as const;
+
 const SUMMARY_COLUMNS = "id,title,author_name,bpm,meter,duration_ms,note_count,created_at";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // A Postgres timestamptz as PostgREST returns it. Kept as text, because a JS
@@ -62,8 +65,8 @@ type SummaryRow = {
   created_at: string;
 };
 
-const json = <T>(body: T, status = 200) =>
-  Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
+const json = <T>(body: T, status = 200, headers: Record<string, string> = {}) =>
+  Response.json(body, { status, headers: { "Cache-Control": "no-store", ...headers } });
 
 const fail = (status: number, error: string, issues?: RecordingApiError["issues"]) =>
   json<RecordingApiError>(issues ? { error, issues } : { error }, status);
@@ -77,11 +80,11 @@ function database({ env, fetchImpl = fetch }: RecordingsDeps) {
 
   return async function rest<T>(
     query: string,
-    init: { method?: string; body?: unknown; prefer?: string } = {},
+    init: { method?: string; body?: unknown; prefer?: string; resource?: string } = {},
   ): Promise<T> {
     let response: Response;
     try {
-      response = await fetchImpl(`${url}/rest/v1/recordings?${query}`, {
+      response = await fetchImpl(`${url}/rest/v1/${init.resource ?? "recordings"}?${query}`, {
         method: init.method ?? "GET",
         headers: {
           apikey: key,
@@ -199,6 +202,27 @@ async function sha256Hex(value: string): Promise<string> {
   return Buffer.from(digest).toString("hex");
 }
 
+/**
+ * The rate limit key. Vercel overwrites `x-forwarded-for` with the client
+ * address, so callers cannot spoof it there. IPv6 clients usually control a
+ * whole /64, so they share one key per /64.
+ */
+export function uploadClientKey(request: Request): string {
+  const ip =
+    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    request.headers.get("x-real-ip")?.trim() ||
+    "unknown";
+  // Also unwraps IPv4-mapped IPv6 (`::ffff:1.2.3.4`).
+  const v4 = ip.match(/\d{1,3}(\.\d{1,3}){3}/);
+  if (v4) return v4[0];
+  if (!ip.includes(":")) return ip;
+  const [head, tail = ""] = ip.toLowerCase().split("::");
+  const front = head ? head.split(":") : [];
+  const back = tail ? tail.split(":") : [];
+  const groups = [...front, ...Array(Math.max(0, 8 - front.length - back.length)).fill("0"), ...back];
+  return `${groups.slice(0, 4).map((group) => parseInt(group, 16).toString(16)).join(":")}::/64`;
+}
+
 /** Reads at most MAX_UPLOAD_BYTES, so a body without Content-Length cannot exhaust memory. */
 async function readJson(request: Request): Promise<{ ok: true; body: unknown } | { ok: false; response: Response }> {
   const tooLarge = { ok: false, response: fail(413, "Recording is too large.") } as const;
@@ -236,23 +260,37 @@ export async function uploadRecording(request: Request, deps: RecordingsDeps) {
   return withDatabase(deps, async (rest) => {
     const upload = result.value;
     const deleteToken = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
-    const rows = await rest<{ id: string }[]>("select=id", {
+    const stored = await rest<{ id?: unknown; retry_after?: unknown } | null>("", {
       method: "POST",
-      prefer: "return=representation",
+      resource: "rpc/upload_recording",
       body: {
-        title: upload.title,
-        author_name: upload.authorName,
-        device_id: upload.deviceId,
-        bpm: upload.bpm,
-        meter: restoreMeter(upload.meter),
-        duration_ms: Math.round(recordingDurationMs(upload.notes)),
-        note_count: upload.notes.length,
-        notes: upload.notes,
-        delete_token_hash: await sha256Hex(deleteToken),
+        p_key_hash: await sha256Hex(uploadClientKey(request)),
+        p_limit: UPLOAD_RATE_LIMIT.uploads,
+        p_window_seconds: UPLOAD_RATE_LIMIT.windowSeconds,
+        p_recording: {
+          title: upload.title,
+          author_name: upload.authorName,
+          device_id: upload.deviceId,
+          bpm: upload.bpm,
+          meter: restoreMeter(upload.meter),
+          duration_ms: Math.round(recordingDurationMs(upload.notes)),
+          note_count: upload.notes.length,
+          notes: upload.notes,
+          delete_token_hash: await sha256Hex(deleteToken),
+        },
       },
     });
-    if (typeof rows[0]?.id !== "string") throw new DatabaseError("Insert returned no row");
-    return json<UploadRecordingResponse>({ id: rows[0].id, deleteToken }, 201);
+    const retryAfter = stored?.retry_after;
+    if (typeof retryAfter === "number" && retryAfter > 0) {
+      const minutes = Math.ceil(retryAfter / 60);
+      return json<RecordingApiError>(
+        { error: `Too many uploads. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.` },
+        429,
+        { "Retry-After": String(retryAfter) },
+      );
+    }
+    if (typeof stored?.id !== "string") throw new DatabaseError("Upload returned no row");
+    return json<UploadRecordingResponse>({ id: stored.id, deleteToken }, 201);
   });
 }
 

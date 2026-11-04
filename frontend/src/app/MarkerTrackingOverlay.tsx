@@ -4,6 +4,7 @@ import type { ReadinessReason } from "../events/liveSession";
 import { useCallback, useEffect, useRef, useState } from "react";
 import SheetAlignment, { type AlignmentScan } from "./SheetAlignment";
 import { useCamera } from "./CameraContext";
+import FallingNotesLayer from "./cv/FallingNotesLayer";
 import {
   calibrationReason,
   cameraSignature,
@@ -992,6 +993,7 @@ export default function MarkerTrackingOverlay({
         height={1080}
         className="absolute inset-0 z-10 h-full w-full object-cover scale-x-[-1] pointer-events-none"
       />
+      <FallingNotesLayer homographyRef={homographyRef} videoRef={videoRef} layout={layout} />
       <SheetAlignment reason={readinessReason} saved={savedAlignment} camera={alignmentCamera} scan={alignmentScan} />
       <canvas ref={processingCanvasRef} className="hidden" />
       {showVisualDebug && (
