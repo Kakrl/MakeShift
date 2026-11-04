@@ -91,7 +91,7 @@ function getCalibrationSettingsError(
   layout: KeyboardLayout,
 ): string | null {
   if (!captured) {
-    return "Camera and keyboard settings were not recorded at the paper step. Go back to Check paper and try again.";
+    return "Camera and keyboard settings were not recorded at the paper step. Go back to step 3 and show all four sheet markers again.";
   }
   if (
     captured.camera.deviceId !== camera.deviceId ||
@@ -99,7 +99,7 @@ function getCalibrationSettingsError(
     captured.camera.height !== camera.height ||
     captured.camera.facingMode !== camera.facingMode
   ) {
-    return "Camera settings changed during calibration. Go back to Check paper and try again.";
+    return "Camera settings changed during calibration. Go back to step 3 and show all four sheet markers again.";
   }
   if (
     captured.layout.octaves !== layout.octaves ||
@@ -108,7 +108,7 @@ function getCalibrationSettingsError(
     paperOctaves(captured.layout) !== paperOctaves(layout) ||
     !!captured.layout.paperFitOverride !== !!layout.paperFitOverride
   ) {
-    return "Keyboard settings changed during calibration. Go back to Check paper and try again.";
+    return "Keyboard settings changed during calibration. Go back to step 3 and show all four sheet markers again.";
   }
   if (!usableLayout(layout)) {
     return "Keyboard settings are invalid or the selected range does not fit the paper.";
@@ -197,7 +197,6 @@ export default function Calibration() {
     homography: Homography;
   } | null>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
-  const [paperError, setPaperError] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
   const [sheetDetectorStatus, setSheetDetectorStatus] =
     useState<"loading" | "ready" | "error">("loading");
@@ -321,7 +320,6 @@ export default function Calibration() {
       };
     }
     setShowHelpModal(false);
-    setPaperError(false);
     setCaptureError(null);
     // Drop the previous reading so re-entering step 2 cannot advance on a
     // stale measurement before the first fresh sample lands.
@@ -393,37 +391,6 @@ export default function Calibration() {
     resultRef.current = null;
     calibrationSettingsRef.current = null;
   }, [stream]);
-
-  function readSheet() {
-    const video = videoRef.current;
-    const camera = cameraSignature(stream, video);
-    const detector = detectorRef.current;
-    if (!video || !camera || !detector) throw new Error("Wait for the camera and sheet detector, then retry.");
-    const canvas = document.createElement("canvas");
-    canvas.width = camera.width; canvas.height = camera.height;
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("Unable to read the camera frame.");
-    context.drawImage(video, 0, 0);
-    const observed = markerCorners(detector.detect(canvas), camera);
-    if (!observed) throw new Error("Show all four sheet markers in a clear, flat rectangle, then retry.");
-    return { camera, corners: observed };
-  }
-
-  function checkPaper() {
-    try {
-      const observed = readSheet();
-      calibrationSettingsRef.current = {
-        camera: observed.camera,
-        layout: { ...layout },
-      };
-      setCorners(observed.corners);
-      setSheetDetected(true);
-      setPaperError(false); setCaptureError(null);
-    } catch (error) {
-      setCorners(null); setPaperError(true); setSheetDetected(false);
-      setCaptureError(error instanceof Error ? error.message : "Unable to detect the sheet.");
-    }
-  }
 
   function canvasToImage(canvas: HTMLCanvasElement): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
@@ -572,7 +539,7 @@ export default function Calibration() {
   }, [capture, depthCaptureBusy, depthPositionIndex, detect, corners, layout, stream, step]);
 
   useEffect(() => {
-    if (step !== 3 || !cameraReady || !frameReady) return;
+    if (step !== 3 || !cameraReady || !frameReady || sheetDetectorStatus !== "ready") return;
 
     calibrationSettingsRef.current = null;
     setSheetDetected(false);
@@ -580,7 +547,7 @@ export default function Calibration() {
     setSheetGeometry(null);
     setCorners(null);
     let cancelled = false;
-    let detector: MarkerDetector | null = null;
+    const detector = detectorRef.current;
     let timeout: number | undefined;
     const canvas =
       sheetDetectionCanvasRef.current ?? document.createElement("canvas");
@@ -654,25 +621,13 @@ export default function Calibration() {
       timeout = window.setTimeout(checkSheet, nextCheckInterval);
     };
 
-    MarkerDetector.create()
-      .then((createdDetector) => {
-        if (cancelled) {
-          createdDetector.dispose();
-          return;
-        }
-        detector = createdDetector;
-        checkSheet();
-      })
-      .catch(() => {
-        if (!cancelled) setSheetDetected(false);
-      });
+    checkSheet();
 
     return () => {
       cancelled = true;
       if (timeout !== undefined) window.clearTimeout(timeout);
-      detector?.dispose();
     };
-  }, [cameraReady, frameReady, step, stream, layout]);
+  }, [cameraReady, frameReady, step, stream, layout, sheetDetectorStatus]);
 
   useEffect(() => {
     const canvas = sheetOverlayCanvasRef.current;
@@ -846,38 +801,15 @@ export default function Calibration() {
     if (step === 3) {
       return (
         <div className="absolute inset-0">
-          {/* Paper error banner */}
-          {paperError && (
-            <div className="ms-dialog absolute top-4 left-1/2 -translate-x-1/2 z-20 rounded-[16px] px-5 py-4 flex items-start gap-3 w-[480px] max-w-[90%]">
-              {/* Red triangle icon */}
-              <svg className="shrink-0 mt-0.5" width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M12 3L22 20H2L12 3Z" fill="var(--color-danger)" />
-                <line x1="12" y1="9" x2="12" y2="14" stroke="var(--color-white)" strokeWidth="2" strokeLinecap="round" />
-                <circle cx="12" cy="17" r="1" fill="var(--color-white)" />
-              </svg>
-              <div className="flex flex-col gap-0.5">
-                <p className="text-[15px] font-semibold text-danger">Hmm, that doesn&apos;t look right</p>
-                <p className="text-[14px] text-ink-muted">Fix the paper, or press ? for help.</p>
-              </div>
-              <button
-                onClick={() => setPaperError(false)}
-                aria-label="Dismiss error"
-                className="ms-key ms-key-ghost ms-key-icon ml-auto -mr-2 -mt-1.5 size-8 shrink-0"
-              >
-                <svg aria-hidden="true" width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" /></svg>
-              </button>
-            </div>
-          )}
-
           {/* Marker-detection status */}
-          {!paperError && sheetDetected && (
+          {sheetDetected && (
             <div className="ms-pill ms-pill-success absolute top-4 left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none">
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="8" fill="var(--color-white)"/><path d="M5.5 9.25L7.75 11.5L12.5 6.5" stroke="var(--color-success-strong)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               <span>Paper found!</span>
             </div>
           )}
 
-          {!paperError && !sheetDetected && (
+          {!sheetDetected && (
             <div className="ms-pill absolute bottom-4 left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none text-center">
               <p>
                 Detected: {markerDetection?.observations.map(({ id }) => id).join(", ") || "none"}
@@ -1041,7 +973,6 @@ export default function Calibration() {
         title: "Step 3: Show the whole paper",
         controls: (
           <>
-            <button onClick={checkPaper} className="ms-key ms-key-primary px-5">Check paper</button>
             {corners && <SuccessBadge label="Sheet geometry validated" />}
           </>
         ),

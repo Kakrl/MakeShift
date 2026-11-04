@@ -83,6 +83,10 @@ jobs:
       - name: Keyboard layout workflow
         run: npm run test:keyboard-layout-browser
 
+      # Uses the runner's preinstalled Chrome and chromedriver.
+      - name: Selenium UI navigation
+        run: npm run test:ui-selenium
+
       - name: Browser audio smoke test
         env:
           AUDIO_BROWSER_CHANNEL: chromium

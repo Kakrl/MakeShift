@@ -49,7 +49,7 @@ it separates existing behavior from planned work and links implementation issues
 | `frontend/src/app/share/` | Shared recordings UI: API client, store (mock fixtures with `?mock=`), post-recording save dialog, songs dialog (Shared and My recordings tabs), piano roll; `play/[id]/` share links open the shared-songs dialog |
 | `frontend/src/diagnostics/` | Shared bounded metrics and explicit camera-video registry |
 | `frontend/src/events/` | Shared browser note schema, clocks, session dispatch and audio adapter |
-| `frontend/src/cv/` | ArUco marker detection, homography, keyboard geometry, prototype shadow worker and combined per-finger contact state |
+| `frontend/src/cv/` | ArUco marker detection, homography, keyboard geometry, falling-notes geometry, prototype shadow worker and combined per-finger contact state |
 | `frontend/src/lib/` | Shared utilities: versioned `localStorage` access and the recordings API types/validation used by client and server |
 | `frontend/src/app/api/` | Server routes; `/api/health` checks the recordings database, `/api/recordings` lists, reads, uploads and deletes shared recordings |
 | `frontend/src/server/` | Server-only Supabase access and recordings route handlers (never import from client code) |
@@ -86,7 +86,7 @@ it separates existing behavior from planned work and links implementation issues
 | Area touched | Commands (from repo root unless noted) |
 | :--- | :--- |
 | Frontend | `cd frontend && npm run lint && npx tsc --noEmit && npx vitest run && npm run test:contrast && npm run build` |
-| Frontend browser | With `npm start` running: `npm run test:deployment`, `npm run test:keyboard-layout-browser` and `AUDIO_BROWSER_CHANNEL=chromium npm run test:audio-browser` (`npx playwright install chromium` once) |
+| Frontend browser | With `npm start` running: `npm run test:deployment`, `npm run test:keyboard-layout-browser`, `npm run test:ui-selenium` and `AUDIO_BROWSER_CHANNEL=chromium npm run test:audio-browser` (`npx playwright install chromium` once) |
 | Database | `npx supabase db push --linked` for new migrations; see `docs/supabase.md` |
 | Python | `python -m ruff check backend/src tests`, `python -m mypy backend/src --check-untyped-defs`, `python -m pytest` |
 | C++ | `cmake -B build -S backend && cmake --build build --config Release && ctest --test-dir build -C Release --output-on-failure` |

@@ -15,6 +15,7 @@
     "test:deployment": "node ../tests/frontend/deployment.browser.mjs",
     "test:layout-browser": "node ../tests/frontend/cameraLayout.browser.mjs",
     "test:keyboard-layout-browser": "node ../tests/frontend/keyboardLayout.browser.mjs",
+    "test:ui-selenium": "node ../tests/frontend/uiNavigation.selenium.mjs",
     "test:cv-video": "node ../tests/frontend/cvVideoReplay.browser.mjs",
     "test:cv-video:auto": "node ../tests/frontend/runCvVideo.mjs"
   },
@@ -40,6 +41,7 @@
     "jsdom": "^29.1.1",
     "playwright": "1.62.1",
     "prettier": "^3.8.1",
+    "selenium-webdriver": "4.50.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.11"
