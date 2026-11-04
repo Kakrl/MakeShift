@@ -15,6 +15,11 @@ class Context {
   static resumeState = "running";
   state = "suspended";
   destination = {};
+  currentTime = 2;
+  gainNode = { gain: { value: 1, cancelAndHoldAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() }, connect: vi.fn(), disconnect: vi.fn() };
+  compressorNode = { threshold: { value: 0 }, knee: { value: 0 }, ratio: { value: 0 }, attack: { value: 0 }, release: { value: 0 }, connect: vi.fn(), disconnect: vi.fn() };
+  createGain = vi.fn(() => this.gainNode);
+  createDynamicsCompressor = vi.fn(() => this.compressorNode);
   onstatechange: (() => void) | null = null;
   audioWorklet = {
     addModule: vi.fn(async () => {
@@ -32,6 +37,7 @@ class Context {
   }
 }
 class Worklet {
+  parameters = new Map([["volume", { value: 1, cancelAndHoldAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() }]]);
   static instances: Worklet[] = [];
   static autoReady = true;
   port = {
@@ -69,6 +75,38 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
+});
+
+it("ramps shared live/playback output, keeps MIDI commands unchanged and disposes output nodes", async () => {
+  const audio = new BrowserAudio();
+  audio.setVolume(200);
+  await audio.initialize();
+  const ctx = Context.instances[0];
+  const node = Worklet.instances[0];
+  expect(node.options).toMatchObject({ parameterData: { volume: 4 } });
+  expect(ctx.gainNode.gain.value).toBe(1);
+  expect(node.connect).toHaveBeenCalledWith(ctx.gainNode);
+  expect(ctx.gainNode.connect).toHaveBeenCalledWith(ctx.compressorNode);
+  expect(ctx.compressorNode.connect).toHaveBeenCalledWith(ctx.destination);
+  audio.noteOn(60, 0.4);
+  audio.setPedals({ sustain: true, sostenuto: false, soft: false });
+  const count = node.port.postMessage.mock.calls.length;
+  audio.setVolume(0);
+  const volume = node.parameters.get("volume")!;
+  expect(volume.cancelAndHoldAtTime).toHaveBeenCalledWith(2);
+  expect(volume.linearRampToValueAtTime).toHaveBeenLastCalledWith(0, 2.03);
+  audio.setVolume(100);
+  expect(volume.linearRampToValueAtTime).toHaveBeenLastCalledWith(1, 2.03);
+  audio.setVolume(NaN); audio.setVolume(201);
+  expect(volume.linearRampToValueAtTime).toHaveBeenCalledTimes(2);
+  expect(node.port.postMessage.mock.calls).toHaveLength(count);
+  expect(node.port.postMessage.mock.calls[count - 2][0]).toMatchObject({ type: "note-on", velocity: 0.4 });
+  await audio.close();
+  expect(ctx.gainNode.disconnect).toHaveBeenCalled();
+  expect(ctx.compressorNode.disconnect).toHaveBeenCalled();
+  await audio.initialize();
+  expect(Context.instances[1].gainNode.gain.value).toBe(1);
+  await audio.close();
 });
 
 it("silences piano and pedals in order without invalidation and rejects gated activation", async () => {

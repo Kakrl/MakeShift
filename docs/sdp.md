@@ -178,3 +178,15 @@ rejection and safe cancellation; free play outside count-in remains available.
 No change to latency thresholds or pedal recording scope. Mapped tests CI-01
 through CI-04 cover software behavior; physical camera/audio evidence remains
 pending in the [manual procedure](../tests/manual/2026-10-27_CI-04.md).
+
+## Piano output volume (#228)
+
+VOL-1 extends 2.2/2.4: a visible, keyboard-accessible 0–200% piano volume
+preference controls live and recording playback equally, with smooth changes,
+local persistence, exact mute and a substantially louder maximum. Preserve the
+register balance and MIDI event data. Above 100%, adjust velocity-to-amplitude
+math per voice so gentle strikes stay quiet while strong strikes get more boost;
+below 100%, scale toward mute. Post-render compression supplies
+headroom; maximum usability requires listening to chords and pedal-held notes.
+VOL-01–VOL-04 map software and manual verification. Physical listening and
+latency with the added compressor remain pending; see [audio contract](browser_audio.md#piano-volume-228).

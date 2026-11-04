@@ -133,6 +133,7 @@ export class SampledPiano extends LegacySynth {
     this.voices = this.voices.map((v) => ({
       ...v,
       held: false,
+      velocity: 0,
       captured: false,
       preset: this.presets[60],
       position: 0,
@@ -202,14 +203,16 @@ export class SampledPiano extends LegacySynth {
     selected.captured = false;
     selected.position = selected.preset.sample.offset;
     selected.gain = selected.preset.sample.gain * event.velocity ** 1.5 * (this.pedals.soft ? 0.65 : 1);
+    selected.velocity = event.velocity;
     selected.age = 0;
     selected.oldL = oldL;
     selected.oldR = oldR;
     selected.fadeLeft = this.fade;
   }
 
-  render(left, right = left) {
+  render(left, right = left, volume) {
     for (let i = 0; i < left.length; i++) {
+      const amount = volume ? volume[volume.length === 1 ? 0 : i] : 1;
       let l = 0,
         r = 0;
       for (const v of this.voices) {
@@ -239,14 +242,16 @@ export class SampledPiano extends LegacySynth {
         const index = Math.floor(v.position),
           fraction = v.position - index;
         const gain = v.gain * v.level;
+        // Above unity, expand strong strikes while keeping gentle strikes quiet.
+        const expression = amount <= 1 ? amount : 1 + (amount - 1) * v.velocity ** 2;
         v.lastL =
           (sample.left[index] +
             (sample.left[index + 1] - sample.left[index]) * fraction) *
-          gain;
+          gain * expression;
         v.lastR =
           (sample.right[index] +
             (sample.right[index + 1] - sample.right[index]) * fraction) *
-          gain;
+          gain * expression;
         if (v.fadeLeft) {
           const old = --v.fadeLeft / this.fade;
           v.lastL = old * v.oldL + (1 - old) * v.lastL;
@@ -257,8 +262,8 @@ export class SampledPiano extends LegacySynth {
         v.position += v.preset.step;
       }
       // Uniform output boost; only overloads reach this fixed safety ceiling.
-      left[i] = Math.max(-0.95, Math.min(0.95, l * OUTPUT_GAIN));
-      if (right !== left) right[i] = Math.max(-0.95, Math.min(0.95, r * OUTPUT_GAIN));
+      left[i] = volume ? l * OUTPUT_GAIN : Math.max(-0.95, Math.min(0.95, l * OUTPUT_GAIN));
+      if (right !== left) right[i] = volume ? r * OUTPUT_GAIN : Math.max(-0.95, Math.min(0.95, r * OUTPUT_GAIN));
     }
   }
 }

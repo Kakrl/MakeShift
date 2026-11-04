@@ -200,3 +200,15 @@ rejection and safe cancellation; free play outside count-in remains available.
 No change to latency thresholds or pedal recording scope. Mapped tests CI-01
 through CI-04 cover software behavior; physical camera/audio evidence remains
 pending in the [manual procedure](../tests/manual/2026-10-27_CI-04.md).
+
+## Piano output volume (#228)
+
+VOL-1 refines 2.2/2.4 with a keyboard-accessible, persisted mute-to-louder
+volume control shared by live notes and recording playback. Smooth gain and
+post-render compression preserve note data, register balance and velocity
+data while controlling peaks. Per user feedback, above-unity volume expands
+strong strikes more than gentle strikes through per-voice velocity math;
+physical MIDI velocity is unchanged. VOL-01 covers UI/storage, VOL-02 owner routing
+and lifecycle, VOL-03 decoded PCM/keyboard verification, and VOL-04 speaker and
+headphone listening. No physical latency or acoustic distortion pass is implied
+by digital output. See [implementation and limits](browser_audio.md#piano-volume-228).
