@@ -38,6 +38,7 @@ describe("validateUpload", () => {
         authorName: "Jadden",
         deviceId: "device-123",
         bpm: 120,
+        meter: { numerator: 4, denominator: 4 },
         notes: [note],
       },
     });
@@ -158,4 +159,9 @@ describe("pitchToMidi", () => {
       expect(pitchToMidi(pitch)).toBeNull();
     },
   );
+});
+
+it.each([{numerator:1,denominator:1},{numerator:32,denominator:32},{numerator:12,denominator:8}])("preserves supported meter", meter => {
+  const result=validateUpload({...valid(),meter});
+  expect(result.ok && result.value.meter).toEqual(meter);
 });

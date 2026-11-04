@@ -30,6 +30,7 @@ MakeShift/
 │       ├── Bindings.cpp             # nanobind Python bindings
 │       └── __init__.py
 ├── docs/
+│   ├── tutorial.md                  # user getting-started walkthrough
 │   ├── architecture.md              # browser target, tooling, delivery boundaries
 │   ├── cv_automated_testing.md       # working plan for labeled CV recordings and metrics
 │   ├── cv_video_tests.md             # quick guide for preparing and running CV video tests
@@ -38,6 +39,7 @@ MakeShift/
 │   ├── rvtm_browser_addendum.md      # browser requirement/test reconciliation
 │   ├── performance.md              # bounded pipeline metrics, clocks and profiling
 │   ├── latency_estimation.md       # software estimate, assumptions and sensitivity
+│   ├── meter.md                     # validated meter, timing, persistence and export contract
 │   ├── browser_audio.md             # browser DSP, transport and verification
 │   ├── audio.md                     # polyphony and voice stealing
 │   ├── audio_events.md              # native audio event queue contract
@@ -66,7 +68,7 @@ MakeShift/
 │   │   ├── app/
 │   │   │   ├── api/health/          # recordings database health route
 │   │   │   ├── api/recordings/      # shared recordings list/read/upload/delete routes
-│   │   │   ├── audio/               # browser owner, pianoSamples.ts loader, and Audio check page
+│   │   │   ├── audio/               # browser owner, countIn.ts scheduler, pianoSamples.ts loader and Audio check page
 │   │   │   ├── about/
 │   │   │   ├── calibration/
 │   │   │   ├── cv/                  # hand landmark overlay and drawing
@@ -78,6 +80,7 @@ MakeShift/
 │   │   │   ├── PipelineDiagnostics.tsx # opt-in metrics and report export
 │   │   │   ├── CameraContext.tsx
 │   │   │   ├── CameraStatusOverlay.tsx
+│   │   │   ├── SheetAlignment.tsx        # saved/current sheet-reference comparison and legend
 │   │   │   ├── MarkerTrackingOverlay.tsx
 │   │   │   ├── globals.css          # --color-* theme tokens
 │   │   │   ├── layout.tsx
@@ -136,6 +139,8 @@ MakeShift/
 │   │   ├── recordingsApi.test.ts     # recordings routes and client, mocked database
 │   │   ├── pianoIntegration.test.ts # deterministic note-to-audio/MIDI/feedback
 │   │   ├── fingerVelocity.test.ts   # motion estimator, lifecycle and DSP response
+│   │   ├── sheetAlignment.test.tsx     # saved/current outline freshness and camera compatibility
+│   │   ├── recovery.browser.mjs       # production recovery keyboard/status/responsive checks
 │   │   ├── liveSession.test.ts       # readiness transitions and stale-input safety
 │   │   ├── noteEvents.test.ts        # shared events, lifecycle, clocks and MessagePort
 │   │   ├── playbackTimeline.test.ts # recording playback clock and lifecycle
@@ -434,6 +439,16 @@ meeting, so they always reflect current state:
   and the newly scoped issues from planning are added in. The view should only
   ever contain work that is in scope for the current sprint.
 
+Metronome implementation: `frontend/src/app/audio/metronome.ts` owns the click graph and lifecycle.
+`frontend/public/audio/metronome-worklet.js` renders the shared audio-thread
+count-in/accompaniment clock and clicks. Its controller tests are in
+`tests/frontend/metronome.test.ts`; the manually invoked real-Web-Audio
+harness is `tests/frontend/metronome.browser.mjs`.
+`tests/frontend/metronomeHarness.ts` loads the actual processor in a VM;
+`tests/frontend/simulatedMetronome.ts` supplies its simulated audio transport
+to the real controller. Home integration stays in
+`tests/frontend/recordingControls.test.tsx`.
+
 ### Pedal implementation files (#176)
 
 Playing UI: frontend/src/app/PedalControls.tsx. Synchronous source owner and
@@ -441,3 +456,7 @@ binding validation: frontend/src/events/pedals.ts. Existing BrowserAudio/worklet
 and synth carry controls. Tests: tests/frontend/pedals.test.ts,
 pedalControls.test.tsx and the expanded browserAudioLifecycle.test.ts. No new
 subsystem directory is introduced.
+
+Issue #205 adds `tests/frontend/countInGate.browser.mjs`, a manually invoked
+real-worklet silence and metronome verification runner. Its scope and execution
+evidence are recorded under CI-03 in the verification inventory.
