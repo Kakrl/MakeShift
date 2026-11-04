@@ -197,11 +197,11 @@ async function checkStableTabs(viewport) {
   }
 }
 
-async function waitForPath(driver, path) {
+async function waitForPath(driver, path, from) {
   await driver.wait(
     async () => new URL(await driver.getCurrentUrl()).pathname === path,
     TIMEOUT,
-    `expected to reach ${path}`,
+    `expected to reach ${path} from ${from}`,
   );
 }
 
@@ -211,19 +211,22 @@ async function checkCalibrationNav(viewport) {
     await open(driver, "/");
     await driver.executeScript(() => localStorage.setItem("hasVisited", "true"));
     await open(driver, "/");
+    // A slow CPU stalled this navigation behind home CV work (#260).
+    await driver.sendDevToolsCommand("Emulation.setCPUThrottlingRate", { rate: 6 });
     await navTab(driver, "Calibration").click();
     await driver.wait(
       until.elementLocated(By.css('[role="dialog"][aria-labelledby="calibration-intro-title"]')),
       TIMEOUT,
     );
     await driver.findElement(By.xpath('//button[normalize-space(.)="Begin Calibration"]')).click();
-    await waitForPath(driver, "/calibration");
+    await waitForPath(driver, "/calibration", "Begin Calibration");
+    await driver.sendDevToolsCommand("Emulation.setCPUThrottlingRate", { rate: 1 });
     const active = await navTab(driver, "Calibration");
     assert.equal(await active.getAttribute("aria-current"), "page");
 
     await open(driver, "/about");
     await navTab(driver, "Calibration").click();
-    await waitForPath(driver, "/calibration");
+    await waitForPath(driver, "/calibration", "the About tab");
   } finally {
     await driver.quit();
   }

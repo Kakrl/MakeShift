@@ -551,6 +551,13 @@ export default function Home() {
   const settingsLocked = !settingsLoaded || isRecording || countInBeat !== null || audioPreparing;
   const needsCalibration = isCalibrated === false;
   const openCalibration = () => setShowCalibrationIntro(true);
+  // Home CV loops can starve the route transition on slow CPUs (#260).
+  const [leavingForCalibration, setLeavingForCalibration] = useState(false);
+  const goToCalibration = () => {
+    setShowCalibrationIntro(false);
+    setLeavingForCalibration(true);
+    router.push("/calibration");
+  };
   const settingLabel = settingsLocked ? "text-ink-muted" : "text-ink";
   const statusTone =
     liveStatus.state === "error" ? "bg-danger" :
@@ -665,13 +672,13 @@ export default function Home() {
             </ol>
             <div className="px-6 sm:px-8 pt-6 pb-7 flex gap-3 justify-end">
               <button
-                onClick={() => { setShowCalibrationIntro(false); router.push("/calibration"); }}
+                onClick={goToCalibration}
                 className="ms-key ms-key-ghost px-5"
               >
                 Skip
               </button>
               <button
-                onClick={() => { setShowCalibrationIntro(false); router.push("/calibration"); }}
+                onClick={goToCalibration}
                 className="ms-key ms-key-primary px-6 py-3"
               >
                 Begin Calibration
@@ -691,12 +698,14 @@ export default function Home() {
             muted
             className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
           />
-          <CVOverlayCoordinator
-            session={session}
-            videoRef={videoRef}
-            enabled={canPlay && liveStatus.state === "playing"}
-            activePitches={activePitches}
-          />
+          {!leavingForCalibration && (
+            <CVOverlayCoordinator
+              session={session}
+              videoRef={videoRef}
+              enabled={canPlay && liveStatus.state === "playing"}
+              activePitches={activePitches}
+            />
+          )}
           <CameraStatusOverlay />
           <PlayAlongBar />
           {devMode && <p className="ms-pill absolute top-3 right-3 z-30 py-1.5 px-3 text-[12px] font-semibold">Dev mode: calibration skipped</p>}
