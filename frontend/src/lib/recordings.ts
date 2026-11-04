@@ -1,3 +1,4 @@
+import { validRecordedPedals, copyPedals, type RecordedPedals } from "../app/midi/recordedPedals";
 import { isMeter, restoreMeter, type Meter } from "./meter";
 // Shared recordings API contract (#117). Server routes and client code both
 // import these types and `validateUpload`, so an upload the client accepts is
@@ -14,6 +15,7 @@ export const RECORDING_LIMITS = {
   // Recorder velocities are 1-100 (see pianoConsumers.ts).
   velocity: { min: 1, max: 100 },
   maxNotes: 10_000,
+  maxPedalEvents: 10_000,
   maxDurationMs: 30 * 60 * 1000,
 } as const;
 
@@ -33,7 +35,7 @@ export type RecordingSummary = {
 };
 
 /** `GET /api/recordings/:id`. */
-export type SharedRecording = RecordingSummary & { notes: RecordedNote[] };
+export type SharedRecording = RecordingSummary & { notes: RecordedNote[]; pedals?: RecordedPedals };
 
 /** `GET /api/recordings`, newest first. Pass `nextCursor` back to get the next page; null on the last page. */
 export type RecordingListResponse = {
@@ -49,6 +51,7 @@ export type UploadRecordingRequest = {
   bpm: number;
   meter?: Meter;
   notes: RecordedNote[];
+  pedals?: RecordedPedals;
 };
 
 /** Returned once on upload; only a hash of `deleteToken` is stored. */
@@ -68,10 +71,10 @@ export type UploadValidation =
   | { ok: false; issues: ValidationIssue[] };
 
 /** End of the last note, in recording milliseconds. */
-export function recordingDurationMs(notes: readonly RecordedNote[]): number {
+export function recordingDurationMs(notes: readonly RecordedNote[], pedals?: RecordedPedals): number {
   return notes.reduce(
     (end, note) => Math.max(end, note.startMs + note.durationMs),
-    0,
+    pedals?.events.reduce((end, e) => Math.max(end, e.timeMs), 0) ?? 0,
   );
 }
 
@@ -168,10 +171,18 @@ export function validateUpload(body: unknown): UploadValidation {
     }
   }
 
+  if (Array.isArray(notes) && !validRecordedPedals(body.pedals, notes)) issues.push({ field: "pedals", message: "Invalid or unsupported pedal controls" });
+
+  if (body.pedals && validRecordedPedals(body.pedals, Array.isArray(notes) ? notes : [])) {
+    const pedals = body.pedals as RecordedPedals;
+    if (pedals.events.length > RECORDING_LIMITS.maxPedalEvents || pedals.events.some(e => e.timeMs > RECORDING_LIMITS.maxDurationMs)) issues.push({ field: "pedals", message: "Pedal controls exceed sharing limits" });
+  }
+
   if (issues.length > 0) return { ok: false, issues };
   return {
     ok: true,
     value: {
+      ...(body.pedals ? { pedals: copyPedals(body.pedals as RecordedPedals) } : {}),
       title,
       authorName,
       deviceId,

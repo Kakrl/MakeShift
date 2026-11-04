@@ -86,6 +86,7 @@ export async function uploadTake(
     bpm: take.bpm,
     meter: restoreMeter(take.meter),
     notes: take.notes,
+    ...(take.pedals ? { pedals: take.pedals } : {}),
   });
   const { profile } = loadOrCreateProfile();
   if (profile.displayName !== authorName.trim()) saveProfile({ ...profile, displayName: authorName });
@@ -121,10 +122,11 @@ export function asSharedRecording(take: Recording): SharedRecording {
     authorName: "",
     bpm: take.bpm,
     meter: restoreMeter(take.meter),
-    durationMs: recordingDurationMs(take.notes),
+    durationMs: recordingDurationMs(take.notes, take.pedals),
     noteCount: take.notes.length,
     createdAt: take.createdAt,
     notes: take.notes,
+    ...(take.pedals ? { pedals: take.pedals } : {}),
   };
 }
 

@@ -365,7 +365,7 @@ keys compose by OR. Blur/hidden/navigation/session invalidation/rebinding clear
 activation; held keys stay suppressed until keyup and a fresh press. Typing,
 contenteditable, dialogs and IME do not activate pedals. Capture consumes input.
 
-[Recording/export/replay follow-up](pedal_recording_followup.md) remains deferred.
+[Recording/export/replay](pedal_recording_followup.md) is implemented in #222; physical note durations remain independent of pedal tails.
 [Verification record](../tests/manual/2026-10-23_PD-03.md) distinguishes synthetic
 coverage, the automated browser launch failure, and Carl Xu's 2026-10-23 manual
 functional pass for all pedals and programmable bindings. Specific device
@@ -384,3 +384,11 @@ ownership and gates validated musical delivery. The separate metronome worklet
 remains audible when enabled. Ordinary interruption/reset still invalidates sessions.
 Pedal UI sources clear synchronously at entry; inactive assigned keydowns are
 remembered as suppressed until keyup, for both Hold and Toggle.
+
+## Recorded pedal playback (#222)
+
+The timeline uses the same bounded session transport for notes and pedals.
+`silencePlayback()` sends ordered release-all without invalidation, context
+recreation or an input gate. Pause/seek/stop retire tails; restored physical
+presses retain original soft and sostenuto membership. See the
+[format, ordering, MIDI channel and seek contract](pedal_recording_followup.md).

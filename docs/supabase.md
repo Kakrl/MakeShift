@@ -155,3 +155,12 @@ project refs before rollout. If both point to the documented hosted project,
 apply the additive meter migration there before deploying either environment.
 Verify `supabase migration list --linked` and a live recordings list/read
 request before merging/deploying. Hosted migration status remains unverified.
+
+## Pedal migration (#222)
+
+Apply `20261102000000_recording_pedals.sql` before the new API. It adds nullable
+`pedals` JSONB; old rows remain note-only. Read/upload routes preserve controls
+and compute duration through the last control boundary. The shared validator
+rejects malformed/unsupported control data before any database request.
+Migration execution and live round trips remain pending until the linked
+Supabase CLI/environment is available.

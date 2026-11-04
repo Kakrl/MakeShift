@@ -1,3 +1,4 @@
+import { validRecordedPedals } from "../midi/recordedPedals";
 // Mock shared recordings (#203), with the same #117 shapes as the real
 // recordings API. Append `?mock=1` to a page URL to use these fixtures
 // instead of the API, or `?mock=empty` / `?mock=error` for those states.
@@ -122,7 +123,7 @@ function isStoredShares(value: unknown): value is StoredShare[] {
         typeof entry.id === "string" &&
         typeof entry.deleteToken === "string" &&
         (entry.meter === undefined || isMeter(entry.meter)) &&
-        Array.isArray(entry.notes),
+        Array.isArray(entry.notes) && validRecordedPedals(entry.pedals, entry.notes),
     )
   );
 }
@@ -192,8 +193,9 @@ export function createMockShareStore(
           bpm: upload.bpm,
           meter: restoreMeter(upload.meter),
           notes: upload.notes,
+          ...(upload.pedals ? { pedals: upload.pedals } : {}),
           id: crypto.randomUUID().slice(0, 8),
-          durationMs: recordingDurationMs(upload.notes),
+          durationMs: recordingDurationMs(upload.notes, upload.pedals),
           noteCount: upload.notes.length,
           createdAt: new Date().toISOString(),
           deleteToken: crypto.randomUUID(),

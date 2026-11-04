@@ -100,7 +100,7 @@ export default function Tutorial() {
 
           <section className="text-ink mb-6">
             <h2 className="text-xl">Use piano pedals</h2>
-            <p>While playing, toggle Sustain, Sostenuto or Soft, or select No pedals to clear all. Sostenuto holds only notes already pressed. Soft affects new strikes.</p>
+            <p>While playing, toggle Sustain, Sostenuto or Soft, or select No pedals to clear all. Sostenuto holds only notes already pressed. Soft affects new strikes. New recordings and MIDI exports include pedal changes. Pause and seek clear released tails and restart held notes.</p>
             <p>Open Pedal keys and hardware setup to assign an unmodified letter or digit. Program keyboard-style hardware for Hold (keydown on press, keyup on release) or Toggle (one tap per action). Release pedal keys after clear-all. Focus loss clears pedals. Printed key labels may differ by keyboard layout.</p>
             <p>Pedals affect live sound only; recordings and MIDI exports omit them. Hardware compatibility and physical latency require device testing.</p>
           </section>

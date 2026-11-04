@@ -1,3 +1,4 @@
+import type { RecordedPedals } from "../app/midi/recordedPedals";
 /**
  * Server-only recordings API (#119, #122, #128) over the Supabase REST API.
  * Route files stay thin and call these handlers, so the specs can run them
@@ -182,15 +183,15 @@ export function listRecordings(request: Request, deps: RecordingsDeps) {
 export function getRecording(id: string, deps: RecordingsDeps) {
   if (!UUID.test(id)) return Promise.resolve(fail(404, "Recording not found."));
   return withDatabase(deps, async (rest) => {
-    const rows = await rest<(SummaryRow & { notes: RecordedNote[] })[]>(
+    const rows = await rest<(SummaryRow & { notes: RecordedNote[]; pedals?: RecordedPedals })[]>(
       new URLSearchParams({
-        select: `${SUMMARY_COLUMNS},notes`,
+        select: `${SUMMARY_COLUMNS},notes,pedals`,
         id: `eq.${id}`,
         hidden: "is.false",
       }).toString(),
     );
     if (rows.length === 0) return fail(404, "Recording not found.");
-    return json<SharedRecording>({ ...summary(rows[0]), notes: rows[0].notes });
+    return json<SharedRecording>({ ...summary(rows[0]), notes: rows[0].notes, ...(rows[0].pedals ? { pedals: rows[0].pedals } : {}) });
   });
 }
 
@@ -245,9 +246,10 @@ export async function uploadRecording(request: Request, deps: RecordingsDeps) {
         device_id: upload.deviceId,
         bpm: upload.bpm,
         meter: restoreMeter(upload.meter),
-        duration_ms: Math.round(recordingDurationMs(upload.notes)),
+        duration_ms: Math.round(recordingDurationMs(upload.notes, upload.pedals)),
         note_count: upload.notes.length,
         notes: upload.notes,
+        ...(upload.pedals ? { pedals: upload.pedals } : {}),
         delete_token_hash: await sha256Hex(deleteToken),
       },
     });

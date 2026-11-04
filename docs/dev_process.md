@@ -459,3 +459,11 @@ subsystem directory is introduced.
 Issue #205 adds `tests/frontend/countInGate.browser.mjs`, a manually invoked
 real-worklet silence and metronome verification runner. Its scope and execution
 evidence are recorded under CI-03 in the verification inventory.
+
+Issue #222 adds `frontend/src/app/midi/recordedPedals.ts` (versioned control
+validation, copies and ordered boundaries), `tests/frontend/recordedPedals.test.ts`,
+`supabase/migrations/20261102000000_recording_pedals.sql` and the prepared
+`tests/manual/2026-11-02_PR-05.md` procedure. No subsystem boundary changes.
+
+`tests/frontend/recordedPedals.browser.mjs` is the manually invoked real-worklet
+pedal playback regression (PR-06); run instructions and evidence are in tests/README.md.
