@@ -258,17 +258,30 @@ export async function uploadRecording(request: Request, deps: RecordingsDeps) {
   if (!result.ok) return fail(400, "Invalid recording.", result.issues);
 
   return withDatabase(deps, async (rest) => {
-    const retryAfter = await rest<number>("", {
+    const upload = result.value;
+    const deleteToken = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
+    const stored = await rest<{ id?: unknown; retry_after?: unknown } | null>("", {
       method: "POST",
-      resource: "rpc/claim_upload_slot",
+      resource: "rpc/upload_recording",
       body: {
         p_key_hash: await sha256Hex(uploadClientKey(request)),
         p_limit: UPLOAD_RATE_LIMIT.uploads,
         p_window_seconds: UPLOAD_RATE_LIMIT.windowSeconds,
+        p_recording: {
+          title: upload.title,
+          author_name: upload.authorName,
+          device_id: upload.deviceId,
+          bpm: upload.bpm,
+          meter: restoreMeter(upload.meter),
+          duration_ms: Math.round(recordingDurationMs(upload.notes)),
+          note_count: upload.notes.length,
+          notes: upload.notes,
+          delete_token_hash: await sha256Hex(deleteToken),
+        },
       },
     });
-    if (typeof retryAfter !== "number") throw new DatabaseError("Rate limit returned no count");
-    if (retryAfter > 0) {
+    const retryAfter = stored?.retry_after;
+    if (typeof retryAfter === "number" && retryAfter > 0) {
       const minutes = Math.ceil(retryAfter / 60);
       return json<RecordingApiError>(
         { error: `Too many uploads. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.` },
@@ -276,26 +289,8 @@ export async function uploadRecording(request: Request, deps: RecordingsDeps) {
         { "Retry-After": String(retryAfter) },
       );
     }
-
-    const upload = result.value;
-    const deleteToken = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
-    const rows = await rest<{ id: string }[]>("select=id", {
-      method: "POST",
-      prefer: "return=representation",
-      body: {
-        title: upload.title,
-        author_name: upload.authorName,
-        device_id: upload.deviceId,
-        bpm: upload.bpm,
-        meter: restoreMeter(upload.meter),
-        duration_ms: Math.round(recordingDurationMs(upload.notes)),
-        note_count: upload.notes.length,
-        notes: upload.notes,
-        delete_token_hash: await sha256Hex(deleteToken),
-      },
-    });
-    if (typeof rows[0]?.id !== "string") throw new DatabaseError("Insert returned no row");
-    return json<UploadRecordingResponse>({ id: rows[0].id, deleteToken }, 201);
+    if (typeof stored?.id !== "string") throw new DatabaseError("Upload returned no row");
+    return json<UploadRecordingResponse>({ id: stored.id, deleteToken }, 201);
   });
 }
 

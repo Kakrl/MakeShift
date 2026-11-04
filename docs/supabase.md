@@ -37,13 +37,15 @@ Vercel (production and preview) unless `RECORDING_UPLOADS=1`; local
 ### Upload rate limit
 
 Each client gets 5 accepted uploads per sliding 10 minutes (#129). Serverless
-memory does not persist between requests, so the upload route calls the
-`claim_upload_slot` database function before inserting. The function takes a
-per-key advisory lock, drops expired rows, and either records the upload and
-returns `0` or returns the seconds until a slot frees up, which the route
-sends as `429` with `Retry-After`. Invalid or oversized uploads are rejected
-before the claim and spend nothing. If the claim fails, the upload fails with
-`502` rather than skipping the limit.
+memory does not persist between requests, so the upload route stores every
+recording through the `upload_recording` database function. In one
+transaction it takes a per-key advisory lock, drops expired rows, then either
+claims a slot and inserts the recording, returning its `id`, or returns
+`retry_after`, the seconds until a slot frees up, which the route sends as
+`429` with `Retry-After`. A failed insert rolls back its claim, so it spends
+no slot. Invalid or oversized uploads are rejected before the call and spend
+nothing. If the call fails, the upload fails with `502` rather than skipping
+the limit.
 
 The key is the first `x-forwarded-for` address, which Vercel overwrites with
 the client address. IPv6 clients share one key per /64. Only its SHA-256 is
@@ -77,7 +79,7 @@ window: `key_hash` (SHA-256 hex of the client key) and `created_at`.
 
 Row level security is enabled with no policies on both tables, and
 `anon`/`authenticated` have no grants; only `service_role` can execute
-`claim_upload_slot`. Browsers therefore cannot read or write the table with the
+`upload_recording`. Browsers therefore cannot read or write the table with the
 publishable key; every access goes through a server route.
 
 ## Secrets

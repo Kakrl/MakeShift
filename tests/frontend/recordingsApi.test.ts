@@ -154,16 +154,17 @@ describe("GET /api/recordings/:id", () => {
 
 describe("POST /api/recordings", () => {
   it("stores the validated upload with only the token hash", async () => {
-    const { calls, deps } = database(0, [{ id: ID }]);
+    const { calls, deps } = database({ id: ID });
     const response = await uploadRecording(post(upload), deps);
     expect(response.status).toBe(201);
     const { id, deleteToken } = await response.json();
     expect(id).toBe(ID);
     expect(deleteToken).toMatch(/^[A-Za-z0-9_-]{43}$/);
 
-    expect(calls[1].init.method).toBe("POST");
-    expect(calls[1].init.headers).toMatchObject({ Prefer: "return=representation" });
-    const stored = JSON.parse(calls[1].init.body as string);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url.pathname).toBe("/rest/v1/rpc/upload_recording");
+    expect(calls[0].init.method).toBe("POST");
+    const stored = JSON.parse(calls[0].init.body as string).p_recording;
     expect(stored).toEqual({
       title: "My song",
       author_name: "Jo",
@@ -178,7 +179,7 @@ describe("POST /api/recordings", () => {
       ],
       delete_token_hash: sha256(deleteToken),
     });
-    expect(calls[1].init.body).not.toContain(deleteToken);
+    expect(calls[0].init.body).not.toContain(deleteToken);
   });
 
   it("returns 400 with the validation issues and stores nothing", async () => {
@@ -217,13 +218,13 @@ describe("POST /api/recordings", () => {
     expect(calls).toHaveLength(0);
   });
 
-  it("returns 502 when the insert returns no row", async () => {
-    const { deps } = database(0, []);
+  it("returns 502 when the upload returns no row", async () => {
+    const { deps } = database({});
     expect((await uploadRecording(post(upload), deps)).status).toBe(502);
   });
 
   it("stays closed on every Vercel deployment until uploads are enabled", async () => {
-    const { calls, deps } = database(0, [{ id: ID }]);
+    const { calls, deps } = database({ id: ID });
     for (const VERCEL_ENV of ["production", "preview"]) {
       const closed = await uploadRecording(post(upload), { ...deps, env: { ...env, VERCEL_ENV } });
       expect(closed.status).toBe(503);
@@ -240,22 +241,30 @@ describe("POST /api/recordings", () => {
 describe("upload rate limit", () => {
   const WINDOW_MS = UPLOAD_RATE_LIMIT.windowSeconds * 1000;
 
-  /** A fake PostgREST whose rpc keeps claim_upload_slot's sliding window. */
-  function limitedDatabase() {
+  /** A fake PostgREST whose rpc keeps upload_recording's window and rollback. */
+  function limitedDatabase({ insertFails = false } = {}) {
     const claims = new Map<string, number[]>();
     const calls: Call[] = [];
+    let inserts = 0;
     const fetchImpl = vi.fn(async (url: string, init: RequestInit) => {
       calls.push({ url: new URL(url), init });
-      if (!url.includes("/rpc/claim_upload_slot")) return Response.json([{ id: ID }]);
       const { p_key_hash, p_limit, p_window_seconds } = JSON.parse(init.body as string);
       const now = Date.now();
       const windowMs = p_window_seconds * 1000;
       const live = (claims.get(p_key_hash) ?? []).filter((at) => at > now - windowMs);
-      if (live.length >= p_limit) return Response.json(Math.max(1, Math.ceil((live[0] + windowMs - now) / 1000)));
+      if (live.length >= p_limit)
+        return Response.json({ retry_after: Math.max(1, Math.ceil((live[0] + windowMs - now) / 1000)) });
+      if (insertFails) return new Response("insert failed", { status: 500 });
       claims.set(p_key_hash, [...live, now]);
-      return Response.json(0);
+      inserts++;
+      return Response.json({ id: ID });
     });
-    return { calls, deps: { env, fetchImpl: fetchImpl as unknown as typeof fetch } as RecordingsDeps };
+    return {
+      calls,
+      deps: { env, fetchImpl: fetchImpl as unknown as typeof fetch } as RecordingsDeps,
+      inserts: () => inserts,
+      setInsertFails: (fails: boolean) => (insertFails = fails),
+    };
   }
 
   const from = (ip: string, body: unknown = upload) =>
@@ -269,18 +278,18 @@ describe("upload rate limit", () => {
 
   it("returns 429 on the sixth upload in the window and reopens after it", async () => {
     vi.useFakeTimers({ now: new Date("2026-10-31T12:00:00Z") });
-    const { calls, deps } = limitedDatabase();
+    const { deps, inserts } = limitedDatabase();
     for (let i = 0; i < UPLOAD_RATE_LIMIT.uploads; i++) {
       expect((await uploadRecording(from("203.0.113.7"), deps)).status).toBe(201);
       vi.advanceTimersByTime(1000);
     }
-    const inserts = calls.filter((call) => call.url.pathname === "/rest/v1/recordings").length;
+    const stored = inserts();
 
     const limited = await uploadRecording(from("203.0.113.7"), deps);
     expect(limited.status).toBe(429);
     expect(limited.headers.get("Retry-After")).toBe(String(UPLOAD_RATE_LIMIT.windowSeconds - 5));
     expect((await limited.json()).error).toBe("Too many uploads. Try again in 10 minutes.");
-    expect(calls.filter((call) => call.url.pathname === "/rest/v1/recordings")).toHaveLength(inserts);
+    expect(inserts()).toBe(stored);
 
     // Another client is unaffected.
     expect((await uploadRecording(from("198.51.100.2"), deps)).status).toBe(201);
@@ -296,14 +305,25 @@ describe("upload rate limit", () => {
   it("claims with the limit and a hashed key, never the raw address", async () => {
     const { calls, deps } = limitedDatabase();
     await uploadRecording(from("203.0.113.7"), deps);
-    expect(calls[0].url.pathname).toBe("/rest/v1/rpc/claim_upload_slot");
+    expect(calls[0].url.pathname).toBe("/rest/v1/rpc/upload_recording");
     expect(calls[0].init.method).toBe("POST");
-    expect(JSON.parse(calls[0].init.body as string)).toEqual({
+    expect(JSON.parse(calls[0].init.body as string)).toMatchObject({
       p_key_hash: sha256("203.0.113.7"),
       p_limit: UPLOAD_RATE_LIMIT.uploads,
       p_window_seconds: UPLOAD_RATE_LIMIT.windowSeconds,
     });
     expect(calls[0].init.body).not.toContain("203.0.113.7");
+  });
+
+  it("leaves the quota unchanged when the insert fails", async () => {
+    const { deps, inserts, setInsertFails } = limitedDatabase({ insertFails: true });
+    for (let i = 0; i < UPLOAD_RATE_LIMIT.uploads * 2; i++)
+      expect((await uploadRecording(from("203.0.113.7"), deps)).status).toBe(502);
+    setInsertFails(false);
+    for (let i = 0; i < UPLOAD_RATE_LIMIT.uploads; i++)
+      expect((await uploadRecording(from("203.0.113.7"), deps)).status).toBe(201);
+    expect(inserts()).toBe(UPLOAD_RATE_LIMIT.uploads);
+    expect((await uploadRecording(from("203.0.113.7"), deps)).status).toBe(429);
   });
 
   it("does not spend a slot on rejected uploads", async () => {
@@ -454,9 +474,9 @@ describe("stopping a take's share", () => {
 
 it("preserves meter on upload, list and read with legacy fallback", async () => {
   const meter = {numerator:7,denominator:8};
-  const db=database(0,[{id:ID}],[{...row(1),id:ID,meter}],[{...row(1),id:ID,meter,notes:upload.notes}]);
+  const db=database({id:ID},[{...row(1),id:ID,meter}],[{...row(1),id:ID,meter,notes:upload.notes}]);
   expect((await uploadRecording(post({...upload,meter}),db.deps)).status).toBe(201);
-  expect(JSON.parse(db.calls[1].init.body as string).meter).toEqual(meter);
+  expect(JSON.parse(db.calls[0].init.body as string).p_recording.meter).toEqual(meter);
   expect((await (await listRecordings(new Request("http://localhost/api/recordings"),db.deps)).json()).recordings[0].meter).toEqual(meter);
   expect((await (await getRecording(ID,db.deps)).json()).meter).toEqual(meter);
 });
