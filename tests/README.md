@@ -5,7 +5,9 @@
 Local macOS execution on 2026-10-31, Node 26.8.1, Selenium WebDriver 4.50.0,
 headless Chrome from Selenium Manager with fake media, production build of
 `8d7e944` served by `next start`. Viewports set exactly through
-`Emulation.setDeviceMetricsOverride`.
+`Emulation.setDeviceMetricsOverride`. Since #260 the driver also emulates
+`prefers-reduced-motion: reduce`, so dialog entrances can't move a button
+mid-click.
 
 - **3.1.1, KNOWN FAIL (D25, #245):** after "Skip for now" on the welcome
   dialog, the Calibration, Tutorial and About tabs were inside the viewport,
@@ -1204,6 +1206,7 @@ defect report is filed.
 | D24 | Medium | Audio | (Req 2.2, related 2.4) Higher notes dominated the procedural sound; +4 dB gain was insufficient. User selected sampled Salamander piano at +6 dB after RMS normalization. | `frontend/public/audio/sampled-piano.js`, `frontend/src/app/audio/pianoSamples.ts` | [#210](https://github.com/Kakrl/MakeShift/issues/210) | Sampled production implemented; [software and qualitative prototype evidence](manual/2026-10-19_210-register-balance.md); production hardware listening and review/merge pending |
 | D25 | Medium | UI | (Req 3.1) On first load the home Record control sits under the 16:9 camera feed, below the fold at 1024x768, 1440x900 and 1920x1080 (top at 874, 877 and 1121 px). The nav tabs are visible. Found by 3.1.1 | `frontend/src/app/page.tsx` | [#245](https://github.com/Kakrl/MakeShift/issues/245) | Open; 3.1.1 reports it as a known failure |
 | D26 | Low | UI | (Req 3.1) Home overflows the viewport (D25), so browsers with classic scrollbars show a scrollbar there but not on `/calibration`, and the side nav shifts left by its width (15 px in Actions Chrome). macOS overlay scrollbars hide it. Found by 3.1.2 in CI | `frontend/src/app/layout.tsx`, `frontend/src/app/page.tsx` | [#247](https://github.com/Kakrl/MakeShift/issues/247) | Open; 3.1.2 reports a scrollbar-only shift as a known failure |
+| D28 | Medium | CI / UI | (Req 6.2) 6.2.1 is flaky in CI: it passed on the #246 PR head and failed on the same tree after merge. It clicked Begin Calibration during the 240 ms `ms-dialog-in` entrance, so the click could miss the moving button. The Selenium driver now emulates `prefers-reduced-motion: reduce` | `tests/frontend/uiNavigation.selenium.mjs` | [#260](https://github.com/Kakrl/MakeShift/issues/260) | Fix in review; CI run pending |
 | D25 | Medium | Audio / UI | (Req 3.2, #207) Immediate per-beat clicks depended on React/main-thread timer delivery, allowing uneven intervals and accumulated drift under CV/render work. | `frontend/src/app/page.tsx`, `frontend/src/app/audio/countIn.ts` | [#232](https://github.com/Kakrl/MakeShift/issues/232) | Fix implemented; digital audio/timer regressions pass locally; physical listening, review/merge and Actions pending |
 
 | D25 | Medium | Calibration / UI | (Req 3.2, 6.2) A moved sheet can have all four markers and a visible debug keyboard while saved calibration is incompatible, leaving Enable audio/Record disabled without a clear recovery explanation. | `frontend/src/events/liveSession.ts`, `frontend/src/app/page.tsx`, `frontend/src/app/SheetAlignment.tsx` | [#226](https://github.com/Kakrl/MakeShift/issues/226) | Addressed with #220 in [PR #238](https://github.com/Kakrl/MakeShift/pull/238); 2.1.5/REC-03 automated recovery checks passed; physical recovery, including knuckles enabled, remains pending in REC-04; review/merge pending |

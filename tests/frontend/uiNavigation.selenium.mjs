@@ -58,6 +58,10 @@ async function newDriver([width, height]) {
     deviceScaleFactor: 1,
     mobile: false,
   });
+  // Entrance animations can move buttons mid-click.
+  await driver.sendDevToolsCommand("Emulation.setEmulatedMedia", {
+    features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+  });
   return driver;
 }
 
@@ -197,11 +201,11 @@ async function checkStableTabs(viewport) {
   }
 }
 
-async function waitForPath(driver, path) {
+async function waitForPath(driver, path, from) {
   await driver.wait(
     async () => new URL(await driver.getCurrentUrl()).pathname === path,
     TIMEOUT,
-    `expected to reach ${path}`,
+    `expected to reach ${path} from ${from}`,
   );
 }
 
@@ -217,13 +221,13 @@ async function checkCalibrationNav(viewport) {
       TIMEOUT,
     );
     await driver.findElement(By.xpath('//button[normalize-space(.)="Begin Calibration"]')).click();
-    await waitForPath(driver, "/calibration");
+    await waitForPath(driver, "/calibration", "Begin Calibration");
     const active = await navTab(driver, "Calibration");
     assert.equal(await active.getAttribute("aria-current"), "page");
 
     await open(driver, "/about");
     await navTab(driver, "Calibration").click();
-    await waitForPath(driver, "/calibration");
+    await waitForPath(driver, "/calibration", "the About tab");
   } finally {
     await driver.quit();
   }
