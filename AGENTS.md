@@ -86,7 +86,7 @@ it separates existing behavior from planned work and links implementation issues
 | Area touched | Commands (from repo root unless noted) |
 | :--- | :--- |
 | Frontend | `cd frontend && npm run lint && npx tsc --noEmit && npx vitest run && npm run test:contrast && npm run build` |
-| Frontend browser | With `npm start` running: `npm run test:deployment`, `npm run test:keyboard-layout-browser` and `AUDIO_BROWSER_CHANNEL=chromium npm run test:audio-browser` (`npx playwright install chromium` once) |
+| Frontend browser | With `npm start` running: `npm run test:deployment`, `npm run test:keyboard-layout-browser`, `npm run test:ui-selenium` and `AUDIO_BROWSER_CHANNEL=chromium npm run test:audio-browser` (`npx playwright install chromium` once) |
 | Database | `npx supabase db push --linked` for new migrations; see `docs/supabase.md` |
 | Python | `python -m ruff check backend/src tests`, `python -m mypy backend/src --check-untyped-defs`, `python -m pytest` |
 | C++ | `cmake -B build -S backend && cmake --build build --config Release && ctest --test-dir build -C Release --output-on-failure` |

@@ -150,6 +150,7 @@ MakeShift/
 │   │   ├── keyBoundary.test.ts      # projected key interior and gray-band geometry
 │   │   ├── liveContactPipeline.test.ts # active finger key ownership and boundary switching
 │   │   ├── keyboardLayout.browser.mjs # production layout/override/persistence controls
+│   │   ├── uiNavigation.selenium.mjs # Selenium control visibility, tab position, calibration nav
 │   │   ├── midiUtils.test.ts
 │   │   ├── storage.test.ts           # versioned localStorage module
 │   │   └── check-contrast.mjs

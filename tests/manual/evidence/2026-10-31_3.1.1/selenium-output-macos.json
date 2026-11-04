@@ -1,0 +1,15 @@
+{
+  "3.1.1": {
+    "1024x768": "KNOWN FAIL: D25 (#245): Record control must be inside the viewport: {\"hitOk\":false,\"inViewport\":false,\"rect\":[315,874,148,43],\"scrollY\":0}",
+    "1440x900": "KNOWN FAIL: D25 (#245): Record control must be inside the viewport: {\"hitOk\":true,\"inViewport\":false,\"rect\":[525,877,148,43],\"scrollY\":0}",
+    "1920x1080": "KNOWN FAIL: D25 (#245): Record control must be inside the viewport: {\"hitOk\":false,\"inViewport\":false,\"rect\":[765,1121,148,43],\"scrollY\":0}"
+  },
+  "3.1.2": {
+    "1024x768": "PASS: tabs fixed across /, /?dev=1, /calibration, /about: Calibration 724,126,267,72; Tutorial 724,197,267,72; About 724,268,267,72",
+    "1440x900": "PASS: tabs fixed across /, /?dev=1, /calibration, /about: Calibration 1127,126,267,72; Tutorial 1127,197,267,72; About 1127,268,267,72",
+    "1920x1080": "PASS: tabs fixed across /, /?dev=1, /calibration, /about: Calibration 1606,126,267,72; Tutorial 1606,197,267,72; About 1606,268,267,72"
+  },
+  "6.2.1": {
+    "1440x900": "PASS: home tab → intro → Begin Calibration and About tab both reach /calibration"
+  }
+}
