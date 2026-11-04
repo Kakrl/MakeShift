@@ -31,6 +31,7 @@ MakeShift/
 │       └── __init__.py
 ├── docs/
 │   ├── architecture.md              # browser target, tooling, delivery boundaries
+│   ├── explanation.md               # current architecture, decisions and limitations
 │   ├── cv_automated_testing.md       # working plan for labeled CV recordings and metrics
 │   ├── cv_video_tests.md             # quick guide for preparing and running CV video tests
 │   ├── cv_knuckle_boundary.md        # current knuckle eligibility heuristic and review questions
