@@ -26,9 +26,10 @@ export type RecordingsLibraryHandle = {
 type Props = {
   ref: Ref<RecordingsLibraryHandle>;
   onStatusChange: (loaded: boolean, hasRecordings: boolean) => void;
+  onPlayAlong?: (recording: Recording) => Promise<string | null>;
 };
 
-export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
+export default function RecordingsLibrary({ ref, onStatusChange, onPlayAlong }: Props) {
   const [library] = useState(() => createRecordingsLibrary());
   const [recordings, setRecordings] = useState<LibraryEntry[]>(() =>
     library.list(),
@@ -185,6 +186,7 @@ export default function RecordingsLibrary({ ref, onStatusChange }: Props) {
           initialTab={songsTab}
           initialSongId={linkedSongId}
           mine={mine}
+          onPlayAlong={onPlayAlong}
           onClose={() => {
             setSongsTab(null);
             // Used once; the buttons open the lists from now on, and a

@@ -50,6 +50,10 @@ export function startPlayAlong(recording: Recording) {
   emit();
 }
 
+export function pausePlayAlong() {
+  current?.timeline.pause();
+}
+
 export function stopPlayAlong() {
   if (!current) return;
   current.timeline.dispose();

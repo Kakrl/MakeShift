@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useCamera } from "./CameraContext";
 import CameraStatusOverlay from "./CameraStatusOverlay";
 import PlayAlongBar from "./midi/PlayAlongBar";
+import { startPlayAlong } from "./midi/playAlong";
 import SideNav from "./SideNav";
 import PedalControls from "./PedalControls";
 import PageTopBar from "./PageTopBar";
@@ -455,6 +456,13 @@ export default function Home() {
       setMetronomeError("Metronome audio could not start. Turn it on again to retry.");
     }
   };
+  // Called from the Play along click, so that gesture can start piano audio.
+  const playAlong = async (song: Recording) => {
+    if (!await enableAudio()) return session.status.message;
+    startPlayAlong(song);
+    return null;
+  };
+
   const handlePlay = async () => {
     if (audioPreparingRef.current || countInActionRef.current !== null || session.status.state === "starting") return;
     if (isRecording && !isPaused) {
@@ -828,7 +836,7 @@ export default function Home() {
           </section>
 
           <div className="mt-[23px] lg:pl-[43px]">
-            <RecordingsLibrary ref={recordingsLibraryRef} onStatusChange={updateLibraryStatus} />
+            <RecordingsLibrary ref={recordingsLibraryRef} onStatusChange={updateLibraryStatus} onPlayAlong={playAlong} />
           </div>
         </SideNav>
       </div>

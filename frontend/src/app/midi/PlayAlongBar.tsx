@@ -4,13 +4,27 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { FALL_LEAD_MS } from "../../cv/fallingNotes";
 import { formatDuration } from "../share/shareStore";
 import { useKeyboardLayout } from "../useKeyboardLayout";
-import { getPlayAlong, stopPlayAlong, subscribePlayAlong } from "./playAlong";
+import { getPlayAlong, pausePlayAlong, stopPlayAlong, subscribePlayAlong } from "./playAlong";
 
 /** Title, time and transport for the song falling onto the keyboard (#131). */
 export default function PlayAlongBar() {
   const playAlong = useSyncExternalStore(subscribePlayAlong, getPlayAlong, () => null);
   const layout = useKeyboardLayout();
   const [snapshot, setSnapshot] = useState(() => playAlong?.timeline.getSnapshot() ?? null);
+
+  // The song lives with this view: hiding the page pauses it, leaving ends it.
+  useEffect(() => {
+    const visibility = () => {
+      if (document.hidden) pausePlayAlong();
+    };
+    document.addEventListener("visibilitychange", visibility);
+    window.addEventListener("pagehide", pausePlayAlong);
+    return () => {
+      document.removeEventListener("visibilitychange", visibility);
+      window.removeEventListener("pagehide", pausePlayAlong);
+      stopPlayAlong();
+    };
+  }, []);
 
   // Four updates a second is plenty for a clock; the notes draw elsewhere.
   useEffect(() => {

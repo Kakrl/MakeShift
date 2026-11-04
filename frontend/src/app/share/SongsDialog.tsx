@@ -4,7 +4,6 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 import { RECORDING_LIMITS, recordingDurationMs, type RecordingSummary, type SharedRecording } from "../../lib/recordings";
 import { downloadMidi, type Recording } from "../midi/midiUtils";
-import { startPlayAlong } from "../midi/playAlong";
 import type { LibraryEntry } from "../midi/recordingsLibrary";
 import type { WriteResult } from "../../lib/storage";
 import { rainbow } from "../rainbow";
@@ -67,12 +66,15 @@ export default function SongsDialog({
   initialSongId = null,
   mine,
   onClose,
+  onPlayAlong,
 }: {
   initialTab?: SongsTab;
   /** Opens straight to this shared song (a share link); Back leads to the list. */
   initialSongId?: string | null;
   mine: MyRecordings;
   onClose: () => void;
+  /** Starts a song on the keyboard; resolves to an error message, or null once it started. */
+  onPlayAlong?: (recording: Recording) => Promise<string | null>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -80,10 +82,11 @@ export default function SongsDialog({
   const listScroll = useRef(0);
   const sentinelRef = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true, onClose);
-  const playAlong = (recording: Recording) => {
-    startPlayAlong(recording);
-    onClose();
-  };
+  const playAlong = onPlayAlong && (async (recording: Recording) => {
+    const message = await onPlayAlong(recording);
+    if (message === null) onClose();
+    return message;
+  });
 
   const [tab, setTab] = useState<SongsTab>(initialTab);
   const [recordings, setRecordings] = useState<RecordingSummary[]>([]);
@@ -450,7 +453,7 @@ function SharedSongView({
   song: SongLoad;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   onBack: () => void;
-  onPlayAlong: (recording: Recording) => void;
+  onPlayAlong?: (recording: Recording) => Promise<string | null>;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -505,7 +508,7 @@ function MySongView({
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   onShare: () => void;
   onDeleted: () => void;
-  onPlayAlong: (recording: Recording) => void;
+  onPlayAlong?: (recording: Recording) => Promise<string | null>;
 }) {
   const { recording, saved } = entry;
   const [preview] = useState(() => asSharedRecording(recording));
