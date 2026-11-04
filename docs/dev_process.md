@@ -30,6 +30,7 @@ MakeShift/
 │       ├── Bindings.cpp             # nanobind Python bindings
 │       └── __init__.py
 ├── docs/
+│   ├── tutorial.md                  # user getting-started walkthrough
 │   ├── architecture.md              # browser target, tooling, delivery boundaries
 │   ├── explanation.md               # current architecture, decisions and limitations
 │   ├── cv_automated_testing.md       # working plan for labeled CV recordings and metrics
