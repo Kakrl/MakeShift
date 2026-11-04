@@ -612,13 +612,13 @@ export default function Home() {
               <div className="flex gap-3">
                 <button
                   onClick={() => { setShowWelcome(false); router.push("/tutorial"); }}
-                  className="ms-key flex-1 py-3"
+                  className="ms-key ms-key-primary flex-1 py-3"
                 >
                   Read Tutorial
                 </button>
                 <button
                   onClick={() => { setShowWelcome(false); setShowCalibrationIntro(true); }}
-                  className="ms-key ms-key-primary flex-1 py-3"
+                  className="ms-key flex-1 py-3"
                 >
                   Start Calibration
                 </button>

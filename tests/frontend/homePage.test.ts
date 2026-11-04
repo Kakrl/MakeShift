@@ -349,6 +349,8 @@ describe("home page", () => {
   it("shows the welcome modal on the first visit only", () => {
     renderHome();
     expect(screen.getByText("Welcome to MakeShift")).toBeTruthy();
+    expect(screen.getByText("Read Tutorial").classList.contains("ms-key-primary")).toBe(true);
+    expect(screen.getByText("Start Calibration").classList.contains("ms-key-primary")).toBe(false);
     fireEvent.click(screen.getByText("Skip for now"));
     expect(screen.queryByText("Welcome to MakeShift")).toBeNull();
 
