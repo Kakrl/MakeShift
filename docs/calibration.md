@@ -74,13 +74,28 @@ Moving the camera or sheet beyond tolerance requires restoring the original
 pose or recalibrating. A physically different but visually identical sheet with
 the same marker IDs cannot be distinguished by this camera-only contract.
 
+Issue #220 adds ordered compatibility diagnostics via `calibrationReason` without
+changing the compatibility predicate. Readiness distinguishes absent/invalid
+saved data, unavailable camera, changed device/resolution/direction, changed
+layout, unavailable markers and complete-scan geometry disagreement. Only the
+last case suggests restoring alignment; camera changes name the changed setting.
+Missing scans are not evidence of movement.
+
+`SheetAlignment` draws saved (solid) and current (dashed) sheet-reference
+quadrilaterals through marker centers. It uses the same mirrored cover crop as
+the camera, keeps the saved corners immutable and hides incomparable camera
+spaces. Current corners are labelled as the last complete scan and disappear
+after a miss or ten seconds; this display expiry does not expire calibration
+or change retained contact geometry. A static, token-based legend provides
+non-color cues without announcing each scan. See [recovery behavior](live_session.md#recovery-explanations-and-alignment-220).
+
 ## Playing and recording
 
 After live calibration validation, select **Enable audio** to unlock browser
-sound without starting a MIDI recording. Live notes continue during count-in,
-recording pauses and after Stop. **Record**, **Pause**, **Resume** and **Stop**
-control only MIDI capture. Notes held at the end of a start/resume count-in are
-captured from that recording boundary without retriggering their sound.
+sound without starting a MIDI recording. Live notes continue during recording
+pauses and after Stop. Start/resume count-ins silence piano voices and pedals,
+while tracking and optional countdown clicks continue. Held keys require release
+and a fresh press after the countdown; no held notes are captured at its boundary.
 Calibration invalidation and leaving the page still release live sound.
 
 ## Persistence failures

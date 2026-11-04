@@ -129,6 +129,18 @@ Scrum methodology is the most applicable to MakeShift. It embodies agility and t
 
 [Gantt Chart](https://drive.google.com/file/d/1R86NexxWXXj2oYU1Q2-krOZNudny6dF3/view?usp=sharing)
 
+Metronome preference clarification (#206, user decision 2026-10-25): tempo
+remains persistent, but the metronome starts off on every page load and its
+toggle is not persisted. This supersedes the earlier #123 toggle-persistence
+behavior. Verification: PREF-01/PREF-02 and MET-02 in the test inventory.
+
+Independent metronome clarification (#206, user decision 2026-10-25): switching
+it on directly authorizes click playback, without piano Enable audio, camera
+or calibration. Tempo/meter are available before calibration; piano notes and
+recording retain their readiness checks. Recording pause silences clicks, Resume
+counts in, and Stop returns to enabled standalone clicks. Backgrounding turns
+it off. Verification: PREF-01, MET-02 and MET-03 in the test inventory.
+
 ## Scope expansion: binary pedals (#176)
 
 PD-1 expands piano requirements 2.2/2.4: independent sustain/sostenuto/soft,
@@ -142,3 +154,27 @@ functional pass for all pedals and programmable bindings on 2026-10-23. Automate
 browser execution, specific device/environment evidence, detailed scenario checks,
 live-CV stress and physical latency remain pending. See PD inventory
 and the dated report before claiming completion.
+
+## Configurable meter scope (#207)
+
+Requirements 3.2, 4.1 and 4.2 now include validated 1-32 numerator and
+1/2/4/8/16/32 denominator, quarter-note BPM with denominator-note count-in,
+immutable take metadata, compatible preferences/library restoration and MIDI
+signature metadata at tick zero. Share/API preservation includes a database
+migration; live deployment verification is pending. Note timing/velocity/pitch
+and quarter-note tick conversion remain unchanged. Grouped accents, dotted-beat
+tempo and meter changes within a take are outside scope. See [the contract](meter.md)
+and METER-01 through METER-04 in the verification inventory for mapped tests
+and explicit hardware/manual limitations.
+
+## Count-in input policy (#205)
+
+CI-1 refines requirements 2.2, 3.2 and 4.1: start/resume count-ins silence
+existing voices and pedal captures and discard new piano input for every full
+meter interval, including asynchronous startup. Camera/calibration/contact
+tracking and optional clicks continue. CI-2 requires held note/pedal release
+and a fresh press, deterministic recorder-before-input opening, stale-event
+rejection and safe cancellation; free play outside count-in remains available.
+No change to latency thresholds or pedal recording scope. Mapped tests CI-01
+through CI-04 cover software behavior; physical camera/audio evidence remains
+pending in the [manual procedure](../tests/manual/2026-10-27_CI-04.md).

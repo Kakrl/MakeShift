@@ -71,6 +71,25 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+it("silences piano and pedals in order without invalidation and rejects gated activation", async () => {
+  const audio = new BrowserAudio(); await audio.initialize();
+  const invalidate = vi.fn(); audio.subscribeInvalidation(invalidate);
+  const node = Worklet.instances[0]; node.ack();
+  const token = audio.noteOn(60)!;
+  audio.setPedals({ sustain: true, sostenuto: true, soft: true });
+  audio.noteOff(token);
+  audio.pauseInput();
+  expect(node.port.postMessage.mock.calls.at(-1)![0]).toMatchObject({ type: "release-all" });
+  const count = node.port.postMessage.mock.calls.length;
+  expect(audio.noteOn(61)).toBeNull();
+  expect(audio.setPedals({ sustain: true, sostenuto: false, soft: false })).toBe(false);
+  expect(node.port.postMessage.mock.calls).toHaveLength(count);
+  expect(invalidate).not.toHaveBeenCalled();
+  audio.resumeInput(); expect(audio.noteOn(61)).not.toBeNull();
+  expect(Context.instances).toHaveLength(1);
+  await audio.close();
+});
+
 it("orders pedal commands with physical notes and resets on pedal queue overload", async () => {
   const audio = new BrowserAudio(); await audio.initialize();
   const worklet = Worklet.instances[0]; worklet.ack();

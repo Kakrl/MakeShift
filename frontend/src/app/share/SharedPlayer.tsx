@@ -1,4 +1,6 @@
 "use client";
+import { formatMeter, restoreMeter } from "../../lib/meter";
+
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { SharedRecording } from "../../lib/recordings";
@@ -17,6 +19,7 @@ function asRecording(shared: SharedRecording): Recording {
     id: shared.id,
     name: shared.title,
     bpm: shared.bpm,
+    meter: restoreMeter(shared.meter),
     createdAt: shared.createdAt,
     notes: shared.notes,
   };
@@ -93,6 +96,7 @@ export default function SharedPlayer({
 
   return (
     <div className={fill ? "flex min-h-0 flex-1 flex-col" : ""}>
+      {recording && <p className="text-sm text-ink-muted">{formatMeter(restoreMeter(recording.meter))} · {recording.bpm} quarter-note BPM</p>}
       {recording && timeline ? (
         <PianoRoll ref={rollRef} notes={recording.notes} timeline={timeline} fill={fill} />
       ) : (
