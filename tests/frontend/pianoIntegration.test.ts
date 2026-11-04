@@ -89,6 +89,8 @@ beforeEach(async () => {
   };
   gate = new LiveSession({ ...audio, status: "ready", initialize: async () => {},
     subscribeInvalidation: () => () => {},
+    pauseInput: vi.fn(),
+    resumeInput: vi.fn(),
     releaseAll: () => synth.handle({ type: "release-all", session: 1 }),
   } as unknown as BrowserAudio, () => now);
   detach = gate.attach();

@@ -30,6 +30,7 @@ export class BrowserAudio {
   private press = 0;
   private outstanding = 0;
   private recovering = false;
+  private inputPaused = false;
   private generation = 0;
   private invalidationListeners = new Set<() => void>();
   status: AudioStatus = "idle";
@@ -220,14 +221,24 @@ export class BrowserAudio {
   }
 
   setPedals(state: PedalState) {
+    if (this.inputPaused && (state.sustain || state.sostenuto || state.soft)) return false;
     return this.send({ type: "pedals", version: 1, session: this.session, ...state });
   }
+
+  /** Ordered voice/pedal clear without transport invalidation or context restart. */
+  pauseInput() {
+    this.inputPaused = true;
+    if (this.status === "ready") this.send({ type: "release-all", session: this.session });
+  }
+  resumeInput() { this.inputPaused = false; }
+  get isInputPaused() { return this.inputPaused; }
 
   noteOn(
     note: number,
     velocity = 0.8,
   ): { session: number; press: number } | null {
     if (
+      this.inputPaused ||
       !Number.isInteger(note) ||
       note < 0 ||
       note > 127 ||
