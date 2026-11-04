@@ -1,3 +1,4 @@
+import { DEFAULT_METER, isMeter, restoreMeter, type Meter } from "../../lib/meter";
 import MidiWriter from "midi-writer-js";
 
 export type RecordedNote = {
@@ -12,6 +13,7 @@ export type Recording = {
   id: string;
   name: string;
   bpm: number;
+  meter?: Meter;
   createdAt: string;
   notes: RecordedNote[];
 };
@@ -36,14 +38,16 @@ export function createRecorder() {
     return Math.max(0, endTime - recordingStartTime - excludedPausedMs);
   }
 
-  function startRecording(bpm: number, name = "Untitled recording"): void {
+  function startRecording(bpm: number, name = "Untitled recording", meter: Meter = DEFAULT_METER): void {
     if (!Number.isFinite(bpm) || bpm <= 0) {
       throw new RangeError("Recording BPM must be positive.");
     }
+    if (!isMeter(meter)) throw new RangeError("Invalid meter");
     recording = {
       id: crypto.randomUUID(),
       name,
       bpm,
+      meter: { ...meter },
       createdAt: new Date().toISOString(),
       notes: [],
     };
@@ -113,6 +117,7 @@ export function createRecorder() {
     // Copy each note so callers and subsequent takes cannot mutate one another.
     return {
       ...recording,
+      meter: restoreMeter(recording.meter),
       notes: recording.notes
         .map((note) => ({ ...note }))
         .sort((a, b) => a.startMs - b.startMs),
@@ -136,6 +141,9 @@ export type Recorder = ReturnType<typeof createRecorder>;
 export function downloadMidi(recording: Recording): void {
   const track = new MidiWriter.Track();
   track.setTempo(recording.bpm);
+  if (recording.meter !== undefined && !isMeter(recording.meter)) throw new RangeError("Invalid meter");
+  const meter = restoreMeter(recording.meter);
+  track.setTimeSignature(meter.numerator, meter.denominator, 24, 8);
   for (const note of recording.notes) {
     const startTick = millisecondsToTicks(note.startMs, recording.bpm);
     const endTick = millisecondsToTicks(

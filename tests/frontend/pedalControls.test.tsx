@@ -10,6 +10,22 @@ vi.mock("../../frontend/src/app/audio/audioEngine", () => ({ browserAudio: {
 } }));
 beforeEach(() => { localStorage.clear(); audio.send.mockClear(); });
 afterEach(cleanup);
+
+it.each(["hold", "toggle"])("requires keyup and a fresh %s pedal press after a count-in", mode => {
+  const view = render(<PedalControls active />); assign();
+  fireEvent.change(screen.getByLabelText("Sustain (damper) mode"), { target: { value: mode } });
+  fireEvent.click(sustain());
+  view.rerender(<PedalControls active={false} />);
+  expect(sustain().getAttribute("aria-checked")).toBe("false");
+  fireEvent.keyDown(window, { code: "KeyS" });
+  view.rerender(<PedalControls active />);
+  fireEvent.keyDown(window, { code: "KeyS", repeat: true });
+  fireEvent.keyDown(window, { code: "KeyS" });
+  expect(sustain().getAttribute("aria-checked")).toBe("false");
+  fireEvent.keyUp(window, { code: "KeyS" });
+  fireEvent.keyDown(window, { code: "KeyS" });
+  expect(sustain().getAttribute("aria-checked")).toBe("true");
+});
 const sustain = () => screen.getByRole("switch", { name: /Sustain/ });
 function assign(code = "KeyS") {
   fireEvent.click(screen.getByRole("button", { name: "Assign Sustain (damper)" }));

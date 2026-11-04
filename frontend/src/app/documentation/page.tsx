@@ -59,6 +59,11 @@ export default function Home() {
             Documentation
           </a>
         </div>
+        <section id="count-in" className="bg-surface text-ink p-4">
+          <h2 className="text-xl">Recording count-in</h2>
+          <p>Record and Resume pause piano notes and pedals for one full measure. Camera tracking continues. Release keys held during the countdown and press again afterward to play and record them.</p>
+          <p>Turning off the metronome mutes clicks while the visual countdown still runs. Select Stop to cancel. Free play remains available before recording, during a pause and after Stop when tracking and audio are ready.</p>
+        </section>
         <section id="pedal-recording" className="bg-surface text-ink p-4">
           <h2 className="text-xl">Pedal recording and replay follow-up</h2>
           <p>Live pedals affect sound only. Recordings and MIDI exports preserve physical key durations and do not record pedals.</p>

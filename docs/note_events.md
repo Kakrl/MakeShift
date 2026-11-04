@@ -182,19 +182,27 @@ the recorder's state into a React snapshot after each transition to trigger a
 render; reading the mutable recorder alone does not notify React. Its accessible
 status distinguishes
 recording, paused, initial count-in, resume count-in and completion.
-The held-key policy is to end recorded notes on Pause and begin new recorded
-notes for keys detected as held when capture resumes after the count-in. This
-includes keys first pressed during the pause. Keys released before capture
-resumes contribute no resumed note. A key held through the entire pause creates
-two note events, not one sustained event; paused/count-in time is excluded.
-Capture is based on detector observations, not a claim of exact physical timing.
+Start/resume count-ins gate piano note-ons synchronously, before audio initialization
+and the first beat (#205). Ordered validation and physical press/release identities
+continue. Suppressed onsets never reach audio or deferred consumers; their releases
+retire only physical state. Entry drains accepted history, emits consumer-only
+retirement note-offs for previously accepted identities, and silences the piano.
+These control retirements reuse the current sequence; they are observer notifications,
+not producer messages. Accepted sounding feedback clears while contact inference runs.
 
-Pausing affects MIDI capture while live audio and accepted key transitions
-continue. After starting/resuming capture, `captureHeld()` opens recorded notes
-for the consumer's current accepted presses without retriggering audio.
-Five integration tests mount the real page, coordinator, marker overlay and
-recorder with simulated marker/hand input and mocked audio/canvas. They verify
-held keys, paused releases, repeated resumes, UI labels and count-in cancellation.
+At the final full-measure callback, drain history, open/resume the recorder, then
+open input synchronously. The recorder timeline excludes paused/count-in time.
+An onset delivered while closed is suppressed through release. Once open, onsets
+with main-clock timestamps before opening are also suppressed; an equal timestamp
+is eligible only if delivered after opening with a fresh, valid press identity.
+Older out-of-order timestamps still fail closed under the normal sequence contract.
+Held keys are never manufactured into time-zero notes; the home page does not call
+`captureHeld()`. That low-level helper remains available for explicit consumers.
+
+Pause retains free play outside the resume count-in. Stop cancels the request
+and restores eligible free play, retaining suppressed identities until release.
+Interruption retires the entire session; obsolete timers cannot open a recorder.
+See [verification](../tests/README.md#count-in-input-gate-issue-205).
 Stop invalidates any pending audio initialization so a delayed Resume request
 cannot restart a stopped take. Physical camera and real browser verification
 remain pending; simulated integration is not hardware evidence.

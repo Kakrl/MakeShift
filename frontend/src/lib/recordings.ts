@@ -1,3 +1,4 @@
+import { isMeter, restoreMeter, type Meter } from "./meter";
 // Shared recordings API contract (#117). Server routes and client code both
 // import these types and `validateUpload`, so an upload the client accepts is
 // exactly one the server accepts. Limits mirror the `recordings` table checks
@@ -25,6 +26,7 @@ export type RecordingSummary = {
   title: string;
   authorName: string;
   bpm: number;
+  meter?: Meter;
   durationMs: number;
   noteCount: number;
   createdAt: string;
@@ -45,6 +47,7 @@ export type UploadRecordingRequest = {
   authorName: string;
   deviceId: string;
   bpm: number;
+  meter?: Meter;
   notes: RecordedNote[];
 };
 
@@ -137,6 +140,7 @@ export function validateUpload(body: unknown): UploadValidation {
   const authorName = text(issues, body, "authorName", RECORDING_LIMITS.authorNameLength);
   const deviceId = text(issues, body, "deviceId", RECORDING_LIMITS.deviceIdLength);
 
+  if (body.meter !== undefined && !isMeter(body.meter)) issues.push({ field: "meter", message: "Invalid time signature" });
   const { bpm } = body;
   const bpmLimits = RECORDING_LIMITS.bpm;
   if (!Number.isInteger(bpm) || !inRange(bpm, bpmLimits.min, bpmLimits.max))
@@ -172,6 +176,7 @@ export function validateUpload(body: unknown): UploadValidation {
       authorName,
       deviceId,
       bpm: bpm as number,
+      meter: restoreMeter(body.meter),
       notes: (notes as RecordedNote[]).map(
         ({ pitch, velocity, startMs, durationMs }) => ({
           pitch,
