@@ -3,6 +3,7 @@
 // instead of the API, or `?mock=empty` / `?mock=error` for those states.
 // Shares made in the browser are kept in localStorage so a copied link
 // opens in a new tab.
+import { isMeter, restoreMeter } from "../../lib/meter";
 import type { RecordedNote, Recording } from "../midi/midiUtils";
 import {
   RECORDING_LIST_PAGE_SIZE,
@@ -120,6 +121,7 @@ function isStoredShares(value: unknown): value is StoredShare[] {
         entry !== null &&
         typeof entry.id === "string" &&
         typeof entry.deleteToken === "string" &&
+        (entry.meter === undefined || isMeter(entry.meter)) &&
         Array.isArray(entry.notes),
     )
   );
@@ -128,12 +130,12 @@ function isStoredShares(value: unknown): value is StoredShare[] {
 function withoutToken(share: StoredShare): SharedRecording {
   const recording: SharedRecording & { deleteToken?: string } = { ...share };
   delete recording.deleteToken;
-  return recording;
+  return { ...recording, meter: restoreMeter(recording.meter) };
 }
 
 function summarize(recording: SharedRecording): RecordingSummary {
   const { id, title, authorName, bpm, durationMs, noteCount, createdAt } = recording;
-  return { id, title, authorName, bpm, durationMs, noteCount, createdAt };
+  return { id, title, authorName, bpm, meter: restoreMeter(recording.meter), durationMs, noteCount, createdAt };
 }
 
 export function createMockShareStore(
@@ -188,6 +190,7 @@ export function createMockShareStore(
           title: upload.title,
           authorName: upload.authorName,
           bpm: upload.bpm,
+          meter: restoreMeter(upload.meter),
           notes: upload.notes,
           id: crypto.randomUUID().slice(0, 8),
           durationMs: recordingDurationMs(upload.notes),

@@ -1,3 +1,4 @@
+import { isMeter, restoreMeter } from "../../lib/meter";
 import {
   readStored,
   writeStored,
@@ -43,6 +44,7 @@ function isRecording(value: unknown): value is Recording {
     value.id.trim().length > 0 &&
     typeof value.name === "string" &&
     value.name.trim().length > 0 &&
+    (value.meter === undefined || isMeter(value.meter)) &&
     typeof value.bpm === "number" &&
     Number.isFinite(value.bpm) &&
     value.bpm > 0 &&
@@ -71,11 +73,11 @@ function isLibrary(value: unknown): value is Recording[] {
 }
 
 function copyRecording(recording: Recording): Recording {
-  return { ...recording, notes: recording.notes.map((note) => ({ ...note })) };
+  return { ...recording, meter: restoreMeter(recording.meter), notes: recording.notes.map((note) => ({ ...note })) };
 }
 
 export function loadRecordings(storage?: StorageAccess): Recording[] {
-  return readStored(STORAGE_NAME, STORAGE_VERSION, [], isLibrary, storage);
+  return readStored(STORAGE_NAME, STORAGE_VERSION, [], isLibrary, storage).map(copyRecording);
 }
 
 export function saveRecordings(
