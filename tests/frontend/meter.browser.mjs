@@ -5,7 +5,7 @@ const browser = await chromium.launch({channel:process.env.BROWSER_CHANNEL ?? "c
 try {
   const page=await browser.newPage({viewport:{width:320,height:800}});
   await page.goto(`${process.env.MAKE_SHIFT_URL ?? "http://127.0.0.1:3000"}/?dev=1`);
-  const numerator=page.getByLabel("Time Signature numerator", {exact:true});
+  const numerator=page.getByLabel("Time signature numerator", {exact:true});
   await numerator.fill("32"); await numerator.press("Enter");
   await numerator.press("Tab");
   const denominator=page.getByLabel("Time signature denominator", {exact:true});

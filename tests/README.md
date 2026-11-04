@@ -20,6 +20,67 @@ Edge 156.0.4314.58 production deployment, keyboard-layout and audio browser
 checks passed against port 3234 with fake media; database unconfigured. Chromium
 was attempted for all three checks but could not launch (`spawn UNKNOWN`).
 Real camera/printed-paper verification and new Actions execution remain pending.
+## Selenium UI navigation verification (issue #244)
+
+Local macOS execution on 2026-10-31, Node 26.8.1, Selenium WebDriver 4.50.0,
+headless Chrome from Selenium Manager with fake media, production build of
+`8d7e944` served by `next start`. Viewports set exactly through
+`Emulation.setDeviceMetricsOverride`.
+
+- **3.1.1, KNOWN FAIL (D25, #245):** after "Skip for now" on the welcome
+  dialog, the Calibration, Tutorial and About tabs were inside the viewport,
+  unscrolled and uncovered at 1024x768, 1440x900 and 1920x1080. The Record
+  control was below the fold at all three (top/bottom 874/917, 877/920 and
+  1121/1164 px), uncalibrated and in `?dev=1`.
+- **3.1.2, PASS:** the three tabs kept identical rects (within 1 px) across
+  `/`, `/?dev=1`, `/calibration` and `/about` at each viewport, for example
+  `1127,126,267,72` for Calibration at 1440x900. `/tutorial` has no side nav
+  and is not covered. macOS overlay scrollbars hide D26.
+- **3.1.2 in GitHub Actions (ubuntu-latest Chrome, PR #246 first run):**
+  every tab sat 15 px further left on `/` than on `/calibration` at all three
+  viewports, matching home's classic scrollbar ([run](https://github.com/Kakrl/MakeShift/actions/runs/41236234016)).
+  Filed as D26 (#247). The runner now reports a shift that equals the
+  scrollbar width difference as a known failure and still fails any other move.
+- **6.2.1, PASS (1440x900):** home Calibration tab opened the intro dialog,
+  Begin Calibration reached `/calibration` with that tab `aria-current`, and
+  the About page's Calibration link reached `/calibration`.
+- The runner exits 0 while D25 and D26 are open and fails on any other assertion.
+  Not covered: real camera, browsers other than Chrome, widths below `lg`,
+  the Documentation control (no nav entry; `/documentation` is the Next.js
+  starter page).
+- GitHub Actions (ubuntu-latest Chrome, PR #246 at the D26 commit): [Actions job log](https://github.com/Kakrl/MakeShift/actions/runs/41236674591/job/124641810203)
+  matched locally for 3.1.1 (D25) and 6.2.1 (PASS); 3.1.2 was KNOWN FAIL (D26)
+  with a 15 px scrollbar on `/` and `/?dev=1`.
+
+## PR #235 main merge (2026-11-02)
+
+Merged main at a205fde into the count-in input gate. Retained the continuous
+metronome controller/worklet and its selected-meter clock, standalone playback,
+failure isolation and StrictMode behavior. The gate closes before preparation,
+opens only after recorder start/resume, clears pedal sources, and preserves
+release/repress policy. Count-in preparation failure or interruption restores
+free play without capturing muted holds. Retained the stable announcement and
+shortened tutorial copy from review.
+
+The page tests now use main's real controller/worklet over simulated transport;
+click-continuity and preparation-failure/retry cases replace oscillator-specific
+fixtures. The gate browser runner accounts for the reference helper's 50 ms lead
+and checks silence before it; that helper is no longer Home's clock. Historical
+execution records below retain their original scope.
+
+Windows / Node 22.20.0: lint, TypeScript, 724 Vitest tests (one existing skip),
+37 contrast pairs and production Turbopack build passed in an isolated worktree.
+The temporary verification config expanded Turbopack root to include the existing
+dependency junction and was restored before commit. Edge 156.0.4314.58 deployment,
+keyboard-layout, production audio, input-gate and metronome browser checks passed
+against port 3236 with fake media. The gate measured exact-zero PCM during both
+sustain and sostenuto suppression, with fresh sound afterward and no context
+invalidation; the metronome runner retained sample-accurate spacing under UI
+load, standalone operation, pause/resume and muted count-in behavior.
+Chromium's three required runners were attempted but failed to launch (spawn
+UNKNOWN). Database unconfigured; acoustic, real camera, screen-reader and new
+Actions execution evidence remain pending.
+
 
 ## PR #235 review verification (2026-11-02)
 
@@ -90,6 +151,53 @@ latency pass and no new Actions execution is claimed.
 This branch builds on the existing unmerged #207/#232 scheduler commit
 `4cbc67c` in PR #233. The #205 draft targets main and depends on #233;
 its dependency commit remains visible until that PR merges.
+
+## PR #233 main reconciliation (2026-11-02)
+
+Merged main at 65bb20f into the configurable-meter PR. Retained main's separate
+continuous metronome worklet, failure isolation, default-off toggle and
+pre-calibration playback. Extended its controller/processor to support meter
+numerators through 32 and denominator-note intervals at quarter-note BPM.
+Recording start/resume snapshots the selected meter; tempo/meter persist and
+remain locked during a take. Kept the reviewed label, chevron and error spacing.
+The original oscillator helper remains reference-only; Home uses worklet beat
+and completion notifications. No per-click React timer or past-currentTime
+oscillator start remains in the live count-in path.
+
+Windows / Node 22.20.0: full Vitest 708 passed, one existing frame-loss skip,
+37 files. Lint, TypeScript, 37 contrast pairs and production Turbopack build
+passed. The isolated checkout needed a temporary filesystem-root override for
+its dependency junction; the configuration was restored after building.
+New processor regressions verify exact selected-meter frames and completion for
+4/4, 3/4, 6/8, 7/8, 2/2 and 32/32. Page tests retain meter across start/resume
+alongside main's metronome lifecycle/failure regressions.
+Edge 156.0.4314.58 deployment, keyboard-layout, production audio and 320px meter
+browser checks passed with fake media. Database unconfigured; hosted migration,
+physical camera/speaker timing and new Actions execution remain pending.
+
+The real-worklet metronome browser runner also passed: standalone Home toggle
+and mute with camera denied, beat spacing within one sample during a 1.8 s
+UI stall, pause silence, resume/muted count-in, and cleanup/reuse.
+
+
+## PR #233 review follow-up (2026-11-02)
+
+Isolated PR head `4cbc67c`, Windows / Node 22.20.0: Vitest 681 passed,
+one existing skip (36 files); lint, TypeScript and all 37 contrast pairs passed.
+Updated numerator queries use its explicit accessible name. Audible count-in
+regressions assert a 50 ms audio lead and matching recording completion deadline.
+Edge 156.0.4314.58 offline rendering at 48 kHz confirms silence for the first
+2400 samples, equal denominator-beat spacing and silent cancellation.
+
+Production Turbopack build passed with a temporary filesystem-root override
+covering the shared dependency junction; committed Next configuration is unchanged.
+The initial normal build rejected that junction; webpack fallback lacked the
+Turbopack-only fs alias. Edge deployment, keyboard-layout, production audio and
+320px meter browser runners passed against port 3233 with fake media.
+Database was unconfigured; hosted migration and live round trips, physical
+listening/camera timing and new Actions execution remain pending.
+Supabase CLI lookup failed with npm ENOTFOUND; no hosted migration was applied.
+
 
 ## Count-in timing correction (issue #232, 2026-10-27)
 
@@ -611,6 +719,7 @@ tests/
 │   ├── browserAudio.browser.mjs  # production browser graph check
 │   ├── cameraLayout.browser.mjs  # home camera feed 16:9 across viewports
 │   ├── deployment.browser.mjs    # production assets, camera recovery, offline playing
+│   ├── uiNavigation.selenium.mjs # Selenium control visibility, tab position, calibration nav
 │   ├── sampledPiano.test.ts         # sample bank, stereo renderer, assets and loader
 │   ├── homePage.test.ts              # home page modals and overlays (jsdom)
 │   ├── supabaseHealth.test.ts    # /api/health database check
@@ -655,6 +764,7 @@ No test implementation requires an exception to this layout.
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
 | MIDI production download | `cd frontend && npm run test:midi-browser` | Running production server; Playwright and Edge; optional MAKE_SHIFT_URL / MIDI_BROWSER_CHANNEL |
 | Pipeline profiling | `cd frontend && npm run test:performance-browser` | Production server on port 3100, Playwright + Edge; synthetic camera; local only |
+| Selenium UI navigation | `cd frontend && npm run test:ui-selenium` | Running production server; optional MAKE_SHIFT_URL; Chrome and chromedriver found or downloaded by Selenium Manager. Prints `KNOWN FAIL` for D25 and D26 without failing |
 | Camera feed layout | `cd frontend && npm run test:layout-browser` | Running production server; Playwright bundled Chromium; optional MAKE_SHIFT_URL / LAYOUT_BROWSER_CHANNEL |
 | RCA automation | `node --test tests/automation/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
 
@@ -1106,9 +1216,17 @@ defect report is filed.
 | D20 | High | UI | (Req 3.1, 3.2, 4.2, 6.2) Merge `30706c4` (PR #98) resolved `page.tsx` by keeping the branch's older JSX, dropping the welcome and Calibration intro modals, count-in overlay, Recording Complete banner, Delete confirmation, calibration prompt, `CameraStatusOverlay`, and the aria-live region. The home Calibration tab and Delete button did nothing. ESLint flagged the orphaned state only as warnings | `frontend/src/app/page.tsx` | [#112](https://github.com/Kakrl/MakeShift/issues/112) | Fixed in [#113](https://github.com/Kakrl/MakeShift/pull/113) |
 | D22 | Medium | Calibration | Final depth sheet-check exception removed capture/Next controls. Reset collector/index on exception so all five depth positions can be retried. | `frontend/src/app/calibration/page.tsx` | [#178](https://github.com/Kakrl/MakeShift/issues/178) | Fixed in PR #177; local 6.2.3 regression passed; CI/merge pending |
 | D21 | High | Calibration | (Req 6.2, 1.1, 2.1) #148 replaced the reachable result capture with depth buttons and navigated before validation/save. Final depth capture now creates the primary result; completion retains its model and saves both records before navigation. 6.2.3's expected failures are restored as passing regressions. | `frontend/src/app/calibration/page.tsx` | [#162](https://github.com/Kakrl/MakeShift/issues/162) | Fix verified locally 2026-10-06; review/merge and physical check pending |
+| D24 | Medium | Audio | User camera-device testing of the initial #206 implementation found no live accompaniment and unstable clicks during page actions. | `frontend/src/app/audio/metronome.ts` | [#206](https://github.com/Kakrl/MakeShift/issues/206) | Worklet revision verified automatically; [user-reported behavior retest passed](manual/2026-10-25_MET-04.md), tested device commit 2cf30d0 confirmed |
+| D25 | Medium | MIDI / UI | Confirmed No, delete it plus accepted browser confirmation leaves the take accessible through Recordings; reload persistence not yet separately confirmed. | `frontend/src/app/midi/RecordingsLibraryPanel.tsx`, `frontend/src/app/share/SaveTakeDialog.tsx` | [#224](https://github.com/Kakrl/MakeShift/issues/224) | Open; user-reported manual reproduction, exact follow-up commit pending |
+| D26 | Medium | Audio / UI | Visual count-in falls behind audible beats, especially at 300 BPM; offset and recording-start alignment unmeasured. | `frontend/src/app/page.tsx`, `frontend/src/app/audio/metronome.ts` | [#225](https://github.com/Kakrl/MakeShift/issues/225) | Open; [MET-04 observation](manual/2026-10-25_MET-04.md), 300 BPM follow-up reported 2026-10-26 |
+| D27 | Medium | Calibration / UI | Moving the sheet after calibration leaves audio/record controls disabled while the marker overlay appears valid, without clear mismatch/recovery feedback. | `frontend/src/events/liveSession.ts`, `frontend/src/app/MarkerTrackingOverlay.tsx`, `frontend/src/app/page.tsx` | [#226](https://github.com/Kakrl/MakeShift/issues/226) | Open; overlaps broader recovery/alignment work in [#220](https://github.com/Kakrl/MakeShift/issues/220) |
 | D23 | Medium | Audio | (Req 2.4, related 2.2) User reports high-velocity strikes are not loud enough and wants more apparent velocity dynamics. Listening report 2026-10-14; cause and hardware verification pending. | `frontend/src/cv/fingerVelocity.ts`, `frontend/public/audio/synth.js` | [#209](https://github.com/Kakrl/MakeShift/issues/209) | DSP tuning implemented locally; [verification and listening limits](manual/2026-10-14_209-velocity.md); user confirmed audible velocity changes locally 2026-10-14; measured trials/chord distortion checks pending |
 | D24 | Medium | Audio | (Req 2.2, related 2.4) Higher notes dominated the procedural sound; +4 dB gain was insufficient. User selected sampled Salamander piano at +6 dB after RMS normalization. | `frontend/public/audio/sampled-piano.js`, `frontend/src/app/audio/pianoSamples.ts` | [#210](https://github.com/Kakrl/MakeShift/issues/210) | Sampled production implemented; [software and qualitative prototype evidence](manual/2026-10-19_210-register-balance.md); production hardware listening and review/merge pending |
+| D25 | Medium | UI | (Req 3.1) On first load the home Record control sits under the 16:9 camera feed, below the fold at 1024x768, 1440x900 and 1920x1080 (top at 874, 877 and 1121 px). The nav tabs are visible. Found by 3.1.1 | `frontend/src/app/page.tsx` | [#245](https://github.com/Kakrl/MakeShift/issues/245) | Open; 3.1.1 reports it as a known failure |
+| D26 | Low | UI | (Req 3.1) Home overflows the viewport (D25), so browsers with classic scrollbars show a scrollbar there but not on `/calibration`, and the side nav shifts left by its width (15 px in Actions Chrome). macOS overlay scrollbars hide it. Found by 3.1.2 in CI | `frontend/src/app/layout.tsx`, `frontend/src/app/page.tsx` | [#247](https://github.com/Kakrl/MakeShift/issues/247) | Open; 3.1.2 reports a scrollbar-only shift as a known failure |
 | D25 | Medium | Audio / UI | (Req 3.2, #207) Immediate per-beat clicks depended on React/main-thread timer delivery, allowing uneven intervals and accumulated drift under CV/render work. | `frontend/src/app/page.tsx`, `frontend/src/app/audio/countIn.ts` | [#232](https://github.com/Kakrl/MakeShift/issues/232) | Fix implemented; digital audio/timer regressions pass locally; physical listening, review/merge and Actions pending |
+
+| D25 | Medium | Calibration / UI | (Req 3.2, 6.2) A moved sheet can have all four markers and a visible debug keyboard while saved calibration is incompatible, leaving Enable audio/Record disabled without a clear recovery explanation. | `frontend/src/events/liveSession.ts`, `frontend/src/app/page.tsx`, `frontend/src/app/SheetAlignment.tsx` | [#226](https://github.com/Kakrl/MakeShift/issues/226) | Addressed with #220 in [PR #238](https://github.com/Kakrl/MakeShift/pull/238); 2.1.5/REC-03 automated recovery checks passed; physical recovery, including knuckles enabled, remains pending in REC-04; review/merge pending |
 
 ## Root Cause Analysis Log
 
@@ -1874,6 +1992,102 @@ previously diagnosed local --disable-gpu workaround in a removed temporary
 runner; the committed runner is unchanged. Physical hardware was not measured.
 Actions execution for this follow-up is unverified.
 
+## Continuous metronome (#206)
+
+The initial timer-based implementation at 107b417 passed automated checks, but
+Harry's camera-device test exposed absent live accompaniment and unstable timing
+during other actions. Those results supersede any inference that the earlier
+automation established correct physical behavior. The [manual report](manual/2026-10-25_MET-04.md)
+records the failures and missing environment details; physical retest is pending.
+
+The revised implementation uses an AudioWorklet for sample-frame click timing
+and synthesis. Home integration uses the real controller and processor with a
+simulated audio transport, rather than a separate mock metronome clock. Tempo
+edits now commit on Enter/blur (shared behavior with #204); typing alone leaves
+the active/persisted BPM unchanged. The earlier tested revision used 120 BPM; the subsequent upstream merge
+preserves #204's merged 60 BPM default.
+
+Local revision verification, 2026-10-25, Windows, revision following 107b417 on
+`feature/206-continuous-metronome`: lint, TypeScript, full Vitest
+(546 passed, one existing skip), all 37 contrast pairs and production build
+passed. Build required network access for the configured Google Fonts.
+MET-01 includes nine processor/controller cases. Existing Home and recording
+regressions pass; MET-02 includes real MIDI parsing to exclude metronome notes.
+
+Against the production server on port 3206, Chromium 151.0.7922.34 passed
+MET-03: live RMS 0.14495; three consecutive beat notifications during a deliberate
+1.8-second main-thread stall had sample-frame spacing within one sample of
+500 ms. Pause/toggle silence, resume/muted count-in and close/reprepare passed.
+This verifies generated graph timing, not acoustic output or live-CV behavior;
+UI notifications and recorder reactions can still be delayed by UI stalls.
+Existing browser audio and keyboard-layout regressions also passed.
+Deployment smoke passed using a temporary runner copy with `--disable-gpu`
+for the known local simulated-camera stall: five assets/pages, three play/stop
+rounds without per-note requests, and camera denial/recovery. The committed
+runner is unchanged; database was unconfigured. The temporary copy was removed.
+
+Run MET-03 from frontend with a production server running:
+`MAKE_SHIFT_URL=http://127.0.0.1:3000 AUDIO_BROWSER_CHANNEL=chromium node ../tests/frontend/metronome.browser.mjs`
+(PowerShell: set environment variables separately.) The harness loads the actual
+controller/worklet and stubs diagnostic accounting only. GitHub Actions execution
+and camera-device retest remain pending. No physical latency claim is made.
+
+### Metronome default-off follow-up (#206)
+
+User-requested behavior: metronome starts off on every page load, independent
+of any legacy stored toggle. Valid saved tempo is retained; subsequent settings
+writes contain tempo only. PREF-01/PREF-02 and MET-02 cover remount, legacy
+true/false/invalid toggle fields, storage failures and explicitly enabled live
+accompaniment. Local 2026-10-25 verification passed: lint, TypeScript, 548 Vitest cases
+(one existing skip), 37 contrast pairs and production build. Metronome, keyboard-layout and audio browser checks passed in Chromium
+151.0.7922.34. Deployment smoke passed with the existing temporary local
+GPU workaround; the committed runner is unchanged. Actions execution remains
+pending. The reported physical
+live-accompaniment failure is still unresolved; this preference change does not
+claim to fix it.
+
+### Independent metronome follow-up (#206)
+
+The toggle now starts its own click context without piano Enable audio or
+calibration; tempo/meter unlock after preference restoration. Recording/piano
+readiness remains unchanged. Recording pause silences clicks, Resume counts in,
+and Stop returns to enabled standalone clicks. Piano tracking interruption
+closes any take/cancels count-in without stopping standalone accompaniment.
+Backgrounding turns the toggle off and cancels pending startup; returning does
+not restart it. Audio failure uses a plain alert. The off-on-load/no-persistence
+policy remains in place.
+
+MET-02 now runs the real controller and processor through simulated transport
+for no-calibration playback, pending-toggle cancellation and backgrounding.
+MET-03 additionally exercises real Home with camera denial, asserting audible
+graph output without clicking piano Enable audio and silence after toggle-off.
+Local 2026-10-25: lint, TypeScript, 551 Vitest tests (one existing skip),
+37 contrast pairs and production build passed. Chromium 151.0.7922.34 passed
+the real Home camera-denied toggle test (click RMS 0.14496, toggle-off silence),
+worklet timing under a 1.8-second page stall, keyboard-layout and browser-audio
+regressions. Deployment smoke passed with the established temporary local
+GPU workaround; the runner is unchanged and the temporary copy removed.
+GitHub Actions and physical listening remain unverified.
+
+### MET-04 manual retest, 2026-10-25
+
+Harry confirmed all seven behavior checks passed: off after reload, standalone
+toggle, Enter/blur tempo edits, qualitative steadiness under other actions,
+record/pause/resume/Stop, MIDI exclusion and background/navigation cleanup.
+Environment is the same Windows 11 ROG Flow X13/Chrome/webcam/speaker setup as
+the earlier MIDI test; this run used localhost with npm run dev. The [manual
+report](manual/2026-10-25_MET-04.md) records the user-reported pass and earlier
+failures. The tester confirmed device commit 2cf30d0. No quantitative physical timing claim.
+
+### Countdown synchronization observation (#206)
+
+Harry reported noticing visual countdown/audio beat mismatch during manual
+testing of 2cf30d0. Audio is timed in the worklet; visual updates and the recorder
+reaction to completion run after main-thread message delivery. The observed
+offset/frequency and recording-start alignment were not measured. Retain this
+as a known limitation for later investigation; the functional manual pass does
+not establish visual/audio synchronization. See the MET-04 report.
+
 ## Tempo input editing verification (issue #204, 2026-10-17)
 
 Windows, Chromium 151.0.7922.34, production port 3204: default 60 BPM, real
@@ -1916,3 +2130,142 @@ checks, specific device/environment details, detailed edge-case verification,
 live-CV profiling and physical latency evidence remain pending.
 
 Issue #205 user follow-up (2026-10-27): Carl Xu tested the localhost build at 4ea7a38 and confirmed it works as intended. See the CI-04 report's user confirmation; detailed hardware/scenario and physical measurement evidence remains pending.
+
+## Playing recovery and alignment (issue #220)
+
+Local verification on 2026-10-29, Windows, Node 22.20.0, branch
+`feature/220-playing-recovery-alignment` (working tree based on `99bd9fd`):
+
+- `npm run lint` and `npx tsc --noEmit` passed.
+- `npx vitest run`: **710 passed, one existing frame-loss test skipped**, 37 files.
+  Added structured reason precedence/copy and realignment/stale-session cases in
+  liveSession; nine sheetAlignment component cases; three Home/coordinator/marker
+  integration cases for displacement/miss/realignment, audio/camera and tracking
+  recovery. Existing count-in audio failure retains its distinct message.
+- `npm run test:contrast`: all 37 existing token pairs passed. Legend uses
+  ink/surface (16.67:1); comparison strokes white/dark (19.91:1) and
+  accent-light/dark (9.87:1) with a dark backing stroke. Video-pixel contrast is
+  not a measured guarantee; solid/dashed shapes provide non-color cues.
+- `npm run build` passed. The sandbox's initial font downloads failed;
+  rerunning with network access succeeded without source/config changes.
+- Production server, `MAKE_SHIFT_URL=http://127.0.0.1:3001`, Edge
+  **156.0.4314.50**: deployment, keyboard-layout and browser-audio runners passed.
+  Deployment loaded eight assets and five routes, exercised three local audio
+  rounds without note requests, and camera denial/retry/loss/recovery. Database
+  was unconfigured. Browser audio decoded 19 samples at 48 kHz, reported
+  111,179,616 decoded bytes and 0.5716 ten-voice peak; offline registers,
+  suspension recovery and navigation cleanup passed. This is graph output,
+  not physical audibility or latency.
+- `BROWSER_CHANNEL=msedge node ../tests/frontend/recovery.browser.mjs`
+  passed: 320/390/1440px legend/page bounds, saved outline with missing current
+  geometry, one primary resolution-mismatch status, non-live legend, Tab/Enter
+  calibration navigation. Fake camera, no physical sheet/hand verification.
+- Chromium checks were attempted with the installed browser path but could not
+  spawn (`spawn UNKNOWN`); Edge supplied the browser evidence. The sandboxed
+  server was unreachable from the external browser; an external production
+  server resolved it. Vitest initially hit temporary-file rename permissions;
+  the complete reported run used the external execution environment.
+
+No new Actions execution is claimed. No real screen-reader, physical camera,
+listening, usability or latency pass is claimed. The dated human procedure and
+pending environment/step results are in [REC-04](manual/2026-10-29_REC-04.md).
+Existing thresholds and contact/session safety remain unchanged. Source tests
+run in existing frontend CI; the new recovery browser runner is manually invoked.
+
+PR #238 also addresses defect [#226](https://github.com/Kakrl/MakeShift/issues/226) through the same readiness messages and saved/current sheet-reference comparison. Marker detection is distinguished from compatible calibration, and restoration requires a matching complete scan plus explicit Enable audio. Standalone metronome behavior is outside this change. No additional execution is claimed by this documentation/linkage update; physical recovery with knuckles enabled and recalibration at the new pose remain pending in REC-04.
+
+### Visible alignment timing guidance (PR #238 follow-up)
+
+2026-10-29: the alignment legend now visibly says, "After realigning, allow about 10 seconds for checking. Once ready, select Enable audio." This replaces screen-reader-only timing text; scan cadence and readiness gates are unchanged. REC-02 checks that the guidance is not marked sr-only. REC-05 verifies actual visible dimensions and that the complete guidance fits inside the camera at 320/390/1440px, alongside existing keyboard/status checks.
+
+Full Vitest rerun: 710 passed, one existing skip, 37 files. Lint, TypeScript, 37 contrast pairs and production build passed. Edge 156.0.4314.50 recovery, deployment, keyboard-layout and audio browser checks passed against the final port 3001 build with fake media. Prior Chromium spawn limitation remains; database unconfigured, no physical camera/audio or real screen-reader execution claimed.
+
+## PR #238 review verification (2026-11-02)
+
+Windows, Node 22.20.0: 718 Vitest tests passed across 37 files, with the
+existing frame-loss skip. TypeScript, lint, all 37 contrast pairs, the standard
+Turbopack production build and whitespace checks passed. Eight added REC-02
+cases cover hiding the guide outside alignment recovery, missing-marker display,
+restored-readiness hiding and a decorative SVG swatch. Existing camera-space,
+scan expiry and geometry tests remain in place.
+
+Edge 156.0.4314.58 passed deployment, keyboard-layout, production audio and
+recovery browser runners against the production server on port 3238. Recovery
+checked 320/390/1440px bounds, visible wait guidance, missing-current-scan
+outline, camera mismatch and keyboard calibration navigation. Audio checked
+real decoded samples, output, interruption recovery and cleanup. Fake media and
+digital output do not establish physical camera, acoustic or screen-reader
+results. Chromium launch failed with `spawn UNKNOWN`; database unconfigured;
+new Actions evidence pending.
+
+The initial sandbox test attempt was blocked by temporary-file rename permissions.
+The successful suite ran outside that sandbox. A dependency junction prevented
+Turbopack's first build attempt; a clean local dependency install allowed the
+standard build to pass. An interim Webpack attempt failed on the existing
+OpenCV `fs` import; no build configuration was changed.
+
+### Upstream integration before PR (#206)
+
+Merged upstream main at cba7323, retaining #204/PR #218's 60 BPM default and
+step=1 input, the pedal clear action on recording Stop (#176/PR #221), CV changes
+and all added upstream tests. Local 2026-10-25: lint, TypeScript, 596 Vitest
+cases (one existing skip), 37 contrast pairs and production build passed.
+Manual MET-04 remains evidence for the confirmed tested commit 2cf30d0; this
+upstream integration was verified automatically, not claimed as a second
+physical-camera run. Chromium 151.0.7922.34 passed MET-03 including real Home camera-denied
+playback/mute (RMS 0.14496), audio-thread timing under a 1.8-second UI stall,
+and keyboard-layout/audio regressions. Deployment smoke passed with the
+established temporary local GPU workaround; committed runner unchanged,
+temporary copy removed, database unconfigured. Actions execution pending.
+
+## Metronome failure isolation (PR #223 review comment 1)
+
+Local verification 2026-10-31: Enable audio prepares piano audio independently.
+Failed count-in preparation leaves new recordings stopped or existing takes
+paused, with a separate retry error. Click interruption cancels a pending
+count-in without interrupting piano playback or an already active recording.
+Four added simulated Home regressions cover these paths; recordingControls
+passed 37 cases with one existing skip. The full Vitest suite passed 600 cases
+with one existing skip across 33 files. Lint, TypeScript, all 37 contrast pairs
+and the production build passed (font downloads required network access).
+Production Chromium 151.0.7922.34 keyboard-layout and audio browser checks
+passed. Deployment smoke first failed on sandbox CDN access; the network-enabled
+retry stalled without a result and was stopped, so deployment smoke is unverified.
+Physical camera/audio testing and new CI execution remain pending.
+Count-in timestamp alignment and failed-context cleanup are separate review
+comments and are not changed by this follow-up.
+
+## Metronome preparation cleanup (PR #223 review comment 3)
+
+Local verification 2026-10-31: unsuccessful preparation now releases its owned
+context, callbacks, partial node and message port. Shared close logic preserves
+ownership checks so a late failure from a retired attempt cannot close a newer
+context. Resume is called inside the guarded preparation path, still directly
+from the gesture before awaiting module loading.
+
+Five new controller regressions cover synchronous resume exceptions, rejected
+resume, module loading failure, connection failure, fresh-context retries and a
+late rejected module after close/reprepare. All 14 metronome cases passed; the
+full suite passed 605 cases with one existing skip across 33 files. Lint,
+TypeScript, all 37 contrast pairs and the production build passed. Production
+Chromium 151.0.7922.34 audio and keyboard-layout browser checks passed.
+Deployment smoke was not repeated after the earlier stalled run documented
+above; physical camera/audio testing and new CI evidence remain pending.
+Recording-clock synchronization remains follow-up issue #225.
+
+## PR #238 main merge (2026-11-02)
+
+Merged main at b1700ee after #233/#235 landed. The Home conflict retains the
+production metronome controller and count-in input gate from main, using the
+recovery session's parameter-free interruption API. Both verification histories
+and all recovery overlay changes are preserved.
+
+Windows / Node 22.20.0: 746 tests passed across 38 files, one existing frame-loss
+skip. Lint, TypeScript, all 37 contrast pairs, the standard production build and
+whitespace checks passed. Edge 156.0.4314.58 passed deployment, keyboard-layout,
+audio, recovery, count-in gate and metronome browser runners on port 3238.
+Count-in output was exactly zero while gated; independent clicks continued.
+Metronome checks included camera-denied Home playback and audio-clock spacing
+under a busy UI thread. Recovery checked 320/390/1440px and keyboard navigation.
+Database unconfigured; fake media/digital output only, no physical sensing,
+acoustic or screen-reader pass. New Actions execution remains pending.

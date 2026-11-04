@@ -99,6 +99,7 @@ export default function CVOverlayCoordinator({
   return (
     <>
       <MarkerTrackingOverlay
+        readinessReason={session.status.reason}
         layout={layout}
         contactFrameRef={contactFrameRef}
         videoRef={videoRef}
