@@ -434,9 +434,9 @@ describe("stopping a take's share", () => {
 
 it("preserves meter on upload, list and read with legacy fallback", async () => {
   const meter = {numerator:7,denominator:8};
-  const db=database([{id:ID}],[{...row(1),id:ID,meter}],[{...row(1),id:ID,meter,notes:upload.notes}]);
+  const db=database(0,[{id:ID}],[{...row(1),id:ID,meter}],[{...row(1),id:ID,meter,notes:upload.notes}]);
   expect((await uploadRecording(post({...upload,meter}),db.deps)).status).toBe(201);
-  expect(JSON.parse(db.calls[0].init.body as string).meter).toEqual(meter);
+  expect(JSON.parse(db.calls[1].init.body as string).meter).toEqual(meter);
   expect((await (await listRecordings(new Request("http://localhost/api/recordings"),db.deps)).json()).recordings[0].meter).toEqual(meter);
   expect((await (await getRecording(ID,db.deps)).json()).meter).toEqual(meter);
 });
