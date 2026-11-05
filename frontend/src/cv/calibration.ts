@@ -42,6 +42,13 @@ export interface CalibrationResult {
   };
 }
 
+/** Sheet-only calibration. Reference pixels are acquired fresh by the live loop. */
+export interface ShadowCalibrationResult extends Omit<CalibrationResult, "version" | "contact"> {
+  version: 2;
+  contact: { model: "filtered-directional-shadow-v1" };
+}
+export type SavedCalibration = CalibrationResult | ShadowCalibrationResult;
+
 const finite = (n: unknown): n is number =>
   typeof n === "number" && Number.isFinite(n);
 const object = (v: unknown): v is Record<string, unknown> =>
@@ -156,26 +163,27 @@ export function validSamples(value: unknown): value is LandmarkSample[][] {
     )
   );
 }
-export function validateCalibration(value: unknown): CalibrationResult | null {
+export function validateCalibration(value: unknown): SavedCalibration | null {
   if (
     !object(value) ||
-    value.version !== 1 ||
+    (value.version !== 1 && value.version !== 2) ||
     value.coordinates !== "unmirrored-frame-pixels/marker-unit-square" ||
     value.sheet !== SHEET_ID ||
     !validCamera(value.camera) ||
     !validCorners(value.corners, value.camera) ||
     !usableLayout(value.layout as KeyboardLayout) ||
     !object(value.contact) ||
-    value.contact.model !== "landmark-reference-v1" ||
-    (value.contact.hover !== undefined &&
-      !validSamples(value.contact.hover)) ||
-    !validSamples(value.contact.rest)
+    (value.version === 1
+      ? value.contact.model !== "landmark-reference-v1" ||
+        (value.contact.hover !== undefined && !validSamples(value.contact.hover)) ||
+        !validSamples(value.contact.rest)
+      : value.contact.model !== "filtered-directional-shadow-v1")
   )
     return null;
-  return structuredClone(value) as unknown as CalibrationResult;
+  return structuredClone(value) as unknown as SavedCalibration;
 }
 export function compatibleCalibration(
-  result: CalibrationResult,
+  result: SavedCalibration,
   camera: CameraSignature,
   corners: Point[],
   layout: CalibrationResult["layout"] = CURRENT_LAYOUT,
@@ -202,7 +210,7 @@ type StorageAccess = () => Pick<Storage, "getItem" | "setItem" | "removeItem">;
 const browserStorage: StorageAccess = () => window.localStorage;
 export function loadCalibration(
   storage: StorageAccess = browserStorage,
-): CalibrationResult | null {
+): SavedCalibration | null {
   try {
     return validateCalibration(
       JSON.parse(storage().getItem(CALIBRATION_KEY) ?? "null"),

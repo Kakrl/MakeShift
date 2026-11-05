@@ -1,9 +1,329 @@
 # Shadow detection: current status and next steps
 
-Updated: 2026-11-01 (includes strict plateau/local-lobe corrections and replacement images). This document summarizes the local shadow experiments
-and the local brightness–chromaticity experiment. Implemented tools,
-observations and unimplemented ideas are identified separately. There is no
-claim of reliable semantic shadow detection or physical contact accuracy.
+Updated: 2026-11-01. The straightforward live CPU baseline is now implemented
+locally. Physical accuracy/latency and user live baseline measurements remain pending;
+ordered recorded-video replay measurements are now available below.
+
+## Resume here: live baseline and paused DFS handoff (2026-11-01)
+
+**Current stopping point:** live integration, four-clip automatic replay and the
+requested frame-by-frame DFS inspector are implemented locally. The user last
+requested this written handoff. No automatic CV replay is still running. The
+last production server was left on port 3107; restart it if needed. Do not
+restart the earlier static gallery review or treat the integration plan below
+as unimplemented work.
+
+### What to open and run
+
+The usage guide is [docs/cv_video_tests.md](cv_video_tests.md). From the repository
+root, this opens clip 1 in installed Chrome and pauses for manual inspection:
+
+```sh
+cd frontend
+CV_TECHNIQUE=shadow-baseline CV_DFS_CUTOFF=20 \
+CV_HEADFUL=1 CV_MANUAL_STEP=1 \
+CV_RESULT_DIR=test-results/cv-video/manual-shadow-baseline \
+npm run test:cv-video:auto -- --clip 1
+```
+
+Change the clip number to 2, 3 or 4. The command builds/starts its own production
+server and selects the current CPU detector explicitly. **Omitting
+`CV_TECHNIQUE=shadow-baseline` runs the legacy contact pipeline**, not the new
+home detector. Do not report a legacy replay as baseline verification.
+
+The default manual view is **Shadow DFS inspection**. Use Next frame, Previous
+frame and Resume/Pause, then select a candidate from the dropdown or table.
+The first frames can legitimately wait for complete markers/reference; in the
+recorded baseline run the first reference was frame 8 in every clip.
+
+The inspector shows a source/proposal overview plus aligned source, geometry,
+raw-darkening and filtered-shadow zooms. Blue marks the selected edge; purple
+marks the locality band/seeds/a-row; red and green show downward/upward visited
+pixels and actual successful witness paths. A dashed box shows the selected
+seed's width window. The expandable search table includes seeds, visited counts,
+endpoints, unavailable measurements and local caps. Decision text follows the
+actual veto/support/UNKNOWN rules. NO PRESS is detector rejection, not proven
+physical hover; EXCLUDED means outside calibrated keys and DFS was not run.
+
+Inspecting another cutoff changes only the view. The original replay cutoff
+and decision remain visible. Candidate numbers are local to each frame and
+can change; they are not tracked fingers. Any accepted eligible proposal can
+keep a shared key pressed. The inspector checks paused pixels and proposal/
+decision snapshots against the original scored frame before showing recomputed
+paths, uses that frame's original reference version, and clears on Resume.
+Only the current inspection retains full traces; whole-clip masks/paths are
+not cached. Canvas contexts explicitly request consistent CPU rendering after
+a cached-navigation pixel comparison exposed overview raster variation.
+
+To rerun all four clips automatically without inspection overhead:
+
+```sh
+CV_TECHNIQUE=shadow-baseline CV_DFS_CUTOFF=20 \
+CV_RESULT_DIR=test-results/cv-video/shadow-baseline-new-run \
+npm run test:cv-video:auto
+```
+
+Use a fresh result directory to preserve existing evidence. This ordered,
+paused-seek replay processes every requested frame; it is not live camera FPS
+or physical press-to-sound measurement.
+
+### State and constraints to carry forward
+
+- Home/calibration no longer load MediaPipe. Calibration is Setup → Lighting →
+  Paper → completion, with a validated version 2 sheet-only result; legacy
+  version 1 records remain readable for geometry compatibility.
+- Reference/current coordinates match, longest analysis side is at most 640 px.
+  Initial and every successful complete 10-second marker check replaces the
+  reference from that same captured frame. Visible complete markers are
+  deliberately assumed to mean no hands. Misses retain reference/geometry.
+- Keep the reviewed geometry predicate (valid darkening >5, projection
+  residual >0.12), corrected plateau/local-lobe proposals, c=d=e=4, radius 4
+  locality with forward reach and global downward veto. D80 stays removed.
+  DFS cutoffs are matching downward/upward 5/20/40/60, default20.
+- Each frame unions accepted eligible keys. Rejection/UNKNOWN/missing tips
+  release immediately; consecutive accepted frames hold without retrigger.
+  Velocity is fixed 1.0, recorder 100 percent, exported MIDI 127. Session/press
+  identity, invalidation and release-all safety remain; no temporal tracking,
+  debounce, hysteresis or UNKNOWN grace was added.
+- Worker/GPU/parallel DFS optimization remains deferred. No threshold tuning
+  followed the replay scores, and inspector work did not change the classifier.
+
+### Measured results and verification limits
+
+The completed cutoff 20 run processed 1,434 frames, with reference-backed analysis
+on 1,402. Against 45 unchanged sidecar labels, press and release scoring each
+returned **24 TP / 103 FP / 21 FN: 18.9% precision, 53.3% recall**, with 254 predicted
+transitions overall. These are separate transition metrics, not the RVTM
+combined-error measure. Extra transitions and misses remain substantial.
+
+Pooled analysis median/p95/max was **34.1/45.8/83.8ms**; total CV was
+**43.2/56.1/147.4ms**. Ordered replay throughput was 15.5 FPS. These numbers belong
+to the original automatic baseline run, whose source/report hashes are saved;
+inspector runs include manual/UI overhead and must not replace those timings.
+The environment was macOS 13.5 arm64, Chrome 156.0.8078.75, with Apple M2 identified
+by renderer metadata. No MediaPipe inference ran. The source clips are familiar
+development footage; older sidecars conflict with newer user annotations in
+places, including first-middle onset 112 versus 114 in clip 1. No held-out or
+adjudicated physical contact accuracy, human listening, live drop-rate or
+physical latency pass is claimed.
+
+Latest verification: ten focused baseline/diagnostic cases passed; full Vitest
+**651 passed / two existing failures** (`fingerVelocity.test.ts` onset latch and
+`synchronousShadowPipeline.test.ts` contact-profile fixture). An initial
+concurrent-build run also timed out two audio cases; a full rerun passed those
+without changing their tests or timeouts. Final lint/TypeScript/build passed;
+all 39 contrast checks passed. Production deployment/camera recovery,
+keyboard-layout and audio graph browser checks passed in Chrome. Inspector
+checks passed on clip 1 (candidate/cutoff/witness selection, exact cached canvas
+and decision restoration, mobile fit and Resume clearing) and clip 3 (navigation
+across the periodic reference replacement and back, including valid empty
+proposals on a fresh reference). Desktop/mobile screenshots were reviewed.
+No new Actions execution is claimed. Details are in the
+[baseline replay record](../tests/README.md#automatic-shadow-baseline-video-replay-2026-11-01)
+and [inspector record](../tests/README.md#paused-shadow-dfs-inspector-2026-11-01).
+
+### Files and evidence to preserve
+
+| Path | Role |
+| :--- | :--- |
+| `frontend/src/cv/liveShadowBaseline.ts` | Shared CPU detector, optional current-frame diagnostics and raw key transitions |
+| `frontend/src/app/CVOverlayCoordinator.tsx` | Fresh-frame live loop, markers/reference, direct session dispatch and feedback |
+| `frontend/src/app/calibration/page.tsx`, `frontend/src/cv/calibration.ts` | Three-step flow and validated sheet-only/legacy schemas |
+| `frontend/src/app/cv-video-replay/page.tsx` | Explicit baseline replay, per-frame snapshots and reference versions |
+| `frontend/src/app/cv-video-replay/ReplayShadowBaselinePanel.tsx` | Paused overview, four DFS views, table and explanations |
+| `frontend/src/cv/shadowBaselineDiagnostics.ts` | Pixel fingerprint, stable diagnostic snapshot and decision explanations |
+| `tests/frontend/liveShadowBaseline.test.ts`, `tests/frontend/cvVideoReplay.browser.mjs`, `tests/frontend/runCvVideo.mjs` | Synthetic regressions, opt-in inspector checks and four-clip runner |
+
+Ignored evidence exists locally under `frontend/test-results/cv-video/`:
+
+- `shadow-baseline-cutoff20-2026-11-01/`: all four reports, combined summary,
+  `run.log` and `run-analysis.json` (pooled distributions, environment and hashes).
+- `shadow-dfs-inspector-2026-11-01/`: clip 1; use `final.results.json` and
+  `final-run.log` for the final check, plus desktop/mobile screenshots.
+- `shadow-dfs-inspector-reference-2026-11-01/`: clip 3; use `final.results.json`
+  and `final-run.log`. Earlier logs include the superseded test assumptions.
+
+These files and the older ignored galleries/native caches are **not recoverable
+from a clean checkout**. Do not clean/delete them. Preserve especially
+`fingertip-filtered/pre-lobe-results.json`, `shadow-dfs/previous-results.json`
+and `shadow-dfs/d80-results.json`; their existence was checked for this handoff.
+The section below lists the other native-source caches and historical evidence.
+
+The working branch is `enhancement/142`. Work remains uncommitted, including
+untracked implementation files; no new commits, pushes, issues or PRs were made
+in this continuation. The user explicitly deferred issue tracking to themselves.
+Do not block further authorized local work on creating an issue. Preserve all
+unrelated changes, including `.DS_Store` files and `thoughts.txt`.
+
+### Resume without repeating completed work
+
+Start with the user's frame-by-frame review and concrete examples they report.
+Use the inspector to distinguish proposal localization, key eligibility,
+downward veto, missing upward support, merged-mask UNKNOWN and reference
+contamination before changing any rule. Preserve original cutoff 20 scores and
+all static comparison snapshots; do not retune individual frames or convert
+UNKNOWN into physical hover/press by assumption. Live measurements are still
+pending. After collecting a comparable live baseline, implement/measure the
+lean worker, then consider further optimization. Temporal contact logic remains
+a separate deferred decision. This handoff makes no additional implementation
+request beyond documenting the completed state.
+
+
+## Current implementation: live baseline (2026-11-01)
+
+The home page now uses `CVOverlayCoordinator` and `cv/liveShadowBaseline.ts`:
+coordinate-matched reference subtraction → reviewed filtered automatic tips →
+calibrated white-key eligibility → unchanged locality4 directional DFS. Analysis
+keeps aspect ratio with the longest side at most640 pixels (640×427 for the
+reviewed1620×1080 inputs). Default cutoff20 is selectable at5/20/40/60 in the
+existing visual-debug panel. The existing CPU routines, including their extra
+diagnostic calculations, are reused directly; no lean worker/GPU/parallel DFS
+or temporal contact filter was introduced. Offline algorithms and galleries
+were preserved.
+
+Calibration now has Setup, Lighting and Paper steps, then completion. It saves
+a validated version2 `filtered-directional-shadow-v1` sheet/camera/layout record
+in the existing calibration storage slot. Version1 landmark records remain
+readable for geometry compatibility; live playback never consumes their hand
+samples. No MediaPipe model or hand/depth capture is loaded by the home or
+calibration path. Fresh live reference pixels are captured on initial and every
+successful complete10-second marker check from the same captured frame used
+for detection. Complete markers are assumed to mean no hands, as agreed; missed
+scans retain reference/geometry and cadence. Reference pixels are not persisted.
+
+Each fresh decoded frame determines its active key union. Only `PRESS` adds a
+key; rejected/UNKNOWN/missing proposals release immediately. The producer keeps
+only transitions and session/press identity, holds without retrigger and uses
+normalized velocity1.0. The existing recorder represents this as100 percent;
+MIDI export represents it as127. Session invalidation, frame loss, watchdog,
+backgrounding and stale-session rejection remain in force. Debug key feedback
+can show detected keys before audio is enabled; active musical pitches also
+feed the overlay.
+
+[Execution record](../tests/README.md#live-shadow-baseline-integration-2026-11-01)
+and [test inventory](../tests/verification_test_inventory.md) describe local
+checks and their limits. The remaining legacy velocity/synchronous-shadow
+fixture failures do not exercise the new home detector. No physical camera,
+contact-accuracy, listening or latency result is claimed.
+
+Automatic replay update: all four existing clips have now run through the
+same CPU detector using `CV_TECHNIQUE=shadow-baseline`, cutoff20, with no hand
+inference. Across1,434 requested frames (1,402 reference-available), press and
+release scoring each gave24 TP/103 FP/21 FN:18.9% precision and53.3% recall
+against the unchanged sidecars. Analysis median/p95/max was34.1/45.8/83.8ms;
+total CV was43.2/56.1/147.4ms. These are ordered paused-video processing results,
+not physical latency, live FPS or adjudicated accuracy. Known annotation
+conflicts remain. See [command and interpretation](cv_video_tests.md#run-the-current-shadow-baseline)
+and [full execution record](../tests/README.md#automatic-shadow-baseline-video-replay-2026-11-01).
+Reports are under ignored `frontend/test-results/cv-video/shadow-baseline-cutoff20-2026-11-01/`;
+older galleries/results are preserved. No threshold tuning followed these scores.
+
+Paused inspection update: manual baseline replay now offers **Shadow DFS
+inspection** with source/mask/raw/filtered zooms, selected edge/locality band,
+visited searches and actual veto/support paths, per-candidate all-cutoff table
+and decision explanations. Display cutoff changes do not alter scored events.
+Paused pixels and decisions must match the saved frame snapshot before paths
+are shown, and cached frames keep their original reference version. Full traces
+are recomputed for the current paused frame instead of retained for the whole
+clip. No mask/proposal/DFS threshold or temporal logic was changed. See
+[manual usage](cv_video_tests.md#inspect-edges-dfs-paths-and-the-decision) and
+[inspector execution](../tests/README.md#paused-shadow-dfs-inspector-2026-11-01).
+
+Resume with user-collected live baseline measurements. Implement the lean worker
+only afterward and compare equivalent conditions; tracking/hysteresis and
+further optimization stay deferred. Inner-gap false proposals and merged-mask
+UNKNOWNs remain observable baseline behavior. Preserve all ignored cached
+sources and before/after snapshots listed below.
+
+## Start here: live integration game plan (2026-11-01)
+
+The user committed the existing work as a baseline, then clarified the desired
+integration scope. **Original agreed plan, retained for reference.** The user requested documentation
+before starting implementation; the plan below has since been implemented as
+described above. This section supersedes earlier recommendations
+to add tracking, contact continuity or a worker before the first live baseline.
+
+### Calibration, markers and reference capture
+
+- Keep the beginning calibration steps: keyboard settings, lighting, then
+  piano-sheet detection. Remove MediaPipe hand-pose and depth captures from
+  the new calibration flow.
+- Keep periodic piano-sheet detection every **10 seconds** after acquisition.
+- On **each successful complete marker detection**, capture that same frame as
+  the new reference image for the keyboard, including periodic detections.
+  Preserve coordinate/resolution agreement between reference and current frames.
+- For this baseline, explicitly **assume visible complete markers mean no hands
+  are present**. No separate empty-keyboard confirmation or hand detector is
+  required. If hands are present, they enter the reference and can affect
+  subsequent detection; this is an accepted experimental assumption, not a
+  verified property of marker visibility.
+
+### Raw live algorithm
+
+Replace the existing live MediaPipe-based detection and contact techniques with:
+
+```text
+camera frame + marker-captured reference
+  → reference-relative darkening and color/projection measurements
+  → filtered geometry mask
+  → corrected automatic fingertip proposals
+  → calibrated keyboard mapping/eligibility
+  → bounded directional DFS per eligible proposal
+  → current frame's pressed keys → existing audio/MIDI event consumers
+```
+
+Use the existing CPU algorithm directly for the first baseline. Do not first
+introduce the lean worker implementation, GPU preprocessing, parallel DFS or
+other performance refactoring. Colored heatmap rendering is diagnostic output,
+not an input required by detection. Preserve the reviewed mask/proposal/DFS
+semantics and offline galleries.
+
+The discussed initial DFS cutoff is **20**, configurable among the existing
+experimental values **5/20/40/60**. This is the reference-minus-current luma
+threshold for compatible shadow pixels traversed by DFS, with matching downward
+and upward cutoffs. It is separate from the geometry mask's fixed **>5** floor
+and projection residual **>0.12** predicate. Preserve c=d=e=4, locality radius4
+with forward reach, and the global downward veto; D80 stays removed. Starting
+at20 is an experimental baseline configuration, not a validated operating point.
+
+Defer the temporal contact state machine: no candidate tracking, debounce,
+hysteresis or UNKNOWN grace period. Each frame's accepted eligible candidates
+determine its pressed keys. NO PRESS, UNKNOWN or a missing proposal contributes
+no active press for that frame. Union candidates on the same key. Retain only
+the key-transition bookkeeping needed to send note-on when a key appears and
+note-off when it disappears; consecutive accepted frames hold the note rather
+than retriggering it. Flicker/repeated attacks are possible baseline behavior
+to observe before adding temporal logic. Existing session stop/invalidation
+and release-all safety still apply.
+
+Remove the MediaPipe-derived velocity estimate from this path. Supply a fixed
+maximum normalized velocity **1.0** to the shared musical events; MIDI velocity
+is **127**, not255. This is a placeholder, not measured press force or speed.
+Anatomical finger names and stable per-finger identities are not needed for
+this initial per-key baseline.
+
+### Measurement and optimization order
+
+1. Implement the straightforward live algorithm and calibration/reference flow.
+2. The user will collect baseline measurements after integration. Do not infer
+   full-frame performance from the saved fingertip-only timings or claim the
+   physical accuracy/latency targets are met.
+3. Implement the lean worker version afterward, repeat comparable measurements,
+   and record its speedup relative to the baseline.
+4. Then evaluate GPU image processing, candidate-level parallel DFS and further
+   integration/validation work using measured benefits. Return to temporal
+   contact state/tracking separately; it is deferred from the initial baseline.
+
+### Quick check of extra gap proposals
+
+Read-only inspection of the saved filtered results confirmed that candidate#4
+at(358,153) in both `middle-first-112.native.png` and
+`middle-first-113.native.png` returns **NO PRESS at5/20/40/60**. Each cutoff has
+an actual downward veto witness at(356,157). These two extra proposals already
+filter out through DFS; do not make eliminating them a prerequisite for live
+integration. This is a check of existing results, not a rerun or proof that all
+false proposals reject. Merged-mask UNKNOWN behavior remains visible under the
+raw-frame policy above.
 
 ## Start here: user-reviewed handoff (2026-11-01)
 
@@ -12,7 +332,8 @@ requested this handoff. This is qualitative visual feedback, not measured
 fingertip precision/recall or contact accuracy. The basic gallery review is
 complete; do not restart the earlier manual anchoring, color-cluster pilot,
 D80 experiment or explanation of the reviewed examples. Sections below retain
-the detailed execution history; this section is the current resume point.
+the detailed execution history; this section records the reviewed offline state.
+The implemented live baseline and measurement handoff above are the current resume point.
 
 ### What exists now
 
@@ -23,11 +344,13 @@ There are two distinct offline experiments:
 | Automatic fingertip proposals | Derives anonymous positions and widths from filtered geometry, then runs DFS on every proposal. No saved anchors, per-finger gates or anatomical labels enter detection. | [Current 50-image gallery](../frontend/test-results/fingertip-filtered/index.html), [old/new comparison](../frontend/test-results/fingertip-filtered/changes.html). Localization improved in the reported examples; extra proposals and merged-mask contact uncertainty remain. |
 | Fixed-anchor DFS comparison | Uses saved positions/widths to isolate shadow-rule changes; locality limits sideways travel while preserving forward reach. | [Current 30-image gallery](../frontend/test-results/shadow-dfs/index.html), [original/D80/locality comparison](../frontend/test-results/shadow-dfs/changes.html). At shared cutoffs20/40,29 valid selected frames agree with approximate phases; one wrong-target frame is excluded. This result does not transfer to the automatic mode or held-out footage. |
 
-**Current automatic path:** coordinate-matched empty reference/current image →
+**Reviewed offline automatic path at that earlier handoff:** coordinate-matched empty reference/current image →
 reference-relative measurements → filtered geometry → connected regions and
 lower-outline lobes → anonymous fingertip proposals → per-proposal DFS.
-There is no anatomical finger classifier, stable tracking identity, live note
-integration or automatic paper/keyboard eligibility in this new path.
+At that earlier offline handoff there was no anatomical finger classifier,
+stable tracking identity, live note integration or automatic paper/keyboard
+eligibility. The live integration described at the top now adds calibrated
+key eligibility and note dispatch; anatomical labels/tracking remain absent.
 
 ### Settings to preserve
 

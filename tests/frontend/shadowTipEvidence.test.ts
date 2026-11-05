@@ -296,6 +296,121 @@ describe("bounded monotone DFS from the lower fingertip arc", () => {
 });
 
 
+describe("paired DFS starting points", () => {
+  const setup = () => {
+    const f = fixture(); f.finger();
+    for (let y = 48; y <= 64; y++) f.paint(29, y);
+    return f;
+  };
+  const run = (f: ReturnType<typeof fixture>) => measureMonotoneShadowPaths(
+    f.difference(), f.mask, f.tip, undefined, { corridorRadius: 4 })!.levels[2];
+
+  it("returns NO PRESS when every usable starting point reaches both lines", () => {
+    const level = run(setup());
+    expect(level.ignoredSeeds.length).toBeGreaterThan(0);
+    expect(level.downwardSearches.every(s => s.reached && s.ignored)).toBe(true);
+    expect(level.upwardSearches.every(s => s.reached && s.ignored)).toBe(true);
+    expect(level.downwardVeto).toBe(false); expect(level.upwardReached).toBe(false);
+    expect(level.downwardUnknown).toBe(false); expect(level.upwardUnknown).toBe(false);
+    expect(level.patternMatch).toBe(false);
+    expect(level.rejectionPixel).toBeNull(); expect(level.supportingPixel).toBeNull();
+  });
+
+  it("keeps upward-only support from another point after ignoring a both-target point", () => {
+    const f = setup();
+    for (let y = 48; y <= 62; y++) f.paint(50, y);
+    const level = run(f);
+    expect(level.ignoredSeeds.length).toBeGreaterThan(0);
+    expect(level.upwardReached).toBe(true); expect(level.downwardVeto).toBe(false);
+    expect(level.supportingPixel?.x).toBe(50); expect(level.patternMatch).toBe(true);
+    const support = level.upwardSearches.find(s => !s.ignored && s.reached)!;
+    expect(level.downwardSearches.find(s => s.seed.x === support.seed.x && s.seed.y === support.seed.y)?.reached).toBe(false);
+  });
+
+  it("retains a downward-only veto at another point in the same connected shadow", () => {
+    const f = setup();
+    for (let x = 30; x <= 40; x++) f.paint(x, 61);
+    for (let y = 61; y <= 64; y++) f.paint(40, y);
+    const level = run(f);
+    expect(level.ignoredSeeds.length).toBeGreaterThan(0);
+    expect(level.downwardVeto).toBe(true); expect(level.patternMatch).toBe(false);
+    const veto = level.downwardSearches.find(s => !s.ignored && s.reached)!;
+    expect(level.upwardSearches.find(s => s.seed.x === veto.seed.x && s.seed.y === veto.seed.y)?.reached).toBe(false);
+    expect(veto.seed.x).toBeGreaterThanOrEqual(39);
+  });
+});
+
+describe("five-pixel width on an upward support path", () => {
+  const setup = () => {
+    const f = fixture(); f.finger();
+    for (let y = 52; y <= 60; y++) f.paint(29, y);
+    return f;
+  };
+  const run = (f: ReturnType<typeof fixture>, options = {}) => measureMonotoneShadowPaths(
+    f.difference(), f.mask, f.tip, undefined,
+    { corridorRadius: 9, minimumUpwardShadowWidth: 5, ...options })!.levels[2];
+
+  it("rejects thin growth even when it reaches the upward row", () => {
+    const level = run(setup());
+    expect(level.upwardSearches.some(s => s.targetReached)).toBe(true);
+    expect(level.upwardReached).toBe(false); expect(level.patternMatch).toBe(false);
+    expect(level.upwardUnknown).toBe(false);
+  });
+
+  it("requires at least five contiguous pixels and exports a width witness on the successful path", () => {
+    const f = setup();
+    for (let x = 26; x <= 29; x++) f.paint(x, 54);
+    expect(run(f).upwardReached).toBe(false);
+    f.paint(25, 54);
+    const level = run(f);
+    expect(level.upwardReached).toBe(true); expect(level.patternMatch).toBe(true);
+    const search = level.upwardSearches.find(s => s.reached)!;
+    expect(search.widthWitness).toEqual({ left: 25, right: 29, y: 54, width: 5 });
+    expect(search.path.some(p => p.y === 54 && p.x >= 25 && p.x <= 29)).toBe(true);
+  });
+
+  it("does not count color-excluded, masked or out-of-window pixels toward the five", () => {
+    const f = setup(); for (let x = 25; x <= 29; x++) f.paint(x, 54);
+    expect(run(f, { searchWidth: 4 }).upwardReached).toBe(false);
+    expect(run(f, { corridorRadius: 1 }).upwardReached).toBe(false);
+    f.paint(27, 54, [150, 70, 50]);
+    expect(run(f).upwardReached).toBe(false);
+    f.paint(27, 54); f.mask[54 * f.width + 27] = 1;
+    expect(run(f).upwardReached).toBe(false);
+  });
+
+  it("does not borrow width from above the support row or a disconnected patch", () => {
+    const f = setup();
+    for (let x = 25; x <= 29; x++) f.paint(x, 51);
+    for (let x = 21; x <= 25; x++) f.paint(x, 56);
+    const level = run(f);
+    expect(level.upwardSearches.some(s => s.targetReached)).toBe(true);
+    expect(level.upwardReached).toBe(false);
+    expect(level.upwardSearches.every(s => s.visited.every(p => p.y >= 52))).toBe(true);
+  });
+
+  it("can revisit a thinly explored junction after a different route obtains width evidence", () => {
+    const f = setup();
+    for (const [x, y] of [[28, 59], [27, 58], [26, 57], [27, 56], [28, 55]]) f.paint(x, y);
+    for (let x = 23; x <= 27; x++) f.paint(x, 57);
+    const level = run(f);
+    const search = level.upwardSearches.find(s => s.seed.x === 29 && s.seed.y === 60)!;
+    expect(search.reached).toBe(true); expect(search.widthWitness?.y).toBe(57);
+    expect(search.path.some(p => p.y === 57 && p.x <= 27)).toBe(true);
+    expect(search.endpoint?.y).toBe(52);
+  });
+
+  it("keeps downward reach independent of upward width and validates width settings", () => {
+    const f = setup(); for (let y = 58; y <= 64; y++) f.paint(50, y);
+    const level = run(f);
+    expect(level.downwardVeto).toBe(true); expect(level.upwardReached).toBe(false);
+    expect(level.ignoredSeeds).toHaveLength(0);
+    for (const minimumUpwardShadowWidth of [0, 1.5, 129, NaN]) {
+      expect(measureMonotoneShadowPaths(f.difference(), f.mask, f.tip, undefined, { minimumUpwardShadowWidth })).toBeNull();
+    }
+  });
+});
+
 describe("filtered darkening boundary proposal", () => {
   it("excludes unchanged paper, neutral shadows and unavailable black pixels", () => {
     const f = fixture(); f.finger();
@@ -342,7 +457,8 @@ describe("filtered darkening boundary proposal", () => {
 describe("independent downward shadow strength", () => {
   const setup = () => {
     const f = fixture(); f.finger();
-    for (let y = 48; y <= 64; y += 1) f.paint(29, y);
+    for (let y = 48; y <= 62; y += 1) f.paint(29, y);
+    for (let y = 58; y <= 64; y += 1) f.paint(50, y);
     return f;
   };
   it("breaks a weaker downward path without changing upward support", () => {
@@ -357,23 +473,23 @@ describe("independent downward shadow strength", () => {
   });
   it("requires the stronger threshold at seeds and every step, strictly above equality", () => {
     const f = setup(); const d = f.difference();
-    for (let y = 48; y <= 64; y += 1) d.lumaDrop[y * f.width + 29] = 100;
+    for (let y = 58; y <= 64; y += 1) d.lumaDrop[y * f.width + 50] = 100;
     const run = () => measureMonotoneShadowPaths(d, f.mask, f.tip, undefined, { downwardThreshold: 80 })!;
     expect(run().levels.every((l) => l.downwardVeto)).toBe(true);
-    d.lumaDrop[63 * f.width + 29] = 80;
+    d.lumaDrop[63 * f.width + 50] = 80;
     expect(run().levels.every((l) => !l.downwardVeto)).toBe(true);
   });
   it("preserves unknown measurements and rejects invalid downward thresholds", () => {
     const f = setup(); const d = f.difference();
-    for (let y = 48; y <= 64; y += 1) d.lumaDrop[y * f.width + 29] = 100;
-    d.valid[63 * f.width + 29] = 0;
+    for (let y = 58; y <= 64; y += 1) d.lumaDrop[y * f.width + 50] = 100;
+    d.valid[63 * f.width + 50] = 0;
     expect(measureMonotoneShadowPaths(d, f.mask, f.tip, undefined, { downwardThreshold: 80 })!.levels[2].patternMatch).toBeNull();
     for (const downwardThreshold of [-1, 256, NaN]) expect(measureMonotoneShadowPaths(d, f.mask, f.tip, undefined, { downwardThreshold })).toBeNull();
   });
 });
 
 
-describe("curved fingertip boundary corridor", () => {
+describe("fingertip corridor with X limits only", () => {
   const setup = () => {
     const f = fixture(); f.finger();
     for (let y = 48; y <= 60; y += 1) f.paint(29, y);
@@ -386,7 +502,8 @@ describe("curved fingertip boundary corridor", () => {
     const d = f.difference(); d.valid[61 * f.width + 25] = 0; // Outside the band.
     const before = measureMonotoneShadowPaths(d, f.mask, f.tip)!;
     const after = measureMonotoneShadowPaths(d, f.mask, f.tip, undefined, { corridorRadius: 4 })!;
-    expect(before.levels[2].downwardVeto).toBe(true);
+    expect(before.levels[2].downwardSearches.some(s => s.reached)).toBe(true);
+    expect(before.levels[2].ignoredSeeds.length).toBeGreaterThan(0);
     expect(after.levels[2].patternMatch).toBe(true);
     expect(after.levels[2].downwardUnknown).toBe(false);
     expect(after.levels[2].downwardSearches.some((s) => s.hitCorridorLimit)).toBe(true);
@@ -405,13 +522,35 @@ describe("curved fingertip boundary corridor", () => {
     expect(r.levels[2].rejectionPixel).toEqual({ x: 40, y: 64 });
     expect(r.levels[3].downwardVeto).toBe(false);
   });
-  it("follows the curved arc rather than filling a rectangular window", () => {
+  it("keeps the arc's horizontal bounds unchanged through the target rows", () => {
     const f = fixture(); f.finger((x) => 60 - Math.abs(x - 40));
     const r = measureMonotoneShadowPaths(f.difference(), f.mask, f.tip, undefined, { corridorRadius: 4 })!;
     expect(r.corridor.some((p) => p.x === 40 && p.y === 64)).toBe(true);
     expect(r.corridor.some((p) => p.x === 36 && p.y === 64)).toBe(true); // Diagonal distance4.
-    expect(r.corridor.some((p) => p.x === 32 && p.y === 64)).toBe(false);
-    expect(r.corridor.every((p) => !f.mask[p.y * f.width + p.x] && r.arc.some((a) => Math.max(Math.abs(a.x - p.x), Math.abs(a.y - p.y)) <= 4))).toBe(true);
+    expect(r.corridorMinimumX).toBe(32); expect(r.corridorMaximumX).toBe(48);
+    expect(r.corridor.some((p) => p.x === 32 && p.y === 64)).toBe(true);
+    expect(r.corridor.some((p) => p.x === 31 && p.y === 64)).toBe(false);
+    expect(r.corridor.every((p) => !f.mask[p.y * f.width + p.x] && p.x >= 32 && p.x <= 48)).toBe(true);
+  });
+  it("reaches the veto row beside a sloping tip and never searches below it", () => {
+    const f = fixture(); f.finger(x => 60 - Math.abs(x - 40));
+    // This attached column used to leave the curved band before the veto row.
+    for (let y = 56; y <= 68; y++) f.paint(45, y);
+    const r = measureMonotoneShadowPaths(f.difference(), f.mask, f.tip, undefined, { corridorRadius: 4 })!;
+    for (const level of r.levels) {
+      expect(level.downwardVeto).toBe(true); expect(level.patternMatch).toBe(false);
+      expect(level.rejectionPixel).toEqual({ x: 45, y: 64 });
+      for (const search of level.downwardSearches) expect(search.visited.every(p => p.y <= 64)).toBe(true);
+    }
+  });
+  it("allows upward support beyond the curved band and stops at the support row", () => {
+    const f = fixture(); f.finger(x => 60 - Math.abs(x - 40));
+    for (let y = 50; y <= 55; y++) f.mask[y * f.width + 35] = 0;
+    for (let y = 50; y <= 60; y++) f.paint(35, y);
+    for (let x = 35; x <= 39; x++) f.paint(x, 61);
+    const r = measureMonotoneShadowPaths(f.difference(), f.mask, f.tip, undefined, { corridorRadius: 1 })!;
+    expect(r.levels[2].upwardReached).toBe(true);
+    for (const search of r.levels[2].upwardSearches) expect(search.visited.every(p => p.y >= r.upwardY)).toBe(true);
   });
   it("preserves a straight downward shadow to the saved veto row despite a boundary offset", () => {
     const f = setup(); const tip = { ...f.tip, y: f.tip.y + 1 };
@@ -424,12 +563,13 @@ describe("curved fingertip boundary corridor", () => {
     expect(r.levels[2].rejectionPixel).toEqual({ x: 40, y: 65 });
     expect(r.levels[2].patternMatch).toBe(false);
   });
-  it("retains unknowns within the band and rejects radii that cannot reach d/e", () => {
+  it("retains in-corridor unknowns and validates horizontal margins independently of d/e", () => {
     const f = setup();
     for (let y = 61; y <= 64; y += 1) f.paint(40, y);
     const d = f.difference(); d.valid[63 * f.width + 40] = 0;
     expect(measureMonotoneShadowPaths(d, f.mask, f.tip, undefined, { corridorRadius: 4 })!.levels[2].patternMatch).toBeNull();
-    for (const corridorRadius of [0, 3, 4.5, 25, NaN]) expect(measureMonotoneShadowPaths(d, f.mask, f.tip, undefined, { corridorRadius })).toBeNull();
+    for (const corridorRadius of [1, 3]) expect(measureMonotoneShadowPaths(d, f.mask, f.tip, undefined, { corridorRadius })).not.toBeNull();
+    for (const corridorRadius of [0, 4.5, 25, NaN]) expect(measureMonotoneShadowPaths(d, f.mask, f.tip, undefined, { corridorRadius })).toBeNull();
     f.mask.fill(0);
     expect(measureMonotoneShadowPaths(d, f.mask, f.tip, undefined, { corridorRadius: 4 })!.levels[2].patternMatch).toBeNull();
   });

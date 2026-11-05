@@ -54,3 +54,11 @@ Algorithm in the live pipeline:
 3. run Shadow to get fingertips
 4. run check in parallel for each fingertip that appears
 5. tell audio and MIDI the presses
+
+
+
+cd frontend
+CV_TECHNIQUE=shadow-baseline CV_DFS_CUTOFF=20 \
+CV_HEADFUL=1 CV_MANUAL_STEP=1 \
+CV_RESULT_DIR=test-results/cv-video/manual-shadow-baseline \
+npm run test:cv-video:auto -- --clip 1

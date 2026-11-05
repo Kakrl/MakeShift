@@ -147,6 +147,17 @@ try {
         clip: report.clip,
         processedFrames: report.processedFrames,
         contactTechniques: report.contactTechniques,
+        shadowBaseline: report.shadowBaseline ? {
+          cutoff: report.shadowBaseline.cutoff,
+          analysisSize: report.shadowBaseline.analysisSize,
+          referenceCaptures: report.shadowBaseline.referenceCaptures,
+          analysisAvailableFrames: report.shadowBaseline.analysisAvailableFrames,
+          totalProposals: report.shadowBaseline.totalProposals,
+          eligibleProposals: report.shadowBaseline.eligibleProposals,
+          acceptedProposals: report.shadowBaseline.acceptedProposals,
+          unknownEligibleProposals: report.shadowBaseline.unknownEligibleProposals,
+        } : undefined,
+        shadowBaselinePerformance: report.shadowBaselinePerformance,
         runtime: report.runtime,
         scores: {
           press: summarizeScore(report.scores?.press),

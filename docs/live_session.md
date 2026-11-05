@@ -45,14 +45,16 @@ Changes to a valid calibration result also retire the old session. Camera,
 sheet or layout incompatibility needs restoration of the original configuration
 or recalibration; see [calibration recovery](calibration.md).
 
-A successful hand inference on a newly decoded frame refreshes tracking. An
-empty successful result means no hands and releases keys through normal
-transitions; it is not a detector failure. Explicit inference failure interrupts
-immediately and offers reload. Successful hand inference must be younger than 500 ms.
+Successful shadow-baseline analysis on a newly decoded frame refreshes tracking.
+An empty successful result releases keys through normal transitions. Explicit
+analysis failure interrupts; complete marker reacquisition permits retry.
+Successful frame analysis must be younger than500 ms. No hand inference runs
+in the home path. Reference/current frames share aspect-preserving analysis
+coordinates with a longest side of640 pixels.
 Once a compatible marker observation is received, calibration remains valid
 through any number of missed periodic scans while the last good projection is
 retained. A complete incompatible marker observation or camera/frame loss still
-invalidates it. Hand tracking remains subject to its independent 500 ms
+invalidates it. Frame analysis remains subject to its independent500 ms
 deadline; if tracking expires, a watchdog interrupts. Receive and observation-
 refresh paths also check that deadline, so a delayed timer cannot keep or
 resurrect a session. Returning observations permit a new user-started session,
@@ -62,7 +64,7 @@ The 500 ms watchdog is a provisional stale-input safety bound, not contact
 debounce or a measured physical latency claim. Browser scheduling can delay the
 watchdog. Sheet incompatibility interrupts at the existing marker check cadence
 (up to ten seconds plus scheduling). Expensive CV still runs on the main thread
-pending #37. The existing overlap detector remains a prototype; this gate does
+pending #37. The shadow DFS baseline remains experimental; this gate does
 not establish intentional contact (#34), accuracy (#39) or latency (#30).
 
 ## Browser recovery

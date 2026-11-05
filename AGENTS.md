@@ -48,10 +48,11 @@ it separates existing behavior from planned work and links implementation issues
 | `frontend/src/app/audio/` | Browser audio owner and user-triggered sound check |
 | `frontend/src/app/share/` | Shared recordings UI (mock data until the recordings API lands): store, post-recording save dialog, songs dialog (Shared and My recordings tabs), piano roll; `play/[id]/` share links open the shared-songs dialog |
 | `frontend/src/app/cv-shadow-test/` | Finger-independent image/video darkening and color-change heatmaps |
+| `frontend/src/app/cv-video-replay/` | Recorded CV replay, cached frame navigation and paused shadow DFS inspection |
 | `frontend/src/app/cv-image-test/` | Local still-image replay for labeled synchronous shadow diagnostics |
 | `frontend/src/diagnostics/` | Shared bounded metrics and explicit camera-video registry |
 | `frontend/src/events/` | Shared browser note schema, clocks, session dispatch and audio adapter |
-| `frontend/src/cv/` | ArUco marker detection, homography, keyboard geometry, prototype shadow worker and combined per-finger contact state |
+| `frontend/src/cv/` | ArUco marker detection, homography, keyboard geometry, live CPU filtered-tip/DFS baseline, prototype shadow worker and legacy per-finger contact state |
 | `frontend/src/lib/` | Shared utilities: versioned `localStorage` access and the recordings API types/validation used by client and server |
 | `frontend/src/app/api/` | Server routes; `/api/health` checks the recordings database |
 | `frontend/src/server/` | Server-only Supabase access (never import from client code) |

@@ -33,8 +33,8 @@ flowchart TD
 | Area | Existing implementation | Planned delivery |
 | :--- | :--- | :--- |
 | UI/camera | Next.js/React camera and calibration UI | Validated session lifecycle (#24, #87) |
-| CV | MediaPipe still-image helper, video overlay code, OpenCV.js marker/geometry modules; bounded k-means shadow worker and main-thread contact prototype; isolated synchronous three-ray shadow-shape experiment can be selected independently (new and legacy shadow switches off by default; combined camera behavior unverified) | Complete worker pipeline and validated intentional contact detection (#37, #34); prototype transitions are dispatched independently of diagnostic drawing |
-| Calibration | Prototype flow/completion flag; known defect D6 | Versioned validated result (#87) |
+| CV | Home uses direct CPU reference-relative filtered fingertip proposals and locality4 directional DFS, with OpenCV.js marker acquisition/reference refresh; MediaPipe and older contact methods remain diagnostic/replay code | Complete worker pipeline and validated intentional contact detection (#37, #34); prototype transitions are dispatched independently of diagnostic drawing |
+| Calibration | Three-step settings/lighting/sheet flow; validated version2 sheet-only result, legacy version1 geometry compatibility; no live hand/depth captures | Versioned validated result (#87) |
 | Native audio | C++ PortAudio, nanobind, SPSC queue; ten 100 ms decaying sine hits at 44.1 kHz | Remains a native reference |
 | Browser audio | JavaScript AudioWorklet, ten decaying modal voices, press/session identities, velocity, legacy ADSR compatibility and Audio check page ([details](browser_audio.md)); native engine preserved | Shared event adapter (#86) implemented; ADSR (#27) implemented with user-reported listening pass; live readiness/wiring (#24, #28) |
 | MIDI | Instance-owned note-list recorder with pause/resume and on-demand midi-writer-js export (#108, #115); recording playback transport API (#130), with pause/seek/rate control independent of React ([contract](note_events.md#recording-playback-timeline-130)) | Complete lifecycle verification (#88), export verification (#107), persistence, playback UI (#131/#132), and real-browser playback timing verification |
@@ -96,23 +96,29 @@ occlusion and same-key multi-finger behavior. Relative hand-landmark depth is no
 automatically a calibrated distance from the paper. #29 tunes confidence and
 hysteresis against both accuracy and delay rather than assuming 25 ms debounce.
 
-The current prototype's [live contact controller](../frontend/src/cv/liveContactPipeline.ts)
-provides one `processFrame` entry point for key overlap, knuckle eligibility,
-and shadow checks. Legacy shadow segmentation remains asynchronous. The
-experimental [synchronous shadow detector](../frontend/src/cv/synchronousShadowDetector.ts)
-samples the current frame after the knuckle gate and reports the same-frame
-profile without worker scheduling. The controller owns bounded legacy
-shadow-worker scheduling, per-finger history, gate revisions, and the release watchdog. The overlay owns
-camera/marker geometry, rendering, and note dispatch through controller
-callbacks. Expensive segmentation remains in the worker; this refactor does
-not move hand inference into a worker or establish verified accuracy/latency.
+The home path now uses [the live CPU baseline](../frontend/src/cv/liveShadowBaseline.ts)
+through `CVOverlayCoordinator`, directly reusing the reviewed offline filtered
+mask, plateau/lobe proposals and directional DFS. Key eligibility uses the
+marker transform and white-key polygons before DFS. Full-frame measurements
+and proposals remain on the main thread for the explicitly requested first
+baseline; worker delivery is deferred until baseline measurements exist.
+Every complete marker acquisition/check replaces the coordinate-matched reference
+from that captured frame. Complete markers are assumed to mean no hands.
 
-The contact controller also owns bounded per-finger motion estimators. Recent
-wrist-relative, palm-normalized landmark speed determines note-on velocity;
-velocity is latched at contact onset and forwarded unchanged to the shared
-musical event producer. Invalid/lost sources and session reset clear history.
-This is a motion heuristic, not a force measurement or contact classifier;
-see [mapping and limits](piano_integration.md#finger-speed-velocity).
+Only per-key transitions persist. Rejection, UNKNOWN and missing tips release
+immediately; consecutive accepted frames hold a key without retriggering.
+Velocity is fixed at1.0, with no landmark-derived estimate. Anatomical labels,
+tracking, temporal hysteresis and contact grace periods are deferred. The
+older `LiveContactPipeline`, worker, hand/depth and motion estimators remain
+available to diagnostic replays; they no longer own home playback. See the
+[baseline handoff and limits](cv_shadow_detection_status_and_next_steps.md).
+
+Paused recorded-video diagnostics can retain the current frame's measured DFS
+traces on request. The replay inspector verifies paused pixels and original
+proposal/decision snapshots, uses the saved reference version, and shows mask,
+edge, band, visits, witness paths and rejection/UNKNOWN reasons. Full-frame
+masks and DFS traces are not cached for every replay frame. This diagnostic
+path does not add temporal filtering or change live classifications.
 
 ## Event and clock contract
 
@@ -126,10 +132,10 @@ The configured white-key integration shares accepted events with MIDI and feedba
 readiness is delivered by #24. Contact detection (#34/#29), worker delivery (#37)
 and physical verification (#30/#39) remain pending. See [integration scope](piano_integration.md).
 
-Live hand observations invoke the overlay's contact-frame handler before React
-updates its drawing snapshot. Musical transitions therefore do not depend on
+Fresh decoded camera frames invoke the baseline and dispatch transitions before
+drawing or React updates. Musical transitions therefore do not depend on
 a React commit; synchronous audio still precedes deferred MIDI and feedback.
-Hand inference and contact evaluation remain on the main thread (#37).
+Baseline image processing and contact evaluation remain on the main thread (#37).
 
 Specify ordering, malformed/duplicate events, repeated pitches and same-key
 multi-finger policy. Match releases to presses; a late release for a stolen
@@ -263,6 +269,6 @@ Shared opt-in instrumentation lives in `frontend/src/diagnostics/`, consumed by
 CV, audio and events without importing instrumentation from the CV subsystem.
 Developer visibility switches live in `frontend/src/debugFlags.ts`.
 Outside production, `?dev=1` on the home page skips saved calibration: a
-complete live marker scan plus fresh hand tracking gates playing instead.
+complete live marker scan/reference plus fresh baseline analysis gates playing instead.
 The home calibration tab is disabled in dev mode; open `/` without the flag
 to calibrate.

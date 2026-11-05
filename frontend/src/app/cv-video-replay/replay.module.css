@@ -54,3 +54,15 @@
 .heatmapCanvas { display: block; width: 100%; border-radius: 8px; background: var(--color-well); }
 .heatmapLegend { height: 10px; border-radius: 4px; margin-top: 8px; background: linear-gradient(to right, var(--color-surface-dark), var(--color-blue), var(--color-yellow), var(--color-red)); }
 .legendLabels { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--color-ink-muted); margin-top: 4px; }
+.dfsTiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.dfsTiles[hidden] { display: none; }
+.dfsTiles figure { min-width: 0; margin: 0; }
+.dfsTiles figcaption { font-size: 12px; margin-bottom: 5px; color: var(--color-ink-muted); }
+.dfsTiles canvas { display: block; width: 100%; image-rendering: pixelated; background: var(--color-well); border: 1px solid var(--color-divider); border-radius: 8px; }
+.decision { margin: 12px 0; padding: 12px; border: 1px solid var(--color-divider); border-radius: 8px; background: var(--color-well); }
+.decision strong { font-size: 18px; }
+.decision p { font-size: 13px; margin: 6px 0; }
+@media (max-width: 600px) { .dfsTiles { grid-template-columns: minmax(0, 1fr); } }
+.heatmapCanvas[hidden] { display: none; }
+.sectionHeading label { max-width: 100%; flex-wrap: wrap; }
+.sectionHeading select { min-width: 0; max-width: 100%; }

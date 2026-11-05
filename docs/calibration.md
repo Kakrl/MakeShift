@@ -1,16 +1,17 @@
 # Calibration result and recovery (#87)
 
-Calibration saves `makeshift.calibration.v1` only after detecting all four sheet
-markers and capturing complete hand landmarks in both guided phases. A timer
-schedules a capture; it cannot complete a phase. Failed detection offers retry.
-The legacy `isCalibrated` flag is ignored, and unloading preserves valid data.
+Calibration has three guided steps: keyboard settings, lighting and paper
+alignment. Start Playing rechecks all four markers, camera and layout, saves
+the validated sheet-only result, then navigates home. Home acquires fresh
+reference pixels; no MediaPipe hand or depth capture is required. The legacy
+`isCalibrated` flag is ignored.
 
 Use the [actual-size starter PDF](piano_sheet.md) for the current one-octave
 layout; add extension copies for two or three octaves. Recalibrate when replacing
 the print. Select the playable octave count, starting C and actual assembled
 paper count in step 1. See the [layout contract](piano_sheet.md#marker-and-application-compatibility).
 
-## Version 1 contract
+## Sheet-only version 2 and legacy version 1 contracts
 
 `frontend/src/cv/calibration.ts` owns validation, storage and compatibility.
 The result contains:
@@ -33,20 +34,21 @@ The result contains:
   `makeshift:keyboard-layout:v1` stores the selected configuration. A range
   exceeding declared paper is usable only with an explicit override, which
   extends geometry beyond the paper at the same physical key pitch.
-- Contact input revision `landmark-reference-v1`, with one or two complete
-  21-landmark rest samples. x/y are normalized frame coordinates; z is
-  MediaPipe relative depth, not millimeters or distance from the paper.
-  Finite/in-range validation is required. Older records may include an optional
-  hover sample, which is retained for compatibility but not used at runtime.
-  These are captured reference inputs, not a trained contact classifier.
-  Identical poses are possible and are not proof of contact; intentional-contact
-  inference and thresholds remain #34.
+- Version2 uses contact model `filtered-directional-shadow-v1` and requires no
+  hand landmarks. The storage slot keeps its existing `makeshift.calibration.v1`
+  name; the record's own version selects validation. Version1 records with
+  `landmark-reference-v1` and valid rest samples remain readable for camera,
+  layout and marker compatibility. The current home detector ignores their
+  landmark/depth data.
 
-Calibration has five guided steps: setup, lighting, paper alignment, right-hand
-depth, and left-hand depth. The separate hover countdown is omitted because
-live contact logic does not consume its sample. Each hand's five depth captures
-require that hand to be detected; the final left-hand capture supplies the
-required rest landmarks.
+The calibration completion screen reports sheet readiness; the result is only
+saved when Start Playing succeeds. Its final marker scan rejects sheet movement
+beyond the existing tolerance. Camera/keyboard changes require returning to
+paper alignment. No reference pixels are persisted: the home loop uses the
+same captured frame for complete marker detection and its analysis reference,
+including each successful periodic10-second detection. Complete marker visibility
+is deliberately assumed to mean no hands; this remains an experimental
+assumption. Missed scans keep the previous reference and geometry.
 
 ## Compatibility and interruption
 
@@ -90,33 +92,20 @@ Invalid/unsupported data is never migrated from a boolean or used as readiness.
 The home page links to calibration for recovery. A successful new capture
 replaces corrupt data. Write failure keeps the completion page open, reports
 that browser storage must be enabled, and offers retry through Start Playing.
-The completion action revalidates the current camera and keyboard settings
-against the paper-step snapshot before saving, using the saved sheet corners.
-Calibration has separate right- and left-hand depth steps, each collecting the
-five positions. No separate hover capture is required. The left-hand step's
-final capture creates the primary calibration result using its complete
-rest-hand landmarks. Start Playing saves both fitted depth models and the
-validated primary record before navigating.
-Each hand's final capture checks camera and keyboard settings against the
-snapshot taken during paper alignment, then reuses the saved sheet corners
-without running another marker scan. A settings mismatch keeps the captured
-positions and allows a retry at the center. Other capture errors leave the
-completed positions intact so the current position can be retried. Start Playing
-revalidates the camera and keyboard settings against the paper-step snapshot
-without running another marker scan. The flow retains both fitted depth models
-through the completion screen, with depth rollback if the primary write fails.
-It does not write a legacy completion flag.
-Local/other-tab configuration changes cancel pending captures, clear both saved
-records and retire playing sessions synchronously; old producers cannot adopt a
-new layout or session. A missed marker scan may retain geometry only while its
-saved configuration still matches.
+The completion action revalidates camera/keyboard settings against the
+paper-step snapshot, scans the sheet again, validates the version2 result and
+saves it before navigation. Missing markers, moved geometry and blocked storage
+leave Start Playing available for retry. No companion depth model is written.
+Local/other-tab configuration changes clear saved calibration and retire playing
+sessions synchronously; old producers cannot adopt a new layout or session.
 No silent in-memory fallback claims that a result was saved.
 
 ## Verification limits
 
 See the [inventory](../tests/verification_test_inventory.md) and
-[execution record](../tests/README.md#calibration-verification-issue-87).
-Simulated DOM/camera tests cover workflow and lifecycle. Carl Xu reported successful completion of the manual webcam/printed-sheet
+[current execution record](../tests/README.md#live-shadow-baseline-integration-2026-11-01).
+Simulated DOM/camera tests cover the new workflow and lifecycle. The earlier
+hand-calibration flow had this historical report: Carl Xu reported successful completion of the manual webcam/printed-sheet
 checklist on 2026-09-28; see the [manual report](../tests/manual/2026-09-27_6.2.2.md)
 for the tested scenarios and evidence limits. Browser/device details and the
 exact tested commit were not supplied.

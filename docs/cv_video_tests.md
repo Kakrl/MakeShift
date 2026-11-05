@@ -1,8 +1,128 @@
 # Running CV video tests
 
-This guide covers the current Playwright replay tool. It runs a recorded clip
-through the browser's video decoder, MediaPipe hand detector, ArUco marker
-detector, and the same live contact pipeline used by the app.
+This guide covers the Playwright recorded-video replay tool. The current home
+detector is selected explicitly with `CV_TECHNIQUE=shadow-baseline`. It uses the
+same CPU reference subtraction, filtered fingertip proposals, white-key mapping
+and locality4 DFS as home playback, without MediaPipe or temporal filtering.
+Omitting `CV_TECHNIQUE` keeps the older MediaPipe/contact replay for historical
+comparisons. Do not treat that default legacy replay as a test of the new home
+detector.
+
+## Run the current shadow baseline
+
+From `frontend/`:
+
+```sh
+CV_TECHNIQUE=shadow-baseline CV_DFS_CUTOFF=20 \
+CV_RESULT_DIR=test-results/cv-video/shadow-baseline-cutoff20 \
+npm run test:cv-video:auto
+```
+
+This builds once and runs all four checked-in clips sequentially. Use
+`-- --clip 1` for one clip. Valid DFS cutoffs are5/20/40/60; default20 is an
+experimental baseline, not a validated threshold. A separate result directory
+preserves older reports. The existing paused/manual controls also work with
+this technique; candidate numbers are frame-local spatial IDs, not anatomy or
+tracking identities. Landmark near/forward evidence and the old finger-specific
+inspector assertions belong to legacy techniques.
+
+The baseline uses aspect-preserving analysis with longest side640 pixels,
+validates complete marker geometry, and captures that same decoded frame as
+reference on acquisition and every successful10-second check. Marker misses
+retain reference/geometry. As in home playback, complete markers are assumed
+to mean no hands. A hand present during reference capture can be incorporated
+into the baseline. Raw accepted candidates are unioned per key each frame;
+UNKNOWN, rejection or missing tips contribute no press. No hand/depth model,
+tracking, debounce or hysteresis is used. Sidecar depth captures are ignored
+by this technique (the version1 parser still expects the `depthCaptures` array;
+new baseline-only sidecars may use an empty array).
+
+Reports include the exact detector/cutoff, reference capture frames, per-frame
+anonymous proposals and tri-state decisions, eligible/accepted/UNKNOWN counts,
+active keys and scored press/release transitions. `shadowBaselinePerformance`
+reports `analysisMs` (image read/subtraction/proposals/mapping/DFS) and `totalCvMs`
+(including frame capture, downsampling and marker/reference work), with median,
+p95 and maximum over all reference-available frames, including empty frames.
+Replay throughput also includes seeking and report/UI bookkeeping. The browser
+runner asserts the selected baseline actually analyzed images with a captured
+reference and made no MediaPipe model/inference-WASM requests. Completion is
+not an accuracy pass.
+
+Scores use the existing sidecars unchanged and one-frame matching tolerance.
+Some older labels disagree with the user's newer contact annotations, including
+first-middle onset in clip1; these are exploratory comparisons, not adjudicated
+physical ground truth. Clips are previously inspected development footage, not
+a held-out set. Ordered paused-frame seeking processes every requested frame;
+it does not measure normal-speed dropped frames, camera pipeline behavior,
+audio or physical press-to-sound latency. No under3% error or under50ms claim
+follows from this run. See the [shadow status handoff](cv_shadow_detection_status_and_next_steps.md)
+for current state and the execution record in `tests/README.md` for results.
+
+### Inspect edges, DFS paths and the decision
+
+Use the same manual command:
+
+```sh
+CV_TECHNIQUE=shadow-baseline CV_DFS_CUTOFF=20 \
+CV_HEADFUL=1 CV_MANUAL_STEP=1 \
+CV_RESULT_DIR=test-results/cv-video/manual-shadow-baseline \
+npm run test:cv-video:auto -- --clip 1
+```
+
+Manual baseline replay opens **Shadow DFS inspection**. Pause or step with
+Next/Previous, then select a numbered candidate from the dropdown or table.
+The source overview shows the filtered geometry and all proposals. Four aligned
+zoom panels show source pixels, geometry mask, raw darkening and filtered shadow,
+with the selected candidate's actual measured edge and searches:
+
+- Blue: selected lower/side edge. Purple: allowed locality band, attachment
+  seeds and a-row; dashed box: the shown seed's local width window.
+- Red translucent pixels: downward DFS visits. A red line/endpoint is an actual
+  successful path to the veto row.
+- Green translucent pixels: upward DFS visits. A green line/endpoint is an
+  actual successful path to the support row.
+
+The decision text follows the detector's ordering: any downward witness vetoes;
+otherwise upward support plus available downward evidence can produce PRESS.
+Known lack of upward support produces NO PRESS; unavailable/incomplete geometry
+can remain UNKNOWN. NO PRESS is not independently proven hovering. Off-keyboard
+proposals say EXCLUDED and have no DFS; they cannot activate a key. The table
+shows all four cutoffs. Changing **Inspect DFS cutoff** affects only the display;
+the original scored replay cutoff and result stay visible. The expandable search
+table lists seeds, visited counts, endpoints, width bounds, unavailable pixels
+and band/width caps. Known caps do not become UNKNOWN.
+
+The inspector recomputes detailed paths only while paused using that frame's
+original reference and transform. It checks the displayed pixel fingerprint
+and the original proposals/decisions before showing paths; a mismatch is shown
+explicitly and hides the paths. Cached frames retain their reference version,
+including across a periodic reference replacement. Resume clears the paused
+visuals. Only the current inspection retains full masks/DFS traces; the replay
+history stores small per-frame snapshots and reference images, not all full
+frame masks or paths. Zooms use analysis pixels and add no source detail.
+
+For automated UI verification, set `CV_BASELINE_STEP_CHECK=1` with
+`CV_TECHNIQUE=shadow-baseline` (headless is supported). This checks candidate and
+cutoff selection, actual witness availability, exact five-canvas restoration
+across Previous/Next, mobile fit and clearing on Resume. Optional
+`CV_BASELINE_INSPECT_FRAME` selects the frame to pause near (default110).
+Set `CV_BASELINE_REFERENCE_CHECK=1 CV_BASELINE_INSPECT_FRAME=308` with clip3
+for the reference-boundary check, which also accepts a fresh reference's valid
+empty-proposal state. These diagnostic runs include inspection/UI overhead and
+are not baseline throughput measurements. Local clip1 stepping and clip3
+reference-boundary assertions passed; see [inspector execution](../tests/README.md#paused-shadow-dfs-inspector-2026-11-01).
+
+### Latest local baseline run (2026-11-01)
+
+All four clips completed at cutoff20:1,434 frames, with reference-backed
+analysis on1,402. Presses and releases each scored24 matched /103 extra /21
+missed transitions against the unchanged sidecars (18.9% precision,53.3% recall).
+The replay structural checks passed; this is not an accuracy pass. Pooled
+analysis median/p95/max was34.1/45.8/83.8ms and total CV43.2/56.1/147.4ms;
+ordered replay throughput was15.5FPS. See [the execution record](../tests/README.md#automatic-shadow-baseline-video-replay-2026-11-01)
+for per-clip counts, environment, timing definitions and limitations. Reports
+and hashes are preserved in ignored
+`frontend/test-results/cv-video/shadow-baseline-cutoff20-2026-11-01/`.
 
 ## Make a test case
 
@@ -17,7 +137,7 @@ detector, and the same live contact pipeline used by the app.
 4. Set the keyboard `layoutId` and `startingMidiNote` to match the printed
    sheet. The current replay recognizes layout IDs containing `one`, `two`, or
    `three` to select the octave count.
-5. After doing calibration separately, put the 21 MediaPipe `{x, y, z}`
+5. For legacy MediaPipe techniques, after doing calibration separately, put the 21 MediaPipe `{x, y, z}`
    landmarks at each of the five calibration positions in `depthCaptures`.
    Add captures for either hand you want in the dataset. Do not leave a capture
    empty when running the test.
@@ -107,16 +227,19 @@ knuckle and synchronous-shadow gates, keeps the legacy shadow worker off, and
 captures a same-coordinate background when a complete marker set produces a
 valid homography. Set `CV_TECHNIQUE=synchronous-shadow-no-knuckles` to run the
 synchronous detector with knuckle gating disabled. Omit the variable for the
-existing overlap-only replay.
+existing legacy switches in `cv/liveContactPipeline.ts` (currently the
+Y/shadow press-hysteresis experiment is enabled; knuckle, legacy shadow-worker,
+z-motion and synchronous-profile gates are disabled).
 
 ## Read the report
 
 The replay pauses the video, seeks through frames in order, and advances the
-contact pipeline's clock using video time. It requests the MediaPipe GPU
+contact pipeline's clock using video time. Legacy techniques request the MediaPipe GPU
 delegate and falls back to CPU if GPU initialization fails. The report records
 the selected delegate and WebGL renderer. ArUco detection follows the live
 250 ms acquisition / 10 s recheck cadence, retaining the last usable key
-geometry between scans. The default replay uses overlap-only contact. The
+geometry between scans. The default legacy replay uses `CONTACT_TECHNIQUES`
+from `cv/liveContactPipeline.ts`; inspect those switches when comparing old runs. The
 legacy shadow worker starts only when its switch is enabled and uses replay
 time for asynchronous results. The synchronous-shadow experiments are selected
 with `CV_TECHNIQUE=synchronous-shadow` or
@@ -134,8 +257,8 @@ complete output with `CV_RESULT_FILE` to inspect all frames and transitions.
 
 The current score matches transitions by key and press/release type. Although
 the sidecar records hand and finger, finger attribution is not scored yet. The
-default replay has knuckle and shadow gates disabled. This runner is the fast
-ordered accuracy run. It does
+legacy switches do not apply to `shadow-baseline`. This runner performs an
+ordered recorded-video comparison. It does
 not currently measure normal-speed frame drops or physical press-to-sound
 latency. Check the [full measurement plan](cv_automated_testing.md) before
 interpreting results.
@@ -234,7 +357,8 @@ The PNG/color output is not stored for every frame. References are capped at
 contact-pipeline timing. Headless runs without shadow evidence omit reference
 sampling. Missing references are visibly unavailable. No fingertip locations,
 clusters, or strict dark-pixel masks enter the heatmap calculation. The replay
-itself continues to run its existing MediaPipe/contact evaluation.
+itself runs the selected detector; `shadow-baseline` uses anonymous filtered
+fingertips/DFS, while legacy techniques use MediaPipe/contact evaluation.
 
 The same [subtraction/color interpretation and limits](cv_shadow_heatmap.md)
 apply: finger occlusion is still visible, color shift is ambiguous, and whole

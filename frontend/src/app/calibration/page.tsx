@@ -2,31 +2,19 @@
 
 import { registerCameraVideo } from "../../diagnostics/cameraVideo";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import SideNav from "../SideNav";
 import PageTopBar from "../PageTopBar";
 import { useRouter } from "next/navigation";
 import { useCamera } from "../CameraContext";
 import CameraStatusOverlay from "../CameraStatusOverlay";
-import { useHandLandmarker } from "../useHandLandmarker";
-import DepthCalibrationCapture from "./DepthCalibrationCapture";
 import { rainbow } from "../rainbow";
-import {
-  DEPTH_CALIBRATION_POSITIONS,
-  DEPTH_CALIBRATION_STORAGE_KEY,
-  type CalibrationHand,
-  DepthCalibrationCollector,
-  makeDepthObservation,
-  toPersistedDepthCalibration,
-} from "../../cv/depthCalibration";
-import type { DepthCalibrationModel } from "../../cv/depthCalibration";
 import { MarkerDetector } from "../../cv/markerDetector";
 import { getWhiteKeyPolygons, getPianoCorners } from "../../cv/keyboardGeometry";
 import { paperFits, paperOctaves, startingNotes, usableLayout, type KeyboardLayout } from "../../cv/keyboardLayout";
 import { saveKeyboardLayout, subscribeKeyboardLayout } from "../../lib/keyboardSettings";
 import { useKeyboardLayout } from "../useKeyboardLayout";
-import { DEBUG_FLAGS } from "../../debugFlags";
 import { midiToPitch } from "../../cv/noteMap";
 import { computeHomography, projectPoint } from "../../cv/homography";
 import type { Homography } from "../../cv/homography";
@@ -40,8 +28,8 @@ import {
 } from "../lighting";
 
 import { cameraSignature, markerCorners, compatibleCalibration, validateCalibration, saveCalibration, MARKER_ACQUIRE_INTERVAL_MS, MARKER_CHECK_INTERVAL_MS,
-  validSamples, SHEET_ID, type CalibrationResult, type CameraSignature } from "../../cv/calibration";
-const TOTAL_STEPS = 5;
+  SHEET_ID, type CameraSignature } from "../../cv/calibration";
+const TOTAL_STEPS = 3;
 
 const PAGE_CORNERS: [Point, Point, Point, Point] = [
   { x: 0, y: 0 },
@@ -83,7 +71,7 @@ function SuccessBadge({ label }: { label: string }) {
   );
 }
 
-const STEP_NAMES = ["Setup", "Lighting", "Paper", "Right", "Left"];
+const STEP_NAMES = ["Setup", "Lighting", "Paper"];
 
 function getCalibrationSettingsError(
   captured: { camera: CameraSignature; layout: KeyboardLayout } | null,
@@ -183,11 +171,6 @@ export default function Calibration() {
   // Step 1
   const layout = useKeyboardLayout();
 
-  // Depth calibration step
-  const [hasStarted, setHasStarted] = useState(false);
-  const [depthPositionIndex, setDepthPositionIndex] = useState(0);
-  const [depthCaptureMessage, setDepthCaptureMessage] = useState<string | null>(null);
-  const [depthCaptureBusy, setDepthCaptureBusy] = useState(false);
   const [sheetDetected, setSheetDetected] = useState(false);
   const [markerDetection, setMarkerDetection] =
     useState<MarkerDetectionResult | null>(null);
@@ -213,44 +196,22 @@ export default function Calibration() {
     camera: CameraSignature;
     layout: KeyboardLayout;
   } | null>(null);
-  const resultRef = useRef<CalibrationResult | null>(null);
   const detectorRef = useRef<MarkerDetector | null>(null);
-  const generationRef = useRef(0);
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   useEffect(() => registerCameraVideo(videoRef.current), []);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const sheetDetectionCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const sheetOverlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const { stream, cameraReady } = useCamera();
   const brightnessCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const depthCollectorsRef = useRef<Record<CalibrationHand, DepthCalibrationCollector>>({
-    Right: new DepthCalibrationCollector("Right"),
-    Left: new DepthCalibrationCollector("Left"),
-  });
-  const depthModelsRef = useRef<Partial<Record<CalibrationHand, DepthCalibrationModel>>>({});
-  const {
-    status: landmarkerStatus,
-    detect,
-    reload: reloadLandmarker,
-  } = useHandLandmarker();
 
   useEffect(() => subscribeKeyboardLayout(() => {
     // Covers both local controls and another tab changing settings mid-capture.
-    generationRef.current++;
-    resultRef.current = null;
     calibrationSettingsRef.current = null;
-    depthModelsRef.current = {};
-    depthCollectorsRef.current = {
-      Right: new DepthCalibrationCollector("Right"),
-      Left: new DepthCalibrationCollector("Left"),
-    };
     setStep(1);
     setCorners(null);
     setSheetGeometry(null);
     setSheetDetected(false);
-    setDepthPositionIndex(0);
-    setDepthCaptureBusy(false);
   }), []);
 
   useEffect(() => {
@@ -308,47 +269,16 @@ export default function Calibration() {
     };
   }, [step, cameraReady, frameReady]);
 
-  function resetInteractiveStepState(resetDepth = true) {
-    setHasStarted(false);
-    setDepthPositionIndex(0);
-    setDepthCaptureMessage(null);
-    setDepthCaptureBusy(false);
-    if (resetDepth) {
-      depthModelsRef.current = {};
-      depthCollectorsRef.current = {
-        Right: new DepthCalibrationCollector("Right"),
-        Left: new DepthCalibrationCollector("Left"),
-      };
-    }
+  function resetInteractiveStepState() {
     setShowHelpModal(false);
     setPaperError(false);
     setCaptureError(null);
-    // Drop the previous reading so re-entering step 2 cannot advance on a
-    // stale measurement before the first fresh sample lands.
     setLighting(null);
   }
 
   function goToAdjacentStep(delta: -1 | 1) {
-    generationRef.current++;
-    const targetStep = step + delta;
-    const preserveHandCalibration =
-      (delta === 1 && (step === 4 || step === 5)) ||
-      (delta === -1 && step === 5);
-    if (delta === -1 && targetStep < 4) resultRef.current = null;
-    resetInteractiveStepState(!preserveHandCalibration);
-    if (targetStep === 4 || targetStep === 5) {
-      const hand: CalibrationHand = targetStep === 4 ? "Right" : "Left";
-      const collector = depthCollectorsRef.current[hand];
-      const nextPosition = DEPTH_CALIBRATION_POSITIONS.findIndex(
-        (position) => collector.getSampleCount(position) === 0,
-      );
-      setDepthPositionIndex(
-        nextPosition < 0
-          ? DEPTH_CALIBRATION_POSITIONS.length - 1
-          : nextPosition,
-      );
-    }
-    setStep(targetStep);
+    resetInteractiveStepState();
+    setStep(step + delta);
   }
 
   function changeLayout(patch: Partial<KeyboardLayout>) {
@@ -357,8 +287,6 @@ export default function Calibration() {
     const startingMidi = Math.min(patch.startingMidi ?? layout.startingMidi, starts.at(-1)!);
     const result = saveKeyboardLayout({ ...layout, paperOctaves: paperOctaves(layout),
       paperFitOverride: false, ...patch, octaves, startingMidi, whiteKeys: octaves * 7 + 1 });
-    generationRef.current++;
-    resultRef.current = null;
     calibrationSettingsRef.current = null;
     setCorners(null);
     setSheetGeometry(null);
@@ -389,8 +317,6 @@ export default function Calibration() {
   }, []);
 
   useEffect(() => {
-    generationRef.current++;
-    resultRef.current = null;
     calibrationSettingsRef.current = null;
   }, [stream]);
 
@@ -425,154 +351,8 @@ export default function Calibration() {
     }
   }
 
-  function canvasToImage(canvas: HTMLCanvasElement): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = canvas.toDataURL("image/png");
-    });
-  }
-
-  const capture = useCallback(async function capture() {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    // #13: a 0x0 canvas throws on toDataURL and silently breaks detection
-    if (!video.videoWidth || !video.videoHeight) return;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvasToImage(canvas);
-  }, []);
-
-  const captureDepthPosition = useCallback(async () => {
-    if (depthCaptureBusy) return;
-
-    const hand: CalibrationHand = step === 4 ? "Right" : "Left";
-    const collector = depthCollectorsRef.current[hand];
-    const position = DEPTH_CALIBRATION_POSITIONS[depthPositionIndex];
-    if (!position) return;
-
-    setHasStarted(true);
-    setDepthCaptureBusy(true);
-    setDepthCaptureMessage(null);
-    const generation = generationRef.current;
-    try {
-      const image = await capture();
-      if (generation !== generationRef.current) return;
-      if (!image) {
-        setDepthCaptureMessage("The camera was not ready. Try again.");
-        return;
-      }
-
-      const result = detect(image);
-      if (!result) {
-        setDepthCaptureMessage("Hand detection is unavailable. Try again.");
-        return;
-      }
-
-      const handIndex = (result.handednesses ?? []).findIndex((detectedHand) =>
-        detectedHand[0]?.categoryName?.toLowerCase() === hand.toLowerCase(),
-      );
-      const handLandmarks =
-        handIndex >= 0 ? result.landmarks?.[handIndex] : undefined;
-      if (!handLandmarks) {
-        setDepthCaptureMessage(`${hand} hand not detected. Try again.`);
-        return;
-      }
-      if (!validSamples(result.landmarks)) {
-        setDepthCaptureMessage("Show one or two complete hands, then retry.");
-        return;
-      }
-
-      const fingertipSheetYs = [4, 8, 12, 16, 20]
-        .map((index) => handLandmarks[index]?.y)
-        .filter((value): value is number => value !== undefined);
-      const sheetY =
-        fingertipSheetYs.reduce((sum, value) => sum + value, 0) /
-        fingertipSheetYs.length;
-      const observation = makeDepthObservation(
-        handLandmarks,
-        hand,
-        sheetY,
-        fingertipSheetYs,
-        hand,
-      );
-      if (!observation) {
-        setDepthCaptureMessage("The hand landmarks were incomplete. Try again.");
-        return;
-      }
-
-      const captureResult = collector.capture(
-        position,
-        observation,
-      );
-      if (!captureResult.accepted) {
-        setDepthCaptureMessage(`Only a detected ${hand.toLowerCase()} hand can be captured.`);
-        return;
-      }
-
-      const nextPositionIndex = depthPositionIndex + 1;
-      setDepthPositionIndex(nextPositionIndex);
-      if (collector.isComplete()) {
-        const model = collector.buildModel();
-        if (!model) {
-          setDepthCaptureMessage(
-            "The depth values did not change enough between positions. Try again.",
-          );
-          setDepthPositionIndex(DEPTH_CALIBRATION_POSITIONS.length - 1);
-          return;
-        }
-        const currentCamera = cameraSignature(stream, videoRef.current);
-        if (!currentCamera) {
-          setDepthCaptureMessage(
-            "Camera settings are unavailable. Check the camera connection and try again.",
-          );
-          setDepthPositionIndex(DEPTH_CALIBRATION_POSITIONS.length - 1);
-          return;
-        }
-        const settingsError = getCalibrationSettingsError(
-          calibrationSettingsRef.current,
-          currentCamera,
-          layout,
-        );
-        if (settingsError) {
-          setDepthCaptureMessage(settingsError);
-          setDepthPositionIndex(DEPTH_CALIBRATION_POSITIONS.length - 1);
-          return;
-        }
-        const calibrated = validateCalibration({ version: 1,
-          coordinates: "unmirrored-frame-pixels/marker-unit-square",
-          sheet: SHEET_ID, camera: currentCamera, layout, corners,
-          contact: { model: "landmark-reference-v1", rest: result.landmarks } });
-        if (!calibrated || !compatibleCalibration(calibrated, currentCamera, corners ?? [], layout)) {
-          setDepthCaptureMessage("Calibration references are invalid. Review the paper and try again.");
-          setDepthPositionIndex(DEPTH_CALIBRATION_POSITIONS.length - 1);
-          return;
-        }
-        depthModelsRef.current[hand] = model;
-        if (hand === "Left") resultRef.current = calibrated;
-        setDepthCaptureMessage(`${hand} hand depth calibration captured successfully.`);
-      } else {
-        setDepthCaptureMessage(`${position} position captured.`);
-      }
-    } catch (error) {
-      if (generation === generationRef.current) {
-        if (collector.isComplete()) {
-          setDepthPositionIndex(DEPTH_CALIBRATION_POSITIONS.length - 1);
-        }
-        setDepthCaptureMessage(error instanceof Error ? error.message : "Capture failed. Retry.");
-      }
-    } finally {
-      if (generation === generationRef.current) setDepthCaptureBusy(false);
-    }
-  }, [capture, depthCaptureBusy, depthPositionIndex, detect, corners, layout, stream, step]);
-
   useEffect(() => {
-    if (step !== 3 || !cameraReady || !frameReady) return;
+    if (step !== 3 || !cameraReady || !frameReady || sheetDetectorStatus !== "ready") return;
 
     calibrationSettingsRef.current = null;
     setSheetDetected(false);
@@ -580,7 +360,8 @@ export default function Calibration() {
     setSheetGeometry(null);
     setCorners(null);
     let cancelled = false;
-    let detector: MarkerDetector | null = null;
+    const detector = detectorRef.current;
+    let acquired = false;
     let timeout: number | undefined;
     const canvas =
       sheetDetectionCanvasRef.current ?? document.createElement("canvas");
@@ -588,7 +369,7 @@ export default function Calibration() {
 
     const checkSheet = () => {
       if (cancelled || !detector) return;
-      let nextCheckInterval = MARKER_ACQUIRE_INTERVAL_MS;
+      let nextCheckInterval = acquired ? MARKER_CHECK_INTERVAL_MS : MARKER_ACQUIRE_INTERVAL_MS;
       const video = videoRef.current;
       if (video && video.videoWidth > 0 && video.videoHeight > 0) {
         canvas.width = video.videoWidth;
@@ -596,7 +377,12 @@ export default function Calibration() {
         const context = canvas.getContext("2d");
         if (context) {
           context.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const detection = detector.detect(canvas);
+          let detection: MarkerDetectionResult;
+          try { detection = detector.detect(canvas); } catch {
+            setCaptureError("Could not read the sheet. Check paper to retry.");
+            timeout = window.setTimeout(checkSheet, nextCheckInterval);
+            return;
+          }
           setMarkerDetection(detection);
           if (detection.missingIds.length === 0) {
             nextCheckInterval = MARKER_CHECK_INTERVAL_MS;
@@ -638,6 +424,7 @@ export default function Calibration() {
                       layout: { ...layout },
                     };
                   }
+                  acquired = true;
                   setCorners(observedCorners);
                   setSheetDetected(true);
                   setSheetGeometry({
@@ -654,25 +441,13 @@ export default function Calibration() {
       timeout = window.setTimeout(checkSheet, nextCheckInterval);
     };
 
-    MarkerDetector.create()
-      .then((createdDetector) => {
-        if (cancelled) {
-          createdDetector.dispose();
-          return;
-        }
-        detector = createdDetector;
-        checkSheet();
-      })
-      .catch(() => {
-        if (!cancelled) setSheetDetected(false);
-      });
+    checkSheet();
 
     return () => {
       cancelled = true;
       if (timeout !== undefined) window.clearTimeout(timeout);
-      detector?.dispose();
     };
-  }, [cameraReady, frameReady, step, stream, layout]);
+  }, [cameraReady, frameReady, step, stream, layout, sheetDetectorStatus]);
 
   useEffect(() => {
     const canvas = sheetOverlayCanvasRef.current;
@@ -694,11 +469,11 @@ export default function Calibration() {
     const accent =
       getComputedStyle(document.documentElement)
         .getPropertyValue("--color-accent")
-        .trim() || "#7440a8";
+        .trim() || "var(--color-accent)";
     const white =
       getComputedStyle(document.documentElement)
         .getPropertyValue("--color-white")
-        .trim() || "#ffffff";
+        .trim() || "var(--color-white)";
 
     context.clearRect(0, 0, canvas.width, canvas.height);
     if (sheetGeometry) {
@@ -759,34 +534,21 @@ export default function Calibration() {
         layout,
       );
       if (settingsError) throw new Error(settingsError);
-      const result = resultRef.current;
-      const rightModel = depthModelsRef.current.Right;
-      const leftModel = depthModelsRef.current.Left;
-      if (!result || !rightModel || !leftModel || !compatibleCalibration(result, currentCamera, corners ?? [], layout)) {
-        throw new Error("Calibration changed. Return to calibration and capture again.");
+      const observed = readSheet();
+      if (!compatibleCalibration({
+        version: 2, coordinates: "unmirrored-frame-pixels/marker-unit-square",
+        sheet: SHEET_ID, camera: currentCamera, layout, corners: corners ?? [],
+        contact: { model: "filtered-directional-shadow-v1" },
+      }, observed.camera, observed.corners, layout)) {
+        throw new Error("The camera or sheet moved. Return to Check paper and retry.");
       }
-      const previousDepth = localStorage.getItem(DEPTH_CALIBRATION_STORAGE_KEY);
-      try {
-        localStorage.setItem(DEPTH_CALIBRATION_STORAGE_KEY, JSON.stringify(toPersistedDepthCalibration({ Right: rightModel, Left: leftModel })));
-        if (!saveCalibration(result)) throw new Error("save failed");
-      } catch {
-        // Restore the previous companion model if the primary save failed.
-        try {
-          if (previousDepth === null) localStorage.removeItem(DEPTH_CALIBRATION_STORAGE_KEY);
-          else localStorage.setItem(DEPTH_CALIBRATION_STORAGE_KEY, previousDepth);
-        } catch { /* A blocked storage area remains unusable. */ }
+      const result = validateCalibration({
+        version: 2, coordinates: "unmirrored-frame-pixels/marker-unit-square",
+        sheet: SHEET_ID, camera: currentCamera, layout, corners: observed.corners,
+        contact: { model: "filtered-directional-shadow-v1" },
+      });
+      if (!result || !saveCalibration(result)) {
         throw new Error("Could not save calibration. Enable browser storage and retry.");
-      }
-      if (DEBUG_FLAGS.landmarkersTestGather) {
-        console.info(
-          "MakeShift raw depth calibration landmarks (copy this JSON):",
-          JSON.stringify({
-            schemaVersion: 1,
-            depthCaptures: Object.values(depthCollectorsRef.current).flatMap(
-              (collector) => collector.getRawLandmarkCaptures(),
-            ),
-          }, null, 2),
-        );
       }
       router.push("/");
     } catch (error) { setCaptureError(error instanceof Error ? error.message : "Please retry calibration."); }
@@ -798,14 +560,10 @@ export default function Calibration() {
     if (step === 1) return usableLayout(layout);
     if (step === 2) return lightingOk; // #16
     if (step === 3) return sheetDetected;
-    if (step === 4 || step === 5) return Boolean(depthModelsRef.current[step === 4 ? "Right" : "Left"]);
     return true;
   };
 
   const isComplete = step > TOTAL_STEPS;
-
-  // Depth capture needs a decoded frame and a ready hand detector.
-  const canCapture = cameraReady && frameReady && landmarkerStatus === "ready";
 
   // Counting down right now?
   const showPreviousStep = !isComplete && step > 1;
@@ -892,36 +650,6 @@ export default function Calibration() {
       );
     }
 
-    // ── Step 4: depth capture ──
-    if (step === 4 || step === 5) {
-      const hand: CalibrationHand = step === 4 ? "Right" : "Left";
-      const handComplete = Boolean(depthModelsRef.current[hand]);
-      return (
-        <>
-          {/* Instruction pill, before the first capture */}
-          {!hasStarted && !handComplete && (
-            <div className="ms-pill absolute top-[35%] left-1/2 -translate-x-1/2 max-w-[92%] w-max pointer-events-none">
-              <span>{hand} hand on each corner and the middle</span>
-            </div>
-          )}
-
-          {/* Success overlay */}
-          {handComplete && (
-            <div className="absolute inset-0 flex flex-col items-center justify-start pt-[14%] gap-3 pointer-events-none">
-              <div className="ms-pill gap-3 px-6 py-3">
-                <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="var(--color-success)"/><path d="M8 14L11.5 18L20 10" stroke="var(--color-white)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                <span className="font-display text-[24px] sm:text-[28px] font-bold tracking-tight">Success!</span>
-              </div>
-              <p className="ms-pill py-1.5 text-[14px]">Press Next Step to continue</p>
-            </div>
-          )}
-
-          {/* Help button */}
-          <button onClick={() => setShowHelpModal(true)} aria-label="Show help" className="ms-key ms-key-icon absolute bottom-4 right-4 z-20 text-[17px] font-bold">?</button>
-        </>
-      );
-    }
-
     return null;
   };
 
@@ -931,10 +659,8 @@ export default function Calibration() {
     return (
       <div className="ms-backdrop absolute inset-0 z-50 flex items-center justify-center">
         <div className="ms-dialog relative w-[88%] max-w-[640px] overflow-hidden rounded-[18px]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/hand-reference.png" alt="Hand positioning reference" className="w-full block" style={{ aspectRatio: "16/9", objectFit: "cover" }} />
           <div className="px-5 py-3.5 flex items-center justify-between">
-            <p className="text-ink text-[15px] font-medium">Put your hands like this</p>
+            <p className="text-ink text-[15px] font-medium">Keep the sheet flat with all four markers visible</p>
           </div>
           <button onClick={() => setShowHelpModal(false)} aria-label="Close" className="ms-key ms-key-glass ms-key-icon absolute top-3 right-3 size-9 rounded-full">
             <svg aria-hidden="true" width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" /></svg>
@@ -949,7 +675,6 @@ export default function Calibration() {
   // moving between steps, or a badge or message appearing, never shifts the
   // layout below.
   const restartCalibration = () => {
-    generationRef.current++; resultRef.current = null;
     setCorners(null); resetInteractiveStepState(); setStep(1);
   };
 
@@ -959,7 +684,7 @@ export default function Calibration() {
         title: "All set! Don't move the camera or paper.",
         controls: (
           <>
-            <SuccessBadge label="Calibration saved" />
+            <SuccessBadge label="Sheet ready" />
             <button className="ms-key" onClick={restartCalibration}>Restart calibration</button>
           </>
         ),
@@ -1048,49 +773,12 @@ export default function Calibration() {
       };
     }
 
-    if (step === 4 || step === 5) {
-      const hand: CalibrationHand = step === 4 ? "Right" : "Left";
-      const handComplete = Boolean(depthModelsRef.current[hand]);
-      return {
-        title: `Step ${step}: Calibrate the ${hand.toLowerCase()} hand`,
-        controls: handComplete ? (
-          <SuccessBadge label={`${hand} hand calibrated!`} />
-        ) : depthPositionIndex < DEPTH_CALIBRATION_POSITIONS.length ? (
-          <>
-            {landmarkerStatus === "error" ? (
-              <div className="flex flex-col items-start gap-2">
-                <p role="alert" className="text-danger">
-                  Hand detector unavailable. Reload to retry.
-                </p>
-                <button
-                  onClick={reloadLandmarker}
-                  className="ms-key ms-key-ghost px-5"
-                >
-                  Reload hand detector
-                </button>
-              </div>
-            ) : null}
-            <DepthCalibrationCapture
-              position={DEPTH_CALIBRATION_POSITIONS[depthPositionIndex]}
-              hand={hand}
-              sampleCount={depthCollectorsRef.current[hand].getSampleCount(
-                DEPTH_CALIBRATION_POSITIONS[depthPositionIndex],
-              )}
-              disabled={depthCaptureBusy || !canCapture}
-              onCapture={captureDepthPosition}
-            />
-          </>
-        ) : null,
-        status: depthCaptureMessage,
-      };
-    }
-
     return { title: "", controls: null };
   };
 
   // The data attributes let the deployment smoke test wait for detectors.
   return (
-    <div className="flex-1 bg-surface flex flex-col" data-hand-detection={landmarkerStatus} data-sheet-detector={sheetDetectorStatus}>
+    <div className="flex-1 bg-surface flex flex-col" data-sheet-detector={sheetDetectorStatus}>
       {/* Stepper: top of the page, as wide as the camera */}
       <PageTopBar>
         <div className="px-1">
@@ -1103,7 +791,6 @@ export default function Calibration() {
         {/* Camera */}
         <div className="ms-stage w-full lg:w-auto lg:flex-1 lg:self-start aspect-video bg-surface-dark relative overflow-hidden">
           <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" />
-          <canvas ref={canvasRef} className="hidden" />
           <canvas
             ref={sheetOverlayCanvasRef}
             className="absolute inset-0 z-10 h-full w-full object-cover scale-x-[-1] pointer-events-none"

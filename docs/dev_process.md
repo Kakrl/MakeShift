@@ -64,6 +64,7 @@ MakeShift/
 │   │   └── models/                  # MediaPipe hand landmarker model
 │   ├── src/
 │   │   ├── app/
+│   │   │   ├── cv-video-replay/     # recorded replay, cached frames, paused DFS path inspector
 │   │   │   ├── cv-shadow-test/      # image/video heatmaps, patch collection and source-anchored shadow bands
 │   │   │   ├── cv-image-test/       # labeled still-image shadow diagnostics
 │   │   │   ├── api/health/          # recordings database health route
@@ -89,6 +90,8 @@ MakeShift/
 │   │   │   └── useHandLandmarker.ts
 │   │   ├── cv/                      # ArUco detection, homography, key geometry
 │   │   │   ├── keyboardLayout.ts    # octave/start/paper dimensions and validation
+│   │   │   ├── liveShadowBaseline.ts # current CPU filtered-tip/DFS baseline and per-key transitions
+│   │   │   ├── shadowBaselineDiagnostics.ts # paused-pixel integrity, snapshots and DFS decision explanations
 │   │   │   ├── contactPipeline.ts    # individual overlap, knuckle, and shadow checks
 │   │   │   ├── liveContactPipeline.ts # controller: eligibility, shadow worker/history, releases
 │   │   │   ├── combinedContact.ts    # contact state/gate types and timing constants
@@ -123,6 +126,7 @@ MakeShift/
 │   ├── frontend/
 │   │   ├── cvImageCases.browser.mjs # Playwright runner for labeled still-image CV cases
 │   │   ├── fingertipCandidates.experiment.mjs # offline legacy/filtered source-mask-tip galleries (not accuracy verification)
+│   │   ├── liveShadowBaseline.test.ts # live filtered-tip/DFS, key transitions and sheet-only schema
 │   │   ├── fingertipCandidates.test.ts # synthetic mask/plateau/local-lobe and shadow regressions
 │   │   ├── shadowHypothesis.experiment.mjs # cached index/middle static shadow comparison
 │   │   ├── shadowDirectional.experiment.mjs # strict-fan, edge-region and bounded directional DFS galleries

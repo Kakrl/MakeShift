@@ -603,7 +603,6 @@ export default function Home() {
           <CVOverlayCoordinator
             session={session}
             videoRef={videoRef}
-            enabled={canPlay && liveStatus.state === "playing"}
             activePitches={activePitches}
           />
           <CameraStatusOverlay />
@@ -659,7 +658,7 @@ export default function Home() {
             </div>
           )}
 
-          {!canPlay && devMode && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Dev mode: show all four sheet markers and your hands to play.</span></p>}
+          {!canPlay && devMode && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Dev mode: show all four sheet markers to capture a reference and play.</span></p>}
           {!canPlay && !devMode && isCalibrated === true && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Show the calibrated sheet and camera, or <a href="/calibration" className="underline underline-offset-2 font-medium">calibrate again</a>. Saved data is checked before playing.</span></p>}
         </div>
 

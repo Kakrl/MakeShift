@@ -1,5 +1,157 @@
 # MakeShift Testing
 
+## Native C++ KNN comparison (2026-11-04)
+
+Run `./build/mog2/knn_images` after the existing standalone build. It uses the
+same Conan OpenCV4.12.0 dependency and image exporter, saving a separate gallery
+under ignored `backend/test-results/knn/`. The original MOG2 output is preserved.
+Both executables support `--method=mog2|knn`; summary schema2 records the method
+and method-specific settings. See [initialization and limits](../docs/cv_mog2_experiment.md#knn-initialization-and-independent-cases).
+
+KNN uses120 repeated empty-reference warmup calls per independent case, requested
+learning rate0.1, seed1, distance-squared threshold400, shadow threshold0.5,
+seven samples per scale and two matches. A new model is trained for each image;
+the evaluated image's updates are discarded. CPU OpenCV4.12 classifies each
+pixel before updating its samples. This avoids KNN's zero-rate update-period
+calculation and cross-case contamination without claiming a persistent model
+is frozen. Repeating a still does not teach real camera noise. Preparation and
+classification durations are separately reported; rebuilding is not a live
+pipeline or performance recommendation. No Otsu or morphology is applied.
+
+Local AppleClang15 Release build and CTest2/2 passed (four existing MOG2 groups,
+five KNN groups). `tests/cv/test_knn.cpp` covers initialized black/dark/bright
+self-reference, three labels and below-tau foreground, 80 repeated independent
+cases, caller RNG restoration/external-RNG independence, case-order and
+input/reference mutation safety, distance tolerance, invalid types/sizes/
+thresholds and recovery. These checks establish API behavior, not contact truth.
+
+All19 existing cases plus reference completed at640x427 with zero errors and
+80 PNGs. Local checks verified source pairing with MOG2, per-category totals,
+output existence, background self-check, refusal to overwrite an existing run,
+dimension/unreadable errors and invalid method/distance/max-side settings.
+KNN preparation totaled about10.1s across20 cases; software timing includes
+reference rebuilding and is not physical latency. MOG2 rerun in ignored
+`backend/test-results/mog2-knn-regression-2026-11-04/` matched all20 original
+category totals and all60 raw mask PNGs byte-for-byte.
+
+KNN004/008/009/012 were visually compared with preserved MOG2 cards. Paper
+areas show less speckling at these defaults, but noisy table/background regions
+and shadow-boundary ambiguity remain. This is qualitative review of four
+cards, not a validated pixel/contact accuracy improvement; the other16 KNN
+cards were exported but not individually visually reviewed. All model evidence
+comes from the same existing development images. No adjudicated contact
+separation, real-video noise learning, held-out robustness, physical latency,
+frontend or Actions pass is claimed. Changed C++ formatting passed with the
+installed clang-format20.1.7; exact required version17 remains unavailable.
+The prior native-audio nanobind configuration limitation remains unchanged.
+
+## Native C++ MOG2 experiment (2026-11-04)
+
+Build/run instructions: [Conan/CMake image experiment](../docs/cv_mog2_experiment.md).
+The independent `backend/src/CV/` project leaves the browser and audio builds
+unchanged. `tests/cv/test_mog2.cpp` runs four regression groups through CTest:
+self-reference is background; proportional darkening/color change/too-dark
+pixels retain the documented three labels; 600 repeated held frames and an
+intervening case do not alter classification, including caller reference/input
+mutation safety; invalid types/sizes/settings are rejected without resetting
+the model. These are synthetic behavior checks, not semantic/contact accuracy.
+
+Local execution on macOS arm64 / AppleClang 15 / Conan 2.25.2 / OpenCV 4.12.0:
+Conan installed codec dependencies and built the reduced static OpenCV package;
+Release CMake build passed; CTest passed 1/1 with all four regression groups.
+The frozen-reference exporter processed 19 cases plus the empty-reference
+self-check at640x427, with zero errors and80 PNGs. Report rows, output files,
+per-frame category totals and zero foreground/shadow self-check were checked.
+A repeated run correctly refused to overwrite existing results; its summary
+remained byte-identical. Local unreadable/dimension-mismatch fixtures produced
+two reported errors and exit1 while the valid reference still completed;
+negative max-side was rejected. Gallery009 was visually reviewed. It exposes
+possible shadows and broad foreground changes; this is not validation of
+skin/shadow ownership or contact. Other19 cards were not individually reviewed.
+
+Evidence: ignored `backend/test-results/mog2/` (`index.html`, `summary.json`,
+four PNGs per image), with synthetic exporter-error evidence under ignored
+`build/mog2/invalid-cases-*-results/`. Source image paths are recorded, not hashes.
+The previous browser galleries and source images remain untouched.
+
+Ruff and mypy passed; Python suite25 passed/one skipped. The installed
+clang-format20.1.7 check passed on changed C++ files; the repository's requested
+clang-format17 was unavailable, so exact version17 formatting remains pending.
+The full existing native audio configure was attempted separately in
+`build/native-audio-check/` and stopped because its selected Python lacked
+nanobind; its build/CTest could not run. No frontend, Actions, physical-contact
+accuracy, physical latency, Otsu or WebAssembly verification is claimed.
+
+## Shadow image label cleanup (2026-11-04)
+
+The image exporter now places candidate numbers and analysis coordinates in
+the bottom table, with circles on the source panel only. Raw darkening,
+geometry and filtered-shadow panels have no candidate circles or labels.
+Regenerated20 images with zero errors; all59 candidate coordinates and decisions
+at every exported cutoff match the preserved prior summary. The009 PNG was
+visually reviewed; exporter lint passed. Previous output is preserved under
+ignored `frontend/test-results/shadow-images-before-label-removal-2026-11-04/`.
+Detector code is unchanged; no application suites or new Actions run claimed.
+
+## Standalone shadow image reports (2026-11-03)
+
+Run `cd frontend && npm run test:shadow-images`; see the
+[image guide](../docs/cv_image_tests.md#current-shadow-detector-one-command-image-reports).
+`tests/frontend/runShadowImages.mjs` directly loads current TypeScript CV routines
+in installed Chrome, without a server or models. It exports numbered four-panel
+PNGs, an HTML table, simple `results.txt`, compact `summary.json` and separate
+all-cutoff `details.json` into ignored
+`frontend/test-results/shadow-images/`. Uses current shared margin9/width5 DFS,
+c=d=e=4, fixed geometry filter, default cutoff20 and all four comparison cutoffs.
+Current output reuses `detectShadowBaseline` for marker-projected key eligibility
+before DFS. Only eligible anonymous proposals are displayed; there is no accuracy
+scoring against filename labels. UNKNOWN and no-candidate cases stay explicit.
+The consolidated output now embeds a20/40/60 luma decision table at the bottom
+of every PNG; HTML, text and compact JSON also include all three in one run.
+Marker colors retain the selected-cutoff convention (default20). Summary schema
+is version3 with marker geometry and excluded counts; cutoff5 and veto/support details remain in `details.json`.
+Consolidation check: regenerated20 images with zero errors; all138 candidates
+were checked for20/40/60 agreement between compact/full JSON, text and HTML,
+and PNG heights were checked against table row counts. The mixed-decision
+hover-index189 PNG was visually reviewed. Exporter lint and changed-file
+whitespace checks passed. Detector code was unchanged; the full application
+checks below belong to the initial runner implementation.
+
+Eligibility-filter execution:20 images completed with zero errors;79 proposals
+outside the projected virtual keys were excluded before DFS, leaving59
+(18 PRESS /38 NO PRESS /3 UNKNOWN at20). Installed OpenCV.js supplies the
+background marker detection; default layout is one octave/eight white keys.
+Blue key outlines were reviewed on the index148 PNG. Candidate IDs retain
+their original numbers. Missing/invalid background markers stop the run
+before replacing previous output. Earlier counts below predate eligibility.
+All59 retained tip positions were checked against their projected key polygons;
+all20/40/60 decisions matched across compact/full JSON and text/HTML. Exporter
+lint passed and72 existing baseline/calibration/DFS tests passed, including
+off-keyboard rejection before DFS. No classifier or live runtime source changed;
+full-application results below are from the initial runner implementation.
+
+Local execution: two complete31-image runs yielded138 candidates over19 matching
+cases, plus a zero-candidate background self-check:27 PRESS /63 NO PRESS /
+48 UNKNOWN at20. Eleven numbered middle crops differ from the1620x1080
+background and correctly appear as resolution errors with exit1 while valid
+cases finish. After the user moved those crops out, the final run completed
+20 images (19 cases plus background), with the same138 candidates, no errors
+and exit0. The final index148 card was visually inspected; other final cards
+were not individually reviewed. Local checks verified JSON/text decisions,
+counts and PNG links, plus replacement of old output after the file move.
+Lint (three existing image warnings), TypeScript and39 contrast checks passed.
+Full Vitest:669 passed / two existing failures in the legacy velocity onset and
+synchronous-contact fixtures. Production build passed after retrying outside
+the sandbox to fetch the configured Google Fonts. No new Actions or physical-contact/latency result is claimed.
+The existing app's camera/audio browser suites were not rerun for this standalone
+exporter; its own real-image Chrome execution exercises the changed path.
+
+Old loose image galleries/caches were consolidated into
+`frontend/test-results/_archive/legacy-image-results-2026-11-03.tar.gz`;
+historical evidence links into those directories require restoration from it.
+Original case images and `cv-video/` evidence are preserved. The new runner
+reads only current case files and background, so it is independent of that archive.
+
 ## Plateau and local lobe correction (2026-11-01)
 
 Final review: the user said the replacement images look good and requested a
@@ -862,7 +1014,9 @@ package dependencies. Bare imports used by tests, including any module passed
 to `vi.mock`, need an alias there because `tests/` has no `node_modules`. Add a
 `// @vitest-environment jsdom` comment to tests that render components. The frontend TypeScript and ESLint commands also include
 that directory. Keep frontend dependencies and tool configuration in `frontend/`,
-C++ build definitions in `backend/CMakeLists.txt`, and CI workflows in `.github/`.
+C++ build definitions in `backend/CMakeLists.txt` (the optional native MOG2/KNN
+experiments use `backend/src/CV/CMakeLists.txt` and `conanfile.py`), and CI
+workflows in `.github/`.
 Python's default recursive discovery finds `tests/python/` without extra config.
 No test implementation requires an exception to this layout.
 
@@ -899,8 +1053,10 @@ per-clip reports plus a combined summary under
 `frontend/test-results/cv-video/`. Pass `-- --clip 2` to run just one clip.
 For custom clips, start the production app and run
 `CV_VIDEO_FILE=/path/clip.mp4 CV_SIDECAR_FILE=/path/clip.json npm run test:cv-video`.
-The Playwright harness at `/cv-video-replay` uses the browser's video decoder,
-MediaPipe hand landmarker, ArUco marker detector and live contact pipeline.
+The Playwright harness at `/cv-video-replay` uses the browser's video decoder
+and ArUco marker detector. Set `CV_TECHNIQUE=shadow-baseline` for the current
+home CPU detector with no hand inference; omitting it retains the legacy
+MediaPipe/contact pipeline. See [the current command and limits](../docs/cv_video_tests.md#run-the-current-shadow-baseline).
 It steps through the clip while paused, preserves frame order, scores
 transitions, and reports every transition plus per-frame stage timings. It
 requests MediaPipe's GPU delegate and falls back to CPU if unavailable. Marker
@@ -1367,6 +1523,8 @@ defect report is filed.
 | D21 | High | Calibration | (Req 6.2, 1.1, 2.1) #148 replaced the reachable result capture with depth buttons and navigated before validation/save. Final depth capture now creates the primary result; completion retains its model and saves both records before navigation. 6.2.3's expected failures are restored as passing regressions. | `frontend/src/app/calibration/page.tsx` | [#162](https://github.com/Kakrl/MakeShift/issues/162) | Fix verified locally 2026-10-06; review/merge and physical check pending |
 
 | D23 | Medium | Audio | (Req 2.4, related 2.2) User reports high-velocity strikes are not loud enough and wants more apparent velocity dynamics. Listening report 2026-10-14; cause and hardware verification pending. | `frontend/src/cv/fingerVelocity.ts`, `frontend/public/audio/synth.js` | [#209](https://github.com/Kakrl/MakeShift/issues/209) | DSP tuning implemented locally; [verification and listening limits](manual/2026-10-14_209-velocity.md); user confirmed audible velocity changes locally 2026-10-14; measured trials/chord distortion checks pending |
+| D24 | Medium | CV reference | Complete marker visibility allowed hands near keys to enter the background and replaced geometry during occupied frames. | `frontend/src/app/CVOverlayCoordinator.tsx`, baseline replay | User-deferred issue tracking | Hand-presence gate implemented locally; synthetic regressions passed; recorded/browser and physical verification status in [execution record](#sheet-reference-hand-presence-guard-2026-11-01) |
+| D25 | Medium | CV / locality | Clip1 frame94 candidate4 accepts despite a compatible monotone path to the veto row: radius4 band blocks the final step; its forward extension only covers globally lowest arc pixels. | `frontend/src/cv/shadowTipEvidence.ts:393` | User-deferred issue tracking | Original Y cap removed; per-point both-target exclusion implemented locally, but frame94 remains PRESS; [current verification](#paired-dfs-and-x-only-locality-2026-11-02); [frame investigation](#clip1-frame94-candidate4-locality-investigation-2026-11-01) |
 
 ## Root Cause Analysis Log
 
@@ -2370,3 +2528,414 @@ correctly preserves unavailable/censored evidence rather than reporting zero
 or a press. Results and conditions are in the
 [status document](../docs/cv_shadow_detection_status_and_next_steps.md#shadow-band-measurement-pilot-2026-10-28).
 Physical accuracy/latency and GitHub Actions evidence remain pending.
+
+
+## Live shadow baseline integration (2026-11-01)
+
+Home now runs the direct CPU filtered-geometry → automatic-tip → calibrated
+white-key eligibility → locality4 directional DFS baseline. Default cutoff20
+is selectable among5/20/40/60. Every complete marker acquisition/periodic check
+replaces the reference from that same captured frame; missed scans retain the
+reference and10-second cadence. Complete markers are assumed to mean no hands.
+Calibration now saves a version2 sheet-only result after settings, lighting and
+paper; legacy version1 records remain readable for geometry compatibility.
+
+Current tests:
+
+- `liveShadowBaseline.test.ts`: six real synthetic-pixel/geometry/DFS, transition
+  and schema regressions. No model or hand landmarks enter the detector.
+- `calibrationWorkflow.test.tsx`: replaced obsolete depth-capture expectations
+  with three-step save/retry, missing markers, changed camera, blocked storage,
+  layouts/override and local/other-tab invalidation. Its MediaPipe hook mock
+  throws if invoked. The marker detector and camera are mocked.
+- `recordingControls.test.tsx`: frame decisions are deterministic mocks; the
+  actual coordinator, note producer/session, recorder and UI run together.
+  Fixed maximum velocity replaces motion-velocity expectations. Frame-loss
+  coverage now executes (previously skipped). Added periodic reference
+  replacement/miss retention and duplicate-decoded-frame checks. These26 cases
+  verify lifecycle/wiring, not real image classification or physical sound.
+- `deployment.browser.mjs`: home/calibration now wait for the actual sheet
+  detector instead of MediaPipe; production worklet/DSP asset checks remain.
+  MediaPipe model assets are no longer required by these routes.
+
+Local execution on macOS / Apple Silicon, Node24.2.0, Vitest4.1.11:
+
+- Focused current baseline/workflow/recording suite: **44 passed**.
+- Full Vitest: **647 passed / two failed**,39 files. Remaining failures are the
+  existing legacy `fingerVelocity.test.ts` onset-latch fixture and
+  `synchronousShadowPipeline.test.ts` contact-profile fixture, previously
+  documented in the plateau/lobe record. Recording fixture failures were
+  reconciled to the new detector; no legacy detector tuning was performed.
+- ESLint passed with the three existing image warnings in `cv-image-test`;
+  TypeScript passed; all39 contrast checks passed; production build passed.
+  The final sandboxed build stalled and was interrupted; the final build
+  outside the sandbox passed.
+- Production server on `http://127.0.0.1:3107`, installed Chrome156.0.8078.75:
+  deployment smoke passed (five routes, sheet initialization, two audio assets,
+  three offline-note rounds, denial/retry/disconnection/recovery; database
+  unconfigured). Keyboard-layout browser checks passed. Audio browser graph
+  checks passed, including nonzero soft/loud output, suspension recovery and
+  navigation cleanup. Bundled Chromium was unavailable; installed Chrome was
+  used outside the sandbox after sandboxed Chrome launch was blocked.
+
+No new Actions execution, physical camera/contact accuracy, human listening,
+held-out video accuracy, full-frame timing distribution or physical latency is
+claimed. The user will collect the first live baseline measurements; only then
+compare a lean worker under equivalent conditions. Preserve ignored galleries,
+native caches and old/new comparison snapshots. Issue tracking is deferred at
+the user's request.
+
+
+## Automatic shadow baseline video replay (2026-11-01)
+
+The replay page and browser runner now support explicit
+`CV_TECHNIQUE=shadow-baseline`, calling the same `detectShadowBaseline` used
+by home playback. This path skips MediaPipe initialization and depth-model
+construction, analyzes coordinate-matched images with the reviewed filtered
+proposals and locality4 DFS, and unions raw accepted keys without temporal
+filtering. Complete marker detection replaces the reference at acquisition
+and every successful10-second check; markers are assumed to imply no hands.
+The default legacy replay remains available for historical comparisons.
+
+Run all four clips from `frontend/`:
+
+```sh
+CV_TECHNIQUE=shadow-baseline CV_DFS_CUTOFF=20 \
+CV_RESULT_DIR=test-results/cv-video/shadow-baseline-cutoff20-2026-11-01 \
+npm run test:cv-video:auto
+```
+
+The runner asserts selected detector/cutoff, actual reference-backed image
+analysis, per-frame report coverage and no MediaPipe model/inference-WASM
+requests. Output includes reference capture frames, anonymous proposals with
+eligibility and PRESS/NO PRESS/UNKNOWN decisions, active keys, transitions and
+one-to-one sidecar scoring. Analysis and total-CV timing distributions are
+separate from ordered replay throughput. Reports are saved separately from
+older runs; `run.log` contains build/progress/full reports.
+
+Local execution completed on macOS13.5 arm64, Google Chrome156.0.8078.75,
+Node24.2.0; the renderer identifies Apple M2. The detector used CPU image
+measurements and no MediaPipe delegate/model. The production build passed and
+all four browser replays completed their structural assertions without browser
+errors. No unit/build/browser-smoke checks ran concurrently with replay timing.
+
+| Clip | Frames | Press TP / FP / FN | Release TP / FP / FN | Analysis median / p95 / max (ms) | Total CV median / p95 / max (ms) |
+| :--- | ---: | :--- | :--- | :--- | :--- |
+| 1 | 288 | 4 / 21 / 4 | 6 / 19 / 2 | 34.4 / 45.2 / 60.6 | 43.5 / 54.7 / 147.4 |
+| 2 | 381 | 7 / 33 / 9 | 6 / 34 / 10 | 34.1 / 49.3 / 83.8 | 43.0 / 60.0 / 141.2 |
+| 3 | 388 | 7 / 7 / 6 | 7 / 7 / 6 | 28.7 / 39.1 / 53.1 | 36.2 / 48.1 / 139.9 |
+| 4 | 377 | 6 / 42 / 2 | 5 / 43 / 3 | 36.0 / 46.2 / 64.4 | 45.6 / 56.5 / 119.6 |
+
+Across1,434 requested frames, presses and releases each scored **24 TP /103 FP
+/21 FN**, **18.9% precision /53.3% recall** against45 labeled notes. There were
+254 predicted transitions. These are separate press/release matching metrics,
+not the RVTM combined-error measure. All clips first captured a complete-marker
+reference at frame8 (266.7ms). Clip3 refreshed again at308 (10,266.7ms); other
+periodic scans did not produce a new complete reference. Analysis was available
+on1,402 frames; the32 initial frames without references emitted no active keys.
+There were6,564 anonymous proposals,2,156 eligible,436 accepted and169 eligible
+UNKNOWN proposal observations (counts across frames, not independent fingers).
+
+Pooled across those1,402 analyzed frames: analysis median34.1ms /p95 45.8ms
+/max83.8ms; total-CV median43.2ms /p95 56.1ms /max147.4ms. Total-CV includes
+frame capture/downsampling and marker/reference work in this replay harness;
+analysis timing includes image reads/subtraction/proposals/mapping/DFS. Seeking
+and UI/report work affect replay throughput (**15.5FPS**,92.4s elapsed), outside
+the CV-stage distributions. These measurements are not live camera FPS or audio
+latency. Full reports, summary and log are preserved in ignored
+`frontend/test-results/cv-video/shadow-baseline-cutoff20-2026-11-01/`;
+`run-analysis.json` records pooled distributions, environment and report/source
+SHA-256 hashes. Legacy reports and offline galleries were not overwritten.
+
+Post-run frontend checks: ESLint passed with the three existing image warnings;
+TypeScript passed; Vitest647 passed/two existing failures (legacy velocity onset
+and synchronous-shadow fixtures); all39 contrast checks passed. The automatic
+runner's production build passed. Deployment/camera recovery, keyboard-layout
+and audio graph browser checks all passed against that build in installed
+Chrome. The legacy MediaPipe replay branch and its manual inspector assertions
+were not rerun in this baseline experiment. No new CI execution is claimed.
+Sidecars remain unchanged despite known disagreements with newer user
+annotations. These clips are previously inspected development footage. Scores
+are exploratory, and every requested paused-seek frame is processed: this does
+not measure live frame dropping, camera-to-audio timing or physical accuracy.
+No threshold tuning, offline gallery rewrite or new Actions run is included.
+
+
+## Paused shadow DFS inspector (2026-11-01)
+
+Manual `shadow-baseline` replay now opens Shadow DFS inspection. A source
+geometry/proposal overview and four aligned zooms (source, geometry, raw darkening,
+filtered shadow) show the selected lower/side edge, locality band, attachment
+seeds, visited pixels, a/support/veto rows, local width window and actual
+successful downward/upward witness paths. A candidate table reports every
+cutoff; selecting an inspection cutoff does not change the original scored
+cutoff or key decisions. Explanations preserve downward-veto priority, known
+lack of upward support, UNKNOWN/incomplete evidence and keyboard exclusion.
+NO PRESS is detector rejection, not independent hover ground truth.
+
+The live baseline can optionally retain already-computed diagnostics; its
+normal path retains no masks/DFS traces. Replay inspection recomputes details
+only for the current paused frame, compares its pixel fingerprint and proposal/
+decision snapshot with the originally processed frame, and uses that frame's
+stored reference version and transform. Differences hide paths with an explicit
+message. History does not retain full masks or DFS traces for every frame.
+Changing selection or cutoff redraws the same inspected data; Resume clears it.
+
+Ten `liveShadowBaseline.test.ts` cases now include four new regressions:
+optional traces preserve proposals/key decisions; actual downward veto still
+wins over upward support with a real path endpoint; known absent support versus
+incomplete geometry/exclusion stays distinct; fingerprints include pixels and
+coordinate dimensions without input mutation. Focused execution:10 passed.
+
+The browser runner adds `CV_BASELINE_STEP_CHECK=1` (with
+`CV_TECHNIQUE=shadow-baseline`) for paused candidate/cutoff selection, successful
+witness availability, exact five-canvas and decision restoration on cached
+Previous/Next, desktop/mobile screenshots, no390px horizontal overflow and
+clearing on Resume. Optional `CV_BASELINE_INSPECT_FRAME` selects the pause target.
+`CV_BASELINE_REFERENCE_CHECK=1` permits an empty-proposal reference-refresh
+frame and additionally navigates across its reference-version boundary and
+back, checking restored canvases. These inspector runs include manual/UI
+processing and are not baseline throughput measurements.
+
+Local execution: clip1 completed288 frames with the inspector assertions;
+Desktop/mobile screenshots around frames110–111 were visually reviewed. Original
+pixel/proposal matching, a real support path, cutoff restoration, identical
+five-canvas restoration, mobile fit and Resume clearing passed. Artifacts are
+in ignored `frontend/test-results/cv-video/shadow-dfs-inspector-2026-11-01/`.
+The first clip3 reference test assumed multiple proposals at frame308; that
+frame is its own fresh reference and correctly has no proposals, so the test
+was updated to exercise the valid empty state. Final reference-boundary check passed on clip3, including navigation from its
+new reference (captured at308) back into the old reference and forward again.
+All five canvases restored exactly and paused pixels/decisions matched their
+original snapshots. The check accepts the valid no-proposal state at a fresh
+self-reference. A preliminary run found overview raster differences after
+repeated canvas reads; the inspector now explicitly requests consistent CPU
+canvas rendering, and the cross-reference canvas comparison passed. Final
+clip3 report/log/screenshots are in ignored
+`frontend/test-results/cv-video/shadow-dfs-inspector-reference-2026-11-01/`.
+The diagnostic reports remain separate from the original four-clip baseline.
+
+Full Vitest rerun:651 passed/two existing failures (legacy velocity onset and
+synchronous-shadow fixtures). An earlier run concurrent with a production build
+also timed out two high-sample-rate audio cases; the subsequent full run without
+the concurrent build passed those cases without changing their implementation
+or timeout. Final lint and TypeScript passed; all39 contrast checks passed; the final
+production build passed. Final clip1 inspector recheck passed against that build; its refreshed desktop
+screenshot was reviewed. Production deployment/camera recovery, keyboard-layout
+and audio graph browser checks all passed in Chrome156.0.8078.75. The final
+clip1 and clip3 logs are `final-run.log` with `final.results.json` beside them.
+No older baseline report or static gallery was overwritten. No physical accuracy, latency or new CI claim.
+
+## Sheet reference hand-presence guard (2026-11-01)
+
+User-reported D24: all markers can remain visible while hands occupy the keyboard.
+The earlier deliberate empty-frame assumption contaminated reference captures.
+Issue/PR tracking remains deferred to the user under the existing local-work scope.
+
+Home and explicit shadow-baseline replay now run the existing pinned MediaPipe
+IMAGE/CPU hand model only on complete marker proposals, against the same captured
+canvas. Both current and proposed keyboard bounds, expanded by one projected
+white-key width, must avoid all detected full-hand bounds. Occupied/unavailable
+checks retain geometry/reference together; initial acquisition waits. Marker
+cadence, classifier, cutoffs and immediate raw-key transitions are unchanged.
+Replay exports proposal decisions/durations and captures. The original four-clip
+cutoff20 reports remain untouched and predate this correction.
+
+Local checks:
+
+- Five synthetic geometric cases and 28 page/coordinator cases passed, along
+  with ten unchanged baseline cases: 43 focused passes.
+- Full Vitest: 658 passed, two existing failures in `fingerVelocity.test.ts`
+  (onset latch) and `synchronousShadowPipeline.test.ts` (contact-profile fixture).
+  Log: `/tmp/makeshift-reference-guard-vitest.log`.
+- TypeScript passed; lint passed with three existing image-element warnings;
+  all 39 contrast checks passed.
+- Production build passed outside the sandbox after the sandboxed build stalled.
+- Production Chrome 156.0.8078.75 deployment/assets/pages, camera denial/loss/retry,
+  keyboard-layout and browser audio graph checks passed against port3111.
+- Clip3 cutoff20 replay passed all structural/model-loading/capture assertions:
+  388 frames, clear reference checks at frames0 and300; both were captured.
+  Neither proposal was rejected, so real occupied-frame rejection is not
+  established by this clip. Synthetic/coordinator tests cover that branch.
+  Check durations were122.3ms (first inference) and46.4ms (periodic); these
+  synchronous costs are included in total CV and may stall a scan frame.
+  These two observations are not a physical latency distribution.
+- Report: ignored `frontend/test-results/cv-video/reference-guard-2026-11-01/clip3.results.json`.
+  Guard/browser logs are saved alongside it. The initial replay completed but
+  report writing failed because its directory was missing; rerun after directory
+  creation passed and saved the report. The earlier error log is retained.
+  This is one-clip guard verification, not a new four-clip accuracy baseline.
+
+Conservative bounding rectangles may reject hands outside the actual keyboard
+polygon. A clear model result is not proof of no hand: missed/occluded hands and
+real-camera latency remain unverified. No new physical accuracy/latency or
+Actions pass is claimed.
+
+## Clip1 frame94 candidate4 locality investigation (2026-11-01)
+
+Reproduced the user's PRESS at cutoff20 in current production replay with the
+reference guard: candidate4=(339,182), width19, key3, a=178, veto=186, support=174.
+Paused source pixels and proposal/decision snapshots matched the scored frame.
+Candidate numbers differ from the preserved pre-guard run; that run's candidate4
+is a different point. Reference version is1 in this inspected replay.
+
+The search from (343,180), width window334..352, visits (344,185) but excludes
+(344,186) from the radius4 corridor. That target pixel is valid, outside the
+finger mask, darkening28.58 (>20), projection residual0.0169 (<=0.12). A compatible
+monotone path exists via (344,181)..(344,186). The final pixel is five pixels from
+the nearest traced arc. Forward extrusion only uses the globally lowest arc
+pixels (337,182) and (339,182), so its rightmost target-row column is343.
+Band caps stop normally; upward support then produces PRESS.
+
+Diagnostic replay of the actual DFS function from the captured local measurements
+reproduced the complete original DFS object exactly. Removing only the corridor
+constraint (retaining width/settings/filter) produces downward vetoes at5/20/40,
+including a cutoff20 witness at(349,186); at60 it still accepts. This is a causal
+ablation on one frame, not a recommended wholesale corridor removal or measured
+accuracy improvement. No production classifier/threshold changes were made.
+
+Ignored evidence: `frontend/test-results/cv-video/frame94-candidate4-2026-11-01/`
+contains `diagnostics.json`, `corridor-ablation.json` and `inspector.png`.
+The temporary browser inspector saved those diagnostics and full-panel screenshot;
+its later individual-tile screenshot lookup timed out. No new verification-suite
+pass or physical contact/latency claim follows from this diagnostic.
+
+## Paired DFS and X-only locality (2026-11-02)
+
+User-directed local continuation of D25. Locality now constrains X only: project
+the selected lower/side arc onto X, expand by4 and intersect with each seed's
+existing width cap. No distance-to-arc limit on Y remains. Both searches stop
+at their inclusive target row. Horizontal margin validation is independent of
+c/d/e. The original curved-band gallery and immutable comparisons remain intact.
+
+For each starting point, evaluate both directions. If both reach their target,
+ignore only that point's support/veto. Other points in the same connected shadow
+remain eligible. A remaining downward-only witness vetoes; remaining upward-only
+support can accept. Known absence of usable support returns NO PRESS. Genuine
+unavailable measurements and incomplete geometry retain UNKNOWN handling.
+Raw searches have an `ignored` flag and levels retain `ignoredSeeds`; witnesses
+exclude ignored points. Inspector/exporter show ignored searches gray and the
+inspector table explicitly labels them. Upward searches now run for each starting
+point to make this pairing possible; no speedup or physical latency claim.
+
+Verification:
+
+- `shadowTipEvidence.test.ts`:44 cases passed, including X-only sloping-edge
+  forward reach, inclusive target stopping, small horizontal margins independent
+  of d/e, all-both-target points yielding NO PRESS, surviving other-point support,
+  and a remaining downward-only veto within the same connected shadow.
+- Ten baseline/decision cases passed:54 focused passes. Updated strong-downward
+  fixtures use separate upward-only and downward-only attachments to keep testing
+  cutoff behavior rather than the superseded global veto of both-target points.
+- Full Vitest:663 passed / two existing failures (`fingerVelocity.test.ts` onset
+  latch, `synchronousShadowPipeline.test.ts` contact-profile fixture).
+- Lint passed with three existing image-element warnings; TypeScript/build passed.
+  All39 contrast checks passed. Production Chrome156.0.8078.75 deployment/assets/
+  pages, camera denial/loss/recovery, keyboard-layout and audio graph checks passed
+  against port3112 (fake devices; hardware audibility unmeasured).
+- Fresh browser frame94 inspection reproduced the same candidate and all cutoff
+  decisions; paused pixels/proposals matched their scored snapshots. Seven ignored
+  points were shown at20, with remaining usable upward support and PRESS. Full
+  panel/four tile screenshots were saved; the full panel and static index150 card
+  were visually reviewed. Other29 static cards were exported without individual
+  final source review. The capture script completed without the earlier tile
+  locator error; logs retained below.
+
+All30 fixed-anchor frames were exported with source/reference hashes and saved
+positions/widths unchanged. Among29 target-valid rows (one wrong-target exclusion),
+phase agreement at20/40 is27/29 versus24/29 for the intermediate X-only version,
+versus29/29 for the original curved-band version. Index150–152 recover PRESS;
+index148/149 still reject. At5 agreement is12/29; at60 it is25/29 with one accepted
+non-touch (index154) and three rejected touches. These selected same-clip,
+approximate-phase comparisons are not physical accuracy or held-out verification.
+
+Artifacts: ignored `frontend/test-results/shadow-dfs-paired-x-only-2026-11-02/`
+contains30 cards, full result paths/ignored flags, immutable original/D80 snapshots,
+`before-y-removal-results.json`, `x-only-before-pairing-results.json`, and
+`paired-versus-x-only.json`. The canonical `shadow-dfs/` gallery was not overwritten.
+Intermediate-only evidence remains in `shadow-dfs-x-only-2026-11-01/`.
+
+On the exact saved clip1/frame94/candidate4 pixels, at20 seven starting points
+reach both limits and are ignored. Other points retain upward-only support,
+so **frame94 remains PRESS**. At5/40 seven points are also ignored;60 ignores none.
+This new condition does not fix the original false-positive example. Its saved
+measurement summary is `cv-video/frame94-candidate4-2026-11-01/paired-x-only-summary.json`.
+Fresh production inspector evidence is saved separately under
+`cv-video/frame94-paired-x-only-2026-11-02/`. No new four-clip accuracy baseline,
+real-camera contact/latency or Actions pass is claimed. Issue tracking remains
+user-deferred under the existing local-work scope.
+
+## Canonical DFS image refresh (2026-11-02)
+
+The user explicitly requested replacement of the current `shadow-dfs` images.
+`npm run experiment:shadow-dfs` now exports30 current paired-point/X-only cards
+in that directory, plus `clip1-frame94-candidate4.png` from the saved production
+replay diagnostic. Its four tiles retain reference1/cutoff20 and its four-cutoff
+decisions (PRESS throughout); it is separate from the historical phase totals.
+The gallery links this card and results JSON includes `supplementalCases`.
+The optional ignored `supplemental-cases.json` manifest references the saved
+replay diagnostics/tiles and checks their algorithm hash before using them.
+PNG/diagnostic hashes are included in the results. The old gallery was copied
+to `shadow-dfs-before-gallery-refresh-2026-11-02/` before replacement; original
+and D80 immutable result snapshots remain in place. Export completed successfully:
+31 PNGs, all30 previous PNG hashes changed, frame94 linked in the gallery, and
+original/D80 snapshot hashes unchanged. The new frame94 card was visually reviewed.
+Exporter syntax and targeted ESLint passed. The export log is saved as
+`shadow-dfs/gallery-refresh-2026-11-02.log`. No classifier changes or accuracy pass are claimed.
+
+## X margin9 and upward width5 (2026-11-02)
+
+User explicitly requested two combined experimental changes: extend the outer
+X margin by5 analysis pixels (4→9), and require at least one five-pixel-wide
+shadow location on an upward support path. The per-seed width cap and c/d/e=4
+remain. `LIVE_SHADOW_DFS_SETTINGS` shares margin9/minimum-width5 across home,
+explicit baseline replay and the local DFS exporter. Legacy direct diagnostics
+retain a width1 default unless these live options are supplied.
+
+Width is a contiguous horizontal run of known compatible shadow intersecting
+that same successful path, within both X limits and at its own cutoff/filter;
+finger mask and excluded/unknown pixels do not count. The search retains two
+states per pixel (with/without width evidence) so a thin early visit cannot
+block a later qualified route. It may explore sideways on the inclusive support
+row to finish a route but cannot go above it to obtain width. Downward reach
+is unchanged. The both-target exclusion uses width-qualified upward success.
+Inspector tables distinguish raw row reach from qualified endpoint and record a
+horizontal width witness; a green segment marks it. The local gallery now shows
+cutoff20 consistently rather than picking the first accepted cutoff for drawing.
+
+Verification:
+
+- 50 tip-evidence plus ten baseline cases passed (60 focused). New coverage:
+  thin line reaches row but fails width; four versus five contiguous pixels;
+  mask/color/window exclusions; disconnected/above-row patches; an alternate
+  wide route after a thin junction visit; independent downward behavior and
+  invalid width settings. Baseline fixture now includes a real five-pixel patch.
+- Full Vitest:669 passed / two existing failures in `fingerVelocity.test.ts`
+  (onset latch) and `synchronousShadowPipeline.test.ts` (contact-profile fixture).
+- Lint passed with three existing image-element warnings, TypeScript/build passed,
+  all39 contrast checks passed. Production Chrome deployment/assets/pages,
+  fake-camera recovery, keyboard-layout and audio graph checks passed at3113.
+- All30 historical source/reference hashes and saved anchors/widths were retained.
+  At20,29/29 target-valid rows match approximate phases (one wrong-target excluded).
+  Index148/149 now accept. At40:28/29, one accepted non-touch. At60:26/29, three
+  accepted non-touches. At5:12/29, all17 touch rows reject. These are selected
+  same-clip development examples, not held-out or physical contact accuracy.
+- Matched evaluation of the original frame94/candidate4 cached measurements still
+  gives PRESS at5/20/40 and NO PRESS at60. At20,15 seeds reach the upward row but
+  only10 meet width5; seven both-target points are ignored and other support
+  remains. The original false-positive example is not fixed at20.
+- Fresh production replay changed candidate numbering/reference capture relative
+  to that cached example: the same point(339,182) is candidate2 with width14,
+  rather than candidate4/width19. It rejects at all cutoffs in that fresh capture.
+  This is not a matched-reference improvement claim. The gallery caption labels
+  the current candidate and preserves this distinction. Scored pixel/proposal
+  matching passed in the inspector; source/geometry/raw/filtered screenshots and
+  the original-measurements comparison are preserved under ignored
+  `cv-video/frame94-margin9-width5-2026-11-02/`.
+
+Current gallery is regenerated in `frontend/test-results/shadow-dfs/` with these
+settings and the newly captured frame94 point. Prior gallery is preserved in
+`shadow-dfs-before-margin9-width5-2026-11-02/`. Separate30-frame results are in
+`shadow-dfs-margin9-width5-2026-11-02/`. No new four-clip aggregate, physical
+latency/accuracy, listening or Actions pass is claimed. Issue tracking remains
+user-deferred. Final gallery verification/visual review is recorded below.

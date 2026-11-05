@@ -1,0 +1,4 @@
+1. passing on all my static images.
+2. get more images to test on or test live.
+3. get a video version running so i can run live on cpp
+4. compile to WASM and link to main repo (lets first perfect on cpp pure first)

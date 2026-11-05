@@ -1,5 +1,14 @@
 # Browser Architecture RVTM Addendum
 
+Live baseline update (2026-11-01): home playback now uses direct CPU filtered
+fingertip proposals and directional shadow DFS, with sheet-only calibration and
+fixed maximum velocity. This experimental baseline defers velocity estimation,
+tracking/temporal filtering and worker optimization; the accuracy, dynamics and
+physical latency requirements remain verification targets. See the
+[implementation and measurement handoff](cv_shadow_detection_status_and_next_steps.md)
+and test SHADOW-LIVE-01 in the verification inventory. No requirement is marked
+satisfied by this baseline integration.
+
 This version-controlled addendum reconciles [issue #85](https://github.com/Kakrl/MakeShift/issues/85)
 with the existing requirement IDs in the
 [verification inventory](../tests/verification_test_inventory.md).

@@ -18,14 +18,19 @@ with their identities and velocities, without retriggering audio. Stop closes
 the take for MIDI export. Restore tracking and select Enable audio after an
 interruption.
 
-Highlighted keys now represent accepted musical events. A fingertip over a key
-while stopped does not highlight it as sounding. The preview detector still
-uses polygon overlap, which can trigger on hovering; it is not intentional
-contact recognition. Live velocity now comes from recent fingertip motion;
-calibrated contact and camera-specific tuning remain #34/#29. Do not treat this
-preview as completed physical piano detection.
+The home preview uses the [raw shadow baseline](cv_shadow_detection_status_and_next_steps.md).
+Each frame maps anonymous automatic tips into calibrated white keys, then
+checks locality4 directional DFS. Consecutive accepted frames hold keys;
+UNKNOWN/rejection/missing tips release immediately. Default cutoff20 is
+selectable among5/20/40/60 in visual debug. Debug highlights include detected
+keys even before audio is enabled, alongside accepted musical-event feedback.
+Physical intentional-contact accuracy and latency remain unverified.
 
-## Finger-speed velocity
+Live velocity is fixed at1.0 (recorder100 percent; exported MIDI127). The
+motion estimator below is retained for legacy diagnostics, not home playback.
+The first baseline deliberately defers tracking, debounce and hysteresis.
+
+## Legacy finger-speed velocity (diagnostic paths)
 
 `FingerVelocity` measures fingertip displacement relative to the wrist using
 landmark x/y and optional z. It converts y to the image-width scale, then

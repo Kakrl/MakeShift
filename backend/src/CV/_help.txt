@@ -1,0 +1,15 @@
+
+# All images at residual 0.12
+python3 backend/run_shadow_images.py
+
+# Different residual
+python3 backend/run_shadow_images.py --residual 0.16
+
+# Rebuild after editing C++ constants, then rerun
+python3 backend/run_shadow_images.py --rebuild
+
+# Only selected images
+python3 backend/run_shadow_images.py --case 001 002
+
+# goodie
+python3 backend/run_shadow_images.py --rebuild --dark-shadows-only --residual 0.125

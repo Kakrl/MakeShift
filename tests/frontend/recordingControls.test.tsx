@@ -13,6 +13,9 @@ const fixtures = vi.hoisted(() => ({
   download: vi.fn(),
   highlight: vi.fn(),
   detect: vi.fn(),
+  analysis: vi.fn(),
+  referenceHands: [] as NormalizedLandmark[][] | null,
+  markerOffset: 0,
   missNextDetection: false,
   camera: { stream: { getVideoTracks: () => [{ readyState: "live", getSettings: () => ({ deviceId: "camera-1" }) }] }, cameraReady: true },
 }));
@@ -20,24 +23,40 @@ vi.mock("../../frontend/src/cv/keyboardGeometry", async (original) => ({
   ...await original<typeof import("../../frontend/src/cv/keyboardGeometry")>(),
   pressWhiteKey: fixtures.highlight,
 }));
-// jsdom has no Worker or depth calibration, so run the real contact pipeline
-// in its overlap-only mode; these tests cover recording, not contact sensing.
-vi.mock("../../frontend/src/cv/liveContactPipeline", async (original) => {
-  const actual = await original<typeof import("../../frontend/src/cv/liveContactPipeline")>();
-  const overlapOnly = { knuckles: false, shadows: false };
-  return {
-    ...actual,
-    CONTACT_TECHNIQUES: overlapOnly,
-    LiveContactPipeline: class extends actual.LiveContactPipeline {
-      constructor(callbacks: ConstructorParameters<typeof actual.LiveContactPipeline>[0]) {
-        super(callbacks, overlapOnly);
-      }
-    },
-  };
+// Recording assertions use deterministic frame decisions; real pixel/DFS
+// semantics are exercised separately in liveShadowBaseline.test.ts.
+vi.mock("../../frontend/src/cv/liveShadowBaseline", async original => {
+  const actual = await original<typeof import("../../frontend/src/cv/liveShadowBaseline")>();
+  const { getFingertips, pointInPolygon } = await import("../../frontend/src/cv/collision");
+  const { projectPoint } = await import("../../frontend/src/cv/homography");
+  const { getWhiteKeyPolygons } = await import("../../frontend/src/cv/keyboardGeometry");
+  return { ...actual, detectShadowBaseline: (_current: ImageData, _reference: ImageData,
+    width: number, height: number, transform: import("../../frontend/src/cv/homography").Homography,
+    layout: import("../../frontend/src/cv/keyboardLayout").KeyboardLayout) => {
+    fixtures.analysis(_current, _reference, transform);
+    const keys = getWhiteKeyPolygons(layout);
+    const pressedKeys = new Set<number>();
+    for (const tip of getFingertips(currentHands, width, height)) {
+      const sheet = projectPoint(transform, tip.point);
+      const index = sheet ? keys.findIndex(key => pointInPolygon(sheet, key)) : -1;
+      if (index >= 0) pressedKeys.add(index);
+    }
+    return { pressedKeys, candidates: [] };
+  } };
 });
 vi.mock("../../frontend/src/app/CameraContext", () => ({
   useCamera: () => fixtures.camera,
 }));
+vi.mock("../../frontend/src/cv/sheetReferenceGuard", async original => {
+  const actual = await original<typeof import("../../frontend/src/cv/sheetReferenceGuard")>();
+  return { ...actual, SheetReferenceGuard: { create: async () => ({
+    check: (canvas: HTMLCanvasElement, current: import("../../frontend/src/cv/homography").Homography | null,
+      proposed: import("../../frontend/src/cv/homography").Homography,
+      layout: import("../../frontend/src/cv/keyboardLayout").KeyboardLayout) =>
+      actual.checkReferenceHands(fixtures.referenceHands, current, proposed, layout, canvas.width, canvas.height),
+    close: vi.fn(),
+  }) } };
+});
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("../../frontend/src/app/audio/audioEngine", () => ({
   browserAudio: {
@@ -83,7 +102,7 @@ vi.mock("../../frontend/src/cv/markerDetector", () => ({
         missingIds: [],
         observations: [[100, 100], [900, 100], [900, 900], [100, 900]]
           .map(([x, y], id) => ({
-            id, center: { x, y },
+            id, center: { x: x + fixtures.markerOffset, y },
             corners: [{ x, y }, { x: x + 1, y }, { x: x + 1, y: y + 1 }, { x, y: y + 1 }],
           })),
       });
@@ -102,17 +121,7 @@ vi.mock("next/dynamic", async () => {
           return createElement(Coordinator, props);
         };
       }
-      if (source.includes("MarkerTrackingOverlay")) {
-        return function MarkerFixture(props: ComponentProps<typeof Marker>) {
-          return createElement(Marker, props);
-        };
-      }
-      return function HandFixture({ onLandmarks }: {
-        onLandmarks: (hands: HandObservation[]) => void;
-      }) {
-        fixtures.landmarks = onLandmarks;
-        return null;
-      };
+      throw new Error(`Unexpected dynamic component: ${source}`);
     },
   };
 });
@@ -120,7 +129,6 @@ vi.mock("next/dynamic", async () => {
 import { browserAudio } from "../../frontend/src/app/audio/audioEngine";
 import Home from "../../frontend/src/app/page";
 import Coordinator from "../../frontend/src/app/CVOverlayCoordinator";
-import Marker from "../../frontend/src/app/MarkerTrackingOverlay";
 import { saveKeyboardLayout } from "../../frontend/src/lib/keyboardSettings";
 import { getWhiteKeyPolygons } from "../../frontend/src/cv/keyboardGeometry";
 
@@ -140,8 +148,16 @@ beforeEach(async () => {
   vi.clearAllMocks();
   now = 1000;
   currentHands = [];
+  let decodedFrame = 0;
+  vi.spyOn(HTMLVideoElement.prototype, "currentTime", "get").mockImplementation(() => ++decodedFrame);
+  fixtures.landmarks = hands => {
+    currentHands = hands.map(hand => [...hand.landmarks]);
+    animationFrame?.(now);
+  };
   fixtures.takes.length = 0;
   fixtures.missNextDetection = false;
+  fixtures.referenceHands = [];
+  fixtures.markerOffset = 0;
   fixtures.camera.cameraReady = true;
   fixtures.initializeAudio.mockImplementation(async () => {});
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -158,7 +174,7 @@ beforeEach(async () => {
     function (this: HTMLCanvasElement) {
       return Object.assign(
         Object.fromEntries(contextMethods.map((name) => [name, vi.fn()])),
-        { canvas: this },
+        { canvas: this, getImageData: () => ({ width: this.width, height: this.height, data: new Uint8ClampedArray(0) }) },
       ) as unknown as CanvasRenderingContext2D;
     },
   );
@@ -235,9 +251,7 @@ async function keys(...xs: number[]) {
     currentHands.map((landmarks) => ({ landmarks, handedness: "Right" as const })),
   ));
   await frame();
-  // The per-finger FSM enters ready before ready evaluates contact evidence.
-  // Supply the next stable observation so integration cases exercise a held
-  // key through the complete transition without modeling sensor latency here.
+  // A second accepted frame exercises holds without retriggering.
   await act(async () => fixtures.landmarks?.(
     currentHands.map((landmarks) => ({ landmarks, handedness: "Right" as const })),
   ));
@@ -250,7 +264,7 @@ async function start() {
   expect(button("Pause recording").disabled).toBe(false);
 }
 
-it("dispatches a chord and release/repress before React commits the landmark snapshot", async () => {
+it("dispatches a chord and release/repress before React commits the drawing snapshot", async () => {
   await start();
   const landmarks: NormalizedLandmark[] = Array.from({ length: 21 }, () => ({ x: -10, y: -10 }));
   landmarks[4] = { x: 0.115, y: 0.5 };
@@ -262,8 +276,8 @@ it("dispatches a chord and release/repress before React commits the landmark sna
     fixtures.landmarks?.(chord);
     fixtures.landmarks?.(chord);
     expect(browserAudio.noteOn).toHaveBeenCalledTimes(2);
-    expect(browserAudio.noteOn).toHaveBeenNthCalledWith(1, 48, 0.2);
-    expect(browserAudio.noteOn).toHaveBeenNthCalledWith(2, 52, 0.2);
+    expect(browserAudio.noteOn).toHaveBeenNthCalledWith(1, 48, 1);
+    expect(browserAudio.noteOn).toHaveBeenNthCalledWith(2, 52, 1);
     fixtures.landmarks?.(chord);
     expect(browserAudio.noteOn).toHaveBeenCalledTimes(2);
     now += 40;
@@ -276,47 +290,25 @@ it("dispatches a chord and release/repress before React commits the landmark sna
   await advance(60);
   await click(button("Stop recording"));
   expect(fixtures.takes.at(-1)!.notes).toEqual([
-    { pitch: "C3", velocity: 20, startMs: 0, durationMs: 40 },
-    { pitch: "E3", velocity: 20, startMs: 0, durationMs: 40 },
-    { pitch: "C3", velocity: 20, startMs: 40, durationMs: 60 },
-    { pitch: "E3", velocity: 20, startMs: 40, durationMs: 60 },
+    { pitch: "C3", velocity: 100, startMs: 0, durationMs: 40 },
+    { pitch: "E3", velocity: 100, startMs: 0, durationMs: 40 },
+    { pitch: "C3", velocity: 100, startMs: 40, durationMs: 60 },
+    { pitch: "E3", velocity: 100, startMs: 40, durationMs: 60 },
   ]);
 });
 
-it.each([false, true])("sends estimated velocities to audio/MIDI and retains them while held (same key: %s)", async (sameKey) => {
+it.each([false, true])("sends fixed maximum velocity and unions same-key candidates (%s)", async sameKey => {
   await start();
-  const landmarks: NormalizedLandmark[] = Array.from({ length: 21 }, () => ({ x: -10, y: -10, z: 0 }));
-  landmarks[0] = { x: 0.5, y: 0.8, z: 0 };
-  landmarks[9] = { x: 0.5, y: 0.6, z: 0 };
-  landmarks[4] = { x: 0.115, y: 0.5, z: 0 };
-  landmarks[8] = { x: sameKey ? 0.115 : 0.325, y: 0.5, z: 0 };
-  const observe = (slowZ: number, fastZ: number) => {
-    const next = [...landmarks];
-    next[4] = { ...landmarks[4], z: slowZ };
-    next[8] = { ...landmarks[8], z: fastZ };
-    fixtures.landmarks?.([{ landmarks: next, handedness: "Right" }]);
-  };
   vi.mocked(browserAudio.noteOn).mockClear();
-  await act(async () => {
-    observe(0, 0);
-    now += 20;
-    observe(-0.008, -0.032);
-    expect(browserAudio.noteOn).toHaveBeenCalledTimes(sameKey ? 1 : 2);
-    expect(vi.mocked(browserAudio.noteOn).mock.calls[0][1]).toBeCloseTo(sameKey ? 1 : 0.36);
-    if (!sameKey) expect(vi.mocked(browserAudio.noteOn).mock.calls[1][1]).toBeCloseTo(1);
-    now += 20;
-    observe(-0.1, -0.1);
-    expect(browserAudio.noteOn).toHaveBeenCalledTimes(sameKey ? 1 : 2);
-    now += 20;
-    fixtures.landmarks?.([]);
-  });
+  await keys(115, sameKey ? 115 : 325);
+  expect(browserAudio.noteOn).toHaveBeenCalledTimes(sameKey ? 1 : 2);
+  for (const call of vi.mocked(browserAudio.noteOn).mock.calls) expect(call[1]).toBe(1);
+  await advance(40);
+  await keys();
   await click(button("Stop recording"));
-  expect(fixtures.takes.at(-1)!.notes).toEqual(sameKey ? [
-    { pitch: "C3", velocity: 100, startMs: 20, durationMs: 40 },
-  ] : [
-    { pitch: "C3", velocity: 36, startMs: 20, durationMs: 40 },
-    { pitch: "E3", velocity: 100, startMs: 20, durationMs: 40 },
-  ]);
+  const notes = fixtures.takes.at(-1)!.notes;
+  expect(notes).toHaveLength(sameKey ? 1 : 2);
+  expect(notes.every(note => note.velocity === 100 && note.durationMs === 40)).toBe(true);
 });
 
 it.each([2, 3])("uses %i-octave live geometry, shifted notes and feedback after recalibration", async (octaves) => {
@@ -339,7 +331,7 @@ it.each([2, 3])("uses %i-octave live geometry, shifted notes and feedback after 
   const last = getWhiteKeyPolygons(layout).at(-1)!;
   const x = 100 + (last[0].x + last[1].x) / 2 * 800;
   await keys(x);
-  expect(browserAudio.noteOn).toHaveBeenLastCalledWith(60 + 12 * octaves, 0.2);
+  expect(browserAudio.noteOn).toHaveBeenLastCalledWith(60 + 12 * octaves, 1);
   expect(fixtures.highlight).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), expect.anything());
 });
 
@@ -539,7 +531,7 @@ it("records a same-turn press before Stop drains deferred consumers", async () =
   await start();
   await keys(115);
   await click(button("Stop recording"));
-  expect(fixtures.takes.at(-1)!.notes).toMatchObject([{ pitch: "C3", velocity: 20, durationMs: 0 }]);
+  expect(fixtures.takes.at(-1)!.notes).toMatchObject([{ pitch: "C3", velocity: 100, durationMs: 0 }]);
 });
 
 it("checks markers immediately and then only every ten seconds", async () => {
@@ -633,8 +625,7 @@ it("releases free-play notes when calibration becomes invalid", async () => {
 });
 
 
-// This frame-loss expectation is being fixed in PR #193.
-it.skip("invalidates free play on frame loss without waiting for the marker interval", async () => {
+it("invalidates free play on frame loss without waiting for the marker interval", async () => {
   await click([...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!);
   await keys(115);
   vi.mocked(browserAudio.releaseAll).mockClear();
@@ -661,4 +652,57 @@ it("ignores pending free-play audio initialization after calibration loss", asyn
   await keys(115);
   expect(browserAudio.noteOn).not.toHaveBeenCalled();
   expect(button("Start recording").disabled).toBe(true);
+});
+
+
+it("refreshes the reference on every complete periodic detection and preserves it on misses", async () => {
+  const initial = fixtures.analysis.mock.calls.at(-1)![1];
+  expect(initial).toMatchObject({ width: 640, height: 640 });
+  await advance(10_000);
+  const refreshed = fixtures.analysis.mock.calls.at(-1)![1];
+  expect(refreshed).not.toBe(initial);
+  fixtures.missNextDetection = true;
+  await advance(10_000);
+  expect(fixtures.analysis.mock.calls.at(-1)![1]).toBe(refreshed);
+  await advance(10_000);
+  expect(fixtures.analysis.mock.calls.at(-1)![1]).not.toBe(refreshed);
+});
+
+it("processes each decoded frame only once", async () => {
+  vi.spyOn(HTMLVideoElement.prototype, "currentTime", "get").mockReturnValue(999);
+  await frame();
+  fixtures.analysis.mockClear();
+  await frame();
+  await frame();
+  expect(fixtures.analysis).not.toHaveBeenCalled();
+});
+
+it("retains both geometry and reference on occupied or unavailable checks, then accepts a clear proposal", async () => {
+  const initial = fixtures.analysis.mock.calls.at(-1)!;
+  fixtures.referenceHands = [Array(21).fill({ x: 0.5, y: 0.5, z: 0 })];
+  fixtures.markerOffset = 5;
+  await advance(10_000);
+  expect(fixtures.analysis.mock.calls.at(-1)![1]).toBe(initial[1]);
+  expect(fixtures.analysis.mock.calls.at(-1)![2]).toBe(initial[2]);
+  fixtures.referenceHands = null;
+  await advance(10_000);
+  expect(fixtures.analysis.mock.calls.at(-1)![1]).toBe(initial[1]);
+  expect(fixtures.analysis.mock.calls.at(-1)![2]).toBe(initial[2]);
+  fixtures.referenceHands = [];
+  await advance(10_000);
+  expect(fixtures.analysis.mock.calls.at(-1)![1]).not.toBe(initial[1]);
+  expect(fixtures.analysis.mock.calls.at(-1)![2]).not.toBe(initial[2]);
+});
+
+it("waits for clear hands on reacquisition after camera frame loss", async () => {
+  vi.spyOn(HTMLVideoElement.prototype, "readyState", "get").mockReturnValue(0);
+  await frame();
+  fixtures.analysis.mockClear();
+  fixtures.referenceHands = [Array(21).fill({ x: 0.5, y: 0.5, z: 0 })];
+  vi.spyOn(HTMLVideoElement.prototype, "readyState", "get").mockReturnValue(4);
+  await frame();
+  expect(fixtures.analysis).not.toHaveBeenCalled();
+  fixtures.referenceHands = [];
+  await advance(300);
+  expect(fixtures.analysis).toHaveBeenCalled();
 });

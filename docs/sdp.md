@@ -1,5 +1,14 @@
 ## Browser architecture update (issue #85)
 
+Live baseline update (2026-11-01): home playback now uses direct CPU filtered
+fingertip proposals and directional shadow DFS, with sheet-only calibration and
+fixed maximum velocity. This experimental baseline defers velocity estimation,
+tracking/temporal filtering and worker optimization; the accuracy, dynamics and
+physical latency requirements remain verification targets. See the
+[implementation and measurement handoff](cv_shadow_detection_status_and_next_steps.md)
+and test SHADOW-LIVE-01 in the verification inventory. No requirement is marked
+satisfied by this baseline integration.
+
 The implementation direction is a browser-local virtual piano: camera capture,
 CV worker processing, calibrated contact detection, shared note events,
 AudioWorklet synthesis, MIDI recording/export, and feedback run on the user's

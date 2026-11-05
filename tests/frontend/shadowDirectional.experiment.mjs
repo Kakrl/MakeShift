@@ -55,9 +55,58 @@ const tokens = (await readFile(path.join(root, "frontend/src/app/globals.css"), 
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ channel: process.env.CV_BROWSER_CHANNEL || "chrome", headless: true });
 const records = [];
+const supplementalCases = [];
 try {
   const page = await browser.newPage();
   await page.setContent(`<style>:root { ${tokens} }</style>`);
+  // Saved replay tiles keep their own original reference/decision. Never fold
+  // these diagnostic examples into the historical fixed-anchor phase scores.
+  let supplemental = [];
+  if (localCorridor) {
+    try { supplemental = JSON.parse(await readFile(path.join(output, "supplemental-cases.json"), "utf8")); }
+    catch (error) { if (error.code !== "ENOENT") throw error; }
+  }
+  for (const entry of supplemental) {
+    assert.equal(entry.comparisonEligible, false);
+    assert.equal(entry.algorithmSha256, hash(await readFile(path.join(root, "frontend/src/cv/shadowTipEvidence.ts"))), "Replay capture is stale: recapture after changing DFS");
+    const bytes = await readFile(path.join(root, entry.diagnosticsPath));
+    const diagnostic = JSON.parse(bytes);
+    assert.equal(diagnostic.frame, entry.frame);
+    assert.equal(String(diagnostic.reference), String(entry.referenceVersion));
+    const candidate = diagnostic.candidates.find(candidate => candidate.id === entry.candidateId);
+    assert.ok(candidate?.dfs);
+    assert.equal(entry.tiles.length, 4);
+    const tiles = await Promise.all(entry.tiles.map(async tile => {
+      const bytes = await readFile(path.join(root, tile.path));
+      return { ...tile, sha256: hash(bytes), source: `data:image/png;base64,${bytes.toString("base64")}` };
+    }));
+    const png = await page.evaluate(async ({ entry, candidate, tiles }) => {
+      const canvas = document.createElement("canvas"); canvas.width = 1200; canvas.height = 540;
+      const ctx = canvas.getContext("2d");
+      const color = name => getComputedStyle(document.documentElement).getPropertyValue(`--color-${name}`).trim();
+      ctx.fillStyle = color("white"); ctx.fillRect(0, 0, 1200, 540);
+      ctx.fillStyle = color("ink"); ctx.font = "16px sans-serif";
+      ctx.fillText(`Clip 1 / frame ${entry.frame} / candidate ${entry.candidateId} / captured replay reference ${entry.referenceVersion} / user-reported false press`, 5, 20);
+      for (const [i, level] of candidate.dfs.levels.entries()) {
+        ctx.fillStyle = color(level.patternMatch === null ? "yellow-soft" : level.patternMatch ? "green-soft" : "red-soft");
+        ctx.fillRect(i * 300 + 3, 32, 294, 42);
+        ctx.fillStyle = color("ink"); ctx.font = "bold 20px sans-serif";
+        ctx.fillText(`${level.threshold} X9: ${level.patternMatch === null ? "UNKNOWN" : level.patternMatch ? "PRESS" : "NO PRESS"}`, i * 300 + 10, 60);
+        const image = new Image(); image.src = tiles[i].source; await image.decode();
+        ctx.font = "16px sans-serif"; ctx.fillText(tiles[i].label, i * 300 + 3, 99);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(image, i * 300, 105, 300, 300);
+        ctx.fillText(`>${level.threshold}: ignored ${level.ignoredSeeds.length}; veto ${level.downwardVeto ? "yes" : "no"}; support ${level.upwardReached ? "yes" : "no"}`, 5, 447 + i * 20);
+      }
+      ctx.fillText(`All four views show cutoff ${entry.displayThreshold}. Gray: ignored starting points; X-only margin9; stop at target rows.`, 5, 425);
+      ctx.font = "14px sans-serif";
+      ctx.fillText("Captured replay diagnostic with its original reference; excluded from the 30-image historical phase comparison.", 5, 531);
+      return canvas.toDataURL("image/png").split(",")[1];
+    }, { entry, candidate, tiles });
+    await writeFile(path.join(output, entry.filename), Buffer.from(png, "base64"));
+    supplementalCases.push({ ...entry, diagnosticsSha256: hash(bytes),
+      tiles: tiles.map(tile => ({ label: tile.label, path: tile.path, sha256: tile.sha256 })), candidate });
+  }
   await page.evaluate((codes) => {
     const modules = {};
     for (const [name, code] of Object.entries(codes)) { const exports = {};
@@ -85,12 +134,12 @@ try {
       const tip = old.tip; // Freeze original proposals; do not retune anchors for this hypothesis.
       const measure = dfsMode ? api.measureMonotoneShadowPaths : regionMode ? api.measureEdgeShadowRegions : api.measureDirectionalShadowPattern;
       const boundaryMask = filteredBoundary ? api.filteredDarkeningBoundaryMask(difference) : estimates.mask;
-      const dfsOptions = localCorridor ? { corridorRadius: 4 } : strongDownward ? { downwardThreshold: 80 } : undefined;
+      const dfsOptions = localCorridor ? api.LIVE_SHADOW_DFS_SETTINGS : strongDownward ? { downwardThreshold: 80 } : undefined;
       const directional = tip ? measure(difference, boundaryMask, tip, undefined, dfsOptions) : null;
       const colorDirectional = tip ? measure(difference, filteredBoundary ? api.filteredDarkeningBoundaryMask(difference,
         { method: "color", maximumColorShift: 10, maximumResidual: 0.12 }) : estimates.mask, tip,
         { method: "color", maximumColorShift: 10, maximumResidual: 0.12 }, dfsOptions) : null;
-      const displayLevel = regionMode || dfsMode ? directional?.levels.find((l) => l.patternMatch === true) ?? directional?.levels.find((l) => l.threshold === 40) : null;
+      const displayLevel = dfsMode && localCorridor ? directional?.levels.find(l => l.threshold === 20) : regionMode || dfsMode ? directional?.levels.find((l) => l.patternMatch === true) ?? directional?.levels.find((l) => l.threshold === 40) : null;
       const displayThreshold = displayLevel?.threshold ?? 40;
       const color = (name) => getComputedStyle(document.documentElement).getPropertyValue(`--color-${name}`).trim();
       const palette = api.readHeatmapPalette();
@@ -137,8 +186,8 @@ try {
       }
       if (directional && dfsMode) {
         const shown = displayLevel;
-        const down = shown.downwardSearches.find((r) => r.reached) ?? shown.downwardSearches[0];
-        const up = shown.upwardSearches.find((r) => r.reached) ?? shown.upwardSearches[0];
+        const down = shown.downwardSearches.find((r) => !r.ignored && r.reached) ?? shown.downwardSearches.find(r => !r.ignored);
+        const up = shown.upwardSearches.find((r) => !r.ignored && r.reached) ?? shown.upwardSearches.find(r => !r.ignored);
         for (const tile of [overlay, raw, filtered]) {
           const cx = tile.getContext("2d");
           if (localCorridor) {
@@ -149,9 +198,15 @@ try {
             cx.globalAlpha = 1;
           }
           cx.globalAlpha = 0.3; cx.fillStyle = color("red");
-          for (const search of shown.downwardSearches) for (const p of search.visited) cx.fillRect(p.x, p.y, 1, 1);
+          for (const search of shown.downwardSearches) {
+            cx.fillStyle = color(search.ignored ? "ink-muted" : "red");
+            for (const p of search.visited) cx.fillRect(p.x, p.y, 1, 1);
+          }
           cx.fillStyle = color("green");
-          for (const search of shown.upwardSearches) for (const p of search.visited) cx.fillRect(p.x, p.y, 1, 1);
+          for (const search of shown.upwardSearches) {
+            cx.fillStyle = color(search.ignored ? "ink-muted" : "green");
+            for (const p of search.visited) cx.fillRect(p.x, p.y, 1, 1);
+          }
           cx.globalAlpha = 1; cx.fillStyle = color("blue");
           for (const p of directional.arc) cx.fillRect(p.x, p.y, 1, 1);
           cx.fillStyle = color("purple");
@@ -171,6 +226,11 @@ try {
             for (const [i, p] of search.path.entries()) { if (!i) cx.moveTo(p.x + 0.5, p.y + 0.5); else cx.lineTo(p.x + 0.5, p.y + 0.5); }
             cx.stroke(); cx.lineWidth = 0.6; cx.beginPath(); cx.arc(search.endpoint.x + 0.5, search.endpoint.y + 0.5, 1.6, 0, 2 * Math.PI); cx.stroke();
           }
+          if (up?.reached && up.widthWitness) {
+            const span = up.widthWitness;
+            cx.strokeStyle = color("green"); cx.lineWidth = 1;
+            cx.beginPath(); cx.moveTo(span.left, span.y + 0.5); cx.lineTo(span.right + 1, span.y + 0.5); cx.stroke();
+          }
         }
       }
       const combined = document.createElement("canvas"); combined.width = 1200; combined.height = 540;
@@ -184,10 +244,10 @@ try {
         c.fillStyle = color(wrongTarget || value == null ? "yellow-soft" : value ? "green-soft" : "red-soft");
         c.fillRect(i * 300 + 3, 32, 294, 42);
         c.fillStyle = color("surface-dark"); c.font = "bold 20px sans-serif";
-        c.fillText(`${strongDownward ? `U${threshold}/D80` : `${threshold}${localCorridor ? " B4" : " luma"}`}: ${wrongTarget ? "INVALID TARGET" : pressLabel(value)}`, i * 300 + 10, 60);
+        c.fillText(`${strongDownward ? `U${threshold}/D80` : `${threshold}${localCorridor ? " X9" : " luma"}`}: ${wrongTarget ? "INVALID TARGET" : pressLabel(value)}`, i * 300 + 10, 60);
       }
       c.font = "16px sans-serif";
-      const titles = dfsMode ? ["Native source", `DFS${localCorridor ? " band4" : filteredBoundary ? " filtered edge" : ""} at ${displayThreshold} luma`, "Raw darkening / DFS", "Filtered darkening / DFS"] : regionMode ? ["Native source", `Edge regions at ${displayThreshold} luma`, "Raw darkening / shadow seeds", "Filtered darkening / shadow seeds"] :
+      const titles = dfsMode ? ["Native source", `DFS${localCorridor ? " X margin9" : filteredBoundary ? " filtered edge" : ""} at ${displayThreshold} luma`, "Raw darkening / DFS", "Filtered darkening / DFS"] : regionMode ? ["Native source", `Edge regions at ${displayThreshold} luma`, "Raw darkening / shadow seeds", "Filtered darkening / shadow seeds"] :
         ["Native source", "Sampled regions", "Raw darkening / scan directions", "Filtered darkening / scan directions"];
       for (const [i, tile] of [image, overlay, raw, filtered].entries()) {
         c.fillText(titles[i], i * 300 + 3, 99);
@@ -197,10 +257,10 @@ try {
         c.drawImage(tile, crop[0] * sx, crop[1] * sy, crop[2] * sx, crop[3] * sy, i * 300, 105, crop[2] * scale, crop[3] * scale);
       }
       const flag = (v) => v === null ? "?" : v ? "yes" : "no";
-      c.fillText(dfsMode ? `Blue: arc; purple: band (if enabled)/attachments/a; red: down/veto; green: up/support. Dashed width: shown witness (${displayThreshold} luma).` : regionMode ? `Yellow: finger; blue: edge samples; purple: qualifying regions at ${displayThreshold} luma; red: other seeded shadows; green: upward strips.` :
+      c.fillText(dfsMode ? `Blue: arc; purple: X strip/seeds/a; red: down/veto; green: up/support; gray: ignored points. Dashed: witness (${displayThreshold} luma).` : regionMode ? `Yellow: finger; blue: edge samples; purple: qualifying regions at ${displayThreshold} luma; red: other seeded shadows; green: upward strips.` :
         "Yellow: finger; green: upward context; blue: forward scans; purple: allowed 2-pixel rim; red: estimated tip.", 5, 425);
       for (const [i, l] of (directional?.levels ?? []).entries()) {
-        const detail = dfsMode ? `${l.attachments.length} up/${l.downwardAttachments.length} down seeds; D>${l.downwardThreshold}; veto ${flag(l.downwardVeto)}; up ${flag(l.upwardReached)}; unknown D/U ${flag(l.downwardUnknown)}/${flag(l.upwardUnknown)}; c/d/e4; W${directional.settings.searchWidth}${localCorridor ? "; B4" : ""}` : regionMode ? `${l.regions.length} regions; qualifying IDs [${l.qualifyingRegions.join("/")}]; ${l.regions.slice(0, 3).map((r) => `#${r.id}: down ${r.downwardExtent}px, up ${r.upwardWideRows} rows`).join("; ")}${l.regions.length > 3 ? "; more in JSON" : ""}` :
+        const detail = dfsMode ? `${l.attachments.length} up/${l.downwardAttachments.length} down seeds; D>${l.downwardThreshold}; veto ${flag(l.downwardVeto)}; up ${flag(l.upwardReached)}; unknown D/U ${flag(l.downwardUnknown)}/${flag(l.upwardUnknown)}; c/d/e4; W${directional.settings.searchWidth}; upWidth>=${directional.settings.minimumUpwardShadowWidth}${localCorridor ? `; X9; ignored ${l.ignoredSeeds.length}` : `; ignored ${l.ignoredSeeds.length}`}` : regionMode ? `${l.regions.length} regions; qualifying IDs [${l.qualifyingRegions.join("/")}]; ${l.regions.slice(0, 3).map((r) => `#${r.id}: down ${r.downwardExtent}px, up ${r.upwardWideRows} rows`).join("; ")}${l.regions.length > 3 ? "; more in JSON" : ""}` :
           `upward ${flag(l.upwardPresent)}; thin band ${flag(l.thinBand)}; downward clear ${flag(l.downwardClear)}`;
         c.fillText(`>${l.threshold} luma: ${detail}; pattern ${flag(l.patternMatch)}`, 5, 447 + i * 20);
       }
@@ -218,7 +278,7 @@ try {
 const flag = (v) => v === null || v === undefined ? "unknown" : v ? "yes" : "no";
 const rows = records.flatMap((r) => (r.directional?.levels ?? []).map((l) => dfsMode ? {
   group: r.group, frame: r.frame, phase: r.phase, review: r.priorReview.status, threshold: l.threshold,
-  attachments: l.attachments.length, downwardThreshold: l.downwardThreshold, downwardAttachments: l.downwardAttachments.length, downwardVeto: flag(l.downwardVeto), upwardReached: flag(l.upwardReached),
+  attachments: l.attachments.length, downwardThreshold: l.downwardThreshold, downwardAttachments: l.downwardAttachments.length, downwardVeto: flag(l.downwardVeto), upwardReached: flag(l.upwardReached), upwardWidthMinimum: r.directional.settings.minimumUpwardShadowWidth,
   downwardUnknown: flag(l.downwardUnknown), upwardUnknown: flag(l.upwardUnknown), pattern: flag(l.patternMatch) } : regionMode ? {
   group: r.group, frame: r.frame, phase: r.phase, review: r.priorReview.status, threshold: l.threshold,
   regions: l.regions.length, qualifying: l.qualifyingRegions.join("/"), pattern: flag(l.patternMatch),
@@ -233,20 +293,20 @@ await writeFile(path.join(output, "summary.csv"), [columns.join(","), ...rows.ma
 await writeFile(path.join(output, "results.json"), JSON.stringify({ schemaVersion: 1, generatedAt: new Date().toISOString(),
   classification: dfsMode ? "exploratory-bounded-monotone-dfs-not-validated-contact" : regionMode ? "exploratory-any-edge-region-not-validated-contact" : "exploratory-directional-pattern-not-press-classifier", node: process.version, browser: browser.version(),
   baselineSha256: hash(baselineBytes), referenceSha256: hash(referenceBytes), annotationSource: baseline.annotationSource,
-  strongDownward, localCorridor, corridorDefinition: localCorridor ? "Exterior Chebyshev-distance <=4 band around selected lower/side arc, plus straight downward extension from the lowest arc pixels to the saved veto row within the same lateral margin. Lateral stop without unknown; forward depth remains reachable. D80 disabled." : null, d80Sha256: d80Bytes ? hash(d80Bytes) : null, previousDfsSha256: previousDfsBytes ? hash(previousDfsBytes) : null,
+  strongDownward, localCorridor, corridorDefinition: localCorridor ? "X-only strip: selected lower/side arc's minimum/maximum X expanded by9, intersected with each seed's width cap. No arc-distance constraint on Y; monotone searches stop at inclusive veto/support rows. Lateral stop without unknown. Upward support requires a contiguous horizontal run of at least5 compatible shadow pixels on its actual path, inside both X limits. D80 disabled." : null, d80Sha256: d80Bytes ? hash(d80Bytes) : null, previousDfsSha256: previousDfsBytes ? hash(previousDfsBytes) : null,
   filteredBoundary, boundaryDefinition: filteredBoundary ? "Valid darkening >5 with finite projection residual >0.12 (primary), color shift >10 (secondary). No clustering, morphology or anchor/width changes. Local connected cross-section selected by unchanged DFS. Black clear/invalid pixels are excluded." : "Original color-cluster mask",
-  dfsMode, dfsDefinition: dfsMode ? "c=d=e=4 analysis pixels. Arc below fingertipY-c, monotone downward/sideways DFS from every shadow attachment, ANY reach to fingertipY+d vetoes. At least one monotone upward/sideways path from the same attachments to fingertipY-c-e supports. Width equals estimated finger width centered per attachment. Width cap stops without unknown; unavailable pixels and incomplete geometry remain unknown; known color exclusions stop traversal." : null,
+  dfsMode, dfsDefinition: dfsMode ? "c=d=e=4 analysis pixels. Arc below fingertipY-c, monotone downward/sideways DFS from every shadow attachment, Pair both directions per starting point; points reaching both targets contribute neither support nor veto. Any remaining downward reach to fingertipY+d vetoes. At least one monotone upward/sideways path from the same attachments to fingertipY-c-e supports. Width equals estimated finger width centered per attachment. Width cap stops without unknown; unavailable pixels and incomplete geometry remain unknown; known color exclusions stop traversal." : null,
   regionMode, regionDefinition: regionMode ? "At least one eight-connected local shadow component seeded directly outside the distal mask edge: maximum downward Y extent 8 analysis pixels from saved tip, upward contiguous width >=2 on >=3 rows in six-pixel side strips. Other components do not veto. Unknown downstream boundaries or cropped side/bottom extents cannot establish a short region." : null,
-  notes: dfsMode ? "Same native hashes and saved tips, recomputed masks. All four cutoffs reported. Visualization first matching cutoff otherwise 40. User phase never used in measurement. Downward veto has priority over upward success. Prior decisions saved separately when replacing canonical DFS images. No motion or live notes." : regionMode ? "Same native source hashes and saved tips. Masks recomputed. One qualifying connected region suffices; no ray veto. All four cutoffs reported. Overlay displays first matching cutoff, otherwise 40, for visualization only. Side/upward connections can include neighboring shadows. No motion or live notes." : "Exact baseline source hashes asserted; baseline tips reused. Masks recomputed; localization changes recorded. Upward context is visible side shadow behind tip; ownership unknown. Seven forward rays are sparse, not a whole-area absence test. All four cutoffs are reported, with fixed 2-pixel rim allowance. No motion or live notes.", records }, null, 2));
+  notes: dfsMode ? "Same native hashes and saved tips, recomputed masks. All four cutoffs reported. Local X-margin visualization uses20 consistently; other modes use first matching cutoff otherwise40. User phase never used in measurement. Starting points reaching both targets are ignored individually; remaining downward veto has priority over usable upward success. Gray visited pixels are ignored searches; witness lines use non-ignored points. Prior decisions saved separately when replacing canonical DFS images. No motion or live notes." : regionMode ? "Same native source hashes and saved tips. Masks recomputed. One qualifying connected region suffices; no ray veto. All four cutoffs reported. Overlay displays first matching cutoff, otherwise 40, for visualization only. Side/upward connections can include neighboring shadows. No motion or live notes." : "Exact baseline source hashes asserted; baseline tips reused. Masks recomputed; localization changes recorded. Upward context is visible side shadow behind tip; ownership unknown. Seven forward rays are sparse, not a whole-area absence test. All four cutoffs are reported, with fixed 2-pixel rim allowance. No motion or live notes.", records, supplementalCases }, null, 2));
 await writeFile(path.join(output, "index.html"), `<!doctype html><meta charset="utf-8"><title>${dfsMode ? "Bounded monotone shadow DFS" : regionMode ? "At least one qualifying fingertip shadow" : "Upward shadow / thin rim / clear forward fan"}</title>
 <style>:root{${tokens}}body{font:16px sans-serif;color:var(--color-ink);background:var(--color-white);margin:24px}img{max-width:100%}td,th{padding:6px;border:1px solid var(--color-divider)}table{border-collapse:collapse}</style>
-${dfsMode ? `<h1>Bounded directional shadow DFS${localCorridor ? " — curved boundary band4" : strongDownward ? " — downward darkening >80" : ""}${filteredBoundary ? " — filtered darkening boundary" : ""}</h1>
-${localCorridor ? `<p>Both searches stay within an exterior four-pixel Chebyshev band around the selected curved fingertip arc. Downward and upward use matching 5/20/40/60 darkening cutoffs; D80 removed. Purple shows band boundary. The distal cap extends straight down to the saved veto row within the same lateral margin; forward depth is not capped by the band radius. Lateral stops do not create UNKNOWN. <a href="changes.html">Original / D80 / new comparison</a>.</p>` : ""}
+${dfsMode ? `<h1>Bounded directional shadow DFS${localCorridor ? " — X-only paired DFS" : strongDownward ? " — downward darkening >80" : ""}${filteredBoundary ? " — filtered darkening boundary" : ""}</h1>
+${localCorridor ? `<p>Both searches stay within the selected arc's horizontal X extent expanded by nine pixels, intersected with each starting point's width window. Downward and upward use matching 5/20/40/60 darkening cutoffs; D80 removed. Purple shows the X strip. No arc-distance constraint on Y remains; searches stop at their inclusive veto/support rows. Lateral stops do not create UNKNOWN. <a href="changes.html">Original / D80 / new comparison</a>.</p>` : ""}
 ${strongDownward ? `<p>Downward seeds AND traversal require darkening &gt;80; upward thresholds remain 5/20/40/60. <a href="changes.html">Old/new pass/fail comparison</a>. Canonical PNGs replaced; previous decisions retained in previous-results.json.</p>` : ""}
 ${filteredBoundary ? `<p>Boundary experiment only: valid darkening &gt;5 and projection residual &gt;0.12 supplies geometry instead of the color-cluster mask. Saved tips/widths and c/d/e remain fixed. Clear/invalid black pixels are excluded. ${strongDownward || localCorridor ? "" : `Compare with <a href="../shadow-dfs/index.html">current canonical DFS</a>.`} This is a boundary proposal, not verified skin segmentation.</p>` : ""}
-<p>c=d=e=4 analysis pixels. Start at a=fingertip Y−c, find the local finger cross-section, trace the lower silhouette below a, then find directly attached shadow pixels. From each seed DFS moves down/sideways only. ANY seed reaching fingertip Y+d rejects the finger. At least one seed must also reach a−e via up/sideways-only DFS. A real thin attached shadow is required. Global downward veto wins over upward success.</p>
+<p>c=d=e=4 analysis pixels. Start at a=fingertip Y−c, find the local finger cross-section, trace the lower silhouette below a, then find directly attached shadow pixels. From each seed DFS moves down/sideways only. Pair both searches at each starting point. A point reaching both targets is ignored in both directions. Remaining downward-only reach to fingertip Y+d vetoes; remaining upward-only reach to a−e supports. Upward support additionally requires at least five contiguous horizontal shadow pixels at one point on that path, within both X limits, using the same cutoff/filter and excluding finger-mask pixels. Reaching the upward row without this width does not support a press. No usable support means NO PRESS when evidence is available.</p>
 <p>Each seed's horizontal window is one estimated finger width, centered on that seed (even widths have one extra pixel on the left). Hitting the width cap stops that search without UNKNOWN. Known color-filter exclusions also stop traversal. Missing measurements, image bounds or incomplete arc geometry can still produce UNKNOWN. These are local bounded paths, not whole-component extents or verified contact.</p>
-<p>Blue: traced arc; purple: shadow attachments and a row; red: downward visited pixels/path/rejection endpoint and d line; green: upward visited pixels/path/support endpoint and e line. Dashed purple bounds show the rejection witness, otherwise the upward witness/first search. Overlays show first matching cutoff if any, otherwise 40, labeled for visualization only. All four cutoffs remain independent. Native source is preserved in the first panel.</p>` : regionMode ? `<h1>At least one qualifying fingertip shadow region</h1>
+<p>Blue: traced arc; purple: shadow attachments and a row; red: downward visited pixels/path/rejection endpoint and d line; green: upward visited pixels/path/support endpoint and e line; gray: ignored searches whose starting point reaches both targets. Dashed purple bounds show the rejection witness, otherwise the upward witness/first search. Local X-margin overlays show cutoff20 consistently; other modes show first matching cutoff if any, otherwise40, labeled for visualization only. All four cutoffs remain independent. Native source is preserved in the first panel.</p>` : regionMode ? `<h1>At least one qualifying fingertip shadow region</h1>
 <p>Only one region must qualify; other shadows do not veto it. Eight-connected shadow components in a bounded fingertip neighborhood must touch the distal estimated mask edge. The SAME region must extend no more than eight analysis pixels below the saved tip and have contiguous width of at least two pixels on at least three upward rows in the side strips. Width/row defaults are exploratory. Empty clear paper is insufficient. Unknown downstream boundaries or clipped sides/bottom stay unavailable.</p>
 <p>Same 30 native source hashes and fixed saved tips as before, masks recomputed with unchanged defaults. Analysis 640×427, reference cutoff 40, residual ≤0.12; all four darkening cutoffs shown. Frame labels are approximate user annotations. The second panel colors all seeded components at its labeled cutoff (first matching cutoff, otherwise 40, for display only): purple qualifies, red does not qualify or is unknown. Blue marks edge samples; heatmap blue marks actual shadow seeds. Green marks upward strips. No rays are used by this rule.</p>` : `<h1>Upward shadow + thin rim + clear forward fan</h1>
 <p>Same 30 native frames as shadow-hypothesis, verified by hashes. Saved fingertip coordinates are held fixed; masks are recomputed and recomputed-tip differences are recorded in JSON. Motion excluded. 640×427 analysis. Seven rays at −60, −40, −20, 0, 20, 40, 60° from image-down, anchored on the estimated lower silhouette within −8/+6 rows of the saved tip (missing local boundaries stay unknown). Scan length 24 pixels; two-pixel rim allowance. These settings are experimental and fixed across frames.</p>
@@ -256,6 +316,8 @@ ${filteredBoundary ? `<p>Boundary experiment only: valid darkening &gt;5 and pro
 <p>Primary projection residual ≤0.12. Color-shift ≤10 comparison is in JSON. All four luma cutoffs shown, none selected by phase. ${dfsMode ? "Directional searches cannot climb against their allowed Y direction and are laterally bounded;" : regionMode ? "Bounded regions can mix connected neighboring shadows;" : "Rays leave unsampled gaps;"} upward shadow may belong to neighbors. Prior review flags are carried forward; wrong-target first-middle 120 must be excluded from target interpretation. Directional-limit flags describe the OLD central strip.</p>
 <p><a href="summary.csv">CSV</a> · <a href="results.json">Raw samples and metadata</a></p>
 <table><tr>${columns.map((k) => `<th>${k}</th>`).join("")}</tr>${rows.map((r) => `<tr>${columns.map((k) => `<td>${r[k]}</td>`).join("")}</tr>`).join("")}</table>
+${supplementalCases.length ? `<h2>Additional captured replay cases</h2><p>These cases retain their own replay reference and are excluded from the historical phase-agreement totals.</p>${supplementalCases.map(r => `<figure id="clip1-frame${r.frame}-candidate${r.candidateId}"><figcaption>Clip 1, frame ${r.frame}, candidate ${r.candidateId}: captured replay reference ${r.referenceVersion}; visualization cutoff ${r.displayThreshold}. ${r.note}</figcaption><a href="${r.filename}"><img src="${r.filename}" alt="Clip 1 frame ${r.frame} candidate ${r.candidateId}, captured source and DFS maps"></a></figure>`).join("\n")}` : ""}
+<h2>Original 30-frame fixed-anchor comparison</h2>
 ${records.map((r) => `<figure><figcaption>${r.group} ${r.frame}: ${r.phase} — prior review ${r.priorReview.status}</figcaption><a href="${r.filename}"><img loading="lazy" src="${r.filename}" alt="${r.group} frame ${r.frame}: source, sampled regions and heatmaps"></a></figure>`).join("\n")}`);
 if (strongDownward || localCorridor) {
   const old = JSON.parse(previousDfsBytes);
@@ -291,18 +353,18 @@ if (strongDownward || localCorridor) {
     return { upwardThreshold: threshold, old: count("old"), ...(d80 ? { d80: count("d80") } : {}), new: count("new") };
   });
   await writeFile(path.join(output, "changes.json"), JSON.stringify({ oldResultsSha256: hash(previousDfsBytes), d80Sha256: d80Bytes ? hash(d80Bytes) : null,
-    note: `${localCorridor ? "New: band4 with distal-cap forward extension, matching cutoffs, D80 disabled. " : ""}Agreement with approximate user phases in one clip; not validated physical contact accuracy. Wrong-target excluded. Old boundary is color-cluster; new boundary is filtered. Previous filtered-boundary experiment had identical primary decisions to old.`, totals, comparisons }, null, 2));
+    note: `${localCorridor ? "New: X-only margin9 with per-point both-target exclusion, matching cutoffs, D80 disabled. " : ""}Agreement with approximate user phases in one clip; not validated physical contact accuracy. Wrong-target excluded. Old boundary is color-cluster; new boundary is filtered. Previous filtered-boundary experiment had identical primary decisions to old.`, totals, comparisons }, null, 2));
   const keys = Object.keys(comparisons[0]);
   await writeFile(path.join(output, "changes.csv"), [keys.join(","), ...comparisons.map((r) => keys.map((k) => r[k]).join(","))].join("\n") + "\n");
   await writeFile(path.join(output, "changes.html"), `<!doctype html><meta charset="utf-8"><title>DFS old/new results</title>
 <style>:root{${tokens}}body{font:16px sans-serif;color:var(--color-ink);background:var(--color-white);margin:24px}td,th{padding:8px;border:1px solid var(--color-divider)}table{border-collapse:collapse}.pass{background:var(--color-green-soft)}.fail{background:var(--color-red-soft)}</style>
-<h1>DFS: original / ${localCorridor ? "D80 / boundary band4" : "downward &gt;80"}</h1><p>New: filtered boundary, ${localCorridor ? "four-pixel exterior arc band for both searches; matching downward/upward cutoffs; D80 removed" : "downward seeds/traversal &gt;80; upward thresholds unchanged"}. Pass/fail means agreement with approximate user phase labels, not verified contact accuracy. Wrong-target first-middle120 excluded. Old: original color-cluster DFS; the previous filtered-boundary run had identical primary decisions.</p>
+<h1>DFS: original / ${localCorridor ? "D80 / X-only paired DFS" : "downward &gt;80"}</h1><p>New: filtered boundary, ${localCorridor ? "nine-pixel X margin and upward path width at least5; per-point both-target exclusion; matching cutoffs; D80 removed" : "downward seeds/traversal &gt;80; upward thresholds unchanged"}. Pass/fail means agreement with approximate user phase labels, not verified contact accuracy. Wrong-target first-middle120 excluded. Old: original color-cluster DFS; the previous filtered-boundary run had identical primary decisions.</p>
 <p><a href="index.html">New images</a> · <a href="changes.csv">CSV</a> · <a href="changes.json">Comparison JSON</a> · <a href="previous-results.json">Original decisions and paths</a>${d80 ? ` · <a href="d80-results.json">D80 decisions and paths</a>` : ""}</p>
 <table><tr><th>Upward cutoff</th><th>Old pass / fail / unknown</th>${d80 ? "<th>D80 pass / fail / unknown</th>" : ""}<th>New pass / fail / unknown</th><th>New rejected touches / accepted non-touches</th></tr>${totals.map((t) => `<tr><td>${t.upwardThreshold}</td><td>${t.old.pass} / ${t.old.fail} / ${t.old.unknown}</td>${t.d80 ? `<td>${t.d80.pass} / ${t.d80.fail} / ${t.d80.unknown}</td>` : ""}<td>${t.new.pass} / ${t.new.fail} / ${t.new.unknown}</td><td>${t.new.rejectedTouch} / ${t.new.acceptedNonTouch}</td></tr>`).join("")}</table>
 <table><tr>${keys.map((k) => `<th>${k}</th>`).join("")}</tr>${comparisons.map((r) => `<tr>${keys.map((k) => `<td class="${k.endsWith("Status") ? r[k] : ""}">${k === "frame" ? `<a href="${r.group}-${r.frame}.png">${r[k]}</a>` : r[k]}</td>`).join("")}</tr>`).join("")}</table>`);
   console.info("Old/new phase agreement:", JSON.stringify(totals));
 }
-console.info(`Exported ${records.length} frames: ${output}/index.html`);
+console.info(`Exported ${records.length} historical frames + ${supplementalCases.length} captured replay cases: ${output}/index.html`);
 if (filteredBoundary && !strongDownward && !localCorridor) {
   await writeFile(path.join(output, "comparison.html"), `<!doctype html><meta charset="utf-8"><title>Index boundary control comparison</title>
 <style>:root{${tokens}}body{font:16px sans-serif;color:var(--color-ink);background:var(--color-white);margin:24px}section{display:grid;grid-template-columns:1fr 1fr;gap:16px}img{width:100%}figure{margin:0}h2{margin-top:32px}</style>

@@ -13,9 +13,6 @@ const requireFromFrontend = createRequire(
   new URL("../../frontend/package.json", import.meta.url),
 );
 const { chromium } = requireFromFrontend("playwright");
-// The runtime WASM must match the exactly pinned npm wrapper version.
-const tasksVisionVersion =
-  requireFromFrontend("./package.json").dependencies["@mediapipe/tasks-vision"];
 
 const base = (process.env.MAKE_SHIFT_URL || "http://127.0.0.1:3000").replace(
   /\/+$/,
@@ -26,28 +23,22 @@ const base = (process.env.MAKE_SHIFT_URL || "http://127.0.0.1:3000").replace(
 const INIT_TIMEOUT = 60_000;
 const PAGES = {
   "/": async (page) => {
-    const status = page.getByText(/MediaPipe (ready|unavailable)/);
-    await status.waitFor({ timeout: INIT_TIMEOUT });
-    assert.match(await status.innerText(), /MediaPipe ready/);
+    const detector = page.locator('[data-sheet-detector]:not([data-sheet-detector="loading"])');
+    await detector.waitFor({ timeout: INIT_TIMEOUT });
+    assert.equal(await detector.getAttribute("data-sheet-detector"), "ready");
   },
   "/calibration": async (page) => {
-    for (const attribute of ["data-hand-detection", "data-sheet-detector"]) {
-      const settled = page.locator(`[${attribute}]:not([${attribute}="loading"])`);
-      await settled.waitFor({ timeout: INIT_TIMEOUT });
-      assert.equal(await settled.getAttribute(attribute), "ready", attribute);
-    }
+    const detector = page.locator('[data-sheet-detector]:not([data-sheet-detector="loading"])');
+    await detector.waitFor({ timeout: INIT_TIMEOUT });
+    assert.equal(await detector.getAttribute("data-sheet-detector"), "ready");
   },
   "/audio": null,
   "/tutorial": null,
   "/about": null,
 };
-const WASM_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${tasksVisionVersion}/wasm`;
 const ASSETS = [
   [base + "/audio/piano-worklet.js", /javascript/],
   [base + "/audio/synth.js", /javascript/],
-  [base + "/models/hand_landmarker.task", /^application\/octet-stream/],
-  [WASM_BASE + "/vision_wasm_internal.js", /javascript/],
-  [WASM_BASE + "/vision_wasm_internal.wasm", /application\/wasm/],
 ];
 
 const results = {};
