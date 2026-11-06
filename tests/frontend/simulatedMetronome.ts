@@ -3,6 +3,7 @@ import { processorHarness } from "./metronomeHarness";
 import type { createMetronome } from "../../frontend/src/app/audio/metronome";
 type Output = {
   prepare(): Promise<boolean>;
+  deliver?(notification: () => void): void;
   click(accent: boolean): void;
   silence(): void;
   close(): void;
@@ -17,8 +18,15 @@ export function createSimulatedMetronome(
       let timer: ReturnType<typeof setTimeout> | undefined;
       let connected = false;
       let audible = true;
+      const epoch = Date.now();
+      const mainEpoch = performance.now();
       const context = {
         state: "suspended",
+        get currentTime() { return (Date.now() - epoch) / 1000; },
+        getOutputTimestamp() {
+          return { contextTime: context.currentTime,
+            performanceTime: mainEpoch + context.currentTime * 1000 };
+        },
         onstatechange: null,
         destination: {},
         audioWorklet: { addModule: async () => {} },
@@ -63,11 +71,13 @@ export function createSimulatedMetronome(
       };
       function pump() {
         if (!connected) return;
-        harness.scope.currentFrame = Date.now();
+        harness.scope.currentFrame = Date.now() - epoch;
         harness.render(1);
         for (const message of harness.events.splice(0)) {
           if (audible) output.click(message.frame % 2000 === 0);
-          node.port.onmessage?.({ data: message });
+          const notify = () => node.port.onmessage?.({ data: message });
+          if (output.deliver) output.deliver(notify);
+          else notify();
         }
         timer = setTimeout(pump, 10);
       }
@@ -76,5 +86,9 @@ export function createSimulatedMetronome(
     },
     (context) =>
       (context as unknown as { testNode: AudioWorkletNode }).testNode,
+    {
+      request: callback => setTimeout(() => callback(performance.now()), 16) as unknown as number,
+      cancel: id => clearTimeout(id),
+    },
   );
 }

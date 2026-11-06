@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { processorHarness } from "./metronomeHarness";
 import { createMetronome } from "../../frontend/src/app/audio/metronome";
 import { createSimulatedMetronome } from "./simulatedMetronome";
@@ -10,8 +10,14 @@ function fixture(rate = 48000) {
   command("playing", { active: true, paused: false });
   return { ...h, command };
 }
+beforeEach(() => {
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
+    setTimeout(() => callback(performance.now()), 16));
+  vi.stubGlobal("cancelAnimationFrame", (id: ReturnType<typeof setTimeout>) => clearTimeout(id));
+});
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 describe("audio-thread metronome", () => {
   it.each([[4,4],[3,4],[6,8],[7,8],[2,2],[32,32]])(
@@ -132,6 +138,7 @@ it("recreates a failed processor and rejects notifications from the retired node
   }[] = [];
   const context = {
     state: "running",
+    currentTime: 2,
     audioWorklet: { addModule: vi.fn(async () => {}) },
     destination: {},
     close: vi.fn(async () => {}),
@@ -175,11 +182,13 @@ it("recreates a failed processor and rejects notifications from the retired node
   expect(nodes).toHaveLength(2);
   clock.setPlaying(true);
   clock.beginCountIn();
-  const message = nodes[1].port.postMessage.mock.calls.at(-1)![0];
-  stale({ data: { type: "complete", generation: message.generation } });
+  const command = nodes[1].port.postMessage.mock.calls.at(-1)![0];
+  const message = { type: "complete", generation: command.generation,
+    countStartFrame: 0, countIntervalFrames: 24000, countTotal: 4, rate: 48000 };
+  stale({ data: message });
   expect(complete).not.toHaveBeenCalled();
   nodes[1].port.onmessage!({
-    data: { type: "complete", generation: message.generation },
+    data: message,
   });
   expect(complete).toHaveBeenCalledTimes(1);
   clock.close();
@@ -253,5 +262,56 @@ it("does not let a retired module failure close a newer successful preparation",
   expect(second.node.disconnect).not.toHaveBeenCalled();
   expect(await clock.prepare()).toBe(true);
   expect(createContext).toHaveBeenCalledTimes(2);
+  clock.close();
+});
+
+it.each([20, 120, 300])("uses the audio timeline at %i BPM without replaying queued beats", async tempo => {
+  const pending = new Map<number, FrameRequestCallback>();
+  let id = 0;
+  const context = {
+    state: "running", currentTime: 0, destination: {}, onstatechange: null,
+    audioWorklet: { addModule: vi.fn(async () => {}) },
+    getOutputTimestamp() {
+      return { contextTime: context.currentTime, performanceTime: 1000 + context.currentTime * 1000 };
+    },
+    close: vi.fn(async () => {}),
+  };
+  const node = {
+    port: { onmessage: null as null | ((event: { data: object }) => void), postMessage: vi.fn(), close: vi.fn() },
+    connect: vi.fn(), disconnect: vi.fn(), onprocessorerror: null,
+  };
+  const clock = createMetronome(() => context as unknown as AudioContext,
+    () => node as unknown as AudioWorkletNode, {
+      request: callback => { pending.set(++id, callback); return id; },
+      cancel: handle => { pending.delete(handle); },
+    });
+  const beat = vi.fn(), complete = vi.fn();
+  clock.configure({ tempo, beatsPerMeasure: 4, audible: true }, {
+    onCountInBeat: beat, onCountInComplete: complete, onUnavailable() {},
+  });
+  await clock.prepare();
+  clock.setPlaying(true);
+  clock.beginCountIn();
+  const generation = node.port.postMessage.mock.calls.at(-1)![0].generation;
+  const interval = 60 / tempo;
+  const message = { type: "beat", beat: 1, generation, frame: 0, rate: 48000,
+    countStartFrame: 0, countIntervalFrames: interval * 48000, countTotal: 4 };
+  node.port.onmessage!({ data: message });
+  expect(beat.mock.calls.map(call => call[0])).toEqual([1]);
+  // Only animation frames run: beat 2/3/4 messages remain undelivered.
+  context.currentTime = interval * 2.5;
+  let callback = pending.values().next().value!;
+  pending.clear(); callback(0);
+  expect(beat.mock.calls.map(call => call[0])).toEqual([1, 3]);
+  node.port.onmessage!({ data: message }); // Late duplicate must not redraw 1.
+  expect(beat.mock.calls.map(call => call[0])).toEqual([1, 3]);
+  context.currentTime = interval * 4 + 0.2;
+  callback = pending.values().next().value!;
+  pending.clear(); callback(0);
+  expect(complete).toHaveBeenCalledOnce();
+  expect(complete.mock.calls[0][0]).toBeCloseTo(1000 + interval * 4000, 6);
+  expect(pending.size).toBe(0);
+  node.port.onmessage!({ data: { ...message, type: "complete" } });
+  expect(complete).toHaveBeenCalledOnce();
   clock.close();
 });
