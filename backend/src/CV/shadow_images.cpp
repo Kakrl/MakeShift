@@ -1,8 +1,10 @@
+#include "CrFingerDetection.hpp"
 #include "Fingertips.hpp"
 #include "Homography.hpp"
 #include "ShadowDetection.hpp"
 #include "ShadowDiagnostics.hpp"
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -67,7 +69,11 @@ int main(int argc, char **argv) {
             "{image | | Current image path}"
             "{reference | | Coordinate-matched empty reference}"
             "{residual | | Override CandidateFilter maximum projection residual}"
+            "{finger-method |cr-otsu| Finger mask: cr-otsu, cr or projection}"
+            "{cr-threshold | | Override compiled Cr threshold, in 0..255 units}"
+            "{otsu-radius | | Fingertip expansion radius, 1 or 2 analysis pixels}"
             "{dark-shadows-only |false| Restrict DFS to dark shadow classes}"
+            "{light-shadow-test |false| Try clear-front/side-shadow fallback after dark failure}"
             "{case | | Optional three-digit case folder, such as 001; reused on rerun}"
             "{output |backend/test-results| Existing results directory; generated files are "
             "replaced}"
@@ -89,6 +95,16 @@ int main(int argc, char **argv) {
             throw std::invalid_argument("Case must be three digits, such as 001");
         const int maxSide = parser.get<int>("max-side");
         CandidateFilter filter;
+        const auto fingerMethod = parser.get<std::string>("finger-method");
+        const double crThreshold = parser.has("cr-threshold") ? parser.get<double>("cr-threshold")
+                                                              : defaultCrFingerThreshold;
+        const int otsuRadius =
+            parser.has("otsu-radius") ? parser.get<int>("otsu-radius") : defaultCrOtsuRadius;
+        if ((fingerMethod != "cr" && fingerMethod != "cr-otsu" && fingerMethod != "projection") ||
+            !std::isfinite(crThreshold) || crThreshold < 0 || crThreshold > 255 || otsuRadius < 1 ||
+            otsuRadius > 2)
+            throw std::invalid_argument("Use --finger-method=cr-otsu|cr|projection, "
+                                        "--cr-threshold=0..255, --otsu-radius=1|2");
         if (parser.has("residual"))
             filter.maximumResidual = parser.get<double>("residual");
         validateFilter(filter);
@@ -137,11 +153,31 @@ int main(int argc, char **argv) {
         const auto difference = measureShadowDifference(current, reference);
         FingertipOptions fingertipOptions;
         fingertipOptions.filter = filter;
-        const auto tips = identifyFilteredFingertips(difference, fingertipOptions);
+        std::optional<CrOtsuResult> refinement;
+        FingertipEstimate tips;
+        if (fingerMethod == "cr-otsu") {
+            refinement = refineCrFingertipsWithOtsu(current, reference, crThreshold, otsuRadius,
+                                                    fingertipOptions);
+            tips = refinement->refined;
+        } else if (fingerMethod == "cr") {
+            tips = identifyCrChangeFingertips(current, reference, crThreshold, fingertipOptions);
+        } else {
+            tips = identifyFilteredFingertips(difference, fingertipOptions);
+        }
         std::vector<ShadowPaths> paths;
+        CandidateFilter shadowFilter = filter;
+        if (fingerMethod != "projection")
+            shadowFilter.method = FilterMethod::FingerMask;
         for (const auto &tip : tips.candidates)
             paths.push_back(
-                measureMonotoneShadowPaths(difference, tips.mask, tip, filter, pathSettings));
+                measureMonotoneShadowPaths(difference, tips.mask, tip, shadowFilter, pathSettings));
+        const bool lightShadowTest = parser.get<bool>("light-shadow-test");
+        if (lightShadowTest && !darkShadowsOnly)
+            throw std::invalid_argument("Light fallback requires --dark-shadows-only=true");
+        if (lightShadowTest)
+            for (size_t i = 0; i < paths.size(); ++i)
+                paths[i].light =
+                    measureLightShadow(difference, tips.mask, tips.candidates[i], paths[i]);
         fs::path output(outputPath);
         if (!fs::is_directory(output))
             throw std::invalid_argument("Results directory must already exist");
@@ -162,9 +198,8 @@ int main(int argc, char **argv) {
                 boundary.at<uint8_t>(y, x) = tips.mask[i] * 255;
                 valid.at<uint8_t>(y, x) = difference.valid[i] * 255;
                 shadow.at<uint8_t>(y, x) =
-                    difference.valid[i] && difference.projectionValid[i] &&
-                            difference.lumaDrop[i] > 5 &&
-                            difference.residualCurrent[i] <= filter.maximumResidual
+                    classifyShadowPixel(difference, tips.mask, i, 5, shadowFilter) ==
+                            ShadowPixelState::Shadow
                         ? 255
                         : 0;
                 darkening.at<uint8_t>(y, x) = cv::saturate_cast<uint8_t>(difference.lumaDrop[i]);
@@ -200,30 +235,66 @@ int main(int argc, char **argv) {
                                cv::FileStorage::WRITE | cv::FileStorage::FORMAT_JSON);
         if (!report.isOpened())
             throw std::runtime_error("Cannot write report");
-        report << "schemaVersion" << 2 << "method" << "filtered-directional-shadow-v1"
-               << "opencvVersion" << CV_VERSION << "source" << fs::absolute(currentPath).string()
-               << "reference" << fs::absolute(referencePath).string() << "nativeWidth"
-               << native.width << "nativeHeight" << native.height << "width" << analysis.width
-               << "height" << analysis.height << "resize" << "INTER_AREA" << "minimumReferenceLuma"
-               << 40 << "geometryDarkeningFloor" << 5 << "maximumResidual" << filter.maximumResidual
-               << "c" << pathSettings.c << "d" << pathSettings.d << "e" << pathSettings.e
-               << "corridorRadius" << pathSettings.corridorRadius.value_or(-1)
-               << "minimumUpwardShadowWidth" << pathSettings.minimumUpwardShadowWidth
-               << "decisionEncoding"
-               << "-1 unknown, 0 no match, 1 match; no key eligibility or note events"
-               << "darkShadowsOnly" << int(darkShadowsOnly) << "maximumSearchCurrentLuma"
-               << pathSettings.maximumCurrentLuma.value_or(-1) << "visualization" << "{"
-               << "darkeningFloor" << 5 << "darkeningFullScale" << 100 << "residualFullScale"
-               << 0.30 << "colorShiftFullScale" << 30 << "palette"
-               << "TURBO; black below display floor, gray unavailable"
-               << "original" << "original.png" << "originalResults" << "original-results.png"
-               << "combined" << "comparison.png"
-               << "shadowClasses" << "shadow-classes.png" << "shadowClassMaximumCurrentLuma"
-               << consideredShadowMaximumLuma << "shadowClassRule"
-               << "current luma <= cutoff among valid projection-compatible darkened pixels; "
-                  "search restriction only when darkShadowsOnly is enabled"
-               << "}"
-               << "candidates" << "[";
+        report
+            << "schemaVersion" << 2 << "method"
+            << (fingerMethod == "cr-otsu" ? "cr-otsu-directional-shadow-v1"
+                : fingerMethod == "cr"    ? "cr-directional-shadow-v1"
+                                          : "filtered-directional-shadow-v1")
+            << "fingerMethod" << fingerMethod << "minimumAbsoluteCrChange" << crThreshold
+            << "shadowMethod" << (fingerMethod == "projection" ? "projection" : "cr-mask-darkening")
+            << "shadowResidualApplied" << int(fingerMethod == "projection") << "fingerMaskRule"
+            << (fingerMethod != "projection"
+                    ? "Absolute Cr change > threshold; alpha valid; no darkening "
+                      "or reference-luma gate"
+                    : "Darkening >5 and projection residual > maximumResidual")
+            << "otsuEnabled" << int(bool(refinement)) << "otsuRadius"
+            << (refinement ? otsuRadius : 0) << "otsuRule"
+            << "Local Otsu on raw Cr change quantized to0..255; connected additions within "
+               "Euclidean radius of original distal c-row mask; no cumulative growth"
+            << "opencvVersion" << CV_VERSION << "source" << fs::absolute(currentPath).string()
+            << "reference" << fs::absolute(referencePath).string() << "nativeWidth" << native.width
+            << "nativeHeight" << native.height << "width" << analysis.width << "height"
+            << analysis.height << "resize" << "INTER_AREA" << "minimumReferenceLuma" << 40
+            << "geometryDarkeningFloor" << 5 << "maximumResidual" << filter.maximumResidual << "c"
+            << pathSettings.c << "d" << pathSettings.d << "e" << pathSettings.e << "corridorRadius"
+            << pathSettings.corridorRadius.value_or(-1) << "minimumUpwardShadowWidth"
+            << pathSettings.minimumUpwardShadowWidth << "decisionEncoding"
+            << "-1 unknown, 0 no match, 1 match; no key eligibility or note events"
+            << "lightShadowTest" << int(lightShadowTest) << "lightShadowDarkeningFloor" << 5
+            << "lightShadowBandDepth" << 2 << "lightShadowStripWidthFraction" << 0.15
+            << "lightShadowBlobAreaFraction" << 0.04 << "lightShadowSideReachWidthFraction" << 0.5
+            << "darkShadowsOnly" << int(darkShadowsOnly) << "maximumSearchCurrentLuma"
+            << pathSettings.maximumCurrentLuma.value_or(-1) << "visualization" << "{"
+            << "darkeningFloor" << 5 << "darkeningFullScale" << 100 << "residualFullScale" << 0.30
+            << "colorShiftFullScale" << 30 << "palette"
+            << "TURBO; black below display floor, gray unavailable"
+            << "original" << "original.png" << "originalResults" << "original-results.png"
+            << "combined" << "comparison.png"
+            << "subtraction" << "subtraction.png" << "subtractionR" << "subtraction-r.png"
+            << "subtractionG" << "subtraction-g.png" << "subtractionB" << "subtraction-b.png"
+            << "subtractionRule"
+            << "Per-channel max(reference - current, 0), raw 0..255, no filters or normalization"
+            << "colorSpaceComparisons" << "[" << "rgb" << "hsv" << "lab" << "ycrcb"
+            << "normalized-rgb" << "cmy" << "ryb" << "]"
+            << "colorChannelRule"
+            << "Convert current/reference separately; fixed-range grayscale channels and absolute "
+               "changes; hue change circular; RYB is a nonstandard artist-style approximation"
+            << "crChangeDisplayGain" << 4 << "cbChangeDisplayGain" << 4 << "shadowClasses"
+            << "shadow-classes.png" << "shadowClassMaximumCurrentLuma"
+            << consideredShadowMaximumLuma << "shadowClassRule"
+            << (fingerMethod == "projection" ? "Outside fingers; valid projection-compatible "
+                                               "darkening; current luma <= cutoff is purple"
+                                             : "Outside Cr fingers; valid darkening; no residual "
+                                               "filter; current luma <= cutoff is purple")
+            << "}"
+            << "otsuRegions" << "[";
+        if (refinement)
+            for (const auto &region : refinement->regions)
+                report << "{" << "originalCandidateId" << region.candidateId << "x" << region.x
+                       << "y" << region.y << "width" << region.width << "height" << region.height
+                       << "threshold" << region.threshold << "addedPixels" << region.addedPixels
+                       << "}";
+        report << "]" << "candidates" << "[";
         auto overlay = currentBgr.clone();
         for (size_t i = 0; i < tips.candidates.size(); ++i) {
             const auto &t = tips.candidates[i];
@@ -244,6 +315,22 @@ int main(int argc, char **argv) {
                        << *p.corridorMaximumX;
             writePixels(report, "arc", p.arc);
             writePixels(report, "edgeSamples", p.edgeSamples);
+            const auto finalDecision = finalShadowDecision(p);
+            report << "finalDecision" << (finalDecision ? int(*finalDecision) : -1)
+                   << "decisionSource"
+                   << (p.levels[1].patternMatch == true ? "dark"
+                       : p.light.matched                ? "light"
+                                                        : "neither")
+                   << "lightShadow" << "{" << "evaluated" << int(p.light.evaluated) << "matched"
+                   << int(p.light.matched) << "reason" << p.light.reason << "minimumStrip"
+                   << p.light.minimumStrip << "bandDepth" << p.light.bandDepth << "minimumBlobArea"
+                   << p.light.minimumBlobArea;
+            writePixels(report, "front", p.light.front);
+            writePixels(report, "clearStrip", p.light.clearStrip);
+            writePixels(report, "clearBand", p.light.clearBand);
+            writePixels(report, "leftShadow", p.light.leftShadow);
+            writePixels(report, "rightShadow", p.light.rightShadow);
+            report << "}";
             report << "crossSectionComplete" << int(p.crossSectionComplete) << "levels" << "[";
             for (const auto &level : p.levels) {
                 report << "{" << "threshold" << level.threshold << "decision"
@@ -256,15 +343,15 @@ int main(int argc, char **argv) {
                 writePixels(report, "ignoredSeeds", level.ignoredSeeds);
                 report << "}";
                 if (level.threshold == 20) {
-                    const cv::Scalar color = !level.patternMatch   ? cv::Scalar(128, 128, 128)
-                                             : *level.patternMatch ? cv::Scalar(0, 200, 0)
-                                                                   : cv::Scalar(0, 0, 220);
+                    const cv::Scalar color = !finalDecision   ? cv::Scalar(128, 128, 128)
+                                             : *finalDecision ? cv::Scalar(0, 200, 0)
+                                                              : cv::Scalar(0, 0, 220);
                     cv::circle(overlay, {t.x, t.y}, 4, color, 1);
                     cv::putText(overlay,
                                 std::to_string(t.id) + ":" +
-                                    (!level.patternMatch   ? "?"
-                                     : *level.patternMatch ? "match"
-                                                           : "no"),
+                                    (!finalDecision   ? "?"
+                                     : *finalDecision ? "match"
+                                                      : "no"),
                                 {t.x + 5, t.y}, cv::FONT_HERSHEY_SIMPLEX, 0.35, color, 1);
                 }
             }
@@ -273,30 +360,53 @@ int main(int argc, char **argv) {
         report << "]";
         report.release();
         writeImage(output / "candidates.png", overlay);
-        const auto diagnostics =
-            renderShadowDiagnostics(originalBgr, currentBgr, referenceBgr, difference, tips, paths,
-                                    filter.maximumResidual, darkShadowsOnly);
+        const auto diagnostics = renderShadowDiagnostics(
+            originalBgr, currentBgr, referenceBgr, difference, tips, paths, filter.maximumResidual,
+            darkShadowsOnly, fingerMethod, crThreshold,
+            refinement ? &refinement->original : nullptr, lightShadowTest);
         for (const auto &image : diagnostics)
             writeImage(output / image.filename, image.pixels);
         std::ofstream gallery(output / "index.html");
-        gallery << "<!doctype html><meta charset=\"utf-8\"><meta name=\"viewport\" "
-                   "content=\"width=device-width,initial-scale=1\"><title>Native shadow "
-                   "diagnostics</title>"
-                << "<style>body{font-family:system-ui;margin:24px;background:#181818;color:#eee}a{"
-                   "color:#8dcaff}img{width:100%;height:auto}main{display:grid;grid-template-"
-                   "columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:24px}figure{margin:0 "
-                   "0 24px}figcaption{margin:8px 0;color:#ccc}</style>"
-                << "<h1>Original, results and diagnostics</h1><p>Green: shadow-pattern match; red: "
-                   "no match; gray: unknown at cutoff 20. IDs are spatial candidates. No keyboard "
-                   "eligibility or note events.</p>"
-                << "<p><a href=\"results.json\">Results and witness paths</a> · <a "
-                   "href=\"measurements.yml.gz\">Raw float measurements</a></p>"
-                << "<figure><a href=\"comparison.png\"><img "
-                   "src=\"comparison.png\"></a><figcaption>Combined image: original, results, "
-                   "reference, measurement heatmaps, boundary mask and dark-shadow classes. Click "
-                   "for full "
-                   "size.</figcaption></figure>"
-                << "<h2>Original and results at native resolution</h2><main>";
+        gallery
+            << "<!doctype html><meta charset=\"utf-8\"><meta name=\"viewport\" "
+               "content=\"width=device-width,initial-scale=1\"><title>Native shadow "
+               "diagnostics</title>"
+            << "<style>body{font-family:system-ui;margin:24px;background:#181818;color:#eee}a{"
+               "color:#8dcaff}img{width:100%;height:auto}main{display:grid;grid-template-"
+               "columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:24px}figure{margin:0 "
+               "0 24px}figcaption{margin:8px 0;color:#ccc}</style>"
+            << "<h1>Original, results and diagnostics</h1><p>Green: shadow-pattern match; red: "
+               "no match; gray: unknown at cutoff 20. IDs are spatial candidates. No keyboard "
+               "eligibility or note events.</p>"
+            << "<p><a href=\"results.json\">Results and witness paths</a> · <a "
+               "href=\"measurements.yml.gz\">Raw float measurements</a></p>"
+            << "<p>Finger mask: " << fingerMethod << "; Cr threshold: " << crThreshold
+            << " (used by cr and cr-otsu). Otsu radius: " << (refinement ? otsuRadius : 0)
+            << ". Shadow source: "
+            << (fingerMethod == "projection" ? "projection filtered"
+                                             : "outside Cr fingers + darkening; no residual filter")
+            << ". Light fallback: " << (lightShadowTest ? "enabled" : "disabled")
+            << "; summary colors use dark OR light; DFS views retain dark-only decisions.</p>"
+            << "<p>Comparison row3 shows original Cr shadows, then new Otsu shadows, "
+               "then dark/light classes (blue fingers, magenta dark shadows, gray light shadows). "
+               "Otsu additions remain pink in the after view. "
+               "Both shadow views use the selected shadow classifier "
+               "and fixed5..100 darkening scale as the original filtered shadow heatmap, "
+               "with the selected finger mask excluded. Black: excluded or clear; gray: "
+               "unavailable. The later DFS cutoff20 and dark-only brightness110 gates are "
+               "not applied to this visualization.</p>"
+            << "<p>The Cr-change panel uses4x display gain. The adjacent fingers + shadows "
+               "panel uses the exact cutoff20 DFS pixel rules, including the selected "
+               "dark-only brightness gate. Blue: fingers; heat: shadow evidence; black: "
+               "clear/excluded; gray: unavailable. Geometry and path qualification are later "
+               "checks.</p>"
+            << "<figure><a href=\"comparison.png\"><img "
+               "src=\"comparison.png\"></a><figcaption>Combined image: original, results, "
+               "reference, measurement heatmaps, boundary mask, dark-shadow classes, RGB "
+               "subtraction and R/G/B channels. Click "
+               "for full "
+               "size.</figcaption></figure>"
+            << "<h2>Original and results at native resolution</h2><main>";
         const auto show = [&](const DiagnosticImage &image) {
             gallery << "<figure><h3>" << image.title << "</h3><a href=\"" << image.filename
                     << "\"><img loading=\"lazy\" src=\"" << image.filename << "\"></a><figcaption>"
@@ -306,12 +416,28 @@ int main(int argc, char **argv) {
         show(diagnostics[1]);
         gallery << "</main><h2>Heatmaps and directional searches</h2><p>Heatmaps use fixed scales "
                    "across runs: black below the display floor, cool to warm with increasing "
-                   "value, gray unavailable. Color shift is context; projection residual is the "
-                   "active filter.</p><main>";
+                   "value, gray unavailable. Projection residual is used only in projection mode; "
+                   "Cr modes derive shadows from outside the selected finger mask and "
+                   "darkening.</p><main>";
         for (size_t i = 2; i < diagnostics.size(); ++i)
-            if (diagnostics[i].filename != "comparison.png")
+            if (diagnostics[i].filename != "comparison.png" &&
+                diagnostics[i].filename.rfind("color-", 0) != 0)
                 show(diagnostics[i]);
-        gallery << "</main><details><summary>Raw masks and analysis-sized inputs</summary><main>";
+        gallery << "</main><h2>Color spaces: current, reference and channel changes</h2>"
+                   "<p>Each grid has three rows: current image, reference, absolute change. "
+                   "Columns show RGB context and the three grayscale channels. Fixed scales; "
+                   "no automatic contrast. Hue change uses circular distance; gray means "
+                   "undefined hue or normalized black. Lab a/b are centered at neutral gray. "
+                   "Cr and Cb changes use4x display gain, clipped at white; measured values and "
+                   "thresholds are unchanged. "
+                   "CMY complements RGB; RYB is a nonstandard artist-style approximation. "
+                   "These views do not change detection.</p><main>";
+        for (const auto &image : diagnostics)
+            if (image.filename.rfind("color-", 0) == 0 &&
+                image.filename.find("-comparison.png") != std::string::npos)
+                show(image);
+        gallery << "</main>";
+        gallery << "<details><summary>Raw masks and analysis-sized inputs</summary><main>";
         for (const auto *name : {"source", "reference", "boundary", "shadow-compatible",
                                  "darkening", "valid", "candidates"})
             gallery << "<figure><h3>" << name << "</h3><a href=\"" << name

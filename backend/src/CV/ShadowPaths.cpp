@@ -31,29 +31,12 @@ ShadowPaths measureMonotoneShadowPaths(const ShadowDifference &diff,
     result.aY = tip.y - s.c;
     result.downwardY = tip.y + s.d;
     result.upwardY = result.aY - s.e;
-    enum class State { Unknown, Clear, Shadow };
+    using State = ShadowPixelState;
     const auto state = [&](int x, int y, double threshold) {
         if (x < 0 || x >= w || y < 0 || y >= h)
             return State::Unknown;
         const int i = y * w + x;
-        if (mask[i])
-            return State::Clear;
-        const double mismatch =
-            filter.method == FilterMethod::Color ? diff.colorShift[i] : diff.residualCurrent[i];
-        if (!diff.valid[i] || !std::isfinite(diff.lumaDrop[i]) || !std::isfinite(mismatch) ||
-            (filter.method == FilterMethod::Projection && !diff.projectionValid[i]))
-            return State::Unknown;
-        if (s.maximumCurrentLuma) {
-            if (!std::isfinite(diff.currentLuma[i]))
-                return State::Unknown;
-            if (diff.currentLuma[i] > *s.maximumCurrentLuma)
-                return State::Clear;
-        }
-        return diff.lumaDrop[i] > threshold &&
-                       mismatch <= (filter.method == FilterMethod::Color ? filter.maximumColorShift
-                                                                         : filter.maximumResidual)
-                   ? State::Shadow
-                   : State::Clear;
+        return classifyShadowPixel(diff, mask, i, threshold, filter, s.maximumCurrentLuma);
     };
     int left = tip.x, right = tip.x;
     const bool geometryReady = result.aY >= 0 && mask[result.aY * w + tip.x];

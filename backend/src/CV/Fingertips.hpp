@@ -19,4 +19,7 @@ struct FingertipEstimate {
 // Downward-facing filtered-mask plateau/local-lobe proposals. No tracking or I/O.
 FingertipEstimate identifyFilteredFingertips(const ShadowDifference &difference,
                                              FingertipOptions options = {});
+// Shared proposal geometry; caller supplies a binary mask (0/1).
+FingertipEstimate identifyFingertipsFromMask(int width, int height, std::vector<uint8_t> mask,
+                                             FingertipOptions options = {});
 } // namespace makeshift::cvbaseline

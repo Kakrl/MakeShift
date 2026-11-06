@@ -6,14 +6,22 @@
 namespace makeshift::cvbaseline {
 FingertipEstimate identifyFilteredFingertips(const ShadowDifference &d, FingertipOptions o) {
     validateDifference(d);
+    return identifyFingertipsFromMask(d.width, d.height, filteredDarkeningBoundaryMask(d, o.filter),
+                                      o);
+}
+FingertipEstimate identifyFingertipsFromMask(int w, int h, std::vector<uint8_t> mask,
+                                             FingertipOptions o) {
     validateFilter(o.filter);
+    if (w < 1 || h < 1 || int64_t(w) * h > 640 * 640 || mask.size() != size_t(w) * h ||
+        std::any_of(mask.begin(), mask.end(), [](uint8_t value) { return value > 1; }))
+        throw std::invalid_argument("Expected bounded binary finger mask");
     if (o.minimumComponentArea < 1 || o.minimumComponentArea > 640 * 640 ||
         !std::isfinite(o.minimumProminence) || o.minimumProminence < 1 ||
         o.minimumProminence > 640 || o.minimumSeparation < 2 || o.minimumSeparation > 640 ||
         o.maximumFingerWidth < 3 || o.maximumFingerWidth > 128)
         throw std::invalid_argument("Invalid fingertip options");
-    FingertipEstimate result{filteredDarkeningBoundaryMask(d, o.filter), {}};
-    const int w = d.width, h = d.height, n = w * h;
+    FingertipEstimate result{std::move(mask), {}};
+    const int n = w * h;
     std::vector<int> labels(n), queue(n);
     struct Component {
         int id, left, right, top, bottom;

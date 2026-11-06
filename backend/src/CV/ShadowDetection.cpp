@@ -6,7 +6,8 @@
 
 namespace makeshift::cvbaseline {
 void validateFilter(const CandidateFilter &f) {
-    if ((f.method != FilterMethod::Projection && f.method != FilterMethod::Color) ||
+    if ((f.method != FilterMethod::Projection && f.method != FilterMethod::Color &&
+         f.method != FilterMethod::FingerMask) ||
         !std::isfinite(f.maximumColorShift) || f.maximumColorShift < 0 ||
         !std::isfinite(f.maximumResidual) || f.maximumResidual < 0)
         throw std::invalid_argument("Invalid shadow filter");
@@ -81,6 +82,9 @@ ShadowDifference measureShadowDifference(const cv::Mat &current, const cv::Mat &
 std::vector<uint8_t> filteredDarkeningBoundaryMask(const ShadowDifference &d, CandidateFilter f) {
     validateDifference(d);
     validateFilter(f);
+    if (f.method == FilterMethod::FingerMask)
+        throw std::invalid_argument(
+            "FingerMask shadow mode requires an independently supplied finger mask");
     std::vector<uint8_t> mask(d.valid.size());
     for (size_t i = 0; i < mask.size(); ++i) {
         const double mismatch =
@@ -92,5 +96,30 @@ std::vector<uint8_t> filteredDarkeningBoundaryMask(const ShadowDifference &d, Ca
             mismatch > (f.method == FilterMethod::Color ? f.maximumColorShift : f.maximumResidual);
     }
     return mask;
+}
+ShadowPixelState classifyShadowPixel(const ShadowDifference &d, const std::vector<uint8_t> &mask,
+                                     size_t i, double threshold, CandidateFilter filter,
+                                     std::optional<double> maximumCurrentLuma) {
+    if (mask[i])
+        return ShadowPixelState::Clear;
+    if (!d.valid[i] || !std::isfinite(d.lumaDrop[i]))
+        return ShadowPixelState::Unknown;
+    double mismatch = 0, maximumMismatch = 0;
+    if (filter.method != FilterMethod::FingerMask) {
+        mismatch = filter.method == FilterMethod::Color ? d.colorShift[i] : d.residualCurrent[i];
+        maximumMismatch = filter.method == FilterMethod::Color ? filter.maximumColorShift
+                                                               : filter.maximumResidual;
+        if (!std::isfinite(mismatch) ||
+            (filter.method == FilterMethod::Projection && !d.projectionValid[i]))
+            return ShadowPixelState::Unknown;
+    }
+    if (maximumCurrentLuma) {
+        if (!std::isfinite(d.currentLuma[i]))
+            return ShadowPixelState::Unknown;
+        if (d.currentLuma[i] > *maximumCurrentLuma)
+            return ShadowPixelState::Clear;
+    }
+    return d.lumaDrop[i] > threshold && mismatch <= maximumMismatch ? ShadowPixelState::Shadow
+                                                                    : ShadowPixelState::Clear;
 }
 } // namespace makeshift::cvbaseline
