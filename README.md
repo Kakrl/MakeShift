@@ -43,6 +43,7 @@ and playback behavior.
 
 - [System explanation: architecture, design decisions, and tradeoffs](docs/explanation.md)
 - [Tutorial: play and record with MakeShift](docs/tutorial.md)
+- [Reference: APIs, configuration, schemas, and lookup tables](docs/reference.md)
 - [Print and assemble the actual-size piano sheets](docs/piano_sheet.md)
 - [Testing guide, known defects, and RCA log](tests/README.md)
 - [Verification Test Inventory](tests/verification_test_inventory.md)
