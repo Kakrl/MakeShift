@@ -139,6 +139,47 @@ try {
   await page.waitForFunction(() => window.countCompletions === 2);
   assert.deepEqual(await page.evaluate(() => window.countBeats), [1, 2, 3, 4]);
   assert((await page.evaluate(() => window.sampleClicks(150))) < 0.00001);
+  // Real audio clock, controller callbacks and a display fixture at 300 BPM.
+  // This excludes Home/CV; full Home/recorder integration is covered by Vitest.
+  await page.evaluate(() => {
+    window.startTimelineProbe = () => {
+      window.timelineProbe = [];
+      window.probeCompletion = null;
+      window.probeStart = null;
+      window.testMetronome.configure({ tempo: 300, beatsPerMeasure: 4, audible: true }, {
+        onCountInBeat(beat) {
+          const first = window.audioBeats.findLast(event => event.beat === 1);
+          window.probeStart = first.countStartFrame / first.rate;
+          window.timelineProbe.push({ beat, received: performance.now() });
+        },
+        onCountInComplete(boundaryMs) {
+          window.probeCompletion = { boundaryMs, received: performance.now() };
+          window.timelineProbe.push({ beat: null, received: performance.now() });
+        },
+        onUnavailable() { throw new Error("Probe audio unavailable"); },
+      });
+      window.testMetronome.beginCountIn();
+    };
+    window.startTimelineProbe();
+  });
+  await page.waitForFunction(() => window.probeCompletion !== null);
+  assert.deepEqual(await page.evaluate(() => window.timelineProbe.map(event => event.beat)), [1, 2, 3, 4, null]);
+  await page.evaluate(() => window.startTimelineProbe());
+  await page.waitForFunction(() => window.probeStart !== null &&
+    window.clickContext.getOutputTimestamp().contextTime >= window.probeStart + 0.55);
+  const afterStall = await page.evaluate(() => {
+    window.beforeProbeStall = window.timelineProbe.length;
+    const end = performance.now() + 450;
+    while (performance.now() < end) { /* Cross completion with no UI callbacks. */ }
+    return window.beforeProbeStall;
+  });
+  await page.waitForFunction(() => window.probeCompletion !== null);
+  const probe = await page.evaluate(index => ({
+    tail: window.timelineProbe.slice(index).map(event => event.beat),
+    delayMs: window.probeCompletion.received - window.probeCompletion.boundaryMs,
+  }), afterStall);
+  assert.deepEqual(probe.tail, [null]); // No obsolete beat 4 after the stall.
+  assert(probe.delayMs > 100); // Completion carries the earlier audio boundary.
   await page.evaluate(() => window.testMetronome.close());
   await page.waitForFunction(() => window.clickContext.state === "closed");
   // Exercise cleanup/setup reuse with an actual second browser AudioContext.
@@ -234,6 +275,8 @@ try {
         "camera denied; no piano Enable audio; toggle and mute passed",
       busyThreadBeats: busyBeats.length,
       busyThreadSpacing: "within one audio sample of 500ms",
+      countdown300Bpm: "ordered callbacks when idle; no stale beats after completion stall",
+      delayedCompletionMs: probe.delayMs,
       pause: "silent",
       resume: "count-in and ongoing clicks",
       mutedCountIn: "passed",
