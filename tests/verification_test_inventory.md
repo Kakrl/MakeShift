@@ -559,3 +559,9 @@ METER-02 and metronome unit coverage passed in the combined 746-test run
 Edge; [execution record](README.md#pr-238-main-merge-2026-11-02).
 No test cases or CI integration were added by this conflict resolution;
 physical verification and new Actions evidence remain pending.
+
+## Dependency review (#197, PR gate only)
+
+| Test ID | Level | Requirement | Description / source | Owner | Tool | Automated? | Implementation Status | CI Integrated? | Execution evidence |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| DEP-01 | CI / security integration | #197 PR dependency check | Frontend manifest/lockfile PRs fail on introduced known high/critical vulnerabilities; clean comparison passes; no package execution or PR comments ([workflow](../.github/workflows/dependency-review.yml), [verification procedure](../docs/dev_process.md#pr-dependency-review-197)) | Harry Deng | GitHub dependency-review action v5.0.0; actionlint 1.7.12 | Yes | Workflow implemented; clean/vulnerable end-to-end execution pending | Configured in new dependency-review.yml; workflow not yet pushed or executed | Local 2026-11-06: actionlint passed; no Actions job evidence or demonstrated vulnerable-update rejection yet; [record](README.md#pr-dependency-review-workflow-197-first-part) |
