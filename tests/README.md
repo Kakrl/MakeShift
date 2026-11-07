@@ -2291,10 +2291,12 @@ this workflow or independently verified by the agent.
 Actionlint 1.7.12 passed for .github/workflows/dependency-review.yml. Its official
 Windows archive was downloaded to a temporary directory and verified against
 the release SHA-256 checksum; no binary or dependency was added to the repo.
-GitHub clean-change and known-vulnerable-change runs remain pending, so the
-blocking behavior is not claimed verified. Earlier upstream API probes returned
-403 for dependency comparison and 404 for vulnerability-alert status; these do
-not establish the alert configuration with the current account permissions.
-The later administrator confirmation resolves the alert-configuration question;
-dependency-review API access still needs a successful workflow run. See the controlled
-verification procedure in docs/dev_process.md and inventory entry DEP-01.
+On 2026-11-07, the clean comparison passed on PR #269 at revision
+`b103a9f2329e43292631597e711a21778a7746f3`
+([job log](https://github.com/Kakrl/MakeShift/actions/runs/42398149038/job/128479890167)).
+The logs show a dependency comparison and no introduced high/critical findings.
+This confirms workflow execution and dependency-review API access, superseding
+the earlier inconclusive API probes. Harry elected to skip the controlled
+known-vulnerable update test; blocking behavior remains unverified and that
+acceptance criterion of #197 remains unmet. See the retained verification
+procedure in docs/dev_process.md and inventory entry DEP-01.

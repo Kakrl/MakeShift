@@ -245,7 +245,8 @@ protection is not changed here. Because this workflow is path-filtered, do not
 make it an unconditional required status check without first arranging a
 status for PRs outside those paths. Dependency graph/review access must work
 in the repository; an API permission/configuration error is not evidence of
-a vulnerable package. Successful dependency-review API access remains unverified.
+a vulnerable package. Dependency-review API access succeeded in
+[PR #269's clean run](https://github.com/Kakrl/MakeShift/actions/runs/42398149038/job/128479890167).
 
 #### Reviewing dependency updates
 
@@ -267,8 +268,8 @@ automatically merged.
 
 On 2026-11-07, Harry reported administrator confirmation that Dependabot alerts
 are enabled and malware alerts were also enabled. This records the reported
-configuration; it is not an independent settings/API verification or evidence
-that the PR dependency-review check has executed successfully.
+configuration; it is not an independent settings/API verification. Workflow
+execution evidence is recorded separately below.
 
 Harry Deng is responsible for reviewing dependency security alerts, assessing
 their relevance to MakeShift, and tracking necessary updates or mitigations.
@@ -277,6 +278,13 @@ in an issue identifying the affected package/version, exposure, mitigation and
 owner. These alerts do not guarantee detection of unknown malicious releases.
 
 #### Workflow verification
+
+On 2026-11-07, PR #269's clean comparison passed at revision
+`b103a9f2329e43292631597e711a21778a7746f3`
+([job log](https://github.com/Kakrl/MakeShift/actions/runs/42398149038/job/128479890167)).
+Harry elected to skip the controlled known-vulnerable update test. Rejection
+behavior remains unverified and that acceptance criterion of #197 remains
+unmet. The procedure below is retained for future verification.
 
 Verification before claiming the gate works:
 
