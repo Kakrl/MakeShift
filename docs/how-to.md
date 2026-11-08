@@ -1,6 +1,40 @@
-# How To Guide
+# How-To Makeshift
 
 In this guide, some explanations on how to do some tasks are done!
+
+## How to start get a piano sheet
+
+You need a piano sheet to use and start up the Makeshift application!
+
+1. Open up Makeshift at ``http:/makeshuft.music``. 
+2. Find the ``Piano Sheet`` button either at the beginning pop-up or on one of the white keys on the right of the screen.
+3. Download and print the piano sheet
+
+## How to enable sound and start playing
+
+You have to first get through calibration to enable audio.
+
+1. Open up Makeshift at ``http:/makeshuft.music``. 
+2. Click the calibration button either on the pop-up or on the right side of the screen
+3. Go through the different phases of calibration.
+4. Finally, exit the calibration phase.
+5. Get the camera to detect your Makeshift piano sheet.
+6. Click on ``Enable Audio``.
+7. Start playing on your paper piano.
+
+## How to get the camera to detect your piano sheet
+
+Sometimes, you may find it difficult to get the camera to detect your paper. Here are some steps you could take to get it recognized if finding it difficult. When I talk about markers, I talk about the 4 markers on the corners of the paper sheet.
+
+- Ensure there is light in your room so that all 4 markers on the paper sheet are visible.
+- See that each marker on the paper is flat and not curled (happens you pick at the corners)
+- Center the piano sheet and ensure that each marker of the paper piano sheet is visible in the camera.
+- Do not block the markers.
+- The camera will automatically search for the piano sheet markers every 10 seconds after the first success!
+
+## How to record yourself and upload anonymously
+
+You can only record yourself and upload after calibrating and enabling audio. Afterwards, there is a button at the button to record yourself. When beginning, you will get a 3-2-1 countdown timer to begin. During recording, you can pause, resume and eventually stop. You also have the option to set your time signature and bpm. AFter recording, you will get the option to save or delete your MIDI file. Afterwards, you can find the ``View Recordings`` button in the bottom right wehre you will also find the option to view others' recording and publish your own!
 
 ## How to set up and run locally
 
@@ -14,9 +48,9 @@ In this guide, some explanations on how to do some tasks are done!
 8. go to the localhost (i.e. ``http://localhost:3000``) port on your browser to open the website
   - usually you will see the port running when you run ``npm run dev``; by default, it is 3000
 
-## How to navigate Makeshift
+## How to navigate the Makeshift Repository
 
-There are several parts that make up Makeshift.
+There are several parts that make up Makeshift and understanding where you want to work is important.
 
 ### UI
 
@@ -59,7 +93,7 @@ follow [the Supabase setup guide](supabase.md#local-setup).
 
 ## How to contribute to Makeshift!
 
-I show a quick walk-through of the steps. In general though, clone the repository, follow the standards on how to develop in our repository, and then make a pull request for one of the maintainers to merge.
+I show a quick walk-through of the steps. In general, clone the repository, follow the standards on how to develop in our repository, and then make a pull request for one of the maintainers to merge.
 
 1. Fork Kakrl's repository at https://github.com/Kakrl/MakeShift if you do not have one already
 2. Make an issue on the Makeshift GitHub repository for a specific problem you wish to solve or a feature to enhance
