@@ -572,6 +572,26 @@ it("Stop during resume count-in preserves the take and cancels the pending resum
   expect(button("Stop recording").disabled).toBe(true);
 });
 
+it("No, delete it removes the stopped take from the library and storage after both confirmations", async () => {
+  const confirm = vi.fn(() => true);
+  dom.window.confirm = confirm;
+  const stored = () => JSON.parse(localStorage.getItem("makeshift:recordings:v1") ?? "[]") as Recording[];
+  const discard = () => [...document.querySelectorAll("button")].find(item => item.textContent?.trim() === "No, delete it")!;
+  await start();
+  await keys(115);
+  await advance(200);
+  await click(button("Stop recording"));
+  await countIn();
+  expect(stored()).toHaveLength(1);
+
+  await act(async () => discard().click());
+
+  expect(confirm).toHaveBeenCalledTimes(1);
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(stored()).toEqual([]);
+  expect(host.textContent).toContain("No recordings yet.");
+});
+
 it("cancels an initial count-in without making a take", async () => {
   await click(button("Start recording"));
   await advance(500);
