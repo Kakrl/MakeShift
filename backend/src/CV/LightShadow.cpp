@@ -6,18 +6,19 @@
 
 namespace makeshift::cvbaseline {
 LightShadowEvidence measureLightShadow(const ShadowDifference &d, const std::vector<uint8_t> &mask,
-                                       const Fingertip &tip, const ShadowPaths &paths) {
+                                       const Fingertip &tip, const ShadowPaths &paths,
+                                       bool independent) {
     validateDifference(d);
     if (mask.size() != d.valid.size() || tip.width < 1 || tip.width > 128 || tip.x < 0 ||
         tip.x >= d.width || tip.y < 0 || tip.y >= d.height)
         throw std::invalid_argument("Invalid light-shadow geometry");
     LightShadowEvidence out;
-    if (paths.levels[1].patternMatch == true) {
+    if (!independent && paths.levels[1].patternMatch == true) {
         out.reason = "dark-pass";
         return out;
     }
     out.evaluated = true;
-    out.minimumStrip = std::max(3, int(std::ceil(tip.width * 0.15)));
+    out.minimumStrip = defaultLightShadowMinimumStrip;
     out.minimumBlobArea = std::max(6, int(std::ceil(tip.width * tip.width * 0.04)));
     out.reason = "incomplete-front";
     if (!paths.crossSectionComplete || paths.arc.empty())

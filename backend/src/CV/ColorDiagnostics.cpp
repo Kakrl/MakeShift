@@ -41,7 +41,8 @@ cv::Vec3f rybApproximation(cv::Vec3f rgb) {
     return result + cv::Vec3f(white, white, white);
 }
 } // namespace
-ColorDiagnostics renderColorDiagnostics(const cv::Mat &current, const cv::Mat &reference) {
+ColorDiagnostics renderColorDiagnostics(const cv::Mat &current, const cv::Mat &reference,
+                                        bool changesOnly) {
     if (current.empty() || current.type() != CV_8UC3 || reference.type() != CV_8UC3 ||
         current.size() != reference.size())
         throw std::invalid_argument("Color diagnostics require matched BGR images");
@@ -78,13 +79,14 @@ ColorDiagnostics renderColorDiagnostics(const cv::Mat &current, const cv::Mat &r
     cv::absdiff(current, reference, rgbChange);
     for (const auto &space : spaces) {
         std::vector<cv::Mat> panels;
-        for (int row = 0; row < 3; ++row) {
+        for (int row = changesOnly ? 2 : 0; row < 3; ++row) {
             const std::string rowName = row == 0 ? "current" : row == 1 ? "reference" : "change";
             const cv::Mat &context = row == 0 ? current : row == 1 ? reference : rgbChange;
-            panels.push_back(
-                caption(context, row == 2 ? "RGB absolute change (context)" : rowName,
-                        space.title + (space.name == "ryb" ? " - nonstandard heuristic"
-                                                           : " - grayscale channels")));
+            if (!changesOnly)
+                panels.push_back(
+                    caption(context, row == 2 ? "RGB absolute change (context)" : rowName,
+                            space.title + (space.name == "ryb" ? " - nonstandard heuristic"
+                                                               : " - grayscale channels")));
             for (int channel = 0; channel < 3; ++channel) {
                 const double displayGain = space.name == "ycrcb" && row == 2 && channel > 0 ? 4 : 1;
                 cv::Mat gray(current.size(), CV_8UC1);
@@ -142,9 +144,12 @@ ColorDiagnostics renderColorDiagnostics(const cv::Mat &current, const cv::Mat &r
                 DiagnosticImage image{filename, title, detail, display};
                 if (row == 2)
                     result.changes.push_back(image);
-                panels.push_back(caption(display, title, detail));
+                if (!changesOnly)
+                    panels.push_back(caption(display, title, detail));
             }
         }
+        if (changesOnly)
+            continue;
         cv::Mat grid(3 * (current.rows + 64), 4 * current.cols, CV_8UC3);
         for (size_t i = 0; i < panels.size(); ++i)
             panels[i].copyTo(

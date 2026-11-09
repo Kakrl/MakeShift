@@ -82,12 +82,25 @@ def main() -> int:
         help="Maximum fingertip expansion: analysis pixels (native default2).",
     )
     parser.add_argument(
+        "--algorithm", choices=("combined", "dark", "light", "mid"),
+        default="combined",
+        help="Select one algorithm independently; default keeps combined flags.",
+    )
+    parser.add_argument(
         "--dark-shadows-only", action="store_true",
         help="Run DFS only on the purple dark-shadow class.",
     )
     parser.add_argument(
+        "--maximum-shadow-luma", type=float, default=110,
+        help="Maximum current pixel brightness for dark DFS (0..255).",
+    )
+    parser.add_argument(
         "--light-shadow-test", action="store_true",
         help="Try clear-front/side-shadow fallback after dark failure.",
+    )
+    parser.add_argument(
+        "--mid-shadow-test", action="store_true",
+        help="Try the thin-front/mid-or-darker side-opening algorithm.",
     )
     parser.add_argument(
         "--rebuild", action="store_true",
@@ -110,6 +123,12 @@ def main() -> int:
     )
     parser.add_argument("--build-dir", type=Path, default=ROOT / "build/mog2")
     args = parser.parse_args()
+    if args.algorithm != "combined":
+        if args.light_shadow_test or args.mid_shadow_test:
+            parser.error("Use --algorithm alone instead of fallback-test flags")
+        args.dark_shadows_only = True
+    light_enabled = args.algorithm == "light" or args.light_shadow_test
+    mid_enabled = args.algorithm == "mid" or args.mid_shadow_test
     if args.cr_threshold is not None and (
         not math.isfinite(args.cr_threshold)
         or not 0 <= args.cr_threshold <= 255
@@ -121,6 +140,11 @@ def main() -> int:
         parser.error("--residual must be finite and nonnegative")
     if args.light_shadow_test and not args.dark_shadows_only:
         parser.error("--light-shadow-test requires --dark-shadows-only")
+    if args.mid_shadow_test and not args.dark_shadows_only:
+        parser.error("--mid-shadow-test requires --dark-shadows-only")
+    if (not math.isfinite(args.maximum_shadow_luma)
+            or not 0 <= args.maximum_shadow_luma <= 255):
+        parser.error("--maximum-shadow-luma must be finite and within 0..255")
     source_dir = args.input.resolve()
     output = args.output.resolve()
     build = args.build_dir.resolve()
@@ -156,7 +180,7 @@ def main() -> int:
                 else "native default"
             )
             print(
-                f"Case {case}, finger mask {args.finger_method}, "
+                f"Case {case}, algorithm {args.algorithm}, finger mask {args.finger_method}, "
                 f"Cr threshold {cr_label}, "
                 f"projection residual {residual_label} "
                 "(context only in Cr modes)", flush=True,
@@ -166,6 +190,8 @@ def main() -> int:
                     str(executable), f"--image={image}",
                     f"--reference={reference}", f"--output={output}",
                     f"--case={case}",
+                    f"--algorithm={args.algorithm}",
+                    f"--maximum-shadow-luma={args.maximum_shadow_luma}",
                     f"--finger-method={args.finger_method}",
                     *([f"--otsu-radius={args.otsu_radius}"]
                       if args.otsu_radius is not None else []),
@@ -175,6 +201,8 @@ def main() -> int:
                       if args.residual is not None else []),
                     *(["--light-shadow-test=true"]
                       if args.light_shadow_test else []),
+                    *(["--mid-shadow-test=true"]
+                      if args.mid_shadow_test else []),
                     *(["--dark-shadows-only=true"]
                       if args.dark_shadows_only else []),
                 ],
@@ -193,9 +221,12 @@ def main() -> int:
         'article{margin-bottom:40px}table{border-collapse:collapse}'
         'td,th{border:1px solid #555;padding:5px}</style>',
         '<h1>Shadow image reports</h1>',
-        '<p>Dark blue: finger proposals; purple: considered dark shadows; '
-        'gray: lighter shadows; white: clear; black: unavailable. '
+        '<p>Dark blue: finger proposals; magenta: considered dark shadows; '
+        'brown: medium shadows (drop >=40 outside the dark class); '
+        'gray: light shadows; white: clear; black: unavailable. '
         'Light fallback uses both light and dark shadows. '
+        'Mid algorithm follows mid-or-darker shadows near the tip; '
+        'finger-blocked side rows provide assumed opening support. '
         'Each case records its own settings.</p>',
         '<p><a href="#candidate-results">Candidate result table</a> · '
         '<a href="results.csv">CSV for diffing</a></p>',
@@ -225,6 +256,7 @@ def main() -> int:
         cr_threshold = report.get("minimumAbsoluteCrChange", 10)
         otsu_radius = report.get("otsuRadius", 0)
         shadow_method = report.get("shadowMethod", "projection")
+        algorithm = report.get("algorithm", "combined")
         mode = "dark only" if dark_only else "all shadows"
         cells = ["-"] * 20
         coordinates = ["-"] * 20
@@ -233,7 +265,8 @@ def main() -> int:
             level = next(
                 v for v in candidate["levels"] if v["threshold"] == 20
             )
-            cells[column] = decisions[candidate.get("finalDecision", level["decision"])]
+            final_decision = candidate.get("finalDecision", level["decision"])
+            cells[column] = decisions[final_decision]
             coordinates[column] = (
                 f"x={candidate['x']} y={candidate['y']} "
                 f"width={candidate['width']}"
@@ -251,27 +284,27 @@ def main() -> int:
             "otsuRadius": otsu_radius,
             "shadowMethod": shadow_method,
             "lightShadowTest": bool(report.get("lightShadowTest", False)),
+            "midShadowTest": bool(report.get("midShadowTest", False)),
+            "algorithm": algorithm,
         })
-        light_link = (
-            f'<a href="{case}/light-shadow.png">Light-test overlay</a>'
-            if report.get("lightShadowTest") else ""
-        )
         page.append(
             f'<article><h2><a href="{case}/index.html">'
             f'{case} — {html.escape(image.name)}</a></h2>'
             f'<p>Background: {html.escape(reference.name)}</p>'
             f'<p>Finger mask: {finger_method}; Cr threshold: {cr_threshold:g}'
             f'; Otsu radius: {otsu_radius}.</p>'
-            f'<p>Shadow method: {shadow_method}; light fallback: '
+            f'<p>Algorithm: {algorithm}.</p>'
+            f'<p>Shadow method: {shadow_method}; light enabled: '
             f'{bool(report.get("lightShadowTest", False))}. '
-            f'{light_link}</p>'
+            f'Mid algorithm: {bool(report.get("midShadowTest", False))}.</p>'
             f'<p>Projection-only residual setting {residual:g}; brightness '
             f'cutoff {cutoff:g}/255; searches: {mode}.</p>'
             f'<a href="{case}/index.html"><img loading="lazy" '
             f'src="{case}/comparison.png"></a></article>'
         )
     page.append(
-        '<h2 id="candidate-results">Dark cutoff 20 plus optional light fallback</h2>'
+        '<h2 id="candidate-results">Candidate decisions '
+        '(algorithm recorded per case)</h2>'
         '<p><a href="results.csv">Download CSV</a> · '
         '<a href="candidate-positions.csv">Candidate positions</a>. '
         'MATCH is a shadow-pattern result, not confirmed contact; '
@@ -292,13 +325,20 @@ def main() -> int:
     )
     mode_name = ("dark-plus-light" if args.light_shadow_test else
                  "dark-shadows" if args.dark_shadows_only else "all-shadows")
+    if args.mid_shadow_test:
+        mode_name += "-plus-mid"
+    if args.algorithm != "combined":
+        mode_name = f"{args.algorithm}-only"
     exports = [
         ("results.csv", table),
         ("candidate-positions.csv", positions),
     ]
     if all(
-        r["lightShadowTest"] == args.light_shadow_test
+        r["algorithm"] == args.algorithm
+        and r["lightShadowTest"] == light_enabled
+        and r["midShadowTest"] == mid_enabled
         and r["darkShadowsOnly"] == args.dark_shadows_only
+        and r["shadowClassMaximumCurrentLuma"] == args.maximum_shadow_luma
         and r["fingerMethod"] == args.finger_method
         and r["shadowMethod"] == (
             "projection" if args.finger_method == "projection"
@@ -321,7 +361,7 @@ def main() -> int:
             writer = csv.writer(stream, lineterminator="\n")
             writer.writerow(header)
             writer.writerows(rows)
-    print(f"Decision table (cutoff 20): {output / 'results.csv'}")
+    print(f"Decision table ({args.algorithm}): {output / 'results.csv'}")
     print(f"Finished {len(selected)} cases. Gallery: {output / 'index.html'}")
     return 0
 

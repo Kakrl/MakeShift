@@ -12,4 +12,19 @@ python3 backend/run_shadow_images.py --rebuild
 python3 backend/run_shadow_images.py --case 001 002
 
 # goodie
-python3 backend/run_shadow_images.py --rebuild --dark-shadows-only --residual 0.125
+python3 backend/run_shadow_images.py --rebuild --dark-shadows-only --light-shadow-test --mid-shadow-test
+
+# to get all the candidates
+node backend/gather_candidates.cjs
+
+# to get all the shadow classes
+node backend/gather_shadow_classes.cjs
+
+
+# to run each dark, light, and mid separately
+python3 backend/run_shadow_images.py --rebuild --algorithm dark
+python3 backend/run_shadow_images.py --rebuild --algorithm light
+python3 backend/run_shadow_images.py --rebuild --algorithm mid
+
+# to get it running live
+sh backend/run_shadow_camera.sh --camera=1

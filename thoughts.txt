@@ -56,6 +56,11 @@ Algorithm in the live pipeline:
 5. tell audio and MIDI the presses
 
 
+All/Light Shadow Test Algorithm
+1. Check bottom of the finger tip and ensure there is some strip of the edge of the fingertip of x length with no shadow touching it
+2. on either side of this strip should be some shadow joining into a large blob of shadow
+
+
 
 cd frontend
 CV_TECHNIQUE=shadow-baseline CV_DFS_CUTOFF=20 \

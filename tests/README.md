@@ -1,5 +1,51 @@
 # MakeShift Testing
 
+## Native brightness-cap sweep (2026-11-06)
+
+The subsequent dark/mid/light display adds a brown tier for valid shadows with
+brightness drop>=40 outside the magenta dark class. It is visualization only;
+see [display rules and evidence](../backend/CV_SHADOW_HANDOFF.md#brown-middle-shadow-display-tier-november6).
+
+`python3 backend/run_shadow_brightness_sweep.py --rebuild` uses the existing
+numbered110-cap dark-plus-light reports and exports compact JSON/candidate
+overlays at110/120/130/140 into `backend/test-results/brightness-sweep/`.
+All31 cases (161 candidates,124 runs) completed locally: geometry matches at
+every cap, and110 reproduces baseline dark traces and final results.007/2
+recovers at120;010/3 at140;008/2 and009/1 remain rejected.140 also accepts the
+user-labeled hovering004/3. The default remains110. See [settings, results and
+limits](../backend/CV_SHADOW_HANDOFF.md#brightness-cap-sweep-on31-images-november6).
+
+Release build and CTest `cv_baseline`1/1 passed. Local CLI checks rejected
+invalid caps; full and compact exports for007 at120 have identical candidate
+reports, and full diagnostic metadata/captions reflect120. These are local
+experiment checks, with no Actions, held-out accuracy or physical latency claim.
+
+## Native forward-shadow distance comparison (2026-11-06)
+
+The local still-image gallery was regenerated at Cr13, Otsu radius2, c4/d2/e4,
+dark-only DFS and the light fallback. Comparison against the Cr13/d4 baseline
+found unchanged geometry for all137 candidates across25 images. Only
+002/candidate4 changed its final result, from MATCH to NO_MATCH: six
+non-ignored downward paths now reach tipY+2, causing the dark veto, and the
+light fallback rejects with `no-clear-strip`.001/candidate6 (above paper)
+changed dark UNKNOWN to NO_MATCH but retained its light MATCH. All other final
+decisions are unchanged. Above-paper candidates are outside the user's current
+contact assessment. This is local development-image comparison, not held-out
+accuracy or physical latency; no new CI or CTest execution is claimed here.
+See the [settings, trace counts, evidence and reproduction limits](../backend/CV_SHADOW_HANDOFF.md#verified-user-run-forward-dark-distance-d2).
+
+## Native light-shadow fallback (2026-11-06)
+
+`cmake --build build/mog2 --parallel 4` and
+`ctest --test-dir build/mog2 --output-on-failure` passed locally (Release,
+AppleClang15, OpenCV4.12.0; `cv_baseline`1/1). The `lightShadow` group in
+`tests/cv/test_baseline.cpp` covers two-side blob support, rejection of clear
+paper/one side/specks/thin front shadow, clear-band depth and availability,
+minimum strip length (one column rejects, two columns pass in the current trial), shared side blob, incomplete geometry/invalid mask, dark
+success bypass and preservation of the original dark result after fallback.
+This is synthetic behavior coverage, not contact accuracy or physical latency.
+See [trial settings, images and limits](../backend/CV_SHADOW_HANDOFF.md#light-shadow-fallback-trial-november-6).
+
 ## Native C++ KNN comparison (2026-11-04)
 
 Run `./build/mog2/knn_images` after the existing standalone build. It uses the

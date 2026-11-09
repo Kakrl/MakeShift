@@ -8,5 +8,6 @@ struct ColorDiagnostics {
 };
 // Display-only conversions of current and reference separately. Fixed scales;
 // never reinterpret transformed component triplets as RGB display colors.
-ColorDiagnostics renderColorDiagnostics(const cv::Mat &currentBgr, const cv::Mat &referenceBgr);
+ColorDiagnostics renderColorDiagnostics(const cv::Mat &currentBgr, const cv::Mat &referenceBgr,
+                                        bool changesOnly = false);
 } // namespace makeshift::cvbaseline

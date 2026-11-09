@@ -1,8 +1,378 @@
 # Shadow detection: current status and next steps
 
-Updated: 2026-11-01. The straightforward live CPU baseline is now implemented
+**Current handoff:** [backend/CV_SHADOW_HANDOFF.md](../backend/CV_SHADOW_HANDOFF.md).
+Resume the native MOG2/KNN work there. This document retains earlier history
+and evidence; use the new handoff for the current stopping point and next steps.
+
+## Native KNN comparison added (2026-11-04)
+
+The user requested a KNN comparison after noticing MOG2 speckling. Added a
+C++ `KnnReference` core and `knn_images` executable to the same standalone
+Conan/CMake build, reusing OpenCV4.12.0 without dependency changes. Run
+`./build/mog2/knn_images`; open `backend/test-results/knn/index.html`. The source
+images, original MOG2 gallery, browser galleries and archive remain preserved.
+
+Each KNN case gets a new model trained on120 repeats of the empty reference,
+seed1, requested rate0.1, default squared-distance400 and shadow threshold0.5.
+The evaluated frame's updates are discarded; caller RNG is restored. This
+avoids zero-rate update-period arithmetic in OpenCV4.12 KNN and isolates cases.
+It is not temporal noise learning or a proposed live implementation. Summary
+schema2 records method/settings and separates preparation from classification.
+See [details](cv_mog2_experiment.md#knn-initialization-and-independent-cases).
+
+Local Release build and CTest2/2 passed (four MOG2/five KNN regression groups).
+All20 inputs exported with zero errors. KNN004/008/009/012 were visually
+compared with their MOG2 counterparts: less speckling over paper at these
+defaults, remaining noise elsewhere and unresolved fingertip/shadow ownership.
+Other16 KNN cards were not individually reviewed. A fresh MOG2 run matched
+all20 original counts and all60 raw mask files byte-for-byte. Export validity,
+source pairing, self-reference, output preservation and bad-input handling were
+checked; [execution record](../tests/README.md#native-c-knn-comparison-2026-11-04).
+No contact classifier, Otsu, morphology, live integration, video-noise result
+or physical accuracy/latency claim. Next step is user review of these masks;
+Otsu on either method and the existing custom filter remains deferred.
+
+## Native MOG2 experiment added (2026-11-04)
+
+The user selected OpenCV MOG2 as a separate C++-only experiment in the backend,
+with Conan dependencies via `conanfile.py`. Implemented in `backend/src/CV/`;
+see [build, run and interpretation](cv_mog2_experiment.md). Generated build files
+are under `build/mog2/`. The reusable in-memory processor is separate from the
+native image/report runner for a possible later WebAssembly investigation;
+no browser port or live detector integration was implemented.
+
+MOG2 initializes from the empty background once and uses learning rate0 for
+independent case images. OpenCV4.12.0 and dependency revisions are pinned by the
+recipe/lockfile. Local Release build and four synthetic regression groups
+passed. Existing19 images plus the background self-check exported successfully
+at640x427, zero errors, into ignored `backend/test-results/mog2/`: HTML gallery,
+JSON settings/counts/source paths, comparison PNGs and separate categorical,
+shadow-only and foreground masks. Gallery009 was visually reviewed; other19
+cards were not individually reviewed. Export counts are not accuracy scores.
+See [execution and limitations](../tests/README.md#native-c-mog2-experiment-2026-11-04).
+
+Next: review these MOG2 outputs with the user's observations. Otsu on the
+MOG2-selected evidence and on our existing implementation remains deferred.
+No contact classifier was added. Preserve foreground as well as shadow masks:
+MOG2 can classify very dark regions as foreground. The earlier user labels,
+boundary-error tolerance and evidence-preservation requirements below still
+apply. Existing ignored browser galleries/archive and unrelated work remain
+untouched; issue tracking remains user-deferred. No commits/pushes/PRs created.
+
+## Resume here: contact-region algorithm handoff (2026-11-04)
+
+**Stopping point:** the user is looking for an algorithm, can still distinguish
+the relevant cases visually, and will explain their observations when they
+return. This request is for a handoff, not implementation of a new detector.
+Resume with that explanation and the current unobscured image gallery. Do not
+restart the earlier basic gallery review or present another pixel-count summary
+as a solution. No contact-region algorithm has been implemented or validated.
+
+### User observations and requirements
+
+- False positives in original frame94 and `shadow-images/004.png` / `008.png`
+  appear to come from skin near the fingertip surviving the shadow filter.
+  A side or front skin-edge strip can be wide enough to pass the five-pixel
+  shadow-width requirement. This is the user's diagnosis, supported by visual
+  edge-strip evidence, not established pixel-level ownership.
+- In `shadow-images/009.png`, **candidate#2 is touching and#3 is not**. Use
+  these explicit user labels. Current decisions are identical for both:
+  NO PRESS at20, PRESS at40, NO PRESS at60. Numbers are the saved candidate
+  IDs, not positions in an array or stable finger identities.
+- The user sees a small concentrated dark region where the finger touches
+  the paper. In another lighting setup, a faint forward shadow blocked
+  presses even though this dark concentration remained visible. No recording
+  from that setup was supplied; preserve it as a user observation, not a
+  reproduced robustness result or a reason to assume every forward shadow
+  should be ignored.
+- **An eventual algorithm must tolerate one or two pixels of fingertip-boundary
+  error.** Exact-tip-row thresholds are unsuitable. The user agreed that
+  boundary localization is a problem, but has not selected an algorithm.
+
+### Algorithm direction discussed, not yet implemented
+
+Search near the estimated lower fingertip outline rather than sample only at
+the exact tip. A proposed diagnostic would allow approximately +/-2 analysis
+pixels, examine a locally continuous dark band and the intensity transition
+toward paper, and compare with neighboring skin/paper. Follow the curved distal
+outline where possible and combine evidence across columns. Keep raw darkening
+and projection-compatible exposed shadow as separate evidence: the current
+projection filter excludes much of the strong dark boundary region.
+
+This is a candidate direction, not an agreed classifier or proven contact cue.
+A hovering skin edge can also produce a strong transition. Test against both009
+candidates,004/008, original frame94 and existing touch/near-touch/release cases.
+Explicitly perturb anchors in both X and Y by -2..+2 pixels; verify that a
+measurement remains stable without making hovering edges pass. Do not assume
+that more dark pixels, the darkest single pixel, a peak exactly at tipY, or any
+visible dark band alone establishes touch. The inspection below found concrete
+counterexamples and sensitivity. Broader new-lighting evidence remains pending.
+Motion, tracking/hysteresis and worker optimization remain separately deferred;
+no such work was authorized or performed in this session.
+
+### What changed and what to preserve
+
+Only the image export presentation changed: candidate numbers/coordinates moved
+to the bottom tables; source circles remain, and all three diagnostic panels
+have no candidate labels/circles. `tests/frontend/runShadowImages.mjs` retains
+this layout on regeneration.20 images completed with zero errors, all59 saved
+candidate positions/decisions matched the previous run, exporter lint passed,
+and009's final PNG was visually reviewed. No full application suite was rerun.
+
+- Current gallery: `frontend/test-results/shadow-images/index.html`.
+- Previous labeled output: ignored
+  `frontend/test-results/shadow-images-before-label-removal-2026-11-04/`.
+- Pixel inspection: ignored
+  `frontend/test-results/contact-darkness-inspection-2026-11-04/`, including
+  `index.html`, seven inspected PNGs, `findings.md`, `measurements.json` and
+  `inspect-contact-darkness.cjs`. The script runs from the repo root with Node
+  and installed Chrome; no app server is required. It verifies input hashes
+  against the current image summary and regenerates only its inspection folder.
+- Preserve the legacy archive and original video evidence listed below.
+  Do not clean ignored result folders or unrelated staged/unstaged work.
+
+Regenerate the current images from `frontend/` with
+`npm run test:shadow-images`. For interactive raw/projection heatmaps, run
+`npm run dev -- --port 3107`, open `http://localhost:3107/cv-shadow-test`, load
+the original case image and `images_test_cases/background.png`, choose
+**Exclusion method -> Projection residual e_I**, and adjust **Maximum retained
+e_I** (current detector uses0.12) or the darkening noise floor. That viewer has
+manual band anchors, not automatic current-detector fingertip/DFS overlays;
+its controls do not change the live detector or batch runner's fixed filter.
+
+No commits, pushes, issues or PRs were created in this session. The user
+previously deferred issue tracking to themselves. The detailed inspection
+findings and historical detector state follow; newer sections supersede older
+instructions. This handoff update changes documentation only and runs no tests.
+
+## Image labels moved out of the pixels (2026-11-04)
+
+At the user's request, regenerated `shadow-images/` with candidate numbers and
+coordinates only in the bottom tables. Circles remain on the source panel;
+the three diagnostic panels have no candidate circles or labels. The runner
+retains this layout on subsequent exports.20 images completed with zero errors;
+all59 candidate coordinates/decisions match the preserved prior report.009 was
+visually reviewed and exporter lint passed. Earlier output is preserved in
+ignored `shadow-images-before-label-removal-2026-11-04/`. Detector unchanged.
+
+## Contact-darkness inspection (2026-11-04)
+
+The user identifies `shadow-images/009.png` candidate#2 as touching and#3 as
+hovering, and reports that a faint forward shadow in another lighting setup
+prevented presses despite a visible concentrated dark contact region. That
+lighting observation is user-reported; no corresponding new image was measured.
+Detector rules remain unchanged. Current downward-shadow veto can reject such
+forward evidence, but the reported live case was not captured/reproduced here.
+
+Original-image pixel inspection used the same Chrome canvas sampling/shared
+heatmap math and640x427 resolution, verifying all source/reference hashes against
+the saved gallery. Measurements cover59 candidates; seven source/raw/filtered
+crop cards were visually reviewed:004#2,008#2,009#2/#3,012#4,016#3,017#1.
+Ignored evidence: `frontend/test-results/contact-darkness-inspection-2026-11-04/`
+(`index.html`, `findings.md`, `measurements.json`, seven PNGs).
+
+At009's automatic tip row, raw mean darkening across11 pixels is99.91 for#2
+versus85.12 for#3; the next-row falloff is54.02 versus33.81. However, an11x7
+tip box has28 versus35 pixels above80 luma, and nearly equal maxima118.55 versus
+117.42. Thus stronger concentration at the selected boundary is worth examining;
+total nearby dark-pixel count/maximum does not separate this pair. Moving the
+compared row one pixel upward reverses the mean ordering. Other reviewed press
+examples do not universally peak at the exact tip row.
+
+Projection exclusion removes most of this strong evidence: only2 of#2's28
+above80 pixels and0 of#3's35 survive e_I<=0.12. The darkest pixels retain skin-like
+color mismatch; intensity alone cannot identify exposed contact shadow.004/008
+show narrow retained edge strips consistent with the user's skin-leakage concern,
+without establishing per-pixel skin/shadow ownership. Five-pixel width does not
+resolve that ambiguity.
+
+Suggested next diagnostic: source-boundary-relative raw intensity/local-contrast
+profiles, with the excluded dark band and compatible exposed shadow measured
+separately. Include boundary perturbations, both009 candidates, false positives
+and existing touch/near-touch/release examples. Do not replace the detector with
+a dark-pixel count, raise e_I or override faint-shadow vetoes from this single
+comparison. No classifier/tests changed, no application suites rerun, no physical
+accuracy/latency or robustness claim.
+
+## Current image workflow and cleanup (2026-11-03)
+
+Latest refinement: the image runner now reuses `detectShadowBaseline`, including
+its marker-projected key eligibility before DFS. It loads local OpenCV.js once
+to detect the background markers; missing/invalid geometry stops the run. Blue
+key outlines show the included area; off-piano points are omitted while IDs
+retain their original numbers. Default layout is one octave/eight white keys
+(`CV_IMAGE_OCTAVES=2` or3 for matching extended sheets). The refreshed20-image
+run excludes79 off-piano points and retains59 candidates:18 PRESS /38 NO PRESS /
+3 UNKNOWN at20, with zero errors. Earlier138-candidate counts below predate
+this eligibility filter. Summary schema3 records geometry and exclusion counts.
+
+Run `cd frontend && npm run test:shadow-images` to analyze the images directly in
+`images_test_cases/` with the current shared margin9/width5 DFS. Open
+`frontend/test-results/shadow-images/index.html`: numbered source/heatmap/mask
+images, per-candidate PRESS / NO PRESS / UNKNOWN, simple `results.txt` and compact
+`summary.json` (coordinates, selected decisions, hashes, counts and runtime
+metadata), plus `details.json` for all-cutoff evidence. No saved frame caches, app server, model downloads or manual finger
+labels are needed. Default cutoff20; see [usage](cv_image_tests.md#current-shadow-detector-one-command-image-reports).
+The user chose candidate decisions instead of finger-specific accuracy scoring.
+Each PNG now embeds a bottom table with20/40/60 luma columns for every candidate;
+HTML, text and compact JSON also consolidate those three cutoffs in one run.
+Marker colors still use the selected cutoff (default20).
+
+At the user's request, the old loose image-result galleries and their cached
+inputs were consolidated into ignored
+`frontend/test-results/_archive/legacy-image-results-2026-11-03.tar.gz`.
+This supersedes the instructions below to keep those directories unpacked:
+their evidence remains recoverable from the archive. Original input images and
+`cv-video/` evidence remain in place. Historical gallery links/legacy cached
+exporters need archive restoration; the new runner does not.
+
+The first runs analyzed19 case images plus the background self-check, yielding
+138 anonymous candidates at20:27 PRESS /63 NO PRESS /48 UNKNOWN. Eleven numbered
+`*_middle.png` crops had different dimensions from the reference and were
+reported as errors rather than rescaled into invalid comparisons. After the user
+moved those out, the final20-image run (19 cases plus background) completed
+with the same138 candidates, zero errors and exit0. Final index148 PNG reviewed;
+other final cards not individually reviewed. Lint/types/contrast/build passed;
+Vitest669 passed with the two documented legacy failures. These are diagnostic outputs, not
+physical-contact accuracy, keyboard-eligible notes or latency measurements.
+
+Updated: 2026-11-02. The straightforward live CPU baseline is now implemented
 locally. Physical accuracy/latency and user live baseline measurements remain pending;
 ordered recorded-video replay measurements are now available below.
+
+## Current experiment: X margin9 and upward path width5 (2026-11-02)
+
+User requested adding5 pixels to the outer X margin (4→9) and requiring at least
+one five-pixel-wide shadow location on the upward growth path. Implemented in
+shared `LIVE_SHADOW_DFS_SETTINGS`, used by home/replay and `--local-corridor`.
+Width means a contiguous horizontal run of compatible shadow pixels intersecting
+the actual support path, within both X limits, using the same cutoff/filter.
+Finger-mask, clear, color-excluded and unavailable pixels cannot count as width.
+The per-starting-point width cap, c=d=e=4 and inclusive target rows stay unchanged.
+
+DFS retains separate pixel states for routes with/without width evidence so an
+earlier thin route cannot suppress a valid wider route to the same target.
+Reaching the upward row alone no longer supplies support; it cannot search above
+that row to find width. A point is ignored only if its downward search and
+width-qualified upward search both succeed. Genuine unavailable evidence remains
+UNKNOWN. The inspector distinguishes raw target-row reach from qualified support
+and shows the horizontal width witness.
+
+The selected fixed-anchor comparison matches29/29 valid phases at20, including
+index148/149; at40 it matches28/29 with one accepted non-touch, at60 it matches26/29
+with three accepted non-touches. This is development footage, not held-out accuracy.
+Matched original frame94/candidate4 measurements still accept at20 (10 qualified
+upward seeds, seven ignored both-target points). A fresh replay uses a different
+reference/candidate numbering: point(339,182) becomes candidate2/width14 and rejects.
+Keep that fresh capture separate from the original case; it does not prove the
+original false positive was fixed. Gallery captions preserve this distinction.
+
+60 focused cases passed; full669 passed/two existing legacy failures. Final
+comparison/production checks are in [the execution record](../tests/README.md#x-margin9-and-upward-width5-2026-11-02).
+Previous gallery/results are preserved under ignored
+`shadow-dfs-before-margin9-width5-2026-11-02/` and the earlier experiment folders.
+No held-out accuracy/physical latency claim follows from this two-change experiment.
+
+## Canonical gallery refreshed (2026-11-02)
+
+At the user's request, `frontend/test-results/shadow-dfs/` now replaces its30
+existing cards with the current X-only/paired-point output and adds
+`clip1-frame94-candidate4.png`. Frame94 is a captured replay diagnostic using its
+original reference1/cutoff20 tiles and decisions; it is labeled separately and
+excluded from the historical29-frame phase denominator. It still shows PRESS.
+Gray marks ignored searches; current cards identify X margin4 and ignored counts.
+
+The exporter reads optional local `shadow-dfs/supplemental-cases.json` for this
+replay card and checks its DFS source hash to reject stale captures. Preserve
+that manifest plus `cv-video/frame94-paired-x-only-2026-11-02/` tile/diagnostic
+inputs. The original gallery was copied to ignored
+`shadow-dfs-before-gallery-refresh-2026-11-02/`; `previous-results.json` and
+`d80-results.json` are retained. Later references to the canonical gallery being
+untouched describe the earlier comparison run, before this explicit replacement.
+
+## Current rule: X-only locality and paired starting points (2026-11-02)
+
+Implemented the user's two requested changes. The selected lower/side arc is
+projected onto X and expanded by4 pixels, intersected with each seed's existing
+width window. There is no arc-distance constraint on Y. A downward search stops
+when it reaches the inclusive tipY+d row; upward stops at tipY-c-e.
+
+Run both searches for each attachment. A point reaching both limits contributes
+neither support nor veto. Other points, including points in the same connected
+shadow, remain eligible. Remaining downward-only evidence vetoes; remaining
+upward-only evidence supports. No usable support with known measurements means
+NO PRESS. Actual unavailable pixels/geometry retain their existing UNKNOWN rules.
+The inspector/exporter retain raw ignored searches, mark them gray, and select
+witnesses only from non-ignored points. The table labels ignored points.
+
+The intermediate X-only version passed51 focused cases and full660/two existing
+failures. Its 30-frame fixed-anchor comparison changed cutoff20/40 agreement
+from29/29 to24/29: index148–152 reject via side shadow. Preserved in ignored
+`shadow-dfs-x-only-2026-11-01/`; the canonical gallery remains untouched.
+
+The final paired version has27/29 fixed-anchor phase agreement at20/40, recovering
+index150–152 relative to X-only but still rejecting148/149. The original curved
+band had29/29 on this selected set. At60 index154 becomes an accepted non-touch.
+These are exploratory same-clip results, not verified accuracy.
+
+The final paired version passes54 focused cases and full663/two existing
+legacy failures. On the exact saved frame94/candidate4 measurements, seven
+starting points are ignored at5/20/40 but other points retain upward-only support:
+**frame94 remains PRESS**. This is an observed limitation, not a fixed false
+positive or measured accuracy improvement. Final comparison/browser evidence
+is recorded in [the execution record](../tests/README.md#paired-dfs-and-x-only-locality-2026-11-02).
+
+The older investigation below records the original failure; its statement that
+the classifier is unchanged is historical and superseded by this section.
+
+## Current accuracy review: clip1 frame94 candidate4 (2026-11-01)
+
+The user flagged a false PRESS despite visible downward shadow. Reproduced at
+cutoff20: tip(339,182), width19, key3, veto row186. The radius4 locality band blocks
+(344,186), even though it is compatible shadow and reachable from the visited
+(344,185). Forward extension only covers globally lowest arc pixels; its right
+edge at the veto row is343. Band caps count as normal stops, allowing upward
+support to yield PRESS. The per-seed width cap and pixel threshold are not the
+blocking conditions in this example.
+
+Replaying the actual DFS from captured local data reproduces its full saved
+output exactly. Diagnostic removal of only the corridor yields veto at5/20/40;
+60 still accepts. Keep locality refinement separate from blanket removal and
+compare against the existing side-interference cases before changing a rule.
+Production classifier remains unchanged. See [D25 and diagnostic evidence](../tests/README.md#clip1-frame94-candidate4-locality-investigation-2026-11-01).
+
+## Reference capture correction (2026-11-01)
+
+The user observed hands entering the reference despite all markers being visible.
+Live home and explicit shadow-baseline replay now gate complete marker proposals
+with a separate MediaPipe IMAGE/CPU full-hand presence check on the exact captured
+canvas. Geometry and background update together only when hand bounds avoid both
+current and proposed keyboard bounding rectangles, each expanded by one projected
+white-key width. Occupied/unavailable checks retain both previous values; first
+acquisition waits. Acquisition/check cadence remains 250 ms / 10 seconds.
+
+The note classifier, DFS settings and per-key transitions are unchanged. Hand
+inference runs only on complete marker proposals; landmark tracking/depth do not
+enter note detection. Initialization failure blocks acquisition with a retry
+message; detection errors reject the proposal. The guard closes its model on
+cleanup. Conservative rectangles can reject hands outside the actual polygon;
+model misses and partial/occluded hands remain limitations needing camera review.
+
+Replay records `referenceChecks` decisions/durations and capture frames. Check cost
+is included in geometry/total CV timing. Preserve the original cutoff20 evidence:
+its scores/timings predate this guard and must not be relabeled as new results.
+Issue tracking remains user-deferred. See the [guard execution record](../tests/README.md#sheet-reference-hand-presence-guard-2026-11-01).
+
+Verification: 43 focused cases passed; full Vitest658 passed/two existing legacy
+failures. Lint/types/contrast/build and Chrome deployment, camera recovery,
+keyboard-layout/audio checks passed. Clip3 processed388 frames and accepted clear
+reference proposals at0/300; no occupied proposal occurred in that replay.
+Synthetic/coordinator tests cover rejection and recovery. Real hand-presence
+recall remains unverified; no new four-clip accuracy baseline is claimed.
+
+The following handoff records the previous baseline and inspector work. Its
+marker-visible-means-empty assumption and no-hand-inference statements are
+superseded by this correction; its preserved evidence remains historical.
 
 ## Resume here: live baseline and paused DFS handoff (2026-11-01)
 
@@ -2065,3 +2435,7 @@ document. Do not restart pixel/patch collection or choose a press threshold yet.
 Related guides: [heatmap usage](cv_shadow_heatmap.md),
 [image cases](cv_image_tests.md), [video replay](cv_video_tests.md), and
 [earlier hypotheses/history](cv_shadow_experiments.md).
+
+
+- extneded x-boundary for dfs below to 9 pixels
+- on dfs upward, there has to be a point on the path with a width of at least 5 pixels. this is to combat the parts where we think the skin is shadow. these parts usually thin, so we can have some constant boundary where most shadows usually meet. 

@@ -64,7 +64,27 @@ struct ShadowPathSettings {
     std::optional<int> searchWidth;
     std::optional<double> downwardThreshold;
     std::optional<int> corridorRadius = 9;
-    int minimumUpwardShadowWidth = 3;
+    int minimumUpwardShadowWidth = 2;
+};
+inline constexpr int defaultLightShadowMinimumStrip = 2;
+// Shared brightness classes; mid side scans include brown and darker.
+inline constexpr double middleShadowMinimumDrop = 40;
+inline constexpr double faintShadowMaximumDrop = 20;
+struct MidShadowRow {
+    Pixel fingerEdge, endpoint;
+    int upwardDistance = 0, visibleWidth = 0;
+    bool fingerOccluded = false, maskMerged = false, scanLimit = false;
+};
+struct MidShadowEvidence {
+    bool evaluated = false, matched = false;
+    std::string reason = "disabled";
+    int frontDepth = 4, minimumStrip = 2, maximumOnset = 3, rise = 6;
+    int minimumGrowth = 3, maximumForward = 2, minimumBlobArea = 0, maximumEdgeStep = 0;
+    int direction = 0, onset = -1, growth = 0;
+    double slope = 0;
+    bool usedOcclusion = false, shapeAcceptedByOcclusion = false;
+    std::vector<MidShadowRow> rows;
+    std::vector<Pixel> frontStrip, frontBand, boundary, fingerEdge, mass;
 };
 struct LightShadowEvidence {
     bool evaluated = false, matched = false;
@@ -72,7 +92,10 @@ struct LightShadowEvidence {
     std::string reason = "disabled";
     std::vector<Pixel> front, clearStrip, clearBand, leftShadow, rightShadow;
 };
+enum class ShadowAlgorithm { Combined, Dark, Light, Mid };
 struct ShadowPaths {
+    ShadowAlgorithm algorithm = ShadowAlgorithm::Combined;
+    MidShadowEvidence mid;
     LightShadowEvidence light;
     int aY = 0, downwardY = 0, upwardY = 0;
     bool crossSectionComplete = false;
@@ -80,12 +103,25 @@ struct ShadowPaths {
     std::optional<int> corridorMinimumX, corridorMaximumX;
     std::array<ShadowLevel, 4> levels;
 };
-// Image experiment only: retains the original dark decisions in levels.
+// Native experiment: retains the original dark decisions in levels.
+// independent=true measures light even when dark matches.
 LightShadowEvidence measureLightShadow(const ShadowDifference &difference,
                                        const std::vector<uint8_t> &mask, const Fingertip &tip,
-                                       const ShadowPaths &paths);
+                                       const ShadowPaths &paths, bool independent = false);
 inline std::optional<bool> finalShadowDecision(const ShadowPaths &paths) {
-    return paths.light.matched ? std::optional<bool>(true) : paths.levels[1].patternMatch;
+    if (paths.algorithm == ShadowAlgorithm::Dark)
+        return paths.levels[1].patternMatch;
+    if (paths.algorithm == ShadowAlgorithm::Light)
+        return !paths.light.evaluated || paths.light.reason == "incomplete-front" ||
+                       paths.light.reason == "no-clear-strip-unavailable-samples"
+                   ? std::nullopt
+                   : std::optional<bool>(paths.light.matched);
+    if (paths.algorithm == ShadowAlgorithm::Mid)
+        return !paths.mid.evaluated || paths.mid.reason == "incomplete-front"
+                   ? std::nullopt
+                   : std::optional<bool>(paths.mid.matched);
+    return (paths.light.matched || paths.mid.matched) ? std::optional<bool>(true)
+                                                      : paths.levels[1].patternMatch;
 }
 inline constexpr std::array<int, 4> shadowCutoffs{5, 20, 40, 60};
 ShadowPaths measureMonotoneShadowPaths(const ShadowDifference &difference,

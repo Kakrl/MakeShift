@@ -1,48 +1,871 @@
-# CV shadow handoff — native baseline, MOG2 and KNN
+# CV shadow handoff — native dark, light, mid and live camera
 
-Updated November 6, 2026. **Start here for the current native experiment.**
+Updated November 9, 2026. **Start here for the current native experiment.**
 The [older handoff](../docs/cv_shadow_detection_status_and_next_steps.md) is
 historical background; its earlier stopping points do not override this one.
 
 ## Resume here
 
+
+### Session stopping point — resume from here (November 9)
+
+**This is the current resume summary. Detailed sections below record earlier
+implementation/verification and may describe superseded behavior or galleries.**
+User is stopping and plans to return later. Live visual integration is finished;
+physical-camera review is the next step. No sound was requested. Keep this a
+local native-C++ experiment; preserve all working changes, source captures,
+paired references, ignored reports, user notes and user-edited `_help.txt`.
+Do not create issues/commits/pushes/PRs or regenerate a full gallery automatically.
+User handles real-image generation and review. Broader docs remain deferred.
+
+#### What works now
+
+- Separate dark, light and mid detectors, with image and camera selectors for
+  independent testing. Combined evaluation is dark -> light -> mid, stopping
+  fallback computation on an earlier success. Independent light/mid evaluate
+  every eligible candidate and report their own decisions even when dark passes.
+- Native camera defaults to all three algorithms and uses the final decision
+  for candidate colors and calibrated white-key highlights. Labels identify the
+  accepting detector. Per-key acceptance is unioned across candidates each
+  frame; rejection/UNKNOWN/missing candidates clear highlights. Off-keyboard
+  proposals are gated once calibrated. No audio, temporal tracking/hysteresis,
+  browser integration or validated physical contact performance was added.
+- Current segmentation/search defaults: Cr13, `cr-otsu` radius2, DFS c4/d2/e4,
+  margin9, upward width2, dark current-luma cap110, dark drop>20. Light retains
+  its two-column/two-row clear-front test with substantial supporting side blobs.
+  Keep these stable while reviewing independent algorithm errors.
+- Mid front requires two consecutive near-tip columns with four available,
+  outside-mask pixels downward per column: <=1 brown and <=1 gray, faint ignored,
+  dark/finger/unavailable rejected. Clear front pixels are allowed; shadow is
+  not required. Side scans start at the finger-mask edge on the tip row and
+  repeat for six rows upward, following contiguous mid+dark pixels directly
+  adjacent to the edge. Normally opening width>=2 starts within3 rows, net
+  growth>=3 and fitted slope>=0.5; one side suffices. Observed component area
+  and forward-extension limits still apply. Finger-blocked rows can supply
+  assumed opening support, including a subsequent mask merge; flags preserve
+  actual visible widths, with no invented shadow length or hidden area.
+
+#### Commands to use next time (repository root)
+
+```sh
+# Live visual testing: all three by default; physical webcam on this Mac.
+sh backend/run_shadow_camera.sh --camera=1
+
+# Individual live detector; replace mid with dark or light as needed.
+sh backend/run_shadow_camera.sh --camera=1 --algorithm=mid
+
+# Separate image runs: choose ONE algorithm at a time.
+python3 backend/run_shadow_images.py --rebuild --algorithm dark
+python3 backend/run_shadow_images.py --rebuild --algorithm light
+python3 backend/run_shadow_images.py --rebuild --algorithm mid
+
+# Combined image run; retains the existing flag-based workflow.
+python3 backend/run_shadow_images.py --rebuild --dark-shadows-only --light-shadow-test --mid-shadow-test
+
+# Gather EXISTING output images; no detection rerun.
+node backend/gather_shadow_classes.cjs
+node backend/gather_candidates.cjs
+```
+
+Camera controls: with a fixed camera/sheet and fingers pointing down, remove
+hands, show marker IDs0/1/2/3 and press **B** for reference+key calibration.
+**S** saves native source/reference PNG pairs under `experiment/`; **R** resets;
+**Q/Esc** quits. Camera0 is OBS Virtual Camera; camera1 is FaceTime HD Camera.
+Recapture after camera/sheet/lighting changes. Hand absence and movement guards
+are manual in this native viewer. `--octaves=1|2|3` selects assembled paper span.
+
+Image runs replace numbered reports and `backend/test-results/index.html`.
+Uniform independent runs retain `dark-only-results.csv`, `light-only-results.csv`
+and `mid-only-results.csv`; the general `results.csv` reflects the current run.
+Do not mix individual `--algorithm` selection with fallback-test flags.
+**Image `--algorithm combined` alone retains legacy defaults; use the full
+combined image command above to enable dark-only plus both fallbacks. Camera
+`--algorithm=combined` enables all three directly.**
+Normal per-case PNGs are ONLY `source.png`, `shadow-classes.png`,
+`shadow-compatible.png`, `candidates.png`, `comparison.png`; JSON/HTML/CSV reports
+remain. Raw measurement dumps and standalone extra diagnostics are retired;
+successful case regeneration removes only known obsolete generated filenames,
+protecting inputs/unrelated files. Overview outputs are `all-shadow-classes.png`
+and `all-candidates.png`; both support `--scale 0.5`, `--columns`, `--input` and
+`--output`. They gather current numbered images, so regenerate them after a run
+when you want the overview to reflect the new detector mode or captures.
+
+#### User observations to carry forward
+
+Read and preserve the user's ignored note file:
+[`test-results/shadow_algos_observations.md`](test-results/shadow_algos_observations.md).
+User reports good combined separation on the examples reviewed and is comparing
+individual algorithms to identify their own false negatives/positives. This is
+qualitative development review, not a scored or held-out accuracy result.
+User wants more tests with neighboring-finger occlusion, especially like009/1.
+
+Earlier mid-only review traced the following saved spatial candidates. All
+listed candidates passed the front strip; their side checks explain rejection.
+IDs belong to those saved frames/configurations and must be matched to source
+paths/coordinates before reusing labels after a dataset or segmentation change.
+
+| Reviewed case/candidate | Finding |
+| :--- | :--- |
+|001/7,001/10|Side opening starts4 and6 rows above tip; maximum3.|
+|003/5|Only2 pixels net side growth and slope about0.393; requires3 and0.5.|
+|004/3 (known hovering)|Right side growth2, slope about0.464; both fail. Its front does pass.|
+|004/6,004/7|Opening starts5 rows above tip.|
+|006/3|Initial supporting fragment is disconnected from the larger side mass; not merely a late opening.|
+|006/4|Accepted via opening within3 rows and finger-blocked support.|
+|017/2|Right widths5,4,5,7,7,7,7: net growth2 fails3; slope0.5 meets its limit.|
+|018/3|Right widths7,5,6,6,8,10,9: net growth2 fails3; slope about0.643 passes.|
+|021/4|Left supporting mass reaches tip+3, exceeding allowed tip+2; right side has insufficient widening.|
+
+Allowing two brown front pixels would not recover these particular misses,
+because their fronts already pass. User asked about that relaxation but it
+has **not** been implemented or evaluated. Likewise, reducing net side-growth
+minimum3 to2 is a possible experiment for017/018, not an agreed or applied
+change. Dark front shadows are rejected before brown counting; they are not
+silently treated as mid. No thresholds changed during the observation review.
+Evaluate any future relaxation against known hovering cases and the complete
+labeled set, not only recovered presses.
+
+#### Evidence, current artifacts and next steps
+
+Latest camera Release build and CTest **7/7 passed**; launcher `--help` passed.
+Checks include baseline; synthetic markers, key mapping, snapshots and camera
+algorithm dispatch using supplied masks; and help/invalid size/device/octave/
+algorithm checks without opening hardware. Image work previously passed native
+CTest1/1, Python runner8/8 and11-scene frontend parity plus export checks.
+clang-format20.1.7 passed; exact17 unavailable. No new tests were run just for
+this documentation update. The assistant has not opened the physical camera
+or verified live movement, contact, delivered FPS or physical latency.
+
+**Current read-only report inventory at session end:41 numbered reports,
+225 candidates, all marked `combined`.** Earlier31-image/161-candidate native
+comparisons are historical verification on that earlier set; do not describe
+them as a fresh pass on the current41 cases. Case numbering can change when
+captures are added or the input selection changes. Keep ignored images with
+their reference pairs and results; a clean checkout cannot recover them.
+
+Resume with the user's actual camera observations: combined first, then
+individual modes as useful. Check key-highlight stability during approach,
+close hover, held contact and release, and note the displayed analysis time
+under those conditions. The displayed time excludes camera read/display and
+is not physical latency or delivered frame rate. Save difficult examples with
+S and review the source/reference pair before changing thresholds. Added
+light/mid computation has not been profiled on real live frames. If the user
+returns to still-image tuning, start from the notes above, preserve known hover
+counterexamples, and keep segmentation fixed unless new evidence warrants it.
+
+
+### Live camera now uses all three shadow algorithms (November 9)
+
+Run from the repository root:
+
+```sh
+sh backend/run_shadow_camera.sh --camera=1
+```
+
+The camera default is now `--algorithm=combined`: dark -> light -> mid,
+sharing the frame measurements, Cr/Otsu mask and distal arc. Existing dark
+success skips fallback work, light success skips mid, and the final combined
+result controls both candidate colors and calibrated white-key highlights.
+No audio is connected. Camera1 remains the physical FaceTime device on this
+Mac; camera0 is OBS Virtual Camera.
+
+For individual live testing, use `--algorithm=dark`, `--algorithm=light` or
+`--algorithm=mid`. Explicit `--algorithm=combined` also works. Independent
+light/mid evaluate every eligible candidate regardless of dark's result, just
+like the image selector. Mode selection is validated before opening hardware;
+invalid values fail without acquiring a camera. The selected algorithm appears
+in console/status; accepted candidates identify dark/light/mid as their source.
+The right panel now uses the same mid/brown and faint/lavender brightness tiers
+as still images, alongside magenta dark, gray light, blue fingers, white clear
+and black unavailable.
+
+Controls are unchanged: remove hands, keep camera/sheet fixed, show all four
+markers and press B for reference+keys; S saves the clean native photo/reference
+pair, R resets and Q/Esc quits. Marker failure still permits a reference but
+leaves key calibration unavailable. Calibrated off-keyboard candidates are
+excluded before expensive classification; per-key union is recomputed each
+frame, with rejected/UNKNOWN/missing evidence clearing highlights. Reference/
+calibration resets, snapshot handling and fixed 640-side analysis are unchanged.
+
+`CameraShadow.hpp` is an in-memory camera dispatch helper with no capture/GUI
+ownership. It calls the existing dark/light/mid implementations and shared
+`finalShadowDecision`, and is exercised directly by synthetic camera tests.
+Sequential capture/processing remains; added fallback work may change analysis
+time and delivered responsiveness. No frame-rate/physical-latency or live-contact
+accuracy claim follows from the build or synthetic checks.
+
+Local macOS arm64 Release camera build passed. CTest7/7 passed: baseline,
+synthetic marker/key/snapshot/algorithm group, help and invalid size/device/
+octave/algorithm CLI checks. Added camera fixtures use supplied finger masks and cover clear paper,
+isolated dark, light and mid patterns; combined fallback precedence, individual modes
+evaluating despite earlier matches, mapping accepted tips to calibrated keys,
+and UNKNOWN evidence not highlighting a key. Launcher `--help` and installed
+clang-format20.1.7 passed; exact17 remains unavailable. No GUI or physical camera
+was opened by the assistant, and real movement/hover/release/performance review
+remains for the user's camera run. Ordinary still galleries/captures preserved.
+
+
+### Independent algorithm selection (November 9)
+
+Use the new selector to evaluate one algorithm on every candidate:
+
+```sh
+python3 backend/run_shadow_images.py --rebuild --algorithm dark
+python3 backend/run_shadow_images.py --rebuild --algorithm light
+python3 backend/run_shadow_images.py --rebuild --algorithm mid
+```
+
+These are separate runs; each replaces the ordinary gallery and numbered case
+reports, as before. Uniform runs retain `dark-only-results.csv`,
+`light-only-results.csv` or `mid-only-results.csv` alongside the current
+`results.csv`. Existing gather scripts can assemble the selected run's
+candidates/classes afterward. No ordinary gallery was regenerated during
+implementation; verification used temporary outputs.
+
+Independent selection implies dark-class DFS context, so no extra
+`--dark-shadows-only`, `--light-shadow-test` or `--mid-shadow-test` flags are
+needed. Mixing a single-algorithm selector with fallback-test flags is rejected.
+`--algorithm combined` is the default and preserves the earlier flags/behavior;
+the previous combined command still works:
+
+```sh
+python3 backend/run_shadow_images.py --rebuild --dark-shadows-only --light-shadow-test --mid-shadow-test
+```
+
+Light/mid's independent calls bypass earlier-success skip gates. Dark/light/mid
+results, candidate colors and comparison results use only the selected
+algorithm; earlier matches cannot override a selected rejection or UNKNOWN.
+Shared Cr/Otsu segmentation and existing arc geometry are unchanged. Dark DFS
+traces remain in JSON as context/geometry for standalone light/mid runs; those
+decisions do not control the standalone result. Incomplete light/mid front
+geometry remains UNKNOWN; light's unavailable-strip result is also UNKNOWN.
+Other evaluated light/mid nonmatches are reported as their own NO_MATCH rather
+than borrowing dark's result.
+
+JSON and per-case/root HTML identify `algorithm`; JSON also records
+`independentAlgorithm`. A match's `decisionSource` is the selected algorithm.
+Mixed partial runs label algorithms per case and do not overwrite uniform
+algorithm CSV snapshots. Five PNGs per normal case remain unchanged; compact
+exports still save JSON plus candidates only. No threshold/contact rule changed.
+
+Local Release build, CTest `cv_baseline`1/1, Python runner8/8, and11-scene
+frontend parity plus image-export checks passed. Added synthetic independence
+coverage for light evaluating after dark acceptance, mid evaluating after both
+earlier acceptances, selected failures ignoring other successes, independent
+successes, dark UNKNOWN, incomplete mid UNKNOWN and preserved combined behavior.
+Python coverage exercises all three selectors without old flags, summaries,
+mode-specific CSVs, gallery labels, mixed partial snapshot preservation and
+invalid/ambiguous modes. Native invalid selectors/conflicting flags were also
+checked before input/output access. clang-format20.1.7 passed;17 unavailable.
+
+Temporary comparison ran combined + all three individual modes on31 images,
+161 candidates each. All combined candidate records exactly reproduce the saved
+ordinary reports; geometry/arcs are unchanged throughout. Independent light and
+mid each evaluated all161 candidates, including all18 accepted by dark.
+Light rejects17 of those18; mid rejects13, demonstrating that dark successes
+cannot hide their independent rejections. Overall acceptance counts18/25/12
+(dark/light/mid) are algorithm outcomes, not accuracy or false-positive rates;
+several proposals are above the paper and labels remain manual. Results and
+summary are in
+`/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-independent-37y152i9/`.
+Actual Python single-case008 runs for each selector also verified the report
+labels, all-five PNGs, evidence evaluation and CSV snapshots in
+`/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-selector-gallery-9n_db0ov/`.
+No CI/hardware, held-out contact accuracy or physical latency claim.
+
+
+### Gather all candidate overlays (November 9)
+
+Run from the repository root:
+
+```sh
+node backend/gather_candidates.cjs
+```
+
+This combines existing `NNN/candidates.png` in numeric order into
+`backend/test-results/all-candidates.png`, labeled by testcase with8 columns.
+It matches the shadow-class gathering script's options: `--scale 0.5`,
+`--columns 4`, `--input PATH` and `--output PATH`. Defaults are anchored to the
+script; explicit paths resolve from the current directory. No detection or
+case-report regeneration. Only three-digit testcase folders are included;
+missing candidate images are skipped. The previous overview is replaced only
+after encoding completes. Input/output directories must already exist.
+Requires Node and sharp from the installed frontend dependencies.
+
+Local syntax check and normal generation passed:31 candidate overlays combined
+into5300x1997 pixels, approximately11.5MB at full size. Individual reports and
+the shadow-class overview were preserved. No new detector/accuracy/latency or
+CI result is claimed.
+
+
+### Five-PNG image exports (November 9)
+
+User requested reducing generated image files to exactly:
+`source.png`, `shadow-classes.png`, `shadow-compatible.png`, `candidates.png`
+and `comparison.png`. Normal native/Python image generation now saves only
+these five PNGs, plus the existing `results.json` and HTML/CSV summaries needed
+by the scripts. The raw `measurements.yml.gz` dump is no longer generated.
+The brightness sweep retains its existing compact mode (JSON + candidates PNG).
+No detector, segmentation, threshold or decision logic changed.
+
+The combined comparison retains its layout and channel-change/heatmap panels.
+Standalone native-resolution copies, DFS/heatmap/subtraction/color grids and
+light/mid overlay images are retired. Their construction is skipped where not
+needed by the comparison; color diagnostics compute only the channel changes
+for this export. `results.json` retains complete dark/light/mid evidence and
+occlusion rows, but its visualization metadata no longer advertises removed
+files. The HTML galleries link only to retained files.
+
+After a successful full case export, the runner removes an explicit list of
+obsolete generated filenames in that output folder (including older individual
+color-channel PNGs and the raw dump). It preserves unrelated files, symlinks,
+current/reference inputs and all other cases. No broad PNG wildcard deletion.
+Existing ordinary reports remain untouched until the user regenerates those
+cases. The ordinary31-case gallery was not regenerated for this change.
+The generation command and flags remain unchanged.
+
+Local verification: Release build, CTest `cv_baseline`1/1 and Python runner7/7
+passed. The parity/export helper passed11 synthetic frontend parity scenes and
+native CLI checks for the exact five-file PNG set, retired-file cleanup,
+unrelated/input preservation, valid HTML links, homography/decisions/settings,
+overwrite/invalid inputs, retained comparison pixel semantics and dimensions.
+Historical frontend parity explicitly freezes d4/width5; native experiment
+defaults remain d2/width2. Standalone current/reference color grids and native
+original exports are retired, so their old artifact checks were removed; retained
+channel-change/heatmap/mask assertions now inspect the comparison panels.
+The checker also uses current brown class expectations instead of old gray
+expectations at drop>=40. Installed clang-format20.1.7 passed;17 unavailable.
+
+A temporary full009 export preserves every candidate record and all five image
+contents except the updated source-caption text. It saves5 PNGs/7,879,131 bytes
+versus33 PNGs/34,509,117 bytes for the previous009 export (PNG sizes only, not
+RAM profiling or a whole-gallery measurement). Evidence:
+`/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-five-png-image-dnoz5_nd/`;
+synthetic parity/export evidence:
+`/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-five-png-tests-668h49sq/`.
+No new contact accuracy, latency, CI or hardware result is claimed. Prior notes
+below describing additional exported artifacts are historical.
+
+
+### Mid-or-darker sides and finger-blocked support (November 9)
+
+This supersedes the initial brown-only mid implementation below. User clarified
+that side measurements must include both brown/mid and magenta/dark shadows.
+User also requested an experimental occlusion rule: a side-shadow run ending at
+another finger supplies sufficient opening support, and a subsequently merged
+finger row can continue that support. Do not assign arbitrary numeric lengths
+or add hidden/finger pixels to observed shadow area. Front checks are unchanged.
+
+`MidShadow.cpp` now follows valid, outside-mask pixels with drop>5 and either
+current luma<=selected dark cap OR drop>=40. Gray and lavender are excluded from
+side scans unless they satisfy the selected dark cap's magenta class. The front
+still allows one brown plus one gray pixel per scan, ignores faint thickness,
+and rejects dark, unavailable or finger samples. A two-column thin front remains
+required; it does not independently establish physical contact.
+
+A side row is `fingerOccluded` only when a contiguous observed mid/dark run
+ends directly at valid finger-mask pixels. Clear, gray/faint or unavailable gaps
+do not bridge to a finger. Once a previous row actually met a finger, a sudden
+outward mask-edge jump greater than max(2,ceil(0.15*tip.width)) with mask at the
+previous edge's outward neighbor is recorded as `maskMerged`. That row anchors
+to the last target edge and supplies blocked support with zero visible width.
+This is a local mask/occlusion hypothesis, not anatomical tracking or a claim
+that the hidden shadow actually widens. It addresses009's connected masks.
+
+If the final upward row is finger-blocked, the experimental occlusion rule
+satisfies the growth/slope qualification. A later fully visible endpoint uses
+its actual width and trend; earlier occlusion does not automatically pass it.
+Occluded rows are excluded from the numeric fit. Early opening, connected
+visible shadow, minimum observed area and maximum visible forward extension
+remain required. Merged rows are exempt only from the visible-shadow-row
+connectivity check; they never increase shadow area.
+
+JSON exports `sideRows` with actual `visibleWidth`, `fingerOccluded`,
+`maskMerged`, `scanLimit`, edge and endpoint coordinates; `usedOcclusion` and
+`shapeAcceptedByOcclusion` distinguish the assumption from measured growth.
+When endpoint occlusion supplies shape support, `growthMeasured` and
+`slopeMeasured` are0, and numeric0 fields are placeholders, not shadow lengths.
+`maximumEdgeStep` records the merge threshold. Orange overlay pixels mark the
+blocked endpoints; cyan mass contains only observed mid/dark pixels.
+
+The command remains:
+
+```sh
+python3 backend/run_shadow_images.py --rebuild --dark-shadows-only --light-shadow-test --mid-shadow-test
+```
+
+Local Release build and CTest `cv_baseline`1/1 passed; Python runner7/7 passed.
+Synthetic coverage now checks dark pixels joining mid regions, selected dark
+cap inclusion, finger-blocked shrinking widths and merged masks, zero measured
+width at merge, exclusion of finger pixels from area, later visible narrow
+endpoints, front invalidation, absent visible mass and clear/gray/unavailable
+gaps before a neighboring finger. Existing front/late-opening/angled-finger,
+forward-extension and dark/light preservation cases remain in the suite.
+Installed clang-format20.1.7 passed; required17 remains unavailable.
+
+Temporary31-case/161-candidate comparison preserves all geometry, complete dark
+traces and complete light records. Only007/candidate2 and009/candidate1 change
+from the previous mid implementation. Together with existing008/2 and010/3,
+all four user-labeled misses now match. Known hovering004/3 and002/4 remain
+rejected;021 gains no matches.007/2 passes observed mid/dark geometry (widths
+2,3,7,8,9,9,9; last three scans are capped).009/1 is3 followed by five
+finger-blocked runs and one merged row: actual visible widths3,5,4,3,3,2,0,
+with blocked flags0,1,1,1,1,1,1. Its20 observed mass pixels exceed minimum12;
+hidden area is not counted. These are development-set results, not held-out
+accuracy or physical latency measurements.
+
+Evidence lives in
+`/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-mid-occlusion-saqnuahs/`
+with `comparison-summary.json` and temporary reports. Ordinary gallery and all
+captures are preserved; no full gallery regeneration. The earlier temporary
+brown-only reports remain separately available. Keep dark/light algorithms and
+finger segmentation stable. Issues, commits, pushes, PRs and broader docs remain
+deferred.
+
+
+### Initial mid-shadow algorithm implemented (November 9)
+
+The thin-front/sideways-opening rule is now a separate native algorithm in
+`src/CV/MidShadow.cpp`, with its public entry point in `MidShadow.hpp` and
+separate `MidShadowEvidence` in the shared result types. `LightShadow.cpp`
+and dark DFS behavior are preserved. The optional `--mid-shadow-test` flag
+runs mid after dark and any enabled light test fail; a success is reported as
+`decisionSource: "mid"`. Failed mid evidence retains the original dark/light
+outcome, including UNKNOWN. No browser or camera integration is added.
+
+Run from the repository root when ready to regenerate the ordinary gallery:
+
+```sh
+python3 backend/run_shadow_images.py --rebuild --dark-shadows-only --light-shadow-test --mid-shadow-test
+```
+
+Omit `--mid-shadow-test` to retain the previous behavior. Mid requires dark-only
+mode, but can run without the light test. The runner records enabled algorithms
+in its gallery and summary and uses distinct `*-plus-mid-results.csv` snapshots.
+The ordinary gallery was not regenerated during implementation.
+
+Initial algorithm measurements, chosen from the saved images:
+
+- Front: use the existing distal arc's lowest pixel per column. Require at
+  least two consecutive columns in the central half-width, no more than one
+  row above the tip. Scan four pixels downward outside each column. Allow at
+  most one brown and one gray pixel per scan; ignore faint/lavender thickness.
+  Dark pixels, finger pixels and unavailable samples reject a scan.
+- Sides: follow brown only (drop >=40, current luma above the selected dark
+  cap), excluding gray, lavender and magenta. Starting from the finger mask
+  edge on each row, measure contiguous outward brown width over the tip row
+  and six rows upward. One side suffices. Width must first reach two pixels
+  within three rows of the tip, gain at least three pixels across the window,
+  and have a fitted width-versus-upward-distance slope >=0.5. The fit allows
+  irregular widths rather than requiring monotonic growth at every pixel.
+- The measured width is separation from the local finger edge. An angled finger
+  with a parallel, constant-width shadow does not qualify. The brown component
+  must connect all measured rows from opening onset, have area at least
+  max(6,ceil(0.04*width^2)), and not extend more than two rows below the tip.
+  Local bounds limit searches to the finger neighborhood. These are initial
+  experimental thresholds, not measured physical distances or validated labels.
+
+JSON has a separate `midShadow` record, front samples, qualifying side boundary,
+finger edge, connected mass, thresholds and match reason. `mid-shadow.png`
+shows white front strip, green front scans, yellow finger edge, magenta brown
+boundary and cyan brown mass. Light retains its separate overlay and evidence.
+
+Local verification: Release build and CTest `cv_baseline`1/1 passed. Synthetic
+coverage includes either single side, front thickness/strip limits, ignored
+faint pixels, unavailable front/side samples, dark front, late/constant-width
+openings, angled fingers, excessive forward extension, gray-only sides,
+selected dark-cap boundary, separate final decisions and dark/light skip rules.
+Python pairing/runner tests7/7 passed, including opt-in forwarding, summary,
+gallery link, distinct CSV snapshot and incompatible-mode rejection. Installed
+clang-format20.1.7 passed; required17 is unavailable.
+
+Temporary compact comparisons processed all31 saved images and161 candidates.
+All candidate IDs/positions/widths/arcs, complete dark traces and complete light
+evidence exactly match the saved ordinary reports. Only008/candidate2 and
+010/candidate3 change NO_MATCH to mid MATCH, agreeing with their existing user
+press labels. Known hovering004/candidate3 and002/candidate4 remain rejected;
+021 gains no matches.007/candidate2 and009/candidate1 remain rejected. This
+brown-only rule does not infer hidden evidence in009. These are development-set
+results, not held-out accuracy or physical latency measurements.
+
+Temporary evidence is in
+`/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-mid-0p5esfh9/`
+(`comparison-summary.json`, compact case reports and a full008 export). The full
+008 export and native incompatible-mode rejection were checked separately.
+Preserve existing captures, ignored reports and unrelated working changes.
+Issues, commits, pushes, PRs and broader documentation remain deferred.
+
+### Earlier proposal: thin front shadow with an early sideways opening (November9)
+
+User is stopping for the night and wants to try this next session. This is a
+proposed native diagnostic/detection experiment, NOT implemented or validated.
+Keep the existing dark detector and finger segmentation stable. Preserve all
+working-tree changes and ignored captures/reports. Do not regenerate the full
+gallery automatically; the user has been handling real-image generation.
+Continue the local experiment workflow; broader docs, issues, commits, pushes
+and PRs remain deferred as previously requested.
+
+**User's hypothesis:** after the dark detector fails, a pressing finger may have
+a thin mid/light shadow at the front that opens sideways into a large shadow
+mass close to the fingertip. A hovering finger may have its sideways opening
+start too far up the finger. Shape and opening location matter, not just the
+presence of a large adjacent blob.
+
+Proposed checks:
+
+- Permit at most1 brown (mid) pixel and1 gray (light) pixel at the front; ignore
+  very light/lavender shadows for this thickness check. The assistant interpreted
+  this as counts along each outward scan from the front edge, not total pixels
+  over the entire fingertip. This counting interpretation and the required
+  lateral extent of the qualifying front region are not yet settled.
+- Going outward toward either side, require at least ONE side to slope/open into
+  a substantial connected shadow mass. This differs from the existing fallback's
+  requirement for supporting blobs on BOTH sides.
+- Require the opening to begin close to the tip, without first traveling too far
+  up the finger. Measure opening onset separately from eventual blob size.
+- The mass should spread sideways without extending substantially farther
+  downward beyond the tip. Exact allowed extension/start distance are undecided.
+- User observes the shadow slope may be flatter than the finger's own slope.
+  Assistant suggested measuring the shadow boundary's lateral separation from
+  the local finger edge, so an angled finger alone does not satisfy the rule.
+  Use an overall short-range trend with tolerance for pixel irregularities,
+  rather than strict monotonicity at every pixel. This is a suggestion to inspect.
+- User suggests following MID/brown shadows while ignoring light/gray shadows
+  during the side-slope measurement. Assistant suggested brown PLUS existing
+  magenta as the stronger-shadow region: a failed dark decision does not imply
+  there are no useful dark pixels. Brown-only versus brown+magenta remains an
+  experimental choice, not an agreed implemented rule. Keep these side-mass
+  rules separate from the front's1-brown/1-gray allowance.
+
+Specific cases and user observations:
+
+-007/candidate2 and010/candidate3: user expects ignoring very light front shadows
+  could let the light-style test pass; this has not been executed. Current saved
+  reports reject with `no-clear-strip`; opening a strip alone does not prove
+  that the later side checks will pass.
+-008/candidate2: user sees only one clear/light-shadow-free pixel at the front,
+  but a conspicuous sideways slope with a thin front band. This motivates the
+  new geometry test rather than globally reducing minimum strip width to1.
+-021: user's contrasting example where the sideways slope begins too late up
+  the finger. No particular021 candidate or new per-finger truth label was
+  specified; identify the intended spatial feature during review.
+-009/candidate1: user says another finger covers the dark-shadow evidence.
+  Additional brightness layers cannot reveal hidden pixels. Do not assume this
+  proposed rule resolves009, or infer a press solely from unavailable evidence.
+
+The assistant inspected008/021 `shadow-classes.png` and the saved failed
+candidates' JSON. The existing `LightShadow.cpp` finds a clear front band and
+adjacent connected side blobs; it does NOT explicitly measure slope or opening
+onset. Do not mistake that blob-support code for an existing slope test.
+
+**Start next session with diagnostic overlays on008 and021:** show the front
+scan/thickness, where the sideways opening starts, and the boundary followed
+into the supporting mass. Confirm these match the user's visible shape before
+choosing numerical thresholds. Then compare against007/010 and all labeled
+hovering cases, especially004/candidate3; preserve dark-detector behavior.
+Recovering the missed presses alone is insufficient evidence of improved
+accuracy. No detector changes, image regeneration or tests were performed for
+this note; all geometry/threshold choices above remain hypotheses.
+
+### Gather all testcase shadow classes (November8)
+
+After regenerating image reports, run from the repository root:
+
+```sh
+node backend/gather_shadow_classes.cjs
+```
+
+This gathers existing `NNN/shadow-classes.png` files in numeric order into
+`backend/test-results/all-shadow-classes.png`, with testcase labels and8 columns.
+It preserves original image resolution and replaces the previous overview only
+once encoding completes. It does not rerun detection or change case reports.
+The default input is anchored to the script, so it also works from other working
+directories. Requires Node and sharp from installed frontend dependencies.
+
+For a smaller overview, use `--scale 0.5`; change the layout with `--columns 4`.
+`--input PATH` selects another results root and `--output PATH` changes the
+output PNG; explicit paths resolve from the current working directory. Input
+and output parent directories must exist. No matching images or invalid options
+produce an error. Only three-digit testcase directories are included; missing
+shadow-class images are skipped, and the brightness-sweep gallery is not included.
+Local execution gathered all31 current cases successfully into5300x1997 pixels
+(approximately0.6MB); Node syntax validation passed. The earlier full-comparison
+overview remains available separately.
+
+
+### Faint-shadow display tier (November8)
+
+User requested a separate display color for the lowest/purple end of the
+fixed5..100 TURBO shadow heatmap. Added lavender RGB170,140,230 for valid
+outside-finger shadows with reference-relative luma drop >5 and <=20, except
+that the existing magenta current-luma dark class retains precedence. Brown
+still covers other valid shadows with drop>=40; gray now covers20<drop<40.
+Blue fingers, white clear and black unavailable are unchanged. These are
+brightness classes, not measured distance from the paper or contact labels.
+
+`faintShadowMaximumDrop=20` lives in `ShadowDiagnostics.hpp`. The standalone
+`shadow-classes.png`, combined comparison, HTML legends and JSON visualization
+metadata include the faint tier. Detection, light fallback and heatmaps are
+unchanged. Only this handoff updated; broader process/docs remain deferred as
+previously requested. No ordinary gallery or brightness-sweep files regenerated.
+The user's next normal rebuild/generation will show the new tier:
+
+```sh
+python3 backend/run_shadow_images.py --rebuild --dark-shadows-only --light-shadow-test
+```
+
+Local Release build and CTest `cv_baseline`1/1 passed. A temporary synthetic
+export checked clear/drop5 white, drop6/20 lavender, drop21/39 gray, drop40
+brown, magenta precedence at current-luma110 and the new JSON metadata. A
+single temporary case007 export was visually inspected; all4 complete candidate
+records exactly match the saved ordinary report. Temporary verification outputs
+are outside the gallery. clang-format20.1.7 passed; exact17 unavailable. No new
+test files, CI, held-out accuracy or physical latency result claimed.
+
+### Quick summary of the current state
+
+- Native baseline: Cr13, `cr-otsu` radius2; DFS c4/d2/e4, upward width2,
+  current brightness cap110 and luma drop>20. Dark fails → try light, requiring
+  a two-column clear strip, two-pixel outward depth and supporting side blobs.
+- d2 fixed the original002/candidate4 false press without changing any other
+  final result in the then25-image set. Fresh captures subsequently exposed
+  additional misses; that earlier result is not an all-conditions accuracy claim.
+- Latest user-labeled misses:007/2,008/2,009/1,010/3 are presses. The brightness
+  sweep recovers007/2 at120 and010/3 at140;008/2 and009/1 still reject at140.
+  Cap140 also falsely accepts the known hovering004/3, so default stays110.
+  Curved medium-shadow bands beside occluded fingers are a possible next
+  hypothesis; no new detection rule has been implemented for them.
+- Dark/mid/light/faint visualization uses lavender for other valid shadows with
+  5<drop<=20 (November8 addition). Magenta retains precedence. The earlier
+  November6 display uses magenta for dark, brown for other valid
+  shadows with drop>=40 (approximately the heatmap's green onset), and gray
+  for weaker shadows. Brown is display only. All31 ordinary cases regenerated;
+  all161 complete candidate records/traces are unchanged by this display edit.
+- View `test-results/index.html`; sweep comparison is separate at
+  `test-results/brightness-sweep/index.html`. Normal generation:
+  `python3 backend/run_shadow_images.py --rebuild --dark-shadows-only --light-shadow-test`.
+  Build and CTest1/1 passed. Above-paper candidates remain outside the current
+  contact assessment; homography eligibility is deferred. No held-out accuracy
+  or physical-latency claim.
+
+
+### Brown middle-shadow display tier (November6)
+
+User requested a visual middle tier in the dark/light classification panel to
+make the approximately neon-green-to-darker heatmap evidence easier to inspect.
+`middleShadowMinimumDrop=40` in `ShadowDiagnostics.hpp` sets the start of this
+display tier, approximately the green onset of the fixed5..100 TURBO scale.
+This is a brightness-drop threshold, distinct from the absolute current-luma
+cap used for magenta dark shadows. Among valid outside-finger shadows:
+
+1. Current luma <= selected dark cap: magenta (takes precedence).
+2. Otherwise reference-relative luma drop >=40: brown (RGB145,85,42).
+3. Otherwise: gray light shadow.
+
+Blue fingers, white clear and black unavailable retain their meanings.
+`shadow-classes.png`, the combined comparison panel, legends and JSON
+visualization metadata describe the three tiers. The brown tier does not
+participate in dark DFS, light fallback, candidate extraction or final decisions.
+The ordinary gallery is regenerated at the unchanged default dark cap110;
+the previous sweep remains separate. Baseline full reports were saved at
+`test-results/before-mid-shadow.json` for candidate/trace equivalence checks.
+Local Release build, CTest `cv_baseline`1/1, Python syntax and clang-format20
+passed. All31 cases regenerated; all161 complete candidate records (including
+all dark traces and light evidence) exactly match the saved pre-display reports.
+The007/009 class images were visually inspected for brown side bands and
+retained magenta/gray classes. This establishes unchanged detector output on
+these inputs, not new contact-accuracy evidence.
+
+
+### Brightness-cap sweep on31 images (November6)
+
+User labels the latest007/candidate2,008/candidate2,009/candidate1 and
+010/candidate3 as pressing. Their baseline dark search lacks upward support;
+all four light fallbacks reject with `no-clear-strip`. At drop>20 there are
+21/25/24/25 eligible edge samples respectively, but only0/1/3/0 satisfy the
+current-brightness cap110. Thus changing the brightness-drop cutoff alone
+would not restore007/010's missing seeds. User also notes curved medium-shadow
+bands beside occluded fingers; a separate local contrast/shape test remains
+only a hypothesis, not implemented.
+
+**Brightness meaning:** current-frame luma is a weighted RGB brightness proxy
+on0..255 (black..white), not a distance or a change threshold. Dark DFS requires
+both reference-relative drop>20 and current luma<=the selected cap. Raising
+110 to120/130/140 admits progressively brighter shadows. The light fallback
+continues to use drop>5 without this brightness cap. Cr13, Otsu radius2,
+c4/d2/e4, upward width2, strip2 and the other settings are fixed during sweep.
+The ordinary/default cap remains110; no new cap has been selected.
+
+```sh
+# Compact JSON + candidate overlays, preserving the ordinary gallery:
+python3 backend/run_shadow_brightness_sweep.py --rebuild
+
+# To generate a full ordinary gallery at a chosen cap (overwrites that gallery):
+python3 backend/run_shadow_images.py --rebuild --dark-shadows-only --light-shadow-test --maximum-shadow-luma 120
+```
+
+The sweep uses saved numbered baseline reports and pins their image/reference,
+Cr and Otsu settings. It rejects a mismatching compiled configuration or
+candidate geometry; cap110 must reproduce the saved dark traces and final
+results. Inputs/outputs remain local. All31 cases completed at all four caps
+(124 compact runs,161 candidate identities). Every cap110 dark trace and
+combined result matches the original, and candidate geometry matches at all
+caps. [Sweep gallery](test-results/brightness-sweep/index.html),
+[CSV](test-results/brightness-sweep/results.csv),
+[summary](test-results/brightness-sweep/summary.json), and saved full baseline
+`test-results/brightness-sweep/baseline.json` provide the current evidence.
+
+| User-labeled press | 110 | 120 | 130 | 140 |
+| :--- | :--- | :--- | :--- | :--- |
+| 007/candidate2 | NO_MATCH | dark MATCH | dark MATCH | dark MATCH |
+| 008/candidate2 | NO_MATCH | NO_MATCH | NO_MATCH | NO_MATCH |
+| 009/candidate1 | NO_MATCH | NO_MATCH | NO_MATCH | NO_MATCH |
+| 010/candidate3 | NO_MATCH | NO_MATCH | NO_MATCH | dark MATCH |
+
+Relative to110 there are4/16/30 final-decision changes at120/130/140,
+including candidates outside the paper and changes to NO_MATCH/UNKNOWN; these
+counts are not contact error rates.002/candidate4 stays NO_MATCH throughout.
+**004/candidate3, previously labeled hovering, becomes a dark MATCH at140.**
+Therefore140 recovers010's press but introduces a known false press. Other
+changed candidates require label review; do not call a cap universally better.
+008/009 still have no successful upward evidence by140, so this sweep does
+not resolve their visibility/geometry limitations.
+
+Local Release build and CTest `cv_baseline`1/1 passed. Native invalid caps
+-1/256/NaN/infinity rejected. A full cap120 export for007 matches its compact
+candidate report; full metadata and captions follow120. Python syntax checks
+and clang-format20 pass; exact17 and full Python ruff/mypy are unavailable.
+No new automated test file, CI execution, held-out contact accuracy or physical
+latency claim. The ordinary31-case gallery is preserved at110.
+
+
+### Verified two-pixel clear-strip user run
+
+All26 regenerated reports use Cr13, c4/d2/e4, upward width2 and the fixed
+minimum clear strip2. Compared with `test-results/before-two-pixel-strip.json`,
+candidate geometry is unchanged throughout. Exactly three final results change
+NO_MATCH→light MATCH:004/candidate1 at(122,123),006/candidate3 at(342,124), and
+008/candidate1 at(297,131).006/candidate3 now has a two-column clear strip,
+four clear band pixels and side blobs of146/175 pixels, matching the user's
+press label. The other two additions are thumb candidates near/outside the
+paper boundary in the reviewed overlays; no new contact truth assigned.
+002/candidate4 remains NO_MATCH, and004/candidate3 remains NO_MATCH.
+
+The saved baseline is mixed:006 already used upward width2, but the other25
+reports used3. The latest run uses2 throughout, so not every dark trace is
+identical. Nevertheless, every cutoff20 dark decision is unchanged; all three
+final changes are light matches using two-column strips. Original thresholds
+and below discussion describe the initial trial setup, not pending work.
+
+### Two-pixel clear-strip trial setup
+
+The user is testing fresh camera captures at Cr13, c4/d2/e4 and upward shadow
+width2. New006/candidate3 at(342,124),width22 is labeled pressing but rejects
+light: its only clear columns are x341–342. Both outside rows are clear in
+those columns, but the previous max(3,ceil(0.15*width)) rule required4 columns.
+The current trial uses a **fixed minimum of2 consecutive clear columns**, set
+by `defaultLightShadowMinimumStrip`, with no finger-width scaling. Clear-band
+depth remains2; both side-shadow support and blob area rules remain required.
+The dark test and the user's upward-width2 setting are preserved.
+
+Pre-change full image reports are saved locally in
+`test-results/before-two-pixel-strip.json`. User will regenerate using the
+usual rebuild/dark-only/light-test command. Do not overwrite this baseline or
+regenerate images before the user does. Compare actual metadata and spatial
+candidates: new captures have changed gallery numbering, so earlier006 refers
+to a different image. This change permits006/candidate3 to reach the side
+checks; acceptance and false-positive effects await the user's image run.
+Synthetic strip-boundary coverage now checks one column rejects and two pass.
+
+
 ### Verified user run: forward dark distance d=2
 
-All25 current reports now record Cr13/d2/light enabled. Against the saved
-Cr13/d4 baseline and recorded light additions, all137 candidate IDs, positions
-and widths are unchanged. The only combined-decision change is002/candidate4:
-dark MATCH becomes NO_MATCH, with downward target y151 and6 non-ignored
-successful downward searches (11 reach,5 ignored). Upward support remains,
-but downward veto correctly wins. The light fallback rejects with
-`no-clear-strip`, so final result is NO_MATCH, matching the hovering label.
-Every other combined decision is unchanged, including all known pressing
-fingertips and older on-paper results.001/candidate6 (above paper) changes
-its internal dark result UNKNOWN→NO_MATCH but still passes light. This is
-comparison on the same development images, not held-out accuracy evidence.
+**Current local native settings:** Cr13, `cr-otsu` with radius2, c=4/d=2/e=4,
+upward width3, corridor margin9, dark-only DFS (luma drop strictly>20 and
+current luma<=110), followed by the light-shadow fallback when dark does not
+match. Cr shadows use the selected finger mask and darkening, without a
+projection-residual filter. These are experiment settings, not browser changes.
 
+Rebuild and regenerate the current gallery from the repository root:
 
-User will run the image generator to compare d=2 against d=4, keeping Cr13,
-Otsu radius2, dark-only DFS and the light fallback enabled. Do not change the
-settings or regenerate while the user runs it. The saved pre-run full reports
-are `test-results/before-d2-results.json` (Cr13/d4), if present; verify the
-actual metadata before comparison. Match candidates spatially if IDs change.
+```sh
+python3 backend/run_shadow_images.py --rebuild --dark-shadows-only --light-shadow-test
+```
 
-Focus:002/candidate4, a user-labeled hovering finger, falsely passes dark.
-Tip y149, old forward target y153 (tipY+d4). All14 downward searches fail;
-upward support succeeds. With d2, target becomes y151. Check whether a
-non-ignored downward path now vetoes it: seeds reaching both upward and
-downward targets are ignored, so lowering d does not guarantee rejection.
-Also check whether a dark rejection is subsequently accepted by light.
-Compare all25 cases, especially known pressing fingertips001/003/004/005 and
-older on-paper fingers; ignore candidates above the paper for current review.
-The latest Cr13 rerun exactly reproduced the original137 candidate geometries,
-dark traces and combined decisions. At Cr14,014/022 candidate2 gained dark
-matches; both disappear again at Cr13. Preserve this comparison context.
+Cr and d inherit the compiled defaults in [CrFingerDetection.hpp](src/CV/CrFingerDetection.hpp)
+and [ShadowDetection.hpp](src/CV/ShadowDetection.hpp). Verify `results.json`
+metadata when comparing runs; candidate IDs are local to a frame/configuration.
 
+#### Why d changed
+
+User labels002/candidate4 as hovering. With d4 it falsely passed dark because
+its forward shadow was shorter than the required target distance. The target
+is **tip.y+d in analysis pixels**, not d pixels from each shadow seed or each
+point on the curved edge. Reducing d makes a shorter forward shadow sufficient
+to veto the dark match. Both-target seed exclusion is retained.
+
+| Measurement for002/candidate4 | Cr13/d4 | Cr13/d2 |
+| :--- | :--- | :--- |
+| Tip coordinate | (291,149) | (291,149) |
+| Forward target row | 153 | 151 |
+| Downward searches reaching target | 0 of14 | 11 of14 |
+| Reached downward searches ignored by paired-target rule | 0 | 5 |
+| Non-ignored successful downward searches | 0 | 6 |
+| Upward support | Present | Present |
+| Downward veto | Absent | Present |
+| Dark result | MATCH | NO_MATCH |
+| Light fallback | Skipped after dark match | NO_MATCH: `no-clear-strip` |
+| Final result | MATCH (false press against user label) | NO_MATCH (matches hovering label) |
+
+#### Comparison across the complete gallery
+
+All25 current reports were checked at Cr13/d2 with dark-only DFS and light
+fallback enabled. Compared with saved Cr13/d4 dark reports and the recorded
+initial light-addition list, all137 candidate IDs, positions and widths are
+unchanged. **002/candidate4 is the only final press/no-press decision change.**
+001/candidate6, above the paper, changes its internal dark result from UNKNOWN
+to NO_MATCH but remains a light MATCH, so its final result is unchanged. Every
+other cutoff20 dark result is unchanged. Known pressing fingertips and older
+on-paper decisions remain accepted/rejected as before.
+
+| Case | Accepted on-paper candidates at Cr13/d2 |
+| :--- | :--- |
+| 000 | None |
+| 001 | 3,5,7,10 (light) |
+| 002 | None |
+| 003 | 5 (light) |
+| 004 | 5,7 (light); hovering candidate3 remains NO_MATCH |
+| 005 | 4 (light),5 (dark) |
+
+Above-paper proposals remain visible but are excluded from the user's current
+contact assessment; future paper homography will gate them. Do not introduce
+proposal filtering to hide their output. Raising Cr to14 was also compared:
+014/candidate2 and022/candidate2 gained dark matches, and candidate IDs changed
+in some new images. Returning to Cr13 exactly reproduced the initial137
+candidate geometries, dark traces and combined decisions before the d2 trial.
+
+Evidence is the local [gallery](test-results/index.html), per-case JSON traces,
+[002 dark DFS](test-results/002/dfs-20.png),
+[002 light fallback](test-results/002/light-shadow.png), and
+[combined CSV](test-results/dark-plus-light-results.csv). Inputs and generated
+reports are ignored local artifacts and must be preserved separately for
+reproduction. The pre-d4 dark reports were saved in this session at
+`/tmp/makeshift-before-light.json`; `test-results/light-review.json` records
+the original d4 light additions. Do not use that initial review file as the
+current d2 result table. No complete `before-d2-results.json` snapshot was
+created: the user's run had already started when snapshotting was attempted.
+
+Comparison executed locally November6,2026 using existing still images and
+user contact labels. This is development-set evidence, with no new camera or
+audio hardware measurement, held-out accuracy, physical latency, or Actions
+claim. Existing native synthetic build/test evidence is recorded below;
+this documentation update does not claim a fresh CTest run.
 
 ### Light-shadow fallback trial (November 6)
 
-The current native image trial is opt-in:
+**Initial d4 trial (historical evidence):** the light fallback is opt-in.
+The d2 comparison above supersedes this trial's002 false-positive outcome.
+Run the command below with the current compiled defaults:
 
 ```sh
 python3 backend/run_shadow_images.py --rebuild --dark-shadows-only --light-shadow-test
@@ -159,7 +982,7 @@ Preserve unrelated working-tree changes and all ignored source/evidence files.
 | Shadow source in Cr modes | Outside selected Cr/Cr-Otsu mask plus valid reference-relative darkening; **NO projection-residual/color-shift exclusion** |
 | Availability | Alpha and reference-luma floor40 still apply; opaque black current pixels can be valid shadows even when projection color is undefined |
 | Main reported decision | Luma drop strictly>20; with `--dark-shadows-only`, current luma<=110 |
-| Directional DFS | Width3, c/d/e4, margin9, original paired both-target exclusion/downward-only veto; no new temporal smoothing |
+| Directional DFS | Width3, c=4/d=2/e=4, margin9, original paired both-target exclusion/downward-only veto; no new temporal smoothing |
 | Legacy option | `--finger-method projection` uses original projection mask/shadow rules, residual0.125 |
 
 `classifyShadowPixel` is shared by DFS and shadow diagnostics. Raw residual is

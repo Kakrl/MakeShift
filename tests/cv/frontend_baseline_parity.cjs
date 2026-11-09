@@ -97,17 +97,44 @@ async function main() {
   const corners = path.join(out, 'corners.json');
   fs.writeFileSync(corners, JSON.stringify({ source: [{ x: 0, y: 0 }, { x: 80, y: 0 }, { x: 80, y: 100 }, { x: 0, y: 100 }] }));
   const run = (args, succeeds) => {
-    const result = spawnSync(runner, args, { encoding: 'utf8' });
+    const selected = args.some(a => a.startsWith('--finger-method=')) ? args : [...args, '--finger-method=projection'];
+    const result = spawnSync(runner, selected, { encoding: 'utf8' });
     if ((result.status === 0) !== succeeds) throw Error(`Runner status ${result.status}: ${result.stdout}${result.stderr}`);
   };
   const smoke = out;
   const args = [`--image=${path.join(out, 'five-wide-current.png')}`, `--reference=${path.join(out, 'five-wide-reference.png')}`, `--output=${smoke}`, `--corners=${corners}`, '--residual=0.12'];
+  const expectedPngs = ['source.png', 'shadow-classes.png', 'shadow-compatible.png', 'candidates.png', 'comparison.png'];
+  const inputPngs = new Set(fs.readdirSync(smoke).filter(f => f.endsWith('.png') && !expectedPngs.includes(f)));
+  for (const file of ['heatmap-darkening.png', 'mid-shadow.png', 'color-hsv-comparison.png', 'color-rgb-current-1.png', 'measurements.yml.gz'])
+    fs.writeFileSync(path.join(smoke, file), 'retired generated output');
+  const unrelated = path.join(smoke, 'review-notes.png');
+  fs.writeFileSync(unrelated, 'unrelated review evidence');
+  inputPngs.add('review-notes.png');
   run(args, true);
-  for (const file of ['index.html', 'source.png', 'reference.png', 'boundary.png', 'valid.png', 'shadow-compatible.png', 'darkening.png', 'candidates.png', 'results.json', 'measurements.yml.gz',
-    'original.png', 'original-results.png', 'comparison.png', 'heatmap-darkening.png', 'heatmap-residual.png', 'heatmap-color-shift.png', 'heatmap-shadow.png', 'shadow-classes.png', 'dfs-5.png', 'dfs-20.png', 'dfs-40.png', 'dfs-60.png', 'dfs-comparison.png'])
+  const generated = fs.readdirSync(smoke).filter(f => f.endsWith('.png') && !inputPngs.has(f)).sort();
+  if (JSON.stringify(generated) !== JSON.stringify([...expectedPngs].sort())) throw Error(`Unexpected exported PNG set: ${generated}`);
+  if (fs.readFileSync(unrelated, 'utf8') !== 'unrelated review evidence') throw Error('Unrelated evidence removed');
+  if (fs.existsSync(path.join(smoke, 'measurements.yml.gz'))) throw Error('Raw measurements still exported');
+  for (const file of ['index.html', 'results.json', ...expectedPngs])
     if (!fs.existsSync(path.join(smoke, file))) throw Error(`Missing runner artifact ${file}`);
   const reportFile = path.join(smoke, 'results.json'), reportBytes = fs.readFileSync(reportFile);
   const report = JSON.parse(reportBytes);
+  if (report.fingerMethod !== 'projection') throw Error('Legacy finger mode not preserved');
+  const temporaryDefault = spawnSync(runner, args, { encoding: 'utf8' });
+  if (temporaryDefault.status !== 0) throw Error(temporaryDefault.stderr);
+  const crReport = JSON.parse(fs.readFileSync(reportFile));
+  if (crReport.fingerMethod !== 'cr-otsu' || crReport.otsuRadius !== 2 || crReport.candidates.length !== 1) throw Error('Temporary Cr/Otsu default');
+  const crDefaultsCheck = spawnSync(path.join(root, 'build/mog2/baseline_tests'), ['--report-settings', reportFile], { encoding: 'utf8' });
+  if (crDefaultsCheck.status !== 0) throw Error(`Cr default not inherited: ${crDefaultsCheck.stdout}${crDefaultsCheck.stderr}`);
+  if (!fs.readFileSync(path.join(smoke, 'index.html'), 'utf8').includes('Finger mask: cr-otsu')) throw Error('Cr mask provenance missing');
+  run([...args, '--finger-method=cr', '--cr-threshold=255'], true);
+  if (JSON.parse(fs.readFileSync(reportFile)).candidates.length !== 0) throw Error('Cr threshold override');
+  run([...args, '--finger-method=bad'], false);
+  run([...args, '--finger-method=cr', '--cr-threshold=-1'], false);
+  run([...args, '--finger-method=cr', '--cr-threshold=256'], false);
+  run([...args, '--finger-method=cr-otsu', '--otsu-radius=3'], false);
+  run([...args, '--finger-method=cr-otsu', '--otsu-radius=0'], false);
+  run(args, true);
   const settingsCheck = spawnSync(path.join(root, 'build/mog2/baseline_tests'), ['--report-settings', reportFile], { encoding: 'utf8' });
   if (settingsCheck.status !== 0) throw Error(`Report settings mismatch: ${settingsCheck.stdout}${settingsCheck.stderr}`);
   if (report.candidates.length !== 1 || Math.abs(report.candidates[0].sheet.x - 0.5) > 1e-10 ||
@@ -118,7 +145,7 @@ async function main() {
   run([...args, '--residual=0.9'], true);
   const relaxed = JSON.parse(fs.readFileSync(reportFile));
   if (relaxed.maximumResidual !== 0.9 || relaxed.candidates.length !== 0) throw Error('Residual override not applied to geometry/report');
-  if (!(await sharp(path.join(smoke, 'boundary.png')).raw().toBuffer()).every(v => v === 0)) throw Error('Residual override mask');
+  if (relaxed.candidates.length !== 0) throw Error('Residual override mask');
   if (!fs.readFileSync(path.join(smoke, 'index.html'), 'utf8').includes('<=0.9')) throw Error('Residual legend override');
   run(args, true);
   run([...args, '--dark-shadows-only=true'], true);
@@ -141,42 +168,135 @@ async function main() {
     const value = await pixel(folder, file, x, y);
     if (value.some((v, i) => v !== expected[i])) throw Error(`${file}: expected ${expected}, got ${value}`);
   };
-  await equalPixel(smoke, 'heatmap-darkening.png', 0, 0, [0, 0, 0]);
+  const comparisonPixel = async (row, column, x, y) => {
+    const meta = await sharp(path.join(smoke, 'source.png')).metadata();
+    return pixel(smoke, 'comparison.png', column * meta.width + x, row * (meta.height + 64) + 64 + y);
+  };
+  const comparisonTiles = {
+    'heatmap-darkening.png': [1, 0], 'heatmap-residual.png': [1, 1],
+    'heatmap-shadow.png': [2, 1], 'subtraction.png': [3, 0],
+    'subtraction-r.png': [3, 1], 'subtraction-g.png': [3, 2], 'subtraction-b.png': [4, 0],
+  };
+  const equalPanel = async (file, x, y, expected) => {
+    const [row, col] = comparisonTiles[file];
+    const actual = await comparisonPixel(row, col, x, y);
+    if (String(actual) !== String(expected)) throw Error(`${file} panel: expected ${expected}, got ${actual}`);
+  };
+  const equalColorPixel = async (folder, space, row, channel, x, y, expected) => {
+    if (row !== 'change') throw Error('Only channel-change panels are retained');
+    const index = ['rgb', 'hsv', 'lab', 'ycrcb', 'normalized-rgb', 'cmy', 'ryb'].indexOf(space);
+    const value = await comparisonPixel(5 + index, channel - 1, x, y);
+    if (String(value) !== String(expected)) throw Error(`${space} change: expected ${expected}, got ${value}`);
+  };
+  await equalPanel('heatmap-darkening.png', 0, 0, [0, 0, 0]);
+  await equalPanel('subtraction.png', 40, 40, [80, 135, 155]);
+  await equalPanel('subtraction-r.png', 40, 40, [80, 0, 0]);
+  await equalPanel('subtraction-g.png', 40, 40, [0, 135, 0]);
+  await equalPanel('subtraction-b.png', 40, 40, [0, 0, 155]);
+  await equalPanel('subtraction.png', 0, 0, [0, 0, 0]);
+  await equalColorPixel(smoke, 'rgb', 'change', 2, 40, 40, [135, 135, 135]);
+  await equalColorPixel(smoke, 'cmy', 'change', 1, 40, 40, [80, 80, 80]);
+  await equalColorPixel(smoke, 'ycrcb', 'change', 2, 40, 40, [116, 116, 116]);
+  await equalColorPixel(smoke, 'ycrcb', 'change', 3, 40, 40, [77, 77, 77]);
   await equalPixel(smoke, 'shadow-classes.png', 40, 40, [0, 0, 100]);
-  await equalPixel(smoke, 'shadow-classes.png', 29, 54, [128, 128, 128]);
+  await equalPixel(smoke, 'shadow-classes.png', 29, 54, [145, 85, 42]);
   const classes = fixture(); classes.finger();
   classes.paint(10, 10, [110, 110, 110]); classes.paint(11, 10, [111, 111, 111]);
+  classes.paint(12, 10, [250, 200, 240]); // Brighter channels clamp, never wrap or absdiff.
+  classes.paint(13, 10, [0, 0, 0]);
+  classes.paint(14, 10, [255, 0, 0]);
+  classes.paint(15, 10, [255, 9, 0]);
+  classes.paint(16, 10, [210, 210, 210]); // Exactly20 darkening: excluded.
+  classes.paint(17, 10, [209, 209, 209]); // Above20: eligible in all-shadow mode.
+  classes.paint(18, 10, [0, 0, 255]); // Strong Cb change clips only the display.
+  classes.paint(19, 10, [225, 225, 225]); // Exactly5 darkening: heatmap floor.
+  classes.paint(20, 10, [224, 224, 224]); // Above5: visible before DFS cutoffs.
+  classes.paint(21, 10, [100, 100, 200]); // Low Cr change, but residual rejected.
+  const colorReference = fixture().reference;
+  colorReference.data.set([255, 0, 9, 255], (10 * 80 + 15) * 4);
+  const colorReferencePath = path.join(out, 'color-test-reference.png');
+  await sharp(Buffer.from(colorReference.data), { raw: { width: 80, height: 100, channels: 4 } }).png().toFile(colorReferencePath);
   const classInput = path.join(out, 'classification-current.png');
   await sharp(Buffer.from(classes.current.data), { raw: { width: 80, height: 100, channels: 4 } }).png().toFile(classInput);
-  run([`--image=${classInput}`, args[1], `--output=${smoke}`], true);
+  run([`--image=${classInput}`, `--reference=${colorReferencePath}`, `--output=${smoke}`], true);
   await equalPixel(smoke, 'shadow-classes.png', 10, 10, [180, 0, 180]);
-  await equalPixel(smoke, 'shadow-classes.png', 11, 10, [128, 128, 128]);
+  await equalPixel(smoke, 'shadow-classes.png', 11, 10, [145, 85, 42]);
+  await equalPanel('subtraction.png', 12, 10, [0, 30, 0]);
+  await equalColorPixel(smoke, 'hsv', 'change', 1, 15, 10, [6, 6, 6]);
+  await equalColorPixel(smoke, 'ycrcb', 'change', 2, 14, 10, [255, 255, 255]);
+  await equalColorPixel(smoke, 'ycrcb', 'change', 3, 18, 10, [255, 255, 255]);
+  run([`--image=${classInput}`, `--reference=${colorReferencePath}`, `--output=${smoke}`, '--finger-method=cr', '--dark-shadows-only=true'], true);
+  if (String(await comparisonPixel(2, 2, 40, 40)) !== '0,0,100') throw Error('Cr finger overlay must be blue');
+  if (String(await comparisonPixel(2, 1, 40, 40)) !== '0,0,100') throw Error('Finger region must be shown blue in shadow comparison');
+  if ((await comparisonPixel(2, 1, 11, 10)).every(v => v === 0)) throw Error('Filtered heatmap incorrectly applies brightness110 gate');
+  if (String(await comparisonPixel(2, 1, 11, 10)) !== String(await comparisonPixel(2, 0, 11, 10))) throw Error('Filtered heatmap values changed outside Cr mask');
+  if ((await comparisonPixel(2, 1, 19, 10)).some(v => v !== 0)) throw Error('Masked heatmap floor must be5');
+  if ((await comparisonPixel(2, 1, 20, 10)).every(v => v === 0)) throw Error('Masked heatmap incorrectly applies DFS cutoff20');
+  if ((await comparisonPixel(2, 1, 21, 10)).every(v => v === 0)) throw Error('Cr shadow heatmap must restore residual-rejected non-fingers');
+  if ((await comparisonPixel(1, 2, 21, 10)).every(v => v === 0)) throw Error('Actual DFS shadows must restore residual-rejected non-fingers');
+  if ((await comparisonPixel(1, 2, 11, 10)).some(v => v !== 0)) throw Error('Actual DFS shadow panel must apply luma110');
+  if ((await comparisonPixel(1, 2, 16, 10)).some(v => v !== 0)) throw Error('Actual DFS shadow panel must apply strict cutoff20');
+  if (String(await comparisonPixel(1, 2, 40, 40)) !== '0,0,100') throw Error('Actual DFS shadow panel fingers must be blue');
+  if (String(await comparisonPixel(1, 1, 40, 40)) !== String(await comparisonPixel(8, 1, 40, 40))) throw Error('Main Cr-change view differs from Cr grid');
+  const crShadowReport = JSON.parse(fs.readFileSync(reportFile));
+  if (crShadowReport.shadowMethod !== 'cr-mask-darkening' || crShadowReport.shadowResidualApplied) throw Error('Cr shadow provenance missing');
+  if (String(await comparisonPixel(2, 2, 10, 10)) !== '180,0,180') throw Error('Dark shadow class must be magenta at luma110');
+  if (String(await comparisonPixel(2, 2, 11, 10)) !== '145,85,42') throw Error('Mid shadow class must be brown at luma111');
+  if (String(await comparisonPixel(2, 2, 21, 10)) !== '180,0,180') throw Error('Cr classes must retain dark shadows rejected by the old residual filter');
+  run([`--image=${classInput}`, `--reference=${colorReferencePath}`, `--output=${smoke}`, '--finger-method=cr'], true);
+  if ((await comparisonPixel(2, 1, 16, 10)).every(v => v === 0)) throw Error('Masked heatmap should display darkening20');
+  if ((await comparisonPixel(2, 1, 17, 10)).every(v => v === 0)) throw Error('Masked heatmap excludes valid shadow');
   run(args, true);
-  await equalPixel(smoke, 'heatmap-shadow.png', 40, 40, [0, 0, 0]); // Filter-rejected finger.
-  await equalPixel(smoke, 'heatmap-residual.png', 29, 54, [0, 0, 0]); // Proportional neutral shadow.
-  if ((await pixel(smoke, 'heatmap-shadow.png', 29, 54)).every(v => v === 0)) throw Error('Missing neutral shadow heatmap');
+  await equalPanel('heatmap-shadow.png', 40, 40, [0, 0, 100]); // Finger overlay.
+  await equalPanel('heatmap-residual.png', 29, 54, [0, 0, 0]); // Proportional neutral shadow.
+  if ((await comparisonPixel(2, 1, 29, 54)).every(v => v === 0)) throw Error('Missing neutral shadow heatmap');
   const self = out;
   run([args[1].replace('--reference=', '--image='), args[1], `--output=${self}`], true);
   if (JSON.parse(fs.readFileSync(path.join(self, 'results.json'))).candidates.length !== 0) throw Error('Self-reference proposals');
   const unknownOutput = out;
   run([`--image=${path.join(out, 'alpha-current.png')}`, args[1], `--output=${unknownOutput}`], true);
-  await equalPixel(unknownOutput, 'heatmap-darkening.png', 40, 60, [128, 128, 128]);
-  await equalPixel(unknownOutput, 'heatmap-residual.png', 40, 60, [128, 128, 128]);
+  await equalPanel('heatmap-darkening.png', 40, 60, [128, 128, 128]);
+  await equalPanel('heatmap-residual.png', 40, 60, [128, 128, 128]);
   await equalPixel(unknownOutput, 'shadow-classes.png', 40, 60, [0, 0, 0]);
+  if (String(await comparisonPixel(2, 1, 40, 60)) !== '128,128,128') throw Error('Masked shadow unknown must be gray');
+  const otsu = fixture();
+  for (let y = 10; y <= 60; y++)
+    for (let x = 30; x <= 49; x++) otsu.paint(x, y, [150, 120, 120]);
+  for (let y = 58; y <= 60; y++) otsu.paint(29, y, [150, 130, 130]);
+  for (let y = 59; y <= 60; y++) otsu.paint(28, y, [150, 130, 130]);
+  const otsuCurrent = path.join(out, 'otsu-current.png');
+  await sharp(Buffer.from(otsu.current.data), { raw: { width: 80, height: 100, channels: 4 } }).png().toFile(otsuCurrent);
+  run([`--image=${otsuCurrent}`, args[1], `--output=${smoke}`, '--finger-method=cr-otsu', '--cr-threshold=13', '--otsu-radius=2'], true);
+  const otsuReport = JSON.parse(fs.readFileSync(reportFile));
+  if (!otsuReport.otsuEnabled || otsuReport.otsuRadius !== 2 || !otsuReport.otsuRegions.some(r => r.addedPixels > 0)) throw Error('Otsu provenance/growth missing');
+  if ((await comparisonPixel(2, 0, 29, 60)).every(v => v === 0)) throw Error('Original Cr shadow missing before refinement');
+  if (String(await comparisonPixel(2, 0, 40, 40)) !== '0,0,100') throw Error('Original Cr fingers must be blue');
+  if (String(await comparisonPixel(2, 1, 40, 40)) !== '0,0,100') throw Error('Original fingers must stay blue after Otsu');
+  if (String(await comparisonPixel(2, 1, 29, 60)) !== '255,0,180') throw Error('New Otsu shadow view must show additions pink');
+  if (String(await comparisonPixel(2, 2, 29, 60)) !== '0,0,100') throw Error('Class view shows all selected finger pixels blue');
+  if (String(await comparisonPixel(1, 2, 29, 60)) !== '255,0,180') throw Error('DFS shadow overlay must show Otsu additions pink');
+  if (String(await comparisonPixel(2, 0, 27, 60)) !== String(await comparisonPixel(2, 1, 27, 60))) throw Error('Otsu changed shadow beyond expansion radius');
   const scaled = out, nativeCurrent = path.join(out, 'native-current.png'), nativeReference = path.join(out, 'native-reference.png');
   await sharp(path.join(out, 'five-wide-current.png')).resize(160, 200, { kernel: 'nearest' }).toFile(nativeCurrent);
   await sharp(path.join(out, 'five-wide-reference.png')).resize(160, 200, { kernel: 'nearest' }).toFile(nativeReference);
   run([`--image=${nativeCurrent}`, `--reference=${nativeReference}`, `--output=${scaled}`, '--max-side=100'], true);
-  for (const [file, width, height] of [['original.png', 160, 200], ['original-results.png', 160, 200], ['source.png', 80, 100], ['comparison.png', 240, 492], ['dfs-comparison.png', 160, 328]]) {
+  for (const [file, width, height] of [['source.png', 80, 100], ['shadow-classes.png', 80, 100], ['shadow-compatible.png', 80, 100], ['candidates.png', 80, 100], ['comparison.png', 240, 1968]]) {
     const meta = await sharp(path.join(scaled, file)).metadata();
     if (meta.width !== width || meta.height !== height) throw Error(`${file}: wrong diagnostic dimensions`);
   }
-  const originalPixels = await sharp(nativeCurrent).removeAlpha().raw().toBuffer();
-  if (!(await sharp(path.join(scaled, 'original.png')).raw().toBuffer()).equals(originalPixels)) throw Error('Original pixels changed');
-  if ((await sharp(path.join(scaled, 'original-results.png')).raw().toBuffer()).equals(originalPixels)) throw Error('Missing native annotation');
+  const sourcePixels = await sharp(path.join(out, 'five-wide-current.png')).removeAlpha().raw().toBuffer();
+  if (!(await sharp(path.join(scaled, 'source.png')).raw().toBuffer()).equals(sourcePixels)) throw Error('Analysis source pixels changed');
+  if ((await sharp(path.join(scaled, 'candidates.png')).raw().toBuffer()).equals(sourcePixels)) throw Error('Missing candidate annotations');
   const html = fs.readFileSync(path.join(smoke, 'index.html'), 'utf8');
-  if (html.indexOf('src="comparison.png"') > html.indexOf('src="heatmap-darkening.png"')) throw Error('Combined report order');
-  console.log('PASS image runner: artifacts, homography, decisions, self-reference, overwrite, invalid inputs, heatmap semantics, native originals and combined layout');
+  if (html.indexOf('src="comparison.png"') > html.indexOf('src="source.png"')) throw Error('Combined report order');
+  for (const match of html.matchAll(/(?:src|href)="([^"#]+)"/g))
+    if (!fs.existsSync(path.join(smoke, match[1]))) throw Error(`Broken report link ${match[1]}`);
+  // A retired filename that is also an actual input must be preserved.
+  const inputReference = path.join(out, 'reference.png');
+  fs.copyFileSync(path.join(out, 'five-wide-reference.png'), inputReference);
+  run([args[0], `--reference=${inputReference}`, `--output=${out}`], true);
+  if (!fs.existsSync(inputReference)) throw Error('Retired-output cleanup removed an input reference');
+  console.log('PASS image runner: five PNG outputs, retired-output cleanup/input preservation, links, homography, decisions, overwrite, invalid inputs and comparison semantics');
   fs.writeFileSync(path.join(out, 'summary.json'), JSON.stringify({ sourceHashes: hashes, resize: 'sharp shared-input parity only; not browser/OpenCV decode parity', runnerSmoke: 'passed', results }, null, 2));
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

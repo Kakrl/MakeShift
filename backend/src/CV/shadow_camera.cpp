@@ -1,4 +1,5 @@
 #include "CameraKeyboard.hpp"
+#include "CameraShadow.hpp"
 #include "CameraSnapshot.hpp"
 #include "CrFingerDetection.hpp"
 #include "Fingertips.hpp"
@@ -19,6 +20,7 @@ int main(int argc, char **argv) {
             argc, argv,
             "{help h | | Show controls}"
             "{camera |0| Camera device index}"
+            "{algorithm |combined| Shadow algorithm: combined, dark, light or mid}"
             "{max-side |640| Analysis size, 64..640}"
             "{octaves |1| Octaves on the printed sheet, 1..3}"
             "{snapshot-dir |experiment| Save S-key images here}"
@@ -30,6 +32,8 @@ int main(int argc, char **argv) {
             std::cout << "B: capture empty sheet and keys; R: clear reference; Q/Esc: quit.\n"
                          "S: save clean camera image and matching reference to experiment/.\n"
                          "Keep camera/sheet fixed, fingers pointing down in the image.\n"
+                         "Default combined: dark, then light, then mid. Individual modes evaluate "
+                         "independently.\n"
                          "Green MATCH / red NO MATCH / gray UNKNOWN are shadow patterns.\n";
             return 0;
         }
@@ -38,6 +42,8 @@ int main(int argc, char **argv) {
         const int octaves = parser.get<int>("octaves");
         const auto snapshotDirectory = parser.get<std::string>("snapshot-dir");
         const auto fingerMethod = parser.get<std::string>("finger-method");
+        const auto algorithmName = parser.get<std::string>("algorithm");
+        const auto algorithm = cameraShadowAlgorithm(algorithmName);
         const int otsuRadius =
             parser.has("otsu-radius") ? parser.get<int>("otsu-radius") : defaultCrOtsuRadius;
         const double crThreshold = parser.has("cr-threshold") ? parser.get<double>("cr-threshold")
@@ -80,6 +86,7 @@ int main(int argc, char **argv) {
                   << ", dark luma <= " << *settings.maximumCurrentLuma << ", upward width "
                   << settings.minimumUpwardShadowWidth << ".\n";
         std::cout << "Finger mask: " << fingerMethod << ", Cr threshold " << crThreshold << ".\n";
+        std::cout << "Shadow algorithm: " << algorithmName << ".\n";
 
         while (true) {
             if (!camera.read(frame) || frame.empty())
@@ -122,10 +129,16 @@ int main(int argc, char **argv) {
                             pixel = {100, 0, 0};
                         else if (shadowState == ShadowPixelState::Unknown)
                             pixel = {0, 0, 0};
-                        else if (shadowState == ShadowPixelState::Shadow)
-                            pixel = diff.currentLuma[i] <= consideredShadowMaximumLuma
-                                        ? cv::Vec3b(180, 0, 180)
-                                        : cv::Vec3b(128, 128, 128);
+                        else if (shadowState == ShadowPixelState::Shadow) {
+                            if (diff.currentLuma[i] <= consideredShadowMaximumLuma)
+                                pixel = {180, 0, 180};
+                            else if (diff.lumaDrop[i] >= middleShadowMinimumDrop)
+                                pixel = {42, 85, 145};
+                            else if (diff.lumaDrop[i] <= faintShadowMaximumDrop)
+                                pixel = {230, 140, 170};
+                            else
+                                pixel = {128, 128, 128};
+                        }
                     }
                 }
                 for (const auto &tip : tips.candidates) {
@@ -134,11 +147,17 @@ int main(int argc, char **argv) {
                                                     tip.y * double(frame.rows) / analysis.rows})
                                  : -1;
                     std::optional<bool> decision;
+                    std::string matchedBy;
                     // Once calibrated, ignore off-keyboard proposals before expensive DFS.
                     if (!keyboard || keyIndex >= 0) {
-                        const auto paths = measureMonotoneShadowPaths(diff, tips.mask, tip,
-                                                                      shadowFilter, settings);
-                        decision = paths.levels[1].patternMatch; // cutoff 20
+                        const auto paths = measureCameraShadowPaths(diff, tips.mask, tip, algorithm,
+                                                                    shadowFilter, settings);
+                        decision = finalShadowDecision(paths);
+                        if (decision == true)
+                            matchedBy = algorithm != ShadowAlgorithm::Combined ? algorithmName
+                                        : paths.levels[1].patternMatch == true ? "dark"
+                                        : paths.light.matched                  ? "light"
+                                                                               : "mid";
                     }
                     if (keyIndex >= 0 && decision.value_or(false))
                         pressed[keyIndex] = true;
@@ -146,9 +165,10 @@ int main(int argc, char **argv) {
                                              : *decision ? cv::Scalar(0, 200, 0)
                                                          : cv::Scalar(0, 0, 230);
                     cv::circle(overlay, {tip.x, tip.y}, 5, color, 2);
-                    const std::string label = std::to_string(tip.id) + (!decision   ? " UNKNOWN"
-                                                                        : *decision ? " MATCH"
-                                                                                    : " NO MATCH");
+                    const std::string label =
+                        std::to_string(tip.id) + (!decision   ? " UNKNOWN"
+                                                  : *decision ? " MATCH " + matchedBy
+                                                              : " NO MATCH");
                     cv::putText(overlay, label, {std::max(0, tip.x - 25), std::max(12, tip.y - 10)},
                                 cv::FONT_HERSHEY_SIMPLEX, 0.35, color, 1, cv::LINE_AA);
                 }
@@ -183,11 +203,10 @@ int main(int argc, char **argv) {
             const double processingMs = std::chrono::duration<double, std::milli>(
                                             std::chrono::steady_clock::now() - started)
                                             .count();
-            const std::string status = reference.empty()
-                                           ? "Remove hands, press B to capture empty sheet"
-                                           : "Reference set | mask " + fingerMethod +
-                                                 " | cutoff 20 | analysis " +
-                                                 std::to_string(int(processingMs)) + " ms";
+            const std::string status =
+                reference.empty() ? "Remove hands, press B to capture empty sheet"
+                                  : "Reference set | mask " + fingerMethod + " | " + algorithmName +
+                                        " | analysis " + std::to_string(int(processingMs)) + " ms";
             cv::putText(display, status, {8, textY}, cv::FONT_HERSHEY_SIMPLEX, 0.45,
                         cv::Scalar(255, 255, 255), 1, cv::LINE_AA);
             cv::putText(display, "B: reference + keys | S: save photo | R: reset | Q/Esc: quit",
