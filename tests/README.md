@@ -1,5 +1,101 @@
 # MakeShift Testing
 
+## Standard piano range verification (issue #262)
+
+On 2026-11-08, the isolated `feature/262-full-piano-range` worktree
+based on `5668488` passed lint, TypeScript, Vitest (772 passed, one existing
+skip), all 37 contrast pairs and the production build. The Vitest checks
+include A0/C8 playback through the timeline and audio owner, plus sampled
+pedals, retriggers, stealing, late releases and reset.
+
+Edge 157.0.4341.42 on Windows 11 25H2, Intel Core i9-14900K and Node 22.20.0
+rendered each of the 88 keys through the deployed worklet at 44.1, 48 and
+96 kHz. The offline probe injects frame-aligned commands into the production
+processor. The real-time smoke test exercises the actual message port and
+UI, including endpoint playback without network access, the mixed-register
+chord, picker, Stop, suspension/restart and navigation teardown.
+
+| Worklet rate | Keys passed | Worst absolute tuning error | Stereo RMS range | Peak |
+| :--- | ---: | ---: | ---: | ---: |
+| 44.1 kHz | 88/88 | 24 cents | 0.001433–0.015162 | 0.057252 |
+| 48 kHz | 88/88 | 24 cents | 0.001433–0.015162 | 0.057159 |
+| 96 kHz | 88/88 | 24 cents | 0.001433–0.015163 | 0.057232 |
+
+All rates measured A0 at −24 cents using its third partial and C8 at
++23 cents using its fundamental. At 48 kHz the A0 fundamental accounted for
+0.0014% of windowed energy, and C8 had the lowest sustained-window RMS.
+Across the 18 root transitions, the largest adjacent RMS step was 2.14 dB
+at MIDI 90→91 (C6 to C7 sample root). This is a digital level comparison
+over 50–450 ms. Perceived loudness, high-register decay and endpoint timbre
+are recorded separately in [SP-03](manual/2026-11-08_SP-03.md).
+
+The current [19 Salamander recordings](../frontend/public/audio/piano-samples/NOTICE.md)
+met the digital thresholds. The bank remains
+1,377,637 compressed bytes and decoded to 111,179,616 bytes of stereo PCM at
+48 kHz before the worklet copy. Two local runs measured 1,054–1,089 ms
+from before the Enable audio click until ready, including automation overhead.
+The measured ten-voice coherent peak across MIDI 0–127 at 48 kHz was 0.572.
+
+The paired browser profile alternated the previous Audio check chord and
+the updated A0–C8 chord through the same production sampler at 48 kHz. Each
+row summarizes 300 batches after 100 warmup batches. Values are milliseconds
+per 128-frame block, averaged within 64-block batches. Dispatch and setup
+were excluded. Both chords use the same render loop.
+
+| Chord | p50 | p99 | Max batch mean |
+| :--- | ---: | ---: | ---: |
+| Previous chord (MIDI 48–84) | 0.0219 | 0.0375 | 0.0484 |
+| A0–C8 chord | 0.0141 | 0.0281 | 0.0469 |
+
+The table shows the final run. The full-range chord had lower median and p99
+cost in both runs. Its worst batch mean was 0.0031 ms higher in the first run
+and 0.0016 ms lower in the final run. This is synchronous browser main-thread
+DSP timing. Worklet deadline, dropout and physical press-to-sound measurements
+remain pending.
+
+Run the browser checks against a production server with
+`npm run test:audio-browser`. The JSON output includes the 264 key/rate
+measurements with their selected roots and measured partials.
+The final production deployment and keyboard-layout smoke checks passed
+in Edge with fake media. The deployment check recorded zero requests across
+three enable/play/stop rounds. The local database was unconfigured.
+Playwright Chromium failed to launch on this host with `spawn UNKNOWN`.
+Hardware listening and GitHub Actions evidence are pending.
+
+### Follow-up from the listening sweep
+
+The initial sweep sounded lower at F♯1→G1 and accented roughly every third
+note. The original sampler switched from the C1 recording to C2 at G1.
+The updated sampler uses the same bank and blends pitch-matched neighbors
+with onset-level correction. [Listening report](manual/2026-11-08_SP-03.md)
+
+At 48 kHz the energy-weighted center of the first four partials moved
+from 172→120 Hz with nearest-root playback and now moves from 131→134 Hz.
+The largest A0–C7 adjacent 5–80 ms attack RMS step fell from 3.07 dB to
+1.02 dB. The production worklet passed both transition checks and all 88
+pitch and level checks at 44.1, 48 and 96 kHz. Maximum absolute pitch error
+remained 24 cents. The 48 kHz coherent ten-voice peak was 0.645. The
+19-recording bank still decodes to 111,179,616 bytes at 48 kHz. The
+automation measured 1,128 ms from before the enable click until ready.
+
+A paired Edge profile on the same machine alternated the nearest-root and
+blended samplers over the same ten-note chord, MIDI 28, 31, 38, 41, 44, 47,
+50, 53, 62 and 91. For each version, 400 measured batches followed 100
+warmups. Each batch averaged 64 stereo blocks of 128 frames at 48 kHz.
+
+| Sampler | Median ms/block | p99 ms/block | Max batch mean |
+| :--- | ---: | ---: | ---: |
+| Nearest root | 0.0094 | 0.0109 | 0.0422 |
+| Blended | 0.0219 | 0.0250 | 0.0266 |
+
+The second read costs about 0.014 ms at p99 in this run. Constructor time
+was 22.3 ms versus 34.3 ms. These are synchronous browser main-thread
+measurements. Worklet deadlines and physical latency remain pending.
+Lint, TypeScript, Vitest (773 passed, one existing skip), all 37 contrast
+pairs, build, and Edge audio, deployment and keyboard-layout checks passed.
+The requester reported that the blended sweep sounded good. Individual
+listening steps and GitHub Actions evidence remain pending.
+
 ## Paper-step simplification (issue #234, 2026-11-02)
 
 Branch `fix/234-remove-check-paper`, based on `233ffd4`, tested in an isolated

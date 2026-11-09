@@ -178,3 +178,12 @@ rejection and safe cancellation; free play outside count-in remains available.
 No change to latency thresholds or pedal recording scope. Mapped tests CI-01
 through CI-04 cover software behavior; physical camera/audio evidence remains
 pending in the [manual procedure](../tests/manual/2026-10-27_CI-04.md).
+
+## Standard piano pitch range (#262)
+
+Browser audio covers A0–C8 (MIDI 21–108) for accepted live events and recording
+playback, with ten simultaneous voices. The camera-free Audio check supports
+individual keys, endpoints, a chromatic sweep and a chord spanning the range.
+The printed keyboard retains its separate 1–3 octave scope. Full-range audio
+verification covers production graph output and pitch at 44.1, 48 and 96 kHz,
+with listening and physical latency tracked separately.

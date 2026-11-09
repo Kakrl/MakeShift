@@ -1,7 +1,7 @@
 import { SampledPiano } from "./sampled-piano.js";
 
 /* global AudioWorkletProcessor, registerProcessor, sampleRate */
-class PianoProcessor extends AudioWorkletProcessor {
+export class PianoProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super();
     this.synth = new SampledPiano(sampleRate, options.processorOptions.samples);

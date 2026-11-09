@@ -16,7 +16,8 @@ The recordings total 1,377,637 bytes. No runtime CDN or third-party service is u
 MakeShift decodes locally at the AudioContext rate, preserves stereo, normalizes
 by the first 500 ms RMS, skips near-silent leading frames with a 1 ms margin,
 and applies the selected +6 dB bass curve and fixed polyphony headroom.
-Pitch interpolation and note-off envelopes modify playback. The original
+Pitch interpolation, neighboring-recording blends, onset-level adjustment and
+note-off envelopes modify playback. The original
 recordings remain unchanged. The subset uses one recorded dynamic layer;
 the original instrument's additional velocity layers, release noises,
 resonance and pedal behavior are not included.

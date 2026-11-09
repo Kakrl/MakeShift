@@ -118,6 +118,36 @@ describe("recording timeline with the production audio owner", () => {
     ],
   };
 
+  it("dispatches and releases both recorded piano endpoints without transposing", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
+    const audio = new BrowserAudio();
+    const timeline = createPlaybackTimeline({
+      ...take,
+      notes: [
+        { pitch: "A0", velocity: 40, startMs: 0, durationMs: 500 },
+        { pitch: "C8", velocity: 80, startMs: 0, durationMs: 500 },
+      ],
+    }, audio);
+    try {
+      expect(await timeline.play()).toBe(true);
+      const node = Worklet.instances[0];
+      node.ack();
+      await vi.advanceTimersByTimeAsync(500);
+      const commands = node.port.postMessage.mock.calls.map(([event]) => event);
+      const attacks = commands.filter((event) => event.type === "note-on");
+      expect(attacks.map(({ note, velocity }) => [note, velocity])).toEqual([
+        [21, 0.4],
+        [108, 0.8],
+      ]);
+      expect(commands.filter((event) => event.type === "note-off")).toEqual(
+        attacks.map(({ session, press }) => ({ type: "note-off", session, press })),
+      );
+    } finally {
+      timeline.dispose();
+      await audio.close();
+    }
+  });
+
   it("uses distinct audio tokens and releases all owned voices on pause/seek/dispose", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
     const audio = new BrowserAudio();

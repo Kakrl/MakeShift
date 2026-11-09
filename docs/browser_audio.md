@@ -15,11 +15,11 @@ It requests an interactive AudioContext, resumes before awaiting module loading,
 and loads `/audio/piano-worklet.js`. Both the worklet and its relative
 `sampled-piano.js` and `synth.js` imports are static public assets, without a bundler worker transform.
 
-The Audio check link opens `/audio`: Enable audio, Soft A4, Loud A4,
-Ten-note chord, matched-velocity Bass C2 / Middle C4 / High C6, and Stop sound. Each test sends note-off after one second, followed by its release tail. Starting another test releases the previous tones; Stop sound is an immediate emergency silence. This page
-owns and closes its context on navigation. The existing home-page Play handler
-awaits the shared owner's initialization and displays failures with a retry.
-Detected notes never initialize or resume audio themselves.
+The Audio check link opens `/audio` for velocity, register and
+[full-range checks](#standard-piano-range-262). Starting another test releases
+the previous tones. Stop sound clears voices immediately. The page owns and
+closes its context on navigation. The home-page Play handler awaits the
+shared owner's initialization and displays failures with a retry.
 
 Initialization is shared across simultaneous callers. Loading/resume failures
 close resources and reject; a later gesture can retry. Processor failures
@@ -260,13 +260,23 @@ committed under `public/audio/piano-samples/` (1,377,637 compressed bytes).
 [Credits, CC BY 3.0 license and source](../frontend/public/audio/piano-samples/NOTICE.md)
 and a SHA-256 manifest accompany the files. This is the same subset heard in
 the accepted listening prototype. Roots are C1, C2 through A5 in minor thirds,
-C6 and C7. All MIDI 0–127 events remain accepted; notes select the nearest
-recording and linearly interpolate at `2 ** ((note-root)/12)`. Roots C1–C7 are
+C6 and C7. All MIDI 0–127 events remain accepted. Playback interpolates each
+recording at `2 ** ((note-root)/12)`. Roots C1–C7 are
 recorded; pitches outside that range are transpositions, with large stretches
 at the extreme ends. Linear interpolation does not promise alias-free extreme
 transposition or concert-instrument tuning accuracy.
 Fundamentals at or above 0.45 times the context rate are silent, matching the
 reference renderer's safe-band policy rather than playing an aliased pitch.
+
+Pitches between roots blend the two neighboring recordings at the requested
+pitch. The squared blend weights vary linearly with semitone distance. During
+worklet initialization, the sampler measures stereo energy 5–80 ms after
+onset and matches the blend to the weighted attack energy of the roots, with
+at most +3 dB of correction and a 0.085 pre-boost peak bound per voice.
+Recorded roots and pitches beyond the bank use one recording. Each note still
+occupies one of ten voices, and both layers read from the existing decoded
+bank. Per-note transport, voice stealing and envelopes operate on the combined
+voice. No additional PCM buffers are created for blends.
 
 Each owner loads/decode-prepares the bank once before readiness, with four
 outstanding fetch/decode tasks at most. Decoding uses the actual AudioContext
@@ -384,3 +394,53 @@ ownership and gates validated musical delivery. The separate metronome worklet
 remains audible when enabled. Ordinary interruption/reset still invalidates sessions.
 Pedal UI sources clear synchronously at entry; inactive assigned keydowns are
 remembered as suppressed until keyup, for both Hold and Toggle.
+
+## Standard piano range (#262)
+
+The standard range is A0–C8 (MIDI 21–108), distinct from the ten-voice
+polyphony limit and the printed keyboard's 1–3 octave layout. The Audio check
+page plays either endpoint, any selected key for one second, a ten-note chord
+spanning both endpoints, or an ascending sweep at 300 ms per note. Stop sound
+cancels the sweep and clears voices. These controls require audio activation
+and work without camera permission or calibration.
+
+The event contract still accepts MIDI 0–127. Outside the standard piano range,
+the edge recording is transposed using the same sampler. At rates where
+a note's fundamental is at or above 45% of the sample rate it is silent. At
+8 kHz, this excludes A♯7 and higher (MIDI 106–127), including three standard
+keys. At 44.1, 48 and 96 kHz all 128 MIDI fundamentals are below this guard.
+The guard applies to fundamentals, and high partials can still alias during
+upward transposition.
+
+### Pitch measurement protocol
+
+Render each MIDI key individually at velocity 1 with the deployed worklet and
+the bank decoded by the production audio owner at 44.1, 48 and 96 kHz. Check
+both stereo channels for finite samples, peak at or below 0.950001 and RMS
+above 0.00005 in the 50–450 ms window after dispatch. Choose the higher-energy
+channel for pitch estimation to avoid cancellation when summing stereo.
+Use a Hann-weighted sinusoidal power search around each of the first four
+expected equal-tempered partial frequencies (A4 = 440 Hz). Search ±100 cents
+in five-cent steps and refine around the peak in one-cent steps. Skip
+partials above 40% of the sample rate and average adjacent samples before
+windowing when the highest tested partial still has at least 16 samples per
+cycle. Use the lowest fitted partial accounting for at least 1% of the
+windowed energy and divide its frequency by its partial number. In the
+initial fundamental-only run, the A0 fundamental was too weak to measure.
+Allowing low partials accounts for bass notes whose audible pitch comes
+primarily from their overtones. Favoring the lowest usable partial reduces
+the effect of inharmonic stretch. Require the estimate to be within 25 cents
+of target to allow source tuning, stretch and short-window uncertainty while
+remaining well inside a semitone. Listening separately evaluates timbre and
+transition quality.
+
+The sweep regression also checks that the energy-weighted center of the first
+four partials rises or stays level from F♯1 to G1. Stereo attack RMS between
+5 and 80 ms must change by at most 1.25 dB per semitone from A0 through C7.
+The attack check ends at the last recorded root. These digital measures
+track the reported transition and recurring accents. Listening checks the
+remaining changes in tone and decay.
+
+See the [verification record](../tests/README.md#standard-piano-range-verification-issue-262)
+for measured output, tuning, sample transition levels and render cost, and
+the [listening procedure](../tests/manual/2026-11-08_SP-03.md) for device checks.
