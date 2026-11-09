@@ -31,6 +31,7 @@ MakeShift/
 │       └── __init__.py
 ├── docs/
 │   ├── tutorial.md                  # user getting-started walkthrough
+│   ├── how-to.md                    # developer setup, code map, mock recordings and contribution guide
 │   ├── architecture.md              # browser target, tooling, delivery boundaries
 │   ├── explanation.md               # current architecture, decisions and limitations
 │   ├── reference.md                 # developer lookup: APIs, config, schemas, storage
