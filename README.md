@@ -19,6 +19,7 @@ Refer to the [How To Guide](/docs/how-to.md) to get started on contributing to M
 - [System explanation: architecture, design decisions, and tradeoffs](docs/explanation.md)
 - [Tutorial: play and record with MakeShift](docs/tutorial.md)
 - [How-To: how-to guide on contributing to Makeshift](docs/how-to.md)
+- [Reference: APIs, configuration, schemas, and lookup tables](docs/reference.md)
 - [Print and assemble the actual-size piano sheets](docs/piano_sheet.md)
 - [Testing guide, known defects, and RCA log](tests/README.md)
 - [Verification Test Inventory](tests/verification_test_inventory.md)
