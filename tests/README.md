@@ -62,6 +62,39 @@ three enable/play/stop rounds. The local database was unconfigured.
 Playwright Chromium failed to launch on this host with `spawn UNKNOWN`.
 Hardware listening and GitHub Actions evidence are pending.
 
+### Follow-up from the listening sweep
+
+The initial sweep sounded lower at F♯1→G1 and accented roughly every third
+note. The original sampler switched from the C1 recording to C2 at G1.
+The updated sampler uses the same bank and blends pitch-matched neighbors
+with onset-level correction. [Listening report](manual/2026-11-08_SP-03.md)
+
+At 48 kHz the energy-weighted center of the first four partials moved
+from 172→120 Hz with nearest-root playback and now moves from 131→134 Hz.
+The largest A0–C7 adjacent 5–80 ms attack RMS step fell from 3.07 dB to
+1.02 dB. The production worklet passed both transition checks and all 88
+pitch and level checks at 44.1, 48 and 96 kHz. Maximum absolute pitch error
+remained 24 cents. The 48 kHz coherent ten-voice peak was 0.645. The
+19-recording bank still decodes to 111,179,616 bytes at 48 kHz. The
+automation measured 1,128 ms from before the enable click until ready.
+
+A paired Edge profile on the same machine alternated the nearest-root and
+blended samplers over the same ten-note chord, MIDI 28, 31, 38, 41, 44, 47,
+50, 53, 62 and 91. For each version, 400 measured batches followed 100
+warmups. Each batch averaged 64 stereo blocks of 128 frames at 48 kHz.
+
+| Sampler | Median ms/block | p99 ms/block | Max batch mean |
+| :--- | ---: | ---: | ---: |
+| Nearest root | 0.0094 | 0.0109 | 0.0422 |
+| Blended | 0.0219 | 0.0250 | 0.0266 |
+
+The second read costs about 0.014 ms at p99 in this run. Constructor time
+was 22.3 ms versus 34.3 ms. These are synchronous browser main-thread
+measurements. Worklet deadlines and physical latency remain pending.
+Lint, TypeScript, Vitest (773 passed, one existing skip), all 37 contrast
+pairs, build, and Edge audio, deployment and keyboard-layout checks passed.
+The listening retest and GitHub Actions evidence are pending.
+
 ## Paper-step simplification (issue #234, 2026-11-02)
 
 Branch `fix/234-remove-check-paper`, based on `233ffd4`, tested in an isolated

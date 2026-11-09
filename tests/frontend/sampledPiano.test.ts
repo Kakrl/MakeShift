@@ -208,6 +208,22 @@ describe("sampled piano (#210)", () => {
     ).toBeLessThan(4);
   });
 
+  it("keeps a blended voice playing when one recording ends first", () => {
+    const samples = bank();
+    samples[0] = preparePianoSample(24, buffer(48000, 24, 0.03));
+    const piano = new SampledPiano(48000, samples);
+    piano.handle({ type: "reset", session: 1 });
+    piano.handle({ type: "note-on", session: 1, press: 1, note: 31, velocity: 1 });
+    render(piano);
+    expect(piano.voices[0].press).toBe(1);
+    const tail = render(piano);
+    expect(rms(tail.left)).toBeGreaterThan(0);
+    expect(rms(tail.right)).toBeCloseTo(rms(tail.left), 7);
+    piano.handle({ type: "note-off", session: 1, press: 1 });
+    render(piano, 9600);
+    expect(rms(render(piano).left)).toBe(0);
+  });
+
   it("is block independent and preserves release, stealing, reset and malformed-input safety", () => {
     const a = start(),
       b = start();

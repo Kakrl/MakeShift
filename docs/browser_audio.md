@@ -260,13 +260,23 @@ committed under `public/audio/piano-samples/` (1,377,637 compressed bytes).
 [Credits, CC BY 3.0 license and source](../frontend/public/audio/piano-samples/NOTICE.md)
 and a SHA-256 manifest accompany the files. This is the same subset heard in
 the accepted listening prototype. Roots are C1, C2 through A5 in minor thirds,
-C6 and C7. All MIDI 0–127 events remain accepted; notes select the nearest
-recording and linearly interpolate at `2 ** ((note-root)/12)`. Roots C1–C7 are
+C6 and C7. All MIDI 0–127 events remain accepted. Playback interpolates each
+recording at `2 ** ((note-root)/12)`. Roots C1–C7 are
 recorded; pitches outside that range are transpositions, with large stretches
 at the extreme ends. Linear interpolation does not promise alias-free extreme
 transposition or concert-instrument tuning accuracy.
 Fundamentals at or above 0.45 times the context rate are silent, matching the
 reference renderer's safe-band policy rather than playing an aliased pitch.
+
+Pitches between roots blend the two neighboring recordings at the requested
+pitch. The squared blend weights vary linearly with semitone distance. During
+worklet initialization, the sampler measures stereo energy 5–80 ms after
+onset and matches the blend to the weighted attack energy of the roots, with
+at most +3 dB of correction and a 0.085 pre-boost peak bound per voice.
+Recorded roots and pitches beyond the bank use one recording. Each note still
+occupies one of ten voices, and both layers read from the existing decoded
+bank. Per-note transport, voice stealing and envelopes operate on the combined
+voice. No additional PCM buffers are created for blends.
 
 Each owner loads/decode-prepares the bank once before readiness, with four
 outstanding fetch/decode tasks at most. Decoding uses the actual AudioContext
@@ -395,7 +405,7 @@ cancels the sweep and clears voices. These controls require audio activation
 and work without camera permission or calibration.
 
 The event contract still accepts MIDI 0–127. Outside the standard piano range,
-the nearest recorded root is transposed using the same sampler. At rates where
+the edge recording is transposed using the same sampler. At rates where
 a note's fundamental is at or above 45% of the sample rate it is silent. At
 8 kHz, this excludes A♯7 and higher (MIDI 106–127), including three standard
 keys. At 44.1, 48 and 96 kHz all 128 MIDI fundamentals are below this guard.
@@ -423,6 +433,13 @@ the effect of inharmonic stretch. Require the estimate to be within 25 cents
 of target to allow source tuning, stretch and short-window uncertainty while
 remaining well inside a semitone. Listening separately evaluates timbre and
 transition quality.
+
+The sweep regression also checks that the energy-weighted center of the first
+four partials rises or stays level from F♯1 to G1. Stereo attack RMS between
+5 and 80 ms must change by at most 1.25 dB per semitone from A0 through C7.
+The attack check ends at the last recorded root. These digital measures
+track the reported transition and recurring accents. Listening checks the
+remaining changes in tone and decay.
 
 See the [verification record](../tests/README.md#standard-piano-range-verification-issue-262)
 for measured output, tuning, sample transition levels and render cost, and

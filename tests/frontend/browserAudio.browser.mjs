@@ -158,11 +158,31 @@ async function measureRange() {
     );
     const tuning =
       partials.find((candidate) => candidate.energy >= 0.01) ?? partials[0];
+    const attackStart = start + Math.round(rate * 0.005);
+    const attackEnd = start + Math.round(rate * 0.08);
+    const attackPower =
+      channels.reduce(
+        (sum, channel) =>
+          sum +
+          channel
+            .subarray(attackStart, attackEnd)
+            .reduce((power, x) => power + x * x, 0),
+        0,
+      ) /
+      (2 * (attackEnd - attackStart));
+    const partialCenterHz =
+      partials.reduce(
+        (sum, { partial, cents, energy }) =>
+          sum + energy * partial * expected * 2 ** (cents / 1200),
+        0,
+      ) / partials.reduce((sum, { energy }) => sum + energy, 0);
     return {
       note,
-      root: synth.presets[note].sample.note,
+      roots: synth.presets[note].layers.map(({ sample }) => sample.note),
       tuning,
       partials,
+      attackDb: 10 * Math.log10(attackPower),
+      partialCenterHz,
       rms: Math.sqrt((levels[0] ** 2 + levels[1] ** 2) / 2),
       peak,
     };
@@ -388,6 +408,7 @@ async function profileChords() {
     const range = [];
     const profile = await page.evaluate(profileChords);
     const tuningFailures = [];
+    const transitionFailures = [];
     for (const rate of [44100, 48000, 96000]) {
       const probe =
         rate === actualSamples.rate ? page : await browser.newPage();
@@ -407,6 +428,21 @@ async function profileChords() {
         for (const { note, tuning } of result.rows) {
           if (Math.abs(tuning.cents) > 25 || tuning.energy < 0.01) {
             tuningFailures.push({ rate, note, ...tuning });
+          }
+        }
+        const bassCenter = (note) => result.rows[note - 21].partialCenterHz;
+        if (!(bassCenter(31) >= bassCenter(30))) {
+          transitionFailures.push({
+            rate,
+            fromHz: bassCenter(30),
+            toHz: bassCenter(31),
+          });
+        }
+        for (const [index, row] of result.rows.entries()) {
+          if (index === 0 || row.note > 96) continue;
+          const attackStepDb = row.attackDb - result.rows[index - 1].attackDb;
+          if (Math.abs(attackStepDb) > 1.25) {
+            transitionFailures.push({ rate, note: row.note, attackStepDb });
           }
         }
         range.push(result);
@@ -437,6 +473,7 @@ async function profileChords() {
           actualSamples,
           range,
           tuningFailures,
+          transitionFailures,
           profile: {
             browserThread: "main",
             cpu: os.cpus()[0].model,
@@ -455,6 +492,11 @@ async function profileChords() {
       tuningFailures,
       [],
       "Each key must meet the documented tuning tolerance",
+    );
+    assert.deepEqual(
+      transitionFailures,
+      [],
+      "Bass partial balance and adjacent attack levels must stay smooth",
     );
   } finally {
     await browser.close();

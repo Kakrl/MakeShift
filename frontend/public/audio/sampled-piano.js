@@ -30,6 +30,43 @@ export const PIANO_LEVEL = 0.003274555342244959;
 export const PIANO_BASS_DB = 6;
 export const PIANO_BOOST_DB = 6;
 const OUTPUT_GAIN = 10 ** (PIANO_BOOST_DB / 20);
+const VOICE_PEAK = 0.085;
+const MAX_BLEND_BOOST = 10 ** (3 / 20);
+
+function interpolate(data, index, fraction) {
+  return data[index] + (data[index + 1] - data[index]) * fraction;
+}
+
+// Measure after the de-click fade. This analysis happens before readiness.
+function attackPower(layers, rate) {
+  const start = Math.round(rate * 0.005);
+  const end = Math.round(rate * 0.08);
+  let sum = 0;
+  for (let frame = start; frame < end; frame++) {
+    let left = 0,
+      right = 0;
+    for (const { sample, step, gain } of layers) {
+      const position = sample.offset + frame * step;
+      if (position >= sample.left.length - 1) continue;
+      const index = Math.floor(position);
+      const fraction = position - index;
+      left += interpolate(sample.left, index, fraction) * gain;
+      right += interpolate(sample.right, index, fraction) * gain;
+    }
+    sum += left * left + right * right;
+  }
+  return sum / (2 * (end - start));
+}
+
+function makeLayer(sample, note, weight) {
+  const step = 2 ** ((note - sample.note) / 12);
+  return {
+    sample,
+    step,
+    gain: sample.gain * Math.sqrt(weight),
+    duration: Math.ceil((sample.left.length - 1 - sample.offset) / step),
+  };
+}
 
 /** Runs during loading, never inside audio rendering. Keeps the recorded stereo image. */
 export function preparePianoSample(note, buffer) {
@@ -71,7 +108,7 @@ export function preparePianoSample(note, buffer) {
     10 ** ((PIANO_BASS_DB * Math.max(0, Math.min(1, (69 - note) / 33))) / 20);
   // Normal recordings retain the auditioned RMS curve. Cap pathological crest
   // factors as well: ten coherent voices remain <=0.85 before Float32 rounding.
-  const gain = Math.min((PIANO_LEVEL * lift) / rms, 0.085 / peak);
+  const gain = Math.min((PIANO_LEVEL * lift) / rms, VOICE_PEAK / peak);
   return {
     note,
     left: new Float32Array(left),
@@ -87,11 +124,11 @@ export class SampledPiano extends LegacySynth {
     super(rate, { attack: 0.002, decay: 0, sustain: 1, release: 0.2 });
     if (!Array.isArray(bank) || bank.length !== PIANO_SAMPLES.length)
       throw new Error("Incomplete piano recordings");
-    const seen = new Set();
+    const peaks = new Map();
     for (const sample of bank) {
       if (
         !PIANO_SAMPLES.some(({ note }) => note === sample.note) ||
-        seen.has(sample.note) ||
+        peaks.has(sample.note) ||
         !(sample.left instanceof Float32Array) ||
         !(sample.right instanceof Float32Array) ||
         sample.left.length < 2 ||
@@ -104,29 +141,63 @@ export class SampledPiano extends LegacySynth {
         sample.offset >= sample.left.length - 1
       )
         throw new Error("Invalid piano recordings");
-      seen.add(sample.note);
-      // Validate the worklet's own copy before readiness, including its peak bound.
-      for (let i = 0; i < sample.left.length; i++)
+      // Validate the worklet copy and keep its peak for safe blend gains.
+      let peak = 0;
+      for (let i = 0; i < sample.left.length; i++) {
+        const framePeak = Math.max(
+          Math.abs(sample.left[i]),
+          Math.abs(sample.right[i]),
+        );
         if (
-          !Number.isFinite(sample.left[i]) ||
-          !Number.isFinite(sample.right[i]) ||
-          Math.abs(sample.left[i] * sample.gain) > 0.085000001 ||
-          Math.abs(sample.right[i] * sample.gain) > 0.085000001
+          !Number.isFinite(framePeak) ||
+          framePeak * sample.gain > VOICE_PEAK + 1e-9
         )
           throw new Error("Invalid piano recording levels");
+        peak = Math.max(peak, framePeak);
+      }
+      peaks.set(sample.note, peak);
     }
+    const roots = [...bank].sort((a, b) => a.note - b.note);
+    const powers = new Map(
+      roots.map((sample) => [
+        sample.note,
+        attackPower([makeLayer(sample, sample.note, 1)], rate),
+      ]),
+    );
     this.presets = Array.from({ length: 128 }, (_, note) => {
-      let sample = bank[0];
-      for (const candidate of bank)
-        if (Math.abs(candidate.note - note) < Math.abs(sample.note - note))
-          sample = candidate;
-      return {
-        sample,
-        step:
-          440 * 2 ** ((note - 69) / 12) < rate * 0.45
-            ? 2 ** ((note - sample.note) / 12)
-            : 0,
-      };
+      if (440 * 2 ** ((note - 69) / 12) >= rate * 0.45)
+        return { layers: [], duration: 0 };
+      const lower = roots.findLast((sample) => sample.note <= note) ?? roots[0];
+      const upper = roots.find((sample) => sample.note >= note) ?? roots.at(-1);
+      if (lower === upper) {
+        const layer = makeLayer(lower, note, 1);
+        return {
+          layers: [layer],
+          duration: Math.min(layer.duration, rate * 30),
+        };
+      }
+
+      // Match blended onset energy to the neighboring roots despite phase differences.
+      const weight = (note - lower.note) / (upper.note - lower.note);
+      const layers = [
+        makeLayer(lower, note, 1 - weight),
+        makeLayer(upper, note, weight),
+      ];
+      const target =
+        (1 - weight) * powers.get(lower.note) + weight * powers.get(upper.note);
+      const measured = attackPower(layers, rate);
+      const peak = layers.reduce(
+        (sum, layer) => sum + peaks.get(layer.sample.note) * layer.gain,
+        0,
+      );
+      const gain = Math.min(
+        measured > 0 ? Math.sqrt(target / measured) : 1,
+        MAX_BLEND_BOOST,
+        VOICE_PEAK / peak,
+      );
+      for (const layer of layers) layer.gain *= gain;
+      const duration = Math.max(layers[0].duration, layers[1].duration);
+      return { layers, duration: Math.min(duration, rate * 30) };
     });
     this.pedals = { sustain: false, sostenuto: false, soft: false };
     this.fade = Math.max(1, Math.round(rate * 0.003));
@@ -135,7 +206,6 @@ export class SampledPiano extends LegacySynth {
       held: false,
       captured: false,
       preset: this.presets[60],
-      position: 0,
       age: 0,
       lastL: 0,
       lastR: 0,
@@ -147,7 +217,8 @@ export class SampledPiano extends LegacySynth {
 
   clear() {
     super.clear();
-    if (this.pedals) this.pedals.sustain = this.pedals.sostenuto = this.pedals.soft = false;
+    if (this.pedals)
+      this.pedals.sustain = this.pedals.sostenuto = this.pedals.soft = false;
     for (const v of this.voices) {
       v.lastL = v.lastR = v.oldL = v.oldR = v.fadeLeft = 0;
       v.held = v.captured = false;
@@ -156,8 +227,14 @@ export class SampledPiano extends LegacySynth {
 
   handle(event) {
     if (event?.type === "pedals") {
-      if (event.version !== 1 || event.session !== this.session ||
-          ![event.sustain, event.sostenuto, event.soft].every(x => typeof x === "boolean")) return;
+      if (
+        event.version !== 1 ||
+        event.session !== this.session ||
+        ![event.sustain, event.sostenuto, event.soft].every(
+          (x) => typeof x === "boolean",
+        )
+      )
+        return;
       if (event.sostenuto && !this.pedals.sostenuto)
         for (const v of this.voices) v.captured = v.press !== 0 && v.held;
       if (!event.sostenuto) for (const v of this.voices) v.captured = false;
@@ -166,7 +243,11 @@ export class SampledPiano extends LegacySynth {
       this.pedals.soft = event.soft;
       for (const v of this.voices)
         if (v.press && !v.held && !v.releasing && !event.sustain && !v.captured)
-          super.handle({ type: "note-off", session: this.session, press: v.press });
+          super.handle({
+            type: "note-off",
+            session: this.session,
+            press: v.press,
+          });
       return;
     }
     if (event?.type === "note-off" && event.session === this.session) {
@@ -192,7 +273,7 @@ export class SampledPiano extends LegacySynth {
     super.handle(event);
     if (this.lastPress === previous || event?.type !== "note-on") return;
     selected.preset = this.presets[event.note];
-    if (!selected.preset.step) {
+    if (!selected.preset.duration) {
       selected.press = 0;
       selected.stage = "idle";
       selected.lastL = selected.lastR = 0;
@@ -200,8 +281,7 @@ export class SampledPiano extends LegacySynth {
     }
     selected.held = true;
     selected.captured = false;
-    selected.position = selected.preset.sample.offset;
-    selected.gain = selected.preset.sample.gain * event.velocity ** 1.5 * (this.pedals.soft ? 0.65 : 1);
+    selected.gain = event.velocity ** 1.5 * (this.pedals.soft ? 0.65 : 1);
     selected.age = 0;
     selected.oldL = oldL;
     selected.oldR = oldR;
@@ -214,8 +294,8 @@ export class SampledPiano extends LegacySynth {
         r = 0;
       for (const v of this.voices) {
         if (!v.press) continue;
-        const sample = v.preset.sample;
-        if (v.position >= sample.left.length - 1 || ++v.age > this.rate * 30) {
+        const frame = v.age++;
+        if (frame >= v.preset.duration) {
           v.press = 0;
           v.level = 0;
           v.stage = "idle";
@@ -236,17 +316,21 @@ export class SampledPiano extends LegacySynth {
             v.stage = "idle";
           }
         }
-        const index = Math.floor(v.position),
-          fraction = v.position - index;
-        const gain = v.gain * v.level;
-        v.lastL =
-          (sample.left[index] +
-            (sample.left[index + 1] - sample.left[index]) * fraction) *
-          gain;
-        v.lastR =
-          (sample.right[index] +
-            (sample.right[index + 1] - sample.right[index]) * fraction) *
-          gain;
+        let voiceL = 0,
+          voiceR = 0;
+        const layers = v.preset.layers;
+        for (let layer = 0; layer < layers.length; layer++) {
+          const { sample, step, gain } = layers[layer];
+          const position = sample.offset + frame * step;
+          if (position >= sample.left.length - 1) continue;
+          const index = Math.floor(position);
+          const fraction = position - index;
+          voiceL += interpolate(sample.left, index, fraction) * gain;
+          voiceR += interpolate(sample.right, index, fraction) * gain;
+        }
+        const envelope = v.gain * v.level;
+        v.lastL = voiceL * envelope;
+        v.lastR = voiceR * envelope;
         if (v.fadeLeft) {
           const old = --v.fadeLeft / this.fade;
           v.lastL = old * v.oldL + (1 - old) * v.lastL;
@@ -254,11 +338,11 @@ export class SampledPiano extends LegacySynth {
         }
         l += v.lastL;
         r += v.lastR;
-        v.position += v.preset.step;
       }
       // Uniform output boost; only overloads reach this fixed safety ceiling.
       left[i] = Math.max(-0.95, Math.min(0.95, l * OUTPUT_GAIN));
-      if (right !== left) right[i] = Math.max(-0.95, Math.min(0.95, r * OUTPUT_GAIN));
+      if (right !== left)
+        right[i] = Math.max(-0.95, Math.min(0.95, r * OUTPUT_GAIN));
     }
   }
 }
