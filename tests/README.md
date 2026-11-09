@@ -93,7 +93,8 @@ was 22.3 ms versus 34.3 ms. These are synchronous browser main-thread
 measurements. Worklet deadlines and physical latency remain pending.
 Lint, TypeScript, Vitest (773 passed, one existing skip), all 37 contrast
 pairs, build, and Edge audio, deployment and keyboard-layout checks passed.
-The listening retest and GitHub Actions evidence are pending.
+The requester reported that the blended sweep sounded good. Individual
+listening steps and GitHub Actions evidence remain pending.
 
 ## Paper-step simplification (issue #234, 2026-11-02)
 
