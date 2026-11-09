@@ -396,8 +396,12 @@ export default function Home() {
       if (document.hidden) leave();
       else session.setHidden(false);
     };
+    const returnToPage = () => {
+      if (!document.hidden) session.setHidden(false);
+    };
     document.addEventListener("visibilitychange", visibility);
     window.addEventListener("pagehide", leave);
+    window.addEventListener("pageshow", returnToPage);
     visibility();
     return () => {
       unsubscribe();
@@ -409,6 +413,7 @@ export default function Home() {
       metronomeController.close();
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("pagehide", leave);
+      window.removeEventListener("pageshow", returnToPage);
     };
   }, [session, recorder, completeTake, metronomeController, cancelMetronomeRequest]);
   const enableAudio = async (withCountIn = false) => {

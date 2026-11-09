@@ -31,7 +31,7 @@ export const RECOVERY_COPY: Record<ReadinessReason, string> = {
   "layout-changed": "Keyboard layout changed. Calibrate the selected layout before playing.",
   "markers-unavailable": "Show all four sheet markers so alignment can be checked.",
   "geometry-mismatch": "The last complete scan did not match the calibrated position. The sheet or camera may have moved. Align the sheet-reference outlines, or calibrate the new position.",
-  "backgrounded": "Playing stopped in the background. Return and wait for tracking, then select Enable audio.",
+  "backgrounded": "Playing stopped in the background. Return and wait for tracking to reconnect.",
   "tracking-paused": "Tracking paused. Keep the camera view clear while tracking reconnects.",
   "tracking-failed": "Tracking could not reconnect. Reload the tracker, then select Enable audio when tracking is ready.",
   "audio-interrupted": "Audio interrupted. Select Enable audio to continue.",
@@ -61,6 +61,7 @@ export class LiveSession {
   private notes: NoteSession;
   private sink: ReturnType<typeof createAudioSink>;
   private hidden = false;
+  private resumeOnReturn = false;
   private detectorFailed = false;
   private calibrationIssue: CalibrationReason | null = "calibration-missing";
   private audioIssue: "audio-interrupted" | "audio-error" | "count-in-audio" | null = null;
@@ -73,6 +74,7 @@ export class LiveSession {
     this.invalidateLayout();
   }
   private invalidateLayout() {
+    this.resumeOnReturn = false;
     this.calibrationAt = -Infinity;
     this.calibrationIssue = "layout-changed";
     this.interrupt();
@@ -198,8 +200,10 @@ export class LiveSession {
     return this.acceptCalibration(`dev:${JSON.stringify(this.layout)}`);
   }
   private acceptCalibration(key: string) {
-    if (this.calibrationKey && key !== this.calibrationKey)
+    if (this.calibrationKey && key !== this.calibrationKey) {
+      this.resumeOnReturn = false;
       this.interrupt();
+    }
     this.calibrationKey = key;
     const wasFresh = this.fresh();
     this.calibrationAt = this.now();
@@ -227,17 +231,38 @@ export class LiveSession {
         this.interrupt();
       }, remaining);
     if (wasFresh !== this.fresh()) {
-      this.emit();
+      if (this.resumeOnReturn && this.fresh()) {
+        this.resumeOnReturn = false;
+        void this.resumePlaying();
+      } else {
+        this.emit();
+      }
     }
   }
   setHidden(hidden: boolean) {
+    if (hidden === this.hidden) return;
     this.hidden = hidden;
+    this.calibrationAt = this.trackingAt = -Infinity;
+    clearTimeout(this.timer);
     if (hidden) {
-      this.calibrationAt = this.trackingAt = -Infinity;
+      this.resumeOnReturn = this.state === "playing";
       this.interrupt();
     } else this.emit();
   }
-  async prepare(): Promise<boolean> {
+  private async resumePlaying() {
+    const ready = await this.prepareAudio(async () => {
+      if (!await this.audio.resumeAfterBackground())
+        throw new Error("Piano audio could not resume");
+    }, "audio-interrupted");
+    if (ready) this.play();
+  }
+  prepare(): Promise<boolean> {
+    return this.prepareAudio(() => this.audio.initialize(), "audio-error");
+  }
+  private async prepareAudio(
+    start: () => Promise<void>,
+    failure: "audio-error" | "audio-interrupted",
+  ): Promise<boolean> {
     if (!this.fresh() || this.state === "starting" || this.state === "playing")
       return false;
     const request = ++this.generation;
@@ -245,7 +270,7 @@ export class LiveSession {
     this.state = "starting";
     this.emit();
     try {
-      await this.audio.initialize();
+      await start();
       if (request !== this.generation) return false;
       if (!this.fresh() || this.audio.status !== "ready") {
         this.interrupt();
@@ -256,8 +281,8 @@ export class LiveSession {
       return true;
     } catch {
       if (request !== this.generation) return false;
-      this.audioIssue = "audio-error";
-      this.state = "error";
+      this.audioIssue = failure;
+      this.state = failure === "audio-error" ? "error" : "interrupted";
       this.resumeInput();
       this.emit();
       return false;
@@ -308,6 +333,7 @@ export class LiveSession {
     return result;
   }
   stop() {
+    this.resumeOnReturn = false;
     this.end("stopped");
   }
   interrupt(reason?: "count-in-audio") {

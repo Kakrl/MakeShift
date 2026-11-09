@@ -5,6 +5,7 @@ import {
 } from "../../diagnostics/performanceMetrics";
 import { loadPianoSamples, type PianoSample } from "./pianoSamples";
 export type AudioStatus = "idle" | "loading" | "ready" | "suspended" | "error";
+const FOREGROUND_RESUME_TIMEOUT_MS = 1500;
 export type PedalState = { sustain: boolean; sostenuto: boolean; soft: boolean };
 type AudioCommand =
   | ({ type: "pedals"; version: 1; session: number } & PedalState)
@@ -30,6 +31,7 @@ export class BrowserAudio {
   private press = 0;
   private outstanding = 0;
   private recovering = false;
+  private onDrained: (() => void) | null = null;
   private inputPaused = false;
   private generation = 0;
   private invalidationListeners = new Set<() => void>();
@@ -77,6 +79,48 @@ export class BrowserAudio {
       })
       .catch(() => {});
     return task;
+  }
+
+  /** Reuse a graph previously initialized by a gesture. */
+  async resumeAfterBackground(): Promise<boolean> {
+    const { context, node } = this;
+    if (!context || !node || context.state === "closed" || this.initializing)
+      return false;
+
+    const generation = this.generation;
+    let finished = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    let drained: (() => void) | undefined;
+    const resume = async () => {
+      if (context.state !== "running") await context.resume();
+      if (finished || generation !== this.generation || node !== this.node ||
+          context.state !== "running")
+        return false;
+      // The suspended worklet may still owe an acknowledgement for the reset.
+      if (this.recovering) await new Promise<void>(resolve => {
+        drained = resolve;
+        this.onDrained = resolve;
+      });
+      return true;
+    };
+    try {
+      const ready = await Promise.race([
+        resume(),
+        new Promise<false>(resolve => {
+          timeout = setTimeout(() => resolve(false), FOREGROUND_RESUME_TIMEOUT_MS);
+        }),
+      ]);
+      if (!ready || generation !== this.generation || node !== this.node ||
+          context.state !== "running" || this.recovering) return false;
+      this.status = "ready";
+      return true;
+    } catch {
+      return false;
+    } finally {
+      finished = true;
+      clearTimeout(timeout);
+      if (this.onDrained === drained) this.onDrained = null;
+    }
   }
 
   private async start(generation: number) {
@@ -145,7 +189,10 @@ export class BrowserAudio {
           }
           if (!Number.isSafeInteger(data) || data < 1) return;
           this.outstanding = Math.max(0, this.outstanding - data);
-          if (this.outstanding === 0) this.recovering = false;
+          if (this.outstanding === 0) {
+            this.recovering = false;
+            this.onDrained?.();
+          }
         };
         node.onprocessorerror = () => {
           if (this.node !== node) return;
