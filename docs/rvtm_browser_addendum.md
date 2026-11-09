@@ -107,6 +107,10 @@ printer/camera/audible checks remain pending in the manual report. Calibration
 save-before-navigation, replacing #162's expected failures. Software results establish
 neither physical contact accuracy nor sensor-to-sound latency.
 
+Issue #236 adds a same-origin ZIP download of the starter and extension PDFs
+from the home screen and Tutorial. [Inventory SHEET-02](../tests/verification_test_inventory.md#piano-sheet-download-236)
+covers the browser download.
+
 ## Recording playback extension (#130)
 
 PB-1: play an existing recording at 0.25x–4x speed with pause, seek, stop, and

@@ -72,6 +72,7 @@ the same four IDs cannot measure millimeters or identify page count. An
 undersized declared assembly blocks calibration until an explicit override,
 which preserves key pitch and extends the selected keyboard beyond paper.
 Every settings change clears saved hand/marker calibration and releases notes.
+The home screen and Tutorial offer a ZIP containing both print-ready PDFs (#236).
 See [print/layout instructions](piano_sheet.md) and the
 [verification mapping](rvtm_browser_addendum.md#octave-layouts-36).
 Physical printing, webcam contact quality and audibility remain separate

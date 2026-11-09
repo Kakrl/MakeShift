@@ -12,15 +12,18 @@ const TABS: { page: NavPage; href: string; label: string; active: string }[] = [
 // Below lg the tabs sit in a row under the camera; from lg up they stack in
 // the 267px right sidebar with the piano-key decoration.
 const TAB_CLASS =
-  "flex-1 lg:flex-none border border-black h-12 lg:h-[72px] flex items-center justify-center lg:justify-end px-2 lg:pr-[19px] lg:pl-[100px] relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] " +
+  "flex-1 lg:flex-none border border-black h-12 lg:h-[72px] flex items-center justify-center lg:justify-end px-1 sm:px-2 lg:pr-[19px] lg:pl-[100px] relative shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07)] " +
   "not-first:-ml-px lg:not-first:ml-0 lg:not-first:-mt-px first:rounded-bl-[8px] last:rounded-br-[8px] lg:first:rounded-bl-none lg:first:rounded-tr-[8px] " +
   // Keyboard focus: the shared ring, lifted above the black-key bars so it stays whole.
   "focus-visible:outline-none focus-visible:z-20 focus-visible:shadow-[inset_0px_4px_0px_0px_rgba(255,255,255,0.25),inset_0px_-15px_17.6px_0px_rgba(53,21,21,0.07),var(--halo)]";
+const TAB_LINK_CLASS = `${TAB_CLASS} bg-surface hover:bg-black/5 transition-colors`;
+const TAB_LABEL_CLASS = "text-[17px] lg:text-[20px] text-black font-sans whitespace-nowrap";
 
 export default function SideNav({
   active,
   onCalibrationClick,
   calibrationDisabled = false,
+  showPianoSheetDownload = false,
   children,
 }: {
   active?: NavPage;
@@ -28,6 +31,7 @@ export default function SideNav({
   onCalibrationClick?: () => void;
   /** Dev mode (`?dev=1`) skips calibration, so the tab is inert. */
   calibrationDisabled?: boolean;
+  showPianoSheetDownload?: boolean;
   children?: React.ReactNode;
 }) {
   return (
@@ -42,7 +46,7 @@ export default function SideNav({
       <nav aria-label="Main" className="flex flex-row lg:flex-col">
         {TABS.map(({ page, href, label, active: activeColor }) => {
           const text = (
-            <span className="text-[17px] lg:text-[20px] text-black font-sans whitespace-nowrap">{label}</span>
+            <span className={`${TAB_LABEL_CLASS} ${showPianoSheetDownload ? "max-sm:text-sm" : ""}`}>{label}</span>
           );
           if (page === active) {
             return (
@@ -51,7 +55,6 @@ export default function SideNav({
               </div>
             );
           }
-          const className = `${TAB_CLASS} bg-surface hover:bg-black/5 transition-colors`;
           if (page === "calibration" && calibrationDisabled) {
             return (
               <button key={page} disabled title="Calibration is off in dev mode" className={`${TAB_CLASS} bg-surface opacity-50 cursor-not-allowed`}>
@@ -61,17 +64,22 @@ export default function SideNav({
           }
           if (page === "calibration" && onCalibrationClick) {
             return (
-              <button key={page} onClick={onCalibrationClick} className={className}>
+              <button key={page} onClick={onCalibrationClick} className={TAB_LINK_CLASS}>
                 {text}
               </button>
             );
           }
           return (
-            <Link key={page} href={href} className={className}>
+            <Link key={page} href={href} className={TAB_LINK_CLASS}>
               {text}
             </Link>
           );
         })}
+        {showPianoSheetDownload && (
+          <a href="/piano-sheets.zip" download aria-label="Download piano sheets (ZIP)" className={TAB_LINK_CLASS}>
+            <span className={`${TAB_LABEL_CLASS} max-sm:text-sm`}>Piano sheets</span>
+          </a>
+        )}
       </nav>
 
       {children}

@@ -765,7 +765,7 @@ export default function Home() {
         </div>
 
         {/* Right sidebar (below the camera under lg) */}
-        <SideNav onCalibrationClick={() => setShowCalibrationIntro(true)} calibrationDisabled={devMode}>
+        <SideNav onCalibrationClick={() => setShowCalibrationIntro(true)} calibrationDisabled={devMode} showPianoSheetDownload>
           <section aria-label="Playback settings" className="relative grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-[23px] mt-6 lg:mt-[42px] lg:pl-[43px]">
             {/* Tempo */}
             <div className="flex flex-col gap-2">

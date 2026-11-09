@@ -2272,3 +2272,17 @@ Metronome checks included camera-denied Home playback and audio-clock spacing
 under a busy UI thread. Recovery checked 320/390/1440px and keyboard navigation.
 Database unconfigured; fake media/digital output only, no physical sensing,
 acoustic or screen-reader pass. New Actions execution remains pending.
+
+## Piano sheet download verification (issue #236)
+
+On 2026-11-08, two runs of the pinned generator produced identical ZIPs.
+The archive passed CRC checks and contained exactly the starter and extension
+PDFs, each byte-identical to the checked-in print file.
+
+Lint, TypeScript, contrast and the production build passed. Vitest passed
+771 tests across 40 files with one skip. Edge 157.0.4341.42 passed the
+deployment, keyboard layout and audio browser suites against the production
+build. The deployment suite downloaded the same archive from Home and
+Tutorial at 320px, confirmed neither click navigated away, and verified the
+ZIP response content type. The Playwright Chromium executable failed to
+launch on this Windows host. Actions execution is pending.

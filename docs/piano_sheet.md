@@ -1,5 +1,8 @@
 # Printable piano sheets (#36)
 
+On the MakeShift home screen, select **Piano sheets**, or choose
+**Download piano sheets (ZIP)** in the Tutorial. The ZIP contains both PDFs.
+
 - [Starter sheet: four markers](piano-sheet-starter.pdf)
 - [Extension sheet: right markers only](piano-sheet-extension.pdf)
 
@@ -105,7 +108,9 @@ python docs/generate_piano_sheets.py
 ```
 
 [The source](generate_piano_sheets.py) writes deterministic, single-page PDFs
-to `docs/`. Marker payloads use canonical OpenCV dictionary bytes drawn
+to `docs/` and packages those same files into `frontend/public/piano-sheets.zip`.
+Commit the refreshed ZIP with any updates to the PDFs.
+Marker payloads use canonical OpenCV dictionary bytes drawn
 as vector cells. `Piano Sheet.png` remains a legacy reference; use the PDFs for
 actual-size printing. Generation needs no marker downloads or network access.
 
