@@ -2,11 +2,11 @@
 
 In this guide, some explanations on how to do some tasks are done!
 
-## How to start get a piano sheet
+## How to get a piano sheet
 
 You need a piano sheet to use and start up the Makeshift application!
 
-1. Open up Makeshift at ``http:/makeshuft.music``. 
+1. Open up Makeshift at ``http:/makeshift.music``. 
 2. Find the ``Piano Sheet`` button either at the beginning pop-up or on one of the white keys on the right of the screen.
 3. Download and print the piano sheet
 
@@ -102,11 +102,11 @@ I show a quick walk-through of the steps. In general, clone the repository, foll
 5. If developing tests, refer to [tests creation guide](../tests/README.md)
 6. Develop your changes on your local branch
 7. ensure your repository passes our linting and test cases by running the CI pipeline:
-``npm run lint``
-``npx tsc --noEmit``
-``npx vitest run``
-``npm run test:contrast``
-``npm run build``
+- ``npm run lint``
+- ``npx tsc --noEmit``
+- ``npx vitest run``
+- ``npm run test:contrast``
+- ``npm run build``
 8. Push your changes to your fork.
 9. Create a pull request from your fork onto the Makeshift fork with a summary
 10. Wait for one of the maintainers of Makeshift to review and potentially merge your request!
