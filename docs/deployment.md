@@ -11,7 +11,7 @@ and `/api/recordings` lists, reads, uploads and deletes shared takes
 
 | Setting | Value |
 | :--- | :--- |
-| Vercel project | `jaddenkis-projects/make-shift`, root directory `frontend`, Node 24.x |
+| Vercel project | `kakrl/make-shift`, root directory `frontend`, Node 24.x |
 | Production | <https://make-shift-chi.vercel.app> (from `main`) |
 | Previews | Public (Vercel Authentication off since 2026-09-30). A maintainer adds the `preview-link` label to a PR; [`preview.yml`](../.github/workflows/preview.yml) uploads the PR source to Vercel and comments the link. The label is removed after each run, so re-add it after reviewing new commits. `vercel deploy` also works locally |
 | Environment variables | Synced from Infisical `makeshift` (Production to Production, Development to Preview); see below |
