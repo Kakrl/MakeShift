@@ -78,10 +78,10 @@ describe("sampled piano (#210)", () => {
   });
 
   it("preserves sampled sustain, sostenuto, soft strikes and reset", () => {
-    const piano = start(); render(piano);
+    const piano = start(48000, 21); render(piano);
     const pedals = (sustain = false, sostenuto = false, soft = false, session = 1) =>
       piano.handle({ type: "pedals", version: 1, session, sustain, sostenuto, soft });
-    const on = (press: number) => piano.handle({ type: "note-on", session: 1, press, note: 69, velocity: 1 });
+    const on = (press: number, note = 21) => piano.handle({ type: "note-on", session: 1, press, note, velocity: 1 });
     const off = (press: number) => piano.handle({ type: "note-off", session: 1, press });
     pedals(false, true); on(2); render(piano); off(1); off(2);
     expect(piano.voices[0].releasing).toBe(false);
@@ -94,7 +94,7 @@ describe("sampled piano (#210)", () => {
     expect(piano.voices[2].gain).toBeCloseTo(gain * 0.65, 10);
     expect(piano.voices[0].gain).toBe(gain);
     pedals(true, true);
-    for (let press = 4; press <= 11; press++) on(press);
+    for (let press = 4; press <= 11; press++) on(press, 108);
     expect(piano.voices[0].press).toBe(11);
     expect(piano.voices[0].captured).toBe(false);
     off(1); expect(piano.voices[0].held).toBe(true);
@@ -172,7 +172,7 @@ describe("sampled piano (#210)", () => {
         ).toBe(true);
       }
       piano.handle({ type: "reset", session: 129 });
-      [24, 36, 43, 48, 52, 60, 69, 72, 84, 96].forEach((note, i) =>
+      [21, 28, 36, 48, 55, 60, 67, 76, 96, 108].forEach((note, i) =>
         piano.handle({
           type: "note-on",
           session: 129,
@@ -181,11 +181,11 @@ describe("sampled piano (#210)", () => {
           velocity: 1,
         }),
       );
-      expect(
-        render(piano, rate / 4).left.every(
-          (x) => Number.isFinite(x) && Math.abs(x) <= 0.950001,
-        ),
-      ).toBe(true);
+      const chord = render(piano, rate / 4);
+      for (const channel of [chord.left, chord.right]) {
+        expect(channel.every((x) => Number.isFinite(x) && Math.abs(x) <= 0.950001)).toBe(true);
+        expect(rms(channel)).toBeGreaterThan(0);
+      }
     },
     15000,
   );

@@ -15,11 +15,11 @@ It requests an interactive AudioContext, resumes before awaiting module loading,
 and loads `/audio/piano-worklet.js`. Both the worklet and its relative
 `sampled-piano.js` and `synth.js` imports are static public assets, without a bundler worker transform.
 
-The Audio check link opens `/audio`: Enable audio, Soft A4, Loud A4,
-Ten-note chord, matched-velocity Bass C2 / Middle C4 / High C6, and Stop sound. Each test sends note-off after one second, followed by its release tail. Starting another test releases the previous tones; Stop sound is an immediate emergency silence. This page
-owns and closes its context on navigation. The existing home-page Play handler
-awaits the shared owner's initialization and displays failures with a retry.
-Detected notes never initialize or resume audio themselves.
+The Audio check link opens `/audio` for velocity, register and
+[full-range checks](#standard-piano-range-262). Starting another test releases
+the previous tones. Stop sound clears voices immediately. The page owns and
+closes its context on navigation. The home-page Play handler awaits the
+shared owner's initialization and displays failures with a retry.
 
 Initialization is shared across simultaneous callers. Loading/resume failures
 close resources and reject; a later gesture can retry. Processor failures
@@ -384,3 +384,46 @@ ownership and gates validated musical delivery. The separate metronome worklet
 remains audible when enabled. Ordinary interruption/reset still invalidates sessions.
 Pedal UI sources clear synchronously at entry; inactive assigned keydowns are
 remembered as suppressed until keyup, for both Hold and Toggle.
+
+## Standard piano range (#262)
+
+The standard range is A0–C8 (MIDI 21–108), distinct from the ten-voice
+polyphony limit and the printed keyboard's 1–3 octave layout. The Audio check
+page plays either endpoint, any selected key for one second, a ten-note chord
+spanning both endpoints, or an ascending sweep at 300 ms per note. Stop sound
+cancels the sweep and clears voices. These controls require audio activation
+and work without camera permission or calibration.
+
+The event contract still accepts MIDI 0–127. Outside the standard piano range,
+the nearest recorded root is transposed using the same sampler. At rates where
+a note's fundamental is at or above 45% of the sample rate it is silent. At
+8 kHz, this excludes A♯7 and higher (MIDI 106–127), including three standard
+keys. At 44.1, 48 and 96 kHz all 128 MIDI fundamentals are below this guard.
+The guard applies to fundamentals, and high partials can still alias during
+upward transposition.
+
+### Pitch measurement protocol
+
+Render each MIDI key individually at velocity 1 with the deployed worklet and
+the bank decoded by the production audio owner at 44.1, 48 and 96 kHz. Check
+both stereo channels for finite samples, peak at or below 0.950001 and RMS
+above 0.00005 in the 50–450 ms window after dispatch. Choose the higher-energy
+channel for pitch estimation to avoid cancellation when summing stereo.
+Use a Hann-weighted sinusoidal power search around each of the first four
+expected equal-tempered partial frequencies (A4 = 440 Hz). Search ±100 cents
+in five-cent steps and refine around the peak in one-cent steps. Skip
+partials above 40% of the sample rate and average adjacent samples before
+windowing when the highest tested partial still has at least 16 samples per
+cycle. Use the lowest fitted partial accounting for at least 1% of the
+windowed energy and divide its frequency by its partial number. In the
+initial fundamental-only run, the A0 fundamental was too weak to measure.
+Allowing low partials accounts for bass notes whose audible pitch comes
+primarily from their overtones. Favoring the lowest usable partial reduces
+the effect of inharmonic stretch. Require the estimate to be within 25 cents
+of target to allow source tuning, stretch and short-window uncertainty while
+remaining well inside a semitone. Listening separately evaluates timbre and
+transition quality.
+
+See the [verification record](../tests/README.md#standard-piano-range-verification-issue-262)
+for measured output, tuning, sample transition levels and render cost, and
+the [listening procedure](../tests/manual/2026-11-08_SP-03.md) for device checks.
