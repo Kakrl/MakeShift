@@ -3,7 +3,8 @@
 Calibration saves `makeshift.calibration.v1` only after detecting all four sheet
 markers and capturing complete hand landmarks in both guided phases. A timer
 schedules a capture; it cannot complete a phase. Failed detection offers retry.
-The legacy `isCalibrated` flag is ignored, and unloading preserves valid data.
+No code reads or writes the legacy `isCalibrated` flag; readiness comes only
+from the validated result. Unloading preserves valid data.
 
 Use the [actual-size starter PDF](piano_sheet.md) for the current one-octave
 layout; add extension copies for two or three octaves. Recalibrate when replacing
@@ -16,6 +17,25 @@ manual paper-check action: wait for **Sheet geometry validated**, then select
 usable observation arrives. Returning to step 3 reacquires the paper and camera/
 keyboard settings before continuing. The initialized marker detector is reused
 for these scans and disposed when leaving calibration.
+
+## Profiles and step help (#118, #185)
+
+Step 1 can save, load, rename and delete named profiles through
+`frontend/src/lib/calibrationProfiles.ts`, stored at
+`makeshift:calibration-profiles:v1`. A profile holds `octaves`,
+`startingNote` (MIDI), the declared paper octaves and override, and optional
+marker corners copied from a saved calibration with the same layout. Saving
+under an existing name (case-insensitive) replaces that profile; renaming onto
+another profile's name is rejected. Corrupt entries are dropped on read.
+
+Loading a profile only fills in the step 1 fields through the normal layout
+save, so it invalidates any calibration for a different layout and never skips
+marker detection: step 3 still needs a live, complete scan. Stored corners are
+not used to bypass that check.
+
+The **?** button shows step-specific help. Step 3 shows a sheet illustration
+and tips: the whole sheet with all four corner markers in view, kept flat,
+under even lighting. The hand steps keep the hand positioning photo.
 
 ## Version 1 contract
 
