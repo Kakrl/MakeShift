@@ -2,10 +2,10 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { RECORDING_LIMITS } from "../../lib/recordings";
+import { blockedNameMessage, RECORDING_LIMITS } from "../../lib/recordings";
 import type { Recording } from "../midi/midiUtils";
 import { useDialogFocus } from "../useDialogFocus";
-import { AuthorNameField, BackIcon, CloseIcon, SharedConfirmation, SharingAs } from "./ShareParts";
+import { AuthorNameField, BackIcon, CloseIcon, NameIssue, SharedConfirmation, SharingAs } from "./ShareParts";
 import SharedPlayer from "./SharedPlayer";
 import {
   asSharedRecording,
@@ -55,6 +55,7 @@ export default function SaveTakeDialog({
   const [askName] = useState(() => authorName === "");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nameIssue, setNameIssue] = useState<{ field: "title" | "authorName"; message: string } | null>(null);
   const [shared, setShared] = useState<TakeShare | null>(null);
   const [preview] = useState(() => asSharedRecording(take));
   // The recordings API needs at least one note, so an empty take stays private.
@@ -75,6 +76,12 @@ export default function SaveTakeDialog({
     if (audience === "private") {
       onSave(title);
       onClose();
+      return;
+    }
+    const titleMessage = blockedNameMessage("title", title);
+    const authorMessage = blockedNameMessage("authorName", authorName);
+    if (titleMessage || authorMessage) {
+      setNameIssue(titleMessage ? { field: "title", message: titleMessage } : { field: "authorName", message: authorMessage! });
       return;
     }
     setPending(true);
@@ -165,10 +172,18 @@ export default function SaveTakeDialog({
                 value={name}
                 maxLength={RECORDING_LIMITS.titleLength.max}
                 placeholder="My first song"
-                onChange={(event) => setName(event.target.value)}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  if (nameIssue?.field === "title") setNameIssue(null);
+                }}
+                aria-invalid={nameIssue?.field === "title"}
+                aria-describedby={nameIssue?.field === "title" ? "save-take-name-issue" : undefined}
                 className="ms-input mt-1.5 w-full"
                 autoFocus
               />
+              {nameIssue?.field === "title" && audience === "public" && (
+                <NameIssue id="save-take-name-issue" message={nameIssue.message} />
+              )}
 
               <fieldset className="mt-5">
                 <legend className="ms-label">Who can hear it?</legend>
@@ -203,10 +218,18 @@ export default function SaveTakeDialog({
               {audience === "public" && (
                 <div className="ms-rise mt-5">
                   {askName ? (
-                    <AuthorNameField id="save-take-author" value={authorName} onChange={setAuthorName} />
+                    <AuthorNameField
+                      id="save-take-author"
+                      value={authorName}
+                      onChange={(value) => {
+                        setAuthorName(value);
+                        if (nameIssue?.field === "authorName") setNameIssue(null);
+                      }}
+                    />
                   ) : (
                     <SharingAs name={authorName} />
                   )}
+                  {nameIssue?.field === "authorName" && <NameIssue message={nameIssue.message} savedName={!askName} />}
                 </div>
               )}
 

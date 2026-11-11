@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { RECORDING_LIMITS, recordingDurationMs, type RecordingSummary, type SharedRecording } from "../../lib/recordings";
+import { blockedNameMessage, RECORDING_LIMITS, recordingDurationMs, type RecordingSummary, type SharedRecording } from "../../lib/recordings";
 import { downloadMidi, type Recording } from "../midi/midiUtils";
 import type { LibraryEntry } from "../midi/recordingsLibrary";
 import type { WriteResult } from "../../lib/storage";
@@ -10,7 +10,7 @@ import { rainbow } from "../rainbow";
 import { useDialogFocus } from "../useDialogFocus";
 import CopyLinkButton from "./CopyLinkButton";
 import DeviceProfilePanel from "../midi/DeviceProfilePanel";
-import { AuthorNameField, BackIcon, CloseIcon, SharedConfirmation, SharingAs } from "./ShareParts";
+import { AuthorNameField, BackIcon, CloseIcon, NameIssue, SharedConfirmation, SharingAs } from "./ShareParts";
 import SharedPlayer from "./SharedPlayer";
 import {
   asSharedRecording,
@@ -646,9 +646,16 @@ function ShareTakeView({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shared, setShared] = useState<TakeShare | null>(null);
+  const [nameIssue, setNameIssue] = useState<{ field: "title" | "authorName"; message: string } | null>(null);
   const ready = title.trim().length > 0 && authorName.trim().length > 0 && take.notes.length > 0;
 
   async function share() {
+    const titleMessage = blockedNameMessage("title", title);
+    const authorMessage = blockedNameMessage("authorName", authorName);
+    if (titleMessage || authorMessage) {
+      setNameIssue(titleMessage ? { field: "title", message: titleMessage } : { field: "authorName", message: authorMessage! });
+      return;
+    }
     setPending(true);
     setError(null);
     try {
@@ -689,14 +696,30 @@ function ShareTakeView({
         id="share-song-title"
         value={title}
         maxLength={RECORDING_LIMITS.titleLength.max}
-        onChange={(event) => setTitle(event.target.value)}
-        className="ms-input mt-1.5 mb-4 w-full"
+        onChange={(event) => {
+          setTitle(event.target.value);
+          if (nameIssue?.field === "title") setNameIssue(null);
+        }}
+        aria-invalid={nameIssue?.field === "title"}
+        aria-describedby={nameIssue?.field === "title" ? "share-song-title-issue" : undefined}
+        className="ms-input mt-1.5 w-full"
       />
+      <div className="mb-4">
+        {nameIssue?.field === "title" && <NameIssue id="share-song-title-issue" message={nameIssue.message} />}
+      </div>
       {askName ? (
-        <AuthorNameField id="share-author" value={authorName} onChange={setAuthorName} />
+        <AuthorNameField
+          id="share-author"
+          value={authorName}
+          onChange={(value) => {
+            setAuthorName(value);
+            if (nameIssue?.field === "authorName") setNameIssue(null);
+          }}
+        />
       ) : (
         <SharingAs name={authorName} />
       )}
+      {nameIssue?.field === "authorName" && <NameIssue message={nameIssue.message} savedName={!askName} />}
       {take.notes.length === 0 && (
         <p className="mt-3 text-[14px] text-ink-muted">This take has no notes yet, so there&apos;s nothing to share.</p>
       )}

@@ -50,6 +50,15 @@ export function SharingAs({ name }: { name: string }) {
   );
 }
 
+/** A refused title or name, under its field; a saved name is changed elsewhere. */
+export function NameIssue({ id, message, savedName = false }: { id?: string; message: string; savedName?: boolean }) {
+  return (
+    <p id={id} role="alert" className="mt-1.5 text-[13px] text-danger">
+      {savedName ? "Your sharing name has a word we don't allow. Change it in My recordings." : message}
+    </p>
+  );
+}
+
 /** The public name field the first share asks for. */
 export function AuthorNameField({ id, value, onChange }: { id: string; value: string; onChange: (value: string) => void }) {
   return (
