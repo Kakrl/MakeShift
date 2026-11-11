@@ -149,7 +149,7 @@ issue.
 1. **Collect evidence** before reporting, since sites disappear: full URL and
    domain, date/time (UTC), screenshots of the page and address bar, the
    page source or saved HTML, any download offered (hash with
-   `shasum -a 256`; do not run it), the TLS certificate issuer and subject,
+   `shasum -a 256` or `sha256sum`; do not run it), the TLS certificate issuer and subject,
    `dig`/WHOIS output for the domain, and how it was found or reported.
 2. **Open an issue** in `Kakrl/MakeShift` titled `security: impersonating
    site <domain>` with the evidence. Do not link the site as a clickable URL;
