@@ -13,6 +13,7 @@ MakeShift/
 │   └── workflows/
 │       ├── bypass-checks.yml        # no-op test/lint jobs for non-Python PRs
 │       ├── bypass-frontend.yml      # no-op frontend job for non-frontend PRs
+│       ├── dependency-review.yml    # introduced high/critical dependency vulnerabilities
 │       ├── frontend-ci.yml          # lint, types, Vitest, contrast, build, browser smoke
 │       ├── linting.yml              # ruff, mypy, clang-format
 │       ├── preview.yml              # Vercel preview link for PRs labeled preview-link
@@ -218,6 +219,87 @@ We use a fork-and-pull-request workflow:
   - tests passing
   - code quality/lint/cleanliness checks passing
 - PRs with failing CI checks are not eligible for merge.
+
+### PR dependency review (#197)
+
+`Dependency Review` (`.github/workflows/dependency-review.yml`) runs on PRs
+targeting `main` when `frontend/package.json`, `frontend/package-lock.json`,
+or the workflow itself changes. GitHub's action compares the base/head
+dependency graphs and fails for introduced known **high or critical**
+vulnerabilities. Both direct and transitive changes can be reported. The path
+filter chooses which PRs run; it does not filter individual graph entries, so
+other manifests changed in the same PR may also contribute findings.
+
+The official action is pinned to v5.0.0's commit. It has only `contents: read`,
+does not check out the repository or install project packages, and posts no PR
+comments. Findings appear in the check logs/summary. License policy is disabled
+for this vulnerability-only check. No advisory exceptions are configured. A
+future exception must be reviewed in a PR identifying the advisory, affected
+package/version, exposure rationale and follow-up/review date.
+
+This is a changed-dependency check, not an audit of every existing dependency.
+It does not reliably detect previously unknown malicious releases. The exact
+MediaPipe pin and committed lockfile remain unchanged. Alerts and human review
+complement this check as described below.
+
+A failed check means do not merge under the team's CI policy. Branch
+protection is not changed here. Because this workflow is path-filtered, do not
+make it an unconditional required status check without first arranging a
+status for PRs outside those paths. Dependency graph/review access must work
+in the repository; an API permission/configuration error is not evidence of
+a vulnerable package. Dependency-review API access succeeded in
+[PR #269's clean run](https://github.com/Kakrl/MakeShift/actions/runs/42398149038/job/128479890167).
+
+#### Reviewing dependency updates
+
+For hand-tracking and other camera-access dependency updates:
+
+1. Review package versions and transitive changes in the lockfile.
+2. Read release notes and inspect source changes, particularly changes involving
+   camera data or network requests.
+3. Check for new or modified installation scripts.
+4. Test the updated application and inspect browser network requests for
+   unexpected destinations.
+5. Review CI findings and document any approved exceptions.
+6. Record review findings in the PR before approving it.
+
+Camera-access dependency updates must receive human review and must not be
+automatically merged.
+
+#### Vulnerability alert ownership
+
+On 2026-11-07, Harry reported administrator confirmation that Dependabot alerts
+are enabled and malware alerts were also enabled. This records the reported
+configuration; it is not an independent settings/API verification. Workflow
+execution evidence is recorded separately below.
+
+Harry Deng is responsible for reviewing dependency security alerts, assessing
+their relevance to MakeShift, and tracking necessary updates or mitigations.
+Francis Ozua reviews CV-specific changes when needed. Track actionable findings
+in an issue identifying the affected package/version, exposure, mitigation and
+owner. These alerts do not guarantee detection of unknown malicious releases.
+
+#### Workflow verification
+
+On 2026-11-07, PR #269's clean comparison passed at revision
+`b103a9f2329e43292631597e711a21778a7746f3`
+([job log](https://github.com/Kakrl/MakeShift/actions/runs/42398149038/job/128479890167)).
+Harry elected to skip the controlled known-vulnerable update test. Rejection
+behavior remains unverified and that acceptance criterion of #197 remains
+unmet. The procedure below is retained for future verification.
+
+Verification before claiming the gate works:
+
+1. Run `actionlint .github/workflows/dependency-review.yml`.
+2. Run the workflow on a controlled PR with no newly introduced vulnerable
+   dependencies; retain the successful Actions job URL and compared revisions.
+3. On a disposable verification branch, introduce an advisory-confirmed
+   high/critical dependency version in a manifest/lockfile change. Do not run
+   its code or merge that branch. Retain the failing job URL, dependency/version,
+   advisory ID and evidence that vulnerability findings caused the failure.
+4. Close the disposable PR and remove its test change. Record both job URLs
+   in DEP-01 in the inventory. A permissions error, static lint pass or scanner
+   documentation alone does not satisfy this rejection test.
 
 ### Software Bill of Materials (SBOM)
 

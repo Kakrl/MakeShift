@@ -93,6 +93,7 @@ it separates existing behavior from planned work and links implementation issues
 | C++ formatting | `clang-format --dry-run --Werror` on changed files (`.clang-format`, clang-format 17) |
 | RCA automation | `node --test tests/automation/rca.test.cjs` (Node 22); CI: `rca-tests.yml` |
 | SBOM workflow | `actionlint .github/workflows/sbom.yml`; `node --test tests/automation/sbom.test.cjs`; generate with Syft v1.55.0 and run `node tests/automation/validate-sbom.cjs <SBOM.cdx.json>`; CI: `sbom.yml` |
+| Dependency review workflow | `actionlint .github/workflows/dependency-review.yml`; verify clean and known-vulnerable dependency changes through GitHub Actions; record run/job evidence in the inventory |
 
 The C++ build requires Python 3.12 and nanobind (`pip install -r requirements.txt`).
 If a check cannot run locally (for example, no audio device or no CMake),

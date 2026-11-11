@@ -2272,3 +2272,31 @@ Metronome checks included camera-denied Home playback and audio-clock spacing
 under a busy UI thread. Recovery checked 320/390/1440px and keyboard navigation.
 Database unconfigured; fake media/digital output only, no physical sensing,
 acoustic or screen-reader pass. New Actions execution remains pending.
+
+## PR dependency review workflow (#197, first part)
+
+Local 2026-11-06 on chore/197-dependency-review. Added a PR workflow for frontend
+manifest/lockfile changes and edits to the workflow itself. Official dependency
+review action v5.0.0 is pinned to a1d282b36b6f3519aa1f3fc636f609c47dddb294,
+verified against its release tag/commit. The check fails on introduced known
+high/critical findings with read-only contents access, vulnerability checking
+enabled, license policy disabled, and no PR comments. No project package is
+installed or executed by this workflow. Existing package versions and the
+lockfile are unchanged. Branch protection is untouched. On 2026-11-07, Harry
+reported administrator confirmation that Dependabot alerts are enabled and
+malware alerts were also enabled. Alert triage ownership and the human review
+procedure are documented in docs/dev_process.md. No settings were changed by
+this workflow or independently verified by the agent.
+
+Actionlint 1.7.12 passed for .github/workflows/dependency-review.yml. Its official
+Windows archive was downloaded to a temporary directory and verified against
+the release SHA-256 checksum; no binary or dependency was added to the repo.
+On 2026-11-07, the clean comparison passed on PR #269 at revision
+`b103a9f2329e43292631597e711a21778a7746f3`
+([job log](https://github.com/Kakrl/MakeShift/actions/runs/42398149038/job/128479890167)).
+The logs show a dependency comparison and no introduced high/critical findings.
+This confirms workflow execution and dependency-review API access, superseding
+the earlier inconclusive API probes. Harry elected to skip the controlled
+known-vulnerable update test; blocking behavior remains unverified and that
+acceptance criterion of #197 remains unmet. See the retained verification
+procedure in docs/dev_process.md and inventory entry DEP-01.
