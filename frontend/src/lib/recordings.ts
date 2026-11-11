@@ -5,6 +5,7 @@ import { isMeter, restoreMeter, type Meter } from "./meter";
 // in supabase/migrations; note and duration caps are API-only.
 import type { RecordedNote } from "../app/midi/midiUtils";
 import { pitchToMidi } from "../cv/noteMap";
+import { hasBlockedWord } from "./nameFilter";
 
 export const RECORDING_LIMITS = {
   titleLength: { min: 1, max: 100 },
@@ -75,6 +76,24 @@ export function recordingDurationMs(notes: readonly RecordedNote[]): number {
   );
 }
 
+export type NameIssues = { title?: string; authorName?: string };
+
+export function blockedNameMessage(field: "title" | "authorName", value: string): string | null {
+  if (!hasBlockedWord(value)) return null;
+  return field === "title"
+    ? "That song name has a word we don't allow. Try another name."
+    : "That name has a word we don't allow. Try another name.";
+}
+
+export function blockedNameIssues(title: string, authorName: string): NameIssues {
+  const issues: NameIssues = {};
+  const titleMessage = blockedNameMessage("title", title);
+  const authorMessage = blockedNameMessage("authorName", authorName);
+  if (titleMessage) issues.title = titleMessage;
+  if (authorMessage) issues.authorName = authorMessage;
+  return issues;
+}
+
 // Counts code points, as Postgres char_length does, not UTF-16 units.
 // Stops just past `max` so oversized input is not copied into an array.
 function charLength(value: string, max: number): number {
@@ -102,6 +121,10 @@ function text(
       field,
       message: `${field} must be ${limits.min}-${limits.max} characters`,
     });
+  else if (field !== "deviceId") {
+    const message = blockedNameMessage(field, trimmed);
+    if (message) issues.push({ field, message });
+  }
   return trimmed;
 }
 

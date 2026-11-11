@@ -6,6 +6,8 @@ import { RECORDING_LIMITS, recordingDurationMs, type RecordingSummary, type Shar
 import { downloadMidi, type Recording } from "../midi/midiUtils";
 import type { LibraryEntry } from "../midi/recordingsLibrary";
 import type { WriteResult } from "../../lib/storage";
+import { blockedNameIssues, blockedNameMessage, type NameIssues } from "../../lib/recordings";
+import { NameIssue } from "./ShareParts";
 import { rainbow } from "../rainbow";
 import { useDialogFocus } from "../useDialogFocus";
 import CopyLinkButton from "./CopyLinkButton";
@@ -455,6 +457,29 @@ function SharedSongView({
   onBack: () => void;
   onPlayAlong?: (recording: Recording) => Promise<string | null>;
 }) {
+  // A share link has no list row to fall back on.
+  const unavailable = !summary && (song === "missing" || song === "error");
+  useLayoutEffect(() => {
+    if (unavailable) headingRef.current?.focus();
+  }, [unavailable, headingRef]);
+  if (unavailable)
+    return (
+      <div role="alert" className="flex min-h-0 flex-1 flex-col">
+        <h3 ref={headingRef} tabIndex={-1} className={SONG_TITLE}>
+          {song === "missing" ? "Song not found" : "This song didn't load"}
+        </h3>
+        <p className="mt-2 mb-5 text-[15px] text-ink-muted leading-relaxed">
+          {song === "missing"
+            ? "This link doesn't match a shared song. It may have been removed or hidden, or the link was copied wrong."
+            : "Check your connection, then open the link again."}
+        </p>
+        <div className="mt-auto flex shrink-0 gap-2 pt-5">
+          <button type="button" className="ms-key ms-key-primary flex-1 px-4 py-2.5 text-[15px]" onClick={onBack}>
+            Browse shared songs
+          </button>
+        </div>
+      </div>
+    );
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* Drawn from the list row at once; only the notes wait for the fetch.
@@ -477,7 +502,7 @@ function SharedSongView({
         <div role="alert" className="ms-well p-4 text-[15px]">
           <p className="font-medium mb-1">{song === "missing" ? "Song not found" : "Something went wrong"}</p>
           <p className="mb-3 text-ink-muted">
-            {song === "missing" ? "This song was removed." : "We couldn't load this song. Try again."}
+            {song === "missing" ? "This song was removed or hidden." : "We couldn't load this song. Try again."}
           </p>
           <button type="button" className="ms-key px-4 py-2 text-[14px]" onClick={onBack}>
             Back to songs
@@ -642,13 +667,17 @@ function ShareTakeView({
 }) {
   const [title, setTitle] = useState(take.name);
   const [authorName, setAuthorName] = useState(() => loadShareName());
-  const [askName] = useState(() => authorName === "");
+  const [askName] = useState(() => authorName === "" || blockedNameMessage("authorName", authorName) !== null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shared, setShared] = useState<TakeShare | null>(null);
+  const [nameIssues, setNameIssues] = useState<NameIssues>({});
   const ready = title.trim().length > 0 && authorName.trim().length > 0 && take.notes.length > 0;
 
   async function share() {
+    const issues = blockedNameIssues(title, authorName);
+    setNameIssues(issues);
+    if (issues.title || issues.authorName) return;
     setPending(true);
     setError(null);
     try {
@@ -689,14 +718,30 @@ function ShareTakeView({
         id="share-song-title"
         value={title}
         maxLength={RECORDING_LIMITS.titleLength.max}
-        onChange={(event) => setTitle(event.target.value)}
-        className="ms-input mt-1.5 mb-4 w-full"
+        onChange={(event) => {
+          setTitle(event.target.value);
+          setNameIssues((issues) => ({ ...issues, title: undefined }));
+        }}
+        aria-invalid={nameIssues.title !== undefined}
+        aria-describedby={nameIssues.title ? "share-song-title-issue" : undefined}
+        className="ms-input mt-1.5 w-full"
       />
+      <div className="mb-4">
+        {nameIssues.title && <NameIssue id="share-song-title-issue" message={nameIssues.title} />}
+      </div>
       {askName ? (
-        <AuthorNameField id="share-author" value={authorName} onChange={setAuthorName} />
+        <AuthorNameField
+          id="share-author"
+          value={authorName}
+          onChange={(value) => {
+            setAuthorName(value);
+            setNameIssues((issues) => ({ ...issues, authorName: undefined }));
+          }}
+        />
       ) : (
         <SharingAs name={authorName} />
       )}
+      {nameIssues.authorName && <NameIssue message={nameIssues.authorName} />}
       {take.notes.length === 0 && (
         <p className="mt-3 text-[14px] text-ink-muted">This take has no notes yet, so there&apos;s nothing to share.</p>
       )}

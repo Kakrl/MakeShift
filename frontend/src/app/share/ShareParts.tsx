@@ -50,6 +50,14 @@ export function SharingAs({ name }: { name: string }) {
   );
 }
 
+export function NameIssue({ id, message }: { id?: string; message: string }) {
+  return (
+    <p id={id} role="alert" className="mt-1.5 text-[13px] text-danger">
+      {message}
+    </p>
+  );
+}
+
 /** The public name field the first share asks for. */
 export function AuthorNameField({ id, value, onChange }: { id: string; value: string; onChange: (value: string) => void }) {
   return (
