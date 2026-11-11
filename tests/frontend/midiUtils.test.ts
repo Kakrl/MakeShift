@@ -390,3 +390,31 @@ describe("downloadMidi adapter (MIDI writer and DOM mocked)", () => {
     expect(dataUri).toHaveBeenCalledTimes(3);
   });
 });
+
+it("uses explicit Start and Resume boundaries without excluding message-delivery delay", () => {
+  const recorder = createRecorder();
+  recorder.startRecording(120, "Audio boundary", undefined, 800);
+  recorder.noteOn("C3", 80);
+  now = 1100;
+  recorder.noteOff("C3");
+  recorder.pauseRecording();
+  now = 1500;
+  recorder.resumeRecording(1300);
+  recorder.noteOn("D3", 80);
+  now = 1600;
+  const take = recorder.stopRecording()!;
+  expect(take.notes).toEqual([
+    { pitch: "C3", velocity: 80, startMs: 200, durationMs: 100 },
+    { pitch: "D3", velocity: 80, startMs: 500, durationMs: 100 },
+  ]);
+});
+
+it.each([-1, NaN, Infinity])("rejects invalid recording boundary %s without changing recorder state", timestamp => {
+  const recorder = createRecorder();
+  expect(() => recorder.startRecording(120, undefined, undefined, timestamp)).toThrow(RangeError);
+  expect(recorder.getState()).toBe("stopped");
+  recorder.startRecording(120);
+  recorder.pauseRecording();
+  expect(() => recorder.resumeRecording(timestamp)).toThrow(RangeError);
+  expect(recorder.getState()).toBe("paused");
+});

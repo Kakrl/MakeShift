@@ -50,6 +50,8 @@ class MetronomeProcessor extends AudioWorkletProcessor {
       if (!this.playing) return;
       this.count = 0;
       this.countTotal = this.beats;
+      this.countStartFrame = null;
+      this.countIntervalFrames = (sampleRate * 60 * 4) / (this.tempo * this.denominator);
       this.next = null;
       this.beat = 0;
       this.age = Infinity;
@@ -75,6 +77,8 @@ class MetronomeProcessor extends AudioWorkletProcessor {
         this.beat = 0;
       }
       if (this.wanted() && frame >= this.next) {
+        const counting = this.count !== null;
+        if (counting && this.countStartFrame === null) this.countStartFrame = frame;
         let type = "beat",
           countBeat = null;
         if (this.count !== null) {
@@ -99,9 +103,14 @@ class MetronomeProcessor extends AudioWorkletProcessor {
           generation: this.generation,
           frame,
           rate: sampleRate,
+          countStartFrame: counting ? this.countStartFrame : null,
+          countIntervalFrames: counting ? this.countIntervalFrames : null,
+          countTotal: counting ? this.countTotal : null,
         });
         this.beat = (this.beat + 1) % this.beats;
-        this.next += (sampleRate * 60 * 4) / (this.tempo * this.denominator);
+        this.next += this.count !== null
+          ? this.countIntervalFrames
+          : (sampleRate * 60 * 4) / (this.tempo * this.denominator);
         if (!this.wanted()) this.next = null;
       }
       let value = 0;

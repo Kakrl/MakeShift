@@ -321,7 +321,7 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, []);
 
-  const finishCountIn = useCallback(() => {
+  const finishCountIn = useCallback((boundaryMs: number) => {
     const action = countInActionRef.current;
     if (!action) return;
     if (session.status.state !== "playing") {
@@ -331,8 +331,8 @@ export default function Home() {
     }
     setCountInBeat(null);
     session.flushNotes();
-    if (action === "resume") recorder.resumeRecording();
-    else recorder.startRecording(tempo, undefined, meter);
+    if (action === "resume") recorder.resumeRecording(boundaryMs);
+    else recorder.startRecording(tempo, undefined, meter, boundaryMs);
     session.resumeInput();
     setRecordingState(recorder.getState());
     countInActionRef.current = null;
@@ -746,7 +746,8 @@ export default function Home() {
               <span
                 key={countInBeat}
                 className="ms-beat font-display text-white font-bold leading-none tabular-nums"
-                style={{ fontSize: "clamp(80px,20vw,160px)" }}
+                style={{ fontSize: "clamp(80px,20vw,160px)",
+                  animationDuration: `${Math.min(120, 120000 / (tempo * meter.denominator))}ms` }}
               >
                 {countInBeat}
               </span>
@@ -754,6 +755,7 @@ export default function Home() {
                 {Array.from({ length: beatsPerMeasure }, (_, i) => (
                   <div
                     key={i}
+                    style={{ transitionDuration: `${Math.min(120, 120000 / (tempo * meter.denominator))}ms` }}
                     className={`size-2.5 rounded-full transition-[transform,background-color] duration-150 ease-out ${i + 1 <= countInBeat ? rainbow(i).fill : "bg-white/30"} ${i + 1 === countInBeat ? "scale-[1.4]" : ""}`}
                   />
                 ))}
