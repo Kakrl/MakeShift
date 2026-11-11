@@ -449,6 +449,29 @@ it("keeps the final position available when camera settings changed", async () =
   expect(find("Next Step")).toBeDefined();
 });
 
+async function chooseProfile(name: string) {
+  const element = host.querySelector<HTMLSelectElement>("#calibration-profile")!;
+  const option = Array.from(element.options).find((o) => o.textContent === name);
+  if (!option) throw new Error(`Missing profile ${name}`);
+  await act(async () => {
+    element.value = option.value;
+    element.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  });
+}
+async function nameProfile(name: string, submit: string) {
+  const input = host.querySelector<HTMLInputElement>('input[aria-label="Profile name"]')!;
+  input.value = name;
+  await click(submit);
+}
+async function remount() {
+  await act(async () => root.unmount());
+  root = createRoot(host);
+  await act(async () => root.render(<Calibration />));
+  await tick(0);
+}
+const profileNames = () =>
+  Array.from(host.querySelectorAll<HTMLOptionElement>("#calibration-profile option"))
+    .filter((o) => o.value).map((o) => o.textContent);
 async function openHelp() {
   await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="Show help"]')!.click());
   return host.querySelector('[role="dialog"]')!;
@@ -483,4 +506,59 @@ it("keeps the hand photo for the hand step help", async () => {
       await click("Next Step");
     }
   }
+});
+
+it("saves, reloads, renames and deletes calibration profiles on step 1", async () => {
+  await select("octave-count", 2);
+  await select("starting-note", 36);
+  await select("paper-octaves", 2);
+  await click("Save profile");
+  await nameProfile("Desk", "Save");
+  expect(host.textContent).toContain('Saved "Desk".');
+  await select("octave-count", 1);
+  await click("Save profile");
+  await nameProfile("Small", "Save");
+
+  await remount();
+  expect(profileNames()).toEqual(["Desk", "Small"]);
+  await chooseProfile("Desk");
+  expect(loadKeyboardLayout()).toMatchObject({ octaves: 2, startingMidi: 36, paperOctaves: 2 });
+  expect(host.querySelector<HTMLSelectElement>("#octave-count")!.value).toBe("2");
+  expect(host.querySelector<HTMLSelectElement>("#calibration-profile")!.selectedOptions[0].textContent).toBe("Desk");
+
+  await click("Rename");
+  await nameProfile("small", "Save name");
+  expect(host.textContent).toContain("Another profile already uses that name.");
+  await nameProfile("Studio", "Save name");
+  expect(profileNames()).toEqual(["Studio", "Small"]);
+
+  dom.window.confirm = () => true;
+  await click("Delete");
+  expect(profileNames()).toEqual(["Small"]);
+  await remount();
+  expect(profileNames()).toEqual(["Small"]);
+});
+
+it("loading a profile still requires live marker detection on the paper step", async () => {
+  await complete();
+  await click("Start Playing");
+  await click("Restart calibration");
+  await click("Save profile");
+  await nameProfile("Desk", "Save");
+  const stored = JSON.parse(localStorage.getItem("makeshift:calibration-profiles:v1")!);
+  expect(stored[0].corners).toHaveLength(4);
+
+  await select("octave-count", 2);
+  await chooseProfile("Desk");
+  expect(loadKeyboardLayout().octaves).toBe(1);
+  expect(loadCalibration()).toBeNull();
+  fixture.markers = false;
+  await paper();
+  expect(host.textContent).toContain("Step 3: Show the whole paper");
+  await tick(1000);
+  expect(find("Next Step")).toBeUndefined();
+  expect(host.textContent).not.toContain("Sheet geometry validated");
+  fixture.markers = true;
+  await tick(250);
+  expect(host.textContent).toContain("Sheet geometry validated");
 });
