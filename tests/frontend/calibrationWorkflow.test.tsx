@@ -448,3 +448,39 @@ it("keeps the final position available when camera settings changed", async () =
   await click("Capture center position");
   expect(find("Next Step")).toBeDefined();
 });
+
+async function openHelp() {
+  await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="Show help"]')!.click());
+  return host.querySelector('[role="dialog"]')!;
+}
+
+it("shows paper guidance, not the hand photo, for the paper step help", async () => {
+  await paper();
+  expect(host.textContent).toContain("Step 3: Show the whole paper");
+  const dialog = await openHelp();
+  expect(dialog.getAttribute("aria-label")).toBe("Show the whole paper like this");
+  expect(dialog.querySelector('img[src="/hand-reference.png"]')).toBeNull();
+  expect(dialog.querySelector('svg[role="img"]')?.getAttribute("aria-label")).toContain("all four corner markers");
+  expect(dialog.textContent).toContain("all four corner markers");
+  expect(dialog.textContent).toContain("flat");
+  expect(dialog.textContent).toContain("even lighting");
+  await act(async () => dialog.querySelector<HTMLButtonElement>('button[aria-label="Close"]')!.click());
+  expect(host.querySelector('[role="dialog"]')).toBeNull();
+});
+
+it("keeps the hand photo for the hand step help", async () => {
+  await paper();
+  await click("Next Step");
+  for (const hand of ["Right", "Left"] as const) {
+    expect(host.textContent).toContain(`Step ${hand === "Right" ? 4 : 5}: Calibrate the ${hand.toLowerCase()} hand`);
+    const dialog = await openHelp();
+    expect(dialog.getAttribute("aria-label")).toBe("Put your hands like this");
+    expect(dialog.querySelector('img[src="/hand-reference.png"]')).not.toBeNull();
+    expect(dialog.textContent).not.toContain("corner markers");
+    await act(async () => dialog.querySelector<HTMLButtonElement>('button[aria-label="Close"]')!.click());
+    if (hand === "Right") {
+      await depth("Right");
+      await click("Next Step");
+    }
+  }
+});

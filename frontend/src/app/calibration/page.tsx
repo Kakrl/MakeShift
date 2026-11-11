@@ -85,6 +85,40 @@ function SuccessBadge({ label }: { label: string }) {
 
 const STEP_NAMES = ["Setup", "Lighting", "Paper", "Right", "Left"];
 
+const PAPER_HELP_TIPS = [
+  "Keep the whole sheet in view, with all four corner markers showing.",
+  "Lay it flat, with no folds or curled edges.",
+  "Use even lighting, without glare or shadows on the markers.",
+];
+
+function PaperHelpIllustration() {
+  const markers = [[52, 38], [252, 38], [252, 126], [52, 126]];
+  const bracket = (x: number, y: number, dx: number, dy: number) =>
+    `M${x} ${y + 14 * dy}V${y}H${x + 14 * dx}`;
+  return (
+    <svg role="img" aria-label="Paper sheet flat in the camera view with all four corner markers visible" viewBox="0 0 320 180" className="block w-full bg-surface-dark" style={{ aspectRatio: "16/9" }}>
+      <rect x="40" y="26" width="240" height="128" rx="4" fill="var(--color-white)" />
+      {Array.from({ length: 9 }, (_, i) => (
+        <line key={i} x1={76 + i * 21} y1="62" x2={76 + i * 21} y2="138" stroke="var(--color-divider)" strokeWidth="1.5" />
+      ))}
+      <line x1="76" y1="138" x2="244" y2="138" stroke="var(--color-divider)" strokeWidth="1.5" />
+      {markers.map(([x, y]) => (
+        <g key={`${x}-${y}`}>
+          <rect x={x} y={y} width="16" height="16" fill="var(--color-ink)" />
+          <rect x={x + 4} y={y + 4} width="5" height="5" fill="var(--color-white)" />
+          <rect x={x + 9} y={y + 9} width="3" height="3" fill="var(--color-white)" />
+        </g>
+      ))}
+      <g fill="none" stroke="var(--color-success-soft)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <path d={bracket(28, 14, 1, 1)} />
+        <path d={bracket(292, 14, -1, 1)} />
+        <path d={bracket(292, 166, -1, -1)} />
+        <path d={bracket(28, 166, 1, -1)} />
+      </g>
+    </svg>
+  );
+}
+
 function getCalibrationSettingsError(
   captured: { camera: CameraSignature; layout: KeyboardLayout } | null,
   camera: CameraSignature,
@@ -860,13 +894,24 @@ export default function Calibration() {
   // ── Help modal ────────────────────────────────────────────────────────────
   const renderHelpModal = () => {
     if (!showHelpModal) return null;
+    const paperHelp = step === 3;
+    const title = paperHelp ? "Show the whole paper like this" : "Put your hands like this";
     return (
       <div className="ms-backdrop absolute inset-0 z-50 flex items-center justify-center">
-        <div className="ms-dialog relative w-[88%] max-w-[640px] overflow-hidden rounded-[18px]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/hand-reference.png" alt="Hand positioning reference" className="w-full block" style={{ aspectRatio: "16/9", objectFit: "cover" }} />
-          <div className="px-5 py-3.5 flex items-center justify-between">
-            <p className="text-ink text-[15px] font-medium">Put your hands like this</p>
+        <div role="dialog" aria-modal="true" aria-label={title} className="ms-dialog relative w-[88%] max-w-[640px] overflow-hidden rounded-[18px]">
+          {paperHelp ? (
+            <PaperHelpIllustration />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/hand-reference.png" alt="Hand positioning reference" className="w-full block" style={{ aspectRatio: "16/9", objectFit: "cover" }} />
+          )}
+          <div className="px-5 py-3.5">
+            <p className="text-ink text-[15px] font-medium">{title}</p>
+            {paperHelp && (
+              <ul className="mt-1.5 list-disc pl-5 text-[14px] leading-6 text-ink-muted">
+                {PAPER_HELP_TIPS.map((tip) => <li key={tip}>{tip}</li>)}
+              </ul>
+            )}
           </div>
           <button onClick={() => setShowHelpModal(false)} aria-label="Close" className="ms-key ms-key-glass ms-key-icon absolute top-3 right-3 size-9 rounded-full">
             <svg aria-hidden="true" width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" /></svg>
