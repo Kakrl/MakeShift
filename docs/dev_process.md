@@ -103,7 +103,7 @@ MakeShift/
 │   │   │   └── shadowWorker.ts       # bounded background shadow segmentation
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
 │   │   ├── lib/                     # shared utilities (versioned storage, recordings API schema)
-│   │   │   ├── blockedNameWords.json # curated blocked words for shared names (#280)
+│   │   │   ├── blockedNameWords.json # CMU blocked words for shared names (#280)
 │   │   │   ├── keyboardSettings.ts  # persisted layout and synchronous invalidation
 │   │   │   └── nameFilter.ts        # whole-word blocked-name matching
 │   │   ├── server/                  # server-only Supabase access and recordings handlers

@@ -29,7 +29,11 @@ const blockedWord = (word: string) =>
 
 /** Whole-word match, so "Scunthorpe" passes; "f u c k" is joined first. */
 export function hasBlockedWord(text: string): boolean {
-  const words = normalize(text).split(/[^\p{L}]+/u).filter(Boolean);
+  const normalized = normalize(text);
+  const split = (value: string) => value.split(/[^\p{L}]+/u).filter(Boolean);
+  const words = split(normalized);
+  // List entries like "beat-off" and "women's" are stored joined.
+  const joined = split(normalized.replace(/(?<=\p{L})['’-](?=\p{L})/gu, "")).filter((word) => !words.includes(word));
   const spelled: string[] = [];
   let run = "";
   for (const word of [...words, ""]) {
@@ -40,5 +44,5 @@ export function hasBlockedWord(text: string): boolean {
     if (run.length >= 3) spelled.push(run);
     run = "";
   }
-  return [...words, ...spelled].some(blockedWord);
+  return [...words, ...joined, ...spelled].some(blockedWord);
 }

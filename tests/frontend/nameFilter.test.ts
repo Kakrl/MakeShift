@@ -29,41 +29,41 @@ describe("name filter (#280)", () => {
       "Fûck",
       "cunts",
       "dumb_ass",
+      "Brea5t",
+      "Beat-off",
     ])
       expect(hasBlockedWord(name), name).toBe(true);
   });
 
-  it("passes words that only contain a blocked word or are on the full list but benign", () => {
+  it("passes words that only contain a blocked word", () => {
     for (const name of [
       "Scunthorpe",
       "Classic class assignment",
       "Bass line",
-      "Assassin's creed theme",
       "Spices and herbs",
       "Cumin",
       "Dickens carol",
-      "Cock-a-doodle-doo",
       "Hello!",
-      "Amazing Grace (God)",
-      "Jesus loves me",
-      "Black and white keys",
-      "Gay pride march",
-      "Chinese new year",
-      "Snigger and giggle",
       "Raccoon song",
-      "Kumquat",
       "Ms. Rivera",
       "Op. 3 no. 5",
       "Sonata 1",
       "Grandpa Joe",
       "A B C song",
       "Mary's little lamb",
+      "Canon in C (both hands!)",
+      "Twinkle on paper",
+      "Ode to Joy with chords",
+      "Jingle Bells, left hand too",
+      "Up and down the scale",
+      "C, F, G chord practice",
     ])
       expect(hasBlockedWord(name), name).toBe(false);
   });
 
-  it("vendors a sorted, lowercase, letters-only subset of the source list", () => {
-    expect(blockedWords.length).toBeGreaterThan(300);
+  it("vendors the whole source list, normalized to sorted unique lowercase letters", () => {
+    expect(blockedWords).toHaveLength(1367);
+    for (const word of ["god", "kill", "beatoff", "breast", "childrens"]) expect(blockedWords).toContain(word);
     expect([...blockedWords].sort()).toEqual(blockedWords);
     expect(new Set(blockedWords).size).toBe(blockedWords.length);
     for (const word of blockedWords) expect(word).toMatch(/^[a-z]+$/);

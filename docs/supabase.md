@@ -37,33 +37,33 @@ the mock store and the share forms apply the same rule; the forms show the
 message under the field before anything is sent. Saving a take privately is
 not filtered.
 
-- **List:** [`frontend/src/lib/blockedNameWords.json`](../frontend/src/lib/blockedNameWords.json),
-  336 words vendored from Luis von Ahn's
+- **List:** [`frontend/src/lib/blockedNameWords.json`](../frontend/src/lib/blockedNameWords.json)
+  is Luis von Ahn's whole
   [Offensive/Profane Word List](https://www.cs.cmu.edu/~biglou/resources/bad-words.txt)
   (CMU, fetched 2026-11-11, 1,383 entries, SHA-256
-  `76425270af0ea70e22b6f0145ba670d64bdf4304dac017324c2b3d14ea9b95fe`). The
-  source page states no license; it offers the list for anyone who wants to
-  block offensive terms. Nothing is fetched at runtime.
-- **Why a subset:** the full list also blocks ordinary words and identities
-  (`african`, `bible`, `black`, `gay`, `god`, `jesus`, `jewish`, `girls`,
-  `cancer`, `fire`, `kill`), names (`dick`, `randy`, `willy`) and words that
-  only contain another (`niggle`, `snigger`, `kumquat`, `cocktail`). The subset
-  keeps explicit profanity, explicit sexual terms and slurs, and drops mild
-  words (`damn`, `hell`, `crap`, `poop`) and words with a common clean sense
-  (`ass` stays, `cock`, `balls`, `screw`, `tit` and `dyke` do not).
+  `76425270af0ea70e22b6f0145ba670d64bdf4304dac017324c2b3d14ea9b95fe`), with no
+  words removed. Entries are only normalized like input text (lowercase,
+  look-alikes mapped, hyphens and apostrophes dropped, so `brea5t` becomes
+  `breast` and `beat-off` becomes `beatoff`) and deduplicated, leaving 1,367.
+  The source page states no license; it offers the list for anyone who wants
+  to block offensive terms. Nothing is fetched at runtime.
+- **What it blocks:** the list includes ordinary words, identities and names
+  (`god`, `jesus`, `black`, `gay`, `girls`, `kid`, `fire`, `dead`, `ho`, `uk`,
+  `dick`), so names using them are refused as well.
 - **Matching** ([`nameFilter.ts`](../frontend/src/lib/nameFilter.ts)): accents
   are dropped, case folded and look-alikes mapped (`0`→o, `1`→i, `3`→e, `4`→a,
   `5`/`$`→s, `7`→t, `8`→b, `@`→a, `!`/`|` between letters→i). Text is split
   into words and each word is compared whole, also with runs of three or more
-  repeated letters squeezed and a plural `s` removed. Single letters in a row
-  (`f u c k`, `s.h.i.t`) are joined first. Only `fuck` is matched inside other
+  repeated letters squeezed and a plural `s` removed. Words joined by a hyphen
+  or apostrophe are also checked as one word, and single letters in a row
+  (`f u c k`, `s.h.i.t`) are joined. Only `fuck` is matched inside other
   words. Whole-word matching is what lets `Scunthorpe`, `class`, `Dickens`,
   `cumin` and `spices` through.
 - **Limits:** English only; no non-Latin look-alikes (Cyrillic `о`), words
-  split by spaces into pieces longer than one letter, or new compounds not on
-  the list. Existing rows are not rechecked; hide them with the `hidden` flag.
-  To change the list, edit the JSON (sorted, lowercase letters) and keep
-  `tests/frontend/nameFilter.test.ts` passing.
+  split by spaces into pieces longer than one letter, or compounds not on the
+  list. Existing rows are not rechecked; hide them with the `hidden` flag. To
+  refresh the list, normalize the new file the same way and update the entry
+  count in `tests/frontend/nameFilter.test.ts`.
 
 Every route returns `503` when Supabase is unconfigured and `502` when the
 database fails, without echoing database messages. Uploads are refused on
