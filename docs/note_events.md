@@ -108,8 +108,9 @@ suspend/reanchor, recording reset and explicit excluded pause time.
 `frontend/src/app/midi/playbackTimeline.ts` exports `createPlaybackTimeline`.
 It snapshots a `Recording` and uses the existing browser audio owner by default.
 Playback needs a user gesture to initialize audio, but no camera, calibration,
-storage, MIDI parser, or React render. The later falling-notes/scoring views
-(#131/#132) can read `getSnapshot()` on their own animation frames. This issue
+storage, MIDI parser, or React render. The falling-notes view (#131) reads
+`getSnapshot()` on its own animation frames, and play-along scoring (#132)
+maps live `note-on` timestamps onto the song clock with `positionAt()`. This issue
 provides the transport API; it does not wire the home page's Listen button.
 
 ```ts

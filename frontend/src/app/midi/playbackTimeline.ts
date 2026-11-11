@@ -86,6 +86,15 @@ export function createPlaybackTimeline(
       : position;
   }
 
+  function positionAtMs(clockMs: number) {
+    return state === "playing"
+      ? Math.min(
+          durationMs,
+          position + Math.max(0, clockMs - anchor) * rate,
+        )
+      : position;
+  }
+
   function cancelTimer() {
     clearTimeout(timer);
     timer = undefined;
@@ -208,6 +217,9 @@ export function createPlaybackTimeline(
         error,
       };
     },
+
+    /** Song position for a performance.now() timestamp, e.g. a note event's. */
+    positionAt: positionAtMs,
 
     async play(): Promise<boolean> {
       if (state === "disposed") return false;
