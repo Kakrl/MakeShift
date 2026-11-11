@@ -50,11 +50,10 @@ export function SharingAs({ name }: { name: string }) {
   );
 }
 
-/** A refused title or name, under its field; a saved name is changed elsewhere. */
-export function NameIssue({ id, message, savedName = false }: { id?: string; message: string; savedName?: boolean }) {
+export function NameIssue({ id, message }: { id?: string; message: string }) {
   return (
     <p id={id} role="alert" className="mt-1.5 text-[13px] text-danger">
-      {savedName ? "Your sharing name has a word we don't allow. Change it in My recordings." : message}
+      {message}
     </p>
   );
 }

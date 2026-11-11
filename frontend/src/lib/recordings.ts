@@ -76,12 +76,22 @@ export function recordingDurationMs(notes: readonly RecordedNote[]): number {
   );
 }
 
-/** Why a shared title or author name is refused, or null when it is fine. */
+export type NameIssues = { title?: string; authorName?: string };
+
 export function blockedNameMessage(field: "title" | "authorName", value: string): string | null {
   if (!hasBlockedWord(value)) return null;
   return field === "title"
     ? "That song name has a word we don't allow. Try another name."
     : "That name has a word we don't allow. Try another name.";
+}
+
+export function blockedNameIssues(title: string, authorName: string): NameIssues {
+  const issues: NameIssues = {};
+  const titleMessage = blockedNameMessage("title", title);
+  const authorMessage = blockedNameMessage("authorName", authorName);
+  if (titleMessage) issues.title = titleMessage;
+  if (authorMessage) issues.authorName = authorMessage;
+  return issues;
 }
 
 // Counts code points, as Postgres char_length does, not UTF-16 units.

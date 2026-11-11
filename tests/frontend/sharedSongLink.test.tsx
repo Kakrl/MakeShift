@@ -123,7 +123,8 @@ describe("shared recording link (#120)", () => {
 
   it("explains a missing or hidden song and leads to the shared list", async () => {
     open("not-a-song");
-    expect(await screen.findByRole("heading", { name: "Song not found" })).toBeTruthy();
+    const heading = await screen.findByRole("heading", { name: "Song not found" });
+    expect(document.activeElement).toBe(heading);
     expect(screen.getByText(/removed or hidden/)).toBeTruthy();
     expect(screen.queryByLabelText("Loading notes")).toBeNull();
     expect(screen.queryByRole("button", { name: "Play" })).toBeNull();

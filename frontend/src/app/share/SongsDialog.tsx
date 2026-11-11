@@ -6,7 +6,7 @@ import { RECORDING_LIMITS, recordingDurationMs, type RecordingSummary, type Shar
 import { downloadMidi, type Recording } from "../midi/midiUtils";
 import type { LibraryEntry } from "../midi/recordingsLibrary";
 import type { WriteResult } from "../../lib/storage";
-import { blockedNameMessage } from "../../lib/recordings";
+import { blockedNameIssues, blockedNameMessage, type NameIssues } from "../../lib/recordings";
 import { NameIssue } from "./ShareParts";
 import { rainbow } from "../rainbow";
 import { useDialogFocus } from "../useDialogFocus";
@@ -458,7 +458,11 @@ function SharedSongView({
   onPlayAlong?: (recording: Recording) => Promise<string | null>;
 }) {
   // A share link has no list row to fall back on.
-  if (!summary && (song === "missing" || song === "error"))
+  const unavailable = !summary && (song === "missing" || song === "error");
+  useLayoutEffect(() => {
+    if (unavailable) headingRef.current?.focus();
+  }, [unavailable, headingRef]);
+  if (unavailable)
     return (
       <div role="alert" className="flex min-h-0 flex-1 flex-col">
         <h3 ref={headingRef} tabIndex={-1} className={SONG_TITLE}>
@@ -663,20 +667,17 @@ function ShareTakeView({
 }) {
   const [title, setTitle] = useState(take.name);
   const [authorName, setAuthorName] = useState(() => loadShareName());
-  const [askName] = useState(() => authorName === "");
+  const [askName] = useState(() => authorName === "" || blockedNameMessage("authorName", authorName) !== null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shared, setShared] = useState<TakeShare | null>(null);
-  const [nameIssue, setNameIssue] = useState<{ field: "title" | "authorName"; message: string } | null>(null);
+  const [nameIssues, setNameIssues] = useState<NameIssues>({});
   const ready = title.trim().length > 0 && authorName.trim().length > 0 && take.notes.length > 0;
 
   async function share() {
-    const titleMessage = blockedNameMessage("title", title);
-    const authorMessage = blockedNameMessage("authorName", authorName);
-    if (titleMessage || authorMessage) {
-      setNameIssue(titleMessage ? { field: "title", message: titleMessage } : { field: "authorName", message: authorMessage! });
-      return;
-    }
+    const issues = blockedNameIssues(title, authorName);
+    setNameIssues(issues);
+    if (issues.title || issues.authorName) return;
     setPending(true);
     setError(null);
     try {
@@ -719,14 +720,14 @@ function ShareTakeView({
         maxLength={RECORDING_LIMITS.titleLength.max}
         onChange={(event) => {
           setTitle(event.target.value);
-          if (nameIssue?.field === "title") setNameIssue(null);
+          setNameIssues((issues) => ({ ...issues, title: undefined }));
         }}
-        aria-invalid={nameIssue?.field === "title"}
-        aria-describedby={nameIssue?.field === "title" ? "share-song-title-issue" : undefined}
+        aria-invalid={nameIssues.title !== undefined}
+        aria-describedby={nameIssues.title ? "share-song-title-issue" : undefined}
         className="ms-input mt-1.5 w-full"
       />
       <div className="mb-4">
-        {nameIssue?.field === "title" && <NameIssue id="share-song-title-issue" message={nameIssue.message} />}
+        {nameIssues.title && <NameIssue id="share-song-title-issue" message={nameIssues.title} />}
       </div>
       {askName ? (
         <AuthorNameField
@@ -734,13 +735,13 @@ function ShareTakeView({
           value={authorName}
           onChange={(value) => {
             setAuthorName(value);
-            if (nameIssue?.field === "authorName") setNameIssue(null);
+            setNameIssues((issues) => ({ ...issues, authorName: undefined }));
           }}
         />
       ) : (
         <SharingAs name={authorName} />
       )}
-      {nameIssue?.field === "authorName" && <NameIssue message={nameIssue.message} savedName={!askName} />}
+      {nameIssues.authorName && <NameIssue message={nameIssues.authorName} />}
       {take.notes.length === 0 && (
         <p className="mt-3 text-[14px] text-ink-muted">This take has no notes yet, so there&apos;s nothing to share.</p>
       )}

@@ -27,7 +27,7 @@ function variants(word: string): string[] {
 const blockedWord = (word: string) =>
   variants(word).some((form) => BLOCKED.has(form) || BLOCKED_ROOTS.some((root) => form.includes(root)));
 
-/** Whole-word match, so "Scunthorpe" passes; "f u c k" is joined first. */
+// Whole words only, so "Scunthorpe" passes.
 export function hasBlockedWord(text: string): boolean {
   const normalized = normalize(text);
   const split = (value: string) => value.split(/[^\p{L}]+/u).filter(Boolean);

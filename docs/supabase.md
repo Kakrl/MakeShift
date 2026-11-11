@@ -34,7 +34,9 @@ instead, for example without Infisical access.
 Titles and author names are refused with `400` when they contain a blocked
 word (#280). The check lives in the shared `validateUpload`, so the route,
 the mock store and the share forms apply the same rule; the forms show the
-message under the field before anything is sent. Saving a take privately is
+message under each blocked field before anything is sent, and ask for the
+author name again when the saved sharing name is blocked. The sharing-name
+editor in My recordings refuses blocked names too. Saving a take privately is
 not filtered.
 
 - **List:** [`frontend/src/lib/blockedNameWords.json`](../frontend/src/lib/blockedNameWords.json)
@@ -47,9 +49,12 @@ not filtered.
   `breast` and `beat-off` becomes `beatoff`) and deduplicated, leaving 1,367.
   The source page states no license; it offers the list for anyone who wants
   to block offensive terms. Nothing is fetched at runtime.
-- **What it blocks:** the list includes ordinary words, identities and names
-  (`god`, `jesus`, `black`, `gay`, `girls`, `kid`, `fire`, `dead`, `ho`, `uk`,
-  `dick`), so names using them are refused as well.
+- **What it blocks:** the list includes ordinary words, nationalities,
+  religions, identities and first names (`god`, `jesus`, `christian`, `church`,
+  `bible`, `muslim`, `african`, `asian`, `chinese`, `mexican`, `black`, `gay`,
+  `girls`, `kid`, `fire`, `killer`, `drunk`, `dead`, `ho`, `uk`, `dick`), so
+  titles such as "Africa", "Killer Queen" or "Jesus Loves Me" and an author
+  named Christian are refused too.
 - **Matching** ([`nameFilter.ts`](../frontend/src/lib/nameFilter.ts)): accents
   are dropped, case folded and look-alikes mapped (`0`→o, `1`→i, `3`→e, `4`→a,
   `5`/`$`→s, `7`→t, `8`→b, `@`→a, `!`/`|` between letters→i). Text is split
