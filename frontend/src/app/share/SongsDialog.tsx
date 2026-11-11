@@ -455,6 +455,25 @@ function SharedSongView({
   onBack: () => void;
   onPlayAlong?: (recording: Recording) => Promise<string | null>;
 }) {
+  // A share link has no list row to fall back on.
+  if (!summary && (song === "missing" || song === "error"))
+    return (
+      <div role="alert" className="flex min-h-0 flex-1 flex-col">
+        <h3 ref={headingRef} tabIndex={-1} className={SONG_TITLE}>
+          {song === "missing" ? "Song not found" : "This song didn't load"}
+        </h3>
+        <p className="mt-2 mb-5 text-[15px] text-ink-muted leading-relaxed">
+          {song === "missing"
+            ? "This link doesn't match a shared song. It may have been removed or hidden, or the link was copied wrong."
+            : "Check your connection, then open the link again."}
+        </p>
+        <div className="mt-auto flex shrink-0 gap-2 pt-5">
+          <button type="button" className="ms-key ms-key-primary flex-1 px-4 py-2.5 text-[15px]" onClick={onBack}>
+            Browse shared songs
+          </button>
+        </div>
+      </div>
+    );
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* Drawn from the list row at once; only the notes wait for the fetch.
@@ -477,7 +496,7 @@ function SharedSongView({
         <div role="alert" className="ms-well p-4 text-[15px]">
           <p className="font-medium mb-1">{song === "missing" ? "Song not found" : "Something went wrong"}</p>
           <p className="mb-3 text-ink-muted">
-            {song === "missing" ? "This song was removed." : "We couldn't load this song. Try again."}
+            {song === "missing" ? "This song was removed or hidden." : "We couldn't load this song. Try again."}
           </p>
           <button type="button" className="ms-key px-4 py-2 text-[14px]" onClick={onBack}>
             Back to songs
