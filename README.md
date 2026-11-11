@@ -5,6 +5,11 @@
 - Jadden Picardal
 - Francis Ozua
 
+Play MakeShift at the official address, **<https://make-shift-chi.vercel.app>**.
+Other domains are not run by the team, and HTTPS alone does not prove a site is
+MakeShift. Report lookalike sites in [issues](https://github.com/Kakrl/MakeShift/issues);
+see [the official address and impersonation response](docs/deployment.md#official-address-and-impersonation-response-199).
+
 The browser app plays a sampled Salamander grand piano locally through an
 AudioWorklet, with the selected +6 dB bass balance and velocity-sensitive gain.
 Enable audio once to preload the recordings; live notes need no network.
