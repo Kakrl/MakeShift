@@ -19,7 +19,7 @@ export interface CalibrationProfile {
 
 export type ProfileResult =
   | { ok: true; profile: CalibrationProfile }
-  | { ok: false; reason: Exclude<WriteResult, { ok: true }>["reason"] | "invalid-name" | "duplicate-name" | "not-found" };
+  | { ok: false; reason: Exclude<WriteResult, { ok: true }>["reason"] | "invalid-name" | "invalid-layout" | "duplicate-name" | "not-found" };
 
 const finitePoint = (p: unknown): p is Point =>
   !!p && typeof p === "object" &&
@@ -51,7 +51,7 @@ export function validProfile(value: unknown): value is CalibrationProfile {
 }
 
 export function cleanName(name: string): string {
-  return name.replace(/\s+/g, " ").trim().slice(0, PROFILE_NAME_MAX);
+  return name.replace(/\s+/g, " ").trim().slice(0, PROFILE_NAME_MAX).trim();
 }
 
 const sameName = (a: string, b: string) => a.toLocaleLowerCase() === b.toLocaleLowerCase();
@@ -95,7 +95,7 @@ export function saveProfile(
     paperFitOverride: !!layout.paperFitOverride,
   };
   if (corners && validCorners(corners)) profile.corners = corners.map((p) => ({ x: p.x, y: p.y }));
-  if (!validProfile(profile)) return { ok: false, reason: "error" };
+  if (!validProfile(profile)) return { ok: false, reason: "invalid-layout" };
   const next = existing
     ? profiles.map((p) => (p.id === existing.id ? profile : p))
     : [...profiles, profile];

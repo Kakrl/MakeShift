@@ -27,6 +27,7 @@ import { paperFits, paperOctaves, sameLayout, startingNotes, usableLayout, type 
 import { saveKeyboardLayout, subscribeKeyboardLayout } from "../../lib/keyboardSettings";
 import {
   PROFILE_NAME_MAX,
+  cleanName,
   deleteProfile,
   listProfiles,
   profileLayout,
@@ -98,6 +99,7 @@ const STEP_NAMES = ["Setup", "Lighting", "Paper", "Right", "Left"];
 function profileError(result: Exclude<ProfileResult, { ok: true }>): string {
   switch (result.reason) {
     case "invalid-name": return "Enter a profile name.";
+    case "invalid-layout": return "These keyboard settings cannot be saved as a profile.";
     case "duplicate-name": return "Another profile already uses that name.";
     case "not-found": return "That profile no longer exists.";
     case "quota": return "Browser storage is full. Free some space and retry.";
@@ -240,6 +242,7 @@ export default function Calibration() {
   const [selectedProfileId, setSelectedProfileId] = useState("");
   const [profileDraft, setProfileDraft] = useState<{ mode: "save" | "rename"; name: string } | null>(null);
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
+  const [profileAlert, setProfileAlert] = useState<string | null>(null);
   const profileNameRef = useRef<HTMLInputElement>(null);
 
   // Depth calibration step
@@ -417,8 +420,9 @@ export default function Calibration() {
     (p) => p.id === selectedProfileId && sameLayout(profileLayout(p), layout),
   ) ?? null;
 
-  function changeLayout(patch: Partial<KeyboardLayout>) {
+  function changeLayout(patch: Partial<KeyboardLayout>): boolean {
     setProfileStatus(null);
+    setProfileAlert(null);
     const octaves = patch.octaves ?? layout.octaves;
     const starts = startingNotes(octaves);
     const startingMidi = Math.min(patch.startingMidi ?? layout.startingMidi, starts.at(-1)!);
@@ -432,6 +436,7 @@ export default function Calibration() {
     setSheetDetected(false);
     resetInteractiveStepState();
     if (!result.ok) setCaptureError("Could not save keyboard settings. Enable browser storage and retry.");
+    return result.ok;
   }
 
   function applyProfile(id: string) {
@@ -439,23 +444,24 @@ export default function Calibration() {
     setSelectedProfileId(id);
     const profile = profiles.find((p) => p.id === id);
     if (!profile) return;
-    changeLayout({
-      octaves: profile.octaves,
-      startingMidi: profile.startingNote,
-      paperOctaves: profile.paperOctaves ?? profile.octaves,
-      paperFitOverride: profile.paperFitOverride ?? false,
+    const target = profileLayout(profile);
+    const loaded = sameLayout(target, layout) || changeLayout({
+      octaves: target.octaves,
+      startingMidi: target.startingMidi,
+      paperOctaves: paperOctaves(target),
+      paperFitOverride: !!target.paperFitOverride,
     });
-    setProfileStatus(`Loaded "${profile.name}". Step 3 still checks the paper.`);
+    if (loaded) setProfileStatus(`Loaded "${profile.name}". Step 3 still checks the paper.`);
   }
 
   function finishProfileChange(result: ProfileResult, success: (profile: CalibrationProfile) => string) {
     setProfiles(listProfiles());
     if (!result.ok) {
       setProfileStatus(null);
-      setCaptureError(profileError(result));
+      setProfileAlert(profileError(result));
       return false;
     }
-    setCaptureError(null);
+    setProfileAlert(null);
     setProfileStatus(success(result.profile));
     return true;
   }
@@ -469,6 +475,8 @@ export default function Calibration() {
       }
       return;
     }
+    const clash = profiles.find((p) => p.name.toLocaleLowerCase() === cleanName(name).toLocaleLowerCase());
+    if (clash && clash.id !== selectedProfile?.id && !window.confirm(`Replace the "${clash.name}" profile?`)) return;
     const saved = loadCalibration();
     const corners = saved && sameLayout(saved.layout, layout) ? saved.corners : null;
     const result = saveProfile(name, layout, corners);
@@ -1036,9 +1044,9 @@ export default function Calibration() {
       return {
         title: "Step 1: Pick your keyboard",
         // Lives in the reserved message line, so the warning never pushes the buttons.
-        alert: fits
+        alert: profileAlert ?? (fits
           ? null
-          : `It does not fit ${paperOctaves(layout)} octave${paperOctaves(layout) === 1 ? "" : "s"} of paper. ${layout.paperFitOverride ? "It will go past the edge." : "Add more, or tick the box."}`,
+          : `It does not fit ${paperOctaves(layout)} octave${paperOctaves(layout) === 1 ? "" : "s"} of paper. ${layout.paperFitOverride ? "It will go past the edge." : "Add more, or tick the box."}`),
         controls: (
           <>
             <div className="grid w-full grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1.5">
@@ -1098,7 +1106,7 @@ export default function Calibration() {
                 <button type="submit" className="ms-key ms-key-primary px-3 py-1.5 text-[14px]">
                   {profileDraft.mode === "rename" ? "Save name" : "Save"}
                 </button>
-                <button type="button" onClick={() => setProfileDraft(null)} className="ms-key ms-key-ghost px-3 py-1.5 text-[14px]">Cancel</button>
+                <button type="button" onClick={() => { setProfileDraft(null); setProfileAlert(null); }} className="ms-key ms-key-ghost px-3 py-1.5 text-[14px]">Cancel</button>
               </form>
             ) : (
               <div className="flex flex-wrap gap-2">

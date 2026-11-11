@@ -5,6 +5,7 @@ import { beforeEach, afterEach, expect, it, vi } from "vitest";
 import { loadCalibration } from "../../frontend/src/cv/calibration";
 import { parsePersistedDepthCalibration } from "../../frontend/src/cv/depthCalibration";
 import { loadKeyboardLayout } from "../../frontend/src/lib/keyboardSettings";
+import { listProfiles } from "../../frontend/src/lib/calibrationProfiles";
 const fixture = vi.hoisted(() => ({
   markers: true,
   validGeometry: true,
@@ -531,6 +532,14 @@ it("saves, reloads, renames and deletes calibration profiles on step 1", async (
   expect(host.textContent).toContain("Another profile already uses that name.");
   await nameProfile("Studio", "Save name");
   expect(profileNames()).toEqual(["Studio", "Small"]);
+
+  await chooseProfile("Small");
+  dom.window.confirm = () => false;
+  await click("Save profile");
+  await nameProfile("studio", "Save");
+  expect(listProfiles().find((p) => p.name === "Studio")).toMatchObject({ octaves: 2 });
+  await click("Cancel");
+  await chooseProfile("Studio");
 
   dom.window.confirm = () => true;
   await click("Delete");

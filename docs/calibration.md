@@ -25,8 +25,8 @@ Step 1 can save, load, rename and delete named profiles through
 `makeshift:calibration-profiles:v1`. A profile holds `octaves`,
 `startingNote` (MIDI), the declared paper octaves and override, and optional
 marker corners copied from a saved calibration with the same layout. Saving
-under an existing name (case-insensitive) replaces that profile; renaming onto
-another profile's name is rejected. Corrupt entries are dropped on read.
+under another profile's name (case-insensitive) asks before replacing it;
+renaming onto another profile's name is rejected. Corrupt entries are dropped on read.
 
 Loading a profile only fills in the step 1 fields through the normal layout
 save, so it invalidates any calibration for a different layout and never skips

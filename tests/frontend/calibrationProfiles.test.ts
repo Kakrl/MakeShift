@@ -59,7 +59,7 @@ describe("calibration profile storage", () => {
   it("rejects empty and duplicate names, unknown ids and invalid layouts", () => {
     const { access, items } = memoryStorage();
     expect(saveProfile("   ", TWO_OCTAVES, null, access)).toEqual({ ok: false, reason: "invalid-name" });
-    expect(saveProfile("Bad", { octaves: 2, startingMidi: 37, whiteKeys: 15 }, null, access)).toEqual({ ok: false, reason: "error" });
+    expect(saveProfile("Bad", { octaves: 2, startingMidi: 37, whiteKeys: 15 }, null, access)).toEqual({ ok: false, reason: "invalid-layout" });
     const a = saveProfile("A", TWO_OCTAVES, null, access);
     saveProfile("B", TWO_OCTAVES, null, access);
     if (!a.ok) throw new Error("save failed");
@@ -68,7 +68,8 @@ describe("calibration profile storage", () => {
     expect(renameProfile("missing", "C", access)).toEqual({ ok: false, reason: "not-found" });
     expect(deleteProfile("missing", access)).toEqual({ ok: false, reason: "not-found" });
     expect(saveProfile("x".repeat(80), TWO_OCTAVES, null, access)).toMatchObject({ ok: true, profile: { name: "x".repeat(PROFILE_NAME_MAX) } });
-    expect(JSON.parse(items.get(KEY)!)).toHaveLength(3);
+    expect(saveProfile(`${"y".repeat(PROFILE_NAME_MAX - 1)} bc`, TWO_OCTAVES, null, access)).toMatchObject({ ok: true, profile: { name: "y".repeat(PROFILE_NAME_MAX - 1) } });
+    expect(JSON.parse(items.get(KEY)!)).toHaveLength(4);
   });
 
   it("drops corrupt entries and ignores malformed corners or unparsable data", () => {
