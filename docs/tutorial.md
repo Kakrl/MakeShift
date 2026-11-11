@@ -59,9 +59,13 @@ With the calibration screen open:
 
 1. Choose your keyboard range and lowest note. Set the number of
    paper octaves to match your printed keyboard: one for the starter
-   sheet, plus one for each extension sheet you added.
+   sheet, plus one for each extension sheet you added. To reuse a
+   setup, pick it from **Profile**, or select **Save profile** to name
+   the current one. A profile only fills in these settings; the paper
+   is still checked again.
 2. Follow the lighting and paper-positioning instructions.
-   Keep all four markers visible during paper alignment.
+   Keep all four markers visible during paper alignment. Select **?**
+   on the camera for tips on each step.
 3. Follow the guided captures for each hand, making sure your
    hand is visible to the camera.
 4. When **Calibration saved** appears, select **Start Playing**.

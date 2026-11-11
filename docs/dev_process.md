@@ -103,6 +103,7 @@ MakeShift/
 │   │   │   └── shadowWorker.ts       # bounded background shadow segmentation
 │   │   ├── events/                  # shared schema, clocks, session and audio adapter
 │   │   ├── lib/                     # shared utilities (versioned storage, recordings API schema)
+│   │   │   ├── calibrationProfiles.ts # named step 1 calibration profiles
 │   │   │   └── keyboardSettings.ts  # persisted layout and synchronous invalidation
 │   │   ├── server/                  # server-only Supabase access and recordings handlers
 │   │   └── shims/                   # empty fs shim and type-only MIDI declaration bridge
@@ -156,6 +157,7 @@ MakeShift/
 │   │   ├── uiNavigation.selenium.mjs # Selenium control visibility, tab position, calibration nav
 │   │   ├── midiUtils.test.ts
 │   │   ├── storage.test.ts           # versioned localStorage module
+│   │   ├── calibrationProfiles.test.ts # profile storage and legacy flag absence
 │   │   └── check-contrast.mjs
 │   ├── python/
 │   │   ├── test_piano_sheets.py    # rendered PDF/ArUco/assembly checks
