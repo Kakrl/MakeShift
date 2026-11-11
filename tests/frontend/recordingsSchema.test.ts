@@ -4,6 +4,7 @@ import { pitchToMidi } from "../../frontend/src/cv/noteMap";
 import {
   RECORDING_LIMITS,
   recordingDurationMs,
+  recordingOctaves,
   validateUpload,
 } from "../../frontend/src/lib/recordings";
 
@@ -164,4 +165,18 @@ describe("pitchToMidi", () => {
 it.each([{numerator:1,denominator:1},{numerator:32,denominator:32},{numerator:12,denominator:8}])("preserves supported meter", meter => {
   const result=validateUpload({...valid(),meter});
   expect(result.ok && result.value.meter).toEqual(meter);
+});
+
+describe("recordingOctaves", () => {
+  const at = (...pitches: string[]) =>
+    pitches.map((pitch) => ({ pitch, velocity: 80, startMs: 0, durationMs: 100 }));
+
+  it("counts the pitch span in 12s, rounded up, at least 1", () => {
+    expect(recordingOctaves([])).toBe(1);
+    expect(recordingOctaves(at("C4"))).toBe(1);
+    expect(recordingOctaves(at("C4", "C5"))).toBe(1);
+    expect(recordingOctaves(at("C4", "C#5"))).toBe(2);
+    expect(recordingOctaves(at("C3", "D5"))).toBe(3);
+    expect(recordingOctaves(at("C3", "C6"))).toBe(3);
+  });
 });
