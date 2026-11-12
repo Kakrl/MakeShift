@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+import { favorites } from "../../lib/favorites";
 import { RECORDING_LIMITS, recordingDurationMs, type RecordingSummary, type SharedRecording } from "../../lib/recordings";
 import { downloadMidi, type Recording } from "../midi/midiUtils";
 import type { LibraryEntry } from "../midi/recordingsLibrary";
@@ -10,7 +11,8 @@ import { rainbow } from "../rainbow";
 import { useDialogFocus } from "../useDialogFocus";
 import CopyLinkButton from "./CopyLinkButton";
 import DeviceProfilePanel from "../midi/DeviceProfilePanel";
-import { AuthorNameField, BackIcon, CloseIcon, SharedConfirmation, SharingAs } from "./ShareParts";
+import { AuthorNameField, BackIcon, CloseIcon, SharedConfirmation, SharingAs, SongControls, StarButton } from "./ShareParts";
+import { DEFAULT_FILTERS, filterMine, isFiltered, toListQuery, type SongFilters } from "./songFilters";
 import SharedPlayer from "./SharedPlayer";
 import {
   asSharedRecording,
@@ -41,6 +43,7 @@ export type MyRecordings = {
   error: string | null;
 };
 
+const NO_FAVORITES: readonly string[] = [];
 type ListStatus = "loading" | "ready" | "error";
 type SongLoad = "loading" | "missing" | "error" | SharedRecording;
 type View =
@@ -93,6 +96,12 @@ export default function SongsDialog({
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [status, setStatus] = useState<ListStatus>("loading");
   const [loadingMore, setLoadingMore] = useState(false);
+  const [filters, setFilters] = useState<SongFilters>(DEFAULT_FILTERS);
+  const [favoriteError, setFavoriteError] = useState(false);
+  const favoriteIds = useSyncExternalStore(favorites.subscribe, favorites.getSnapshot, () => NO_FAVORITES);
+  const query = useMemo(() => toListQuery(filters, favoriteIds), [filters, favoriteIds]);
+  const noFavorites = filters.favoritesOnly && favoriteIds.length === 0;
+  const latestList = useRef(0);
   const [view, setView] = useState<View>(
     initialSongId ? { kind: "shared", id: initialSongId, summary: null } : { kind: "list" },
   );
@@ -102,19 +111,31 @@ export default function SongsDialog({
   const sharedId = view.kind === "shared" ? view.id : null;
 
   const load = useCallback(async (cursor: string | null) => {
+    // A newer first page makes any response still in flight stale.
+    const ticket = cursor ? latestList.current : ++latestList.current;
     if (cursor) setLoadingMore(true);
-    else setStatus("loading");
+    else {
+      setLoadingMore(false);
+      if (noFavorites) {
+        setRecordings([]);
+        setNextCursor(null);
+        setStatus("ready");
+        return;
+      }
+      setStatus("loading");
+    }
     try {
-      const page = await shareStore.list(cursor);
+      const page = await shareStore.list(cursor, query);
+      if (ticket !== latestList.current) return;
       setRecordings((current) => (cursor ? [...current, ...page.recordings] : page.recordings));
       setNextCursor(page.nextCursor);
       setStatus("ready");
     } catch {
-      setStatus("error");
+      if (ticket === latestList.current) setStatus("error");
     } finally {
-      setLoadingMore(false);
+      if (ticket === latestList.current) setLoadingMore(false);
     }
-  }, []);
+  }, [query, noFavorites]);
 
   // Sharing or unsharing a take changes the Shared list, so it reloads.
   useEffect(() => {
@@ -169,6 +190,18 @@ export default function SongsDialog({
     setDirection("pop");
     setView(view.kind === "share" ? { kind: "mine", id: view.id } : { kind: "list" });
   }
+
+  function toggleFavorite(id: string) {
+    setFavoriteError(!favorites.toggle(id).ok);
+  }
+
+  const shownMine = useMemo(() => filterMine(mine.entries, filters, favoriteIds), [mine.entries, filters, favoriteIds]);
+  const filtered = isFiltered(filters);
+  const [controlsKey, setControlsKey] = useState(0);
+  const clearFilters = () => {
+    setFilters(DEFAULT_FILTERS);
+    setControlsKey((key) => key + 1);
+  };
 
   function switchTab(next: SongsTab) {
     if (next === tab) return;
@@ -226,6 +259,12 @@ export default function SongsDialog({
               <>
                 <h3 ref={headingRef} tabIndex={-1} className="sr-only">Song list</h3>
                 <Tabs tab={tab} onChange={switchTab} />
+                <SongControls key={controlsKey} filters={filters} onChange={setFilters} />
+                {favoriteError && (
+                  <p role="status" className="mt-2 text-[13px] text-ink-muted">
+                    This browser can&apos;t save favorites, so they last until you close the page.
+                  </p>
+                )}
                 <div role="tabpanel" id={`songs-panel-${tab}`} aria-labelledby={`songs-tab-${tab}`} className="mt-4">
                   {tab === "shared" ? (
                     <SharedList
@@ -233,6 +272,11 @@ export default function SongsDialog({
                       status={status}
                       loadingMore={loadingMore}
                       hasMore={nextCursor !== null}
+                      filtered={filtered}
+                      favoritesOnly={filters.favoritesOnly}
+                      favoriteIds={favoriteIds}
+                      onToggleFavorite={toggleFavorite}
+                      onClearFilters={clearFilters}
                       sentinelRef={sentinelRef}
                       onRetry={() => void load(null)}
                       onOpen={(summary) => push({ kind: "shared", id: summary.id, summary })}
@@ -240,7 +284,16 @@ export default function SongsDialog({
                   ) : (
                     <>
                       <DeviceProfilePanel />
-                      <MineList mine={mine} onOpen={(id) => push({ kind: "mine", id })} />
+                      <MineList
+                        mine={mine}
+                        entries={shownMine}
+                        filtered={filtered}
+                        favoritesOnly={filters.favoritesOnly}
+                        favoriteIds={favoriteIds}
+                        onToggleFavorite={toggleFavorite}
+                        onClearFilters={clearFilters}
+                        onOpen={(id) => push({ kind: "mine", id })}
+                      />
                     </>
                   )}
                 </div>
@@ -251,6 +304,8 @@ export default function SongsDialog({
                 summary={view.summary ?? (typeof song === "object" ? song : null)}
                 song={song}
                 headingRef={headingRef}
+                favorite={sharedId !== null && favoriteIds.includes(sharedId)}
+                onToggleFavorite={toggleFavorite}
                 onBack={back}
                 onPlayAlong={playAlong}
               />
@@ -260,6 +315,8 @@ export default function SongsDialog({
                 entry={take}
                 share={mine.shares[take.recording.id] ?? null}
                 mine={mine}
+                favorite={favoriteIds.includes(take.recording.id)}
+                onToggleFavorite={toggleFavorite}
                 headingRef={headingRef}
                 onShare={() => push({ kind: "share", id: take.recording.id })}
                 onDeleted={back}
@@ -319,9 +376,19 @@ function SharedList({
   loadingMore,
   hasMore,
   sentinelRef,
+  filtered,
+  favoritesOnly,
+  favoriteIds,
+  onToggleFavorite,
+  onClearFilters,
   onRetry,
   onOpen,
 }: {
+  filtered: boolean;
+  favoritesOnly: boolean;
+  favoriteIds: readonly string[];
+  onToggleFavorite: (id: string) => void;
+  onClearFilters: () => void;
   recordings: RecordingSummary[];
   status: ListStatus;
   loadingMore: boolean;
@@ -346,7 +413,9 @@ function SharedList({
       </div>
     );
   if (recordings.length === 0)
-    return (
+    return filtered ? (
+      <EmptyMatches favoritesOnly={favoritesOnly && favoriteIds.length === 0} onClear={onClearFilters} />
+    ) : (
       <p className="ms-well px-4 py-6 text-center text-[15px] text-ink-muted">
         No one has shared a song yet. Record one and share it from My recordings!
       </p>
@@ -356,8 +425,8 @@ function SharedList({
       <ul className="grid gap-2 sm:grid-cols-2">
         {recordings.map((recording, index) => (
           // Stagger restarts per page, so scrolled-in items rise in too.
-          <li key={recording.id} className="ms-rise" style={{ "--i": index % PAGE_SIZE } as React.CSSProperties}>
-            <button type="button" onClick={() => onOpen(recording)} className={PRESSABLE_CARD}>
+          <li key={recording.id} className="ms-rise relative" style={{ "--i": index % PAGE_SIZE } as React.CSSProperties}>
+            <button type="button" onClick={() => onOpen(recording)} className={`${PRESSABLE_CARD} pr-12`}>
               <span aria-hidden="true" className="w-1.5 shrink-0 rounded-full" style={{ background: rainbow(index).color }} />
               <span className="min-w-0 flex-1">
                 <span className="block text-[16px] font-medium leading-snug break-words">{recording.title}</span>
@@ -369,6 +438,12 @@ function SharedList({
                 </span>
               </span>
             </button>
+            <StarButton
+              title={recording.title}
+              favorite={favoriteIds.includes(recording.id)}
+              onToggle={() => onToggleFavorite(recording.id)}
+              className="absolute right-1.5 top-1.5"
+            />
           </li>
         ))}
         {loadingMore && Array.from({ length: 2 }, (_, i) => <SongCardSkeleton key={`more-${i}`} />)}
@@ -379,18 +454,53 @@ function SharedList({
   );
 }
 
-function MineList({ mine, onOpen }: { mine: MyRecordings; onOpen: (id: string) => void }) {
+function EmptyMatches({ favoritesOnly, onClear }: { favoritesOnly: boolean; onClear: () => void }) {
+  return (
+    <div className="ms-well px-4 py-6 text-center text-[15px] text-ink-muted">
+      <p className="mb-3">
+        {favoritesOnly
+          ? "No favorites yet. Tap a song's star to keep it here."
+          : "No songs match. Try a different search or size."}
+      </p>
+      <button type="button" className="ms-key px-4 py-2 text-[14px]" onClick={onClear}>
+        Clear filters
+      </button>
+    </div>
+  );
+}
+
+function MineList({
+  mine,
+  entries,
+  filtered,
+  favoritesOnly,
+  favoriteIds,
+  onToggleFavorite,
+  onClearFilters,
+  onOpen,
+}: {
+  mine: MyRecordings;
+  entries: LibraryEntry[];
+  filtered: boolean;
+  favoritesOnly: boolean;
+  favoriteIds: readonly string[];
+  onToggleFavorite: (id: string) => void;
+  onClearFilters: () => void;
+  onOpen: (id: string) => void;
+}) {
   if (mine.entries.length === 0)
     return (
       <p className="ms-well px-4 py-6 text-center text-[15px] text-ink-muted">
         No recordings yet. Hit Record to make one!
       </p>
     );
+  if (entries.length === 0 && filtered)
+    return <EmptyMatches favoritesOnly={favoritesOnly && !mine.entries.some(({ recording }) => favoriteIds.includes(recording.id))} onClear={onClearFilters} />;
   return (
     <ul className="grid gap-2 sm:grid-cols-2">
-      {mine.entries.map(({ recording, saved }, index) => (
-        <li key={recording.id} className="ms-rise" style={{ "--i": index } as React.CSSProperties}>
-          <button type="button" onClick={() => onOpen(recording.id)} className={PRESSABLE_CARD}>
+      {entries.map(({ recording, saved }, index) => (
+        <li key={recording.id} className="ms-rise relative" style={{ "--i": index } as React.CSSProperties}>
+          <button type="button" onClick={() => onOpen(recording.id)} className={`${PRESSABLE_CARD} pr-12`}>
             <span aria-hidden="true" className="w-1.5 shrink-0 rounded-full" style={{ background: rainbow(index).color }} />
             <span className="min-w-0 flex-1">
               <span className="block text-[16px] font-medium leading-snug break-words">{recording.name}</span>
@@ -409,6 +519,12 @@ function MineList({ mine, onOpen }: { mine: MyRecordings; onOpen: (id: string) =
               </span>
             </span>
           </button>
+          <StarButton
+            title={recording.name}
+            favorite={favoriteIds.includes(recording.id)}
+            onToggle={() => onToggleFavorite(recording.id)}
+            className="absolute right-1.5 top-1.5"
+          />
         </li>
       ))}
     </ul>
@@ -446,9 +562,13 @@ function SharedSongView({
   summary,
   song,
   headingRef,
+  favorite,
+  onToggleFavorite,
   onBack,
   onPlayAlong,
 }: {
+  favorite: boolean;
+  onToggleFavorite: (id: string) => void;
   summary: RecordingSummary | null;
   song: SongLoad;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
@@ -459,9 +579,14 @@ function SharedSongView({
     <div className="flex min-h-0 flex-1 flex-col">
       {/* Drawn from the list row at once; only the notes wait for the fetch.
           From a share link, bars of the same line heights hold the space. */}
-      <h3 ref={headingRef} tabIndex={-1} className={SONG_TITLE}>
-        {summary ? summary.title : <TextBar width="w-1/2" />}
-      </h3>
+      <div className="flex items-center gap-2">
+        <h3 ref={headingRef} tabIndex={-1} className={`${SONG_TITLE} min-w-0`}>
+          {summary ? summary.title : <TextBar width="w-1/2" />}
+        </h3>
+        {summary && (
+          <StarButton title={summary.title} favorite={favorite} onToggle={() => onToggleFavorite(summary.id)} />
+        )}
+      </div>
       <p className="mt-1.5 mb-5 text-[14px] text-ink-muted tabular-nums">
         {summary ? (
           <>
@@ -497,6 +622,8 @@ function MySongView({
   entry,
   share,
   mine,
+  favorite,
+  onToggleFavorite,
   headingRef,
   onShare,
   onDeleted,
@@ -505,6 +632,8 @@ function MySongView({
   entry: LibraryEntry;
   share: TakeShare | null;
   mine: MyRecordings;
+  favorite: boolean;
+  onToggleFavorite: (id: string) => void;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
   onShare: () => void;
   onDeleted: () => void;
@@ -568,6 +697,7 @@ function MySongView({
             >
               Rename
             </button>
+            <StarButton title={recording.name} favorite={favorite} onToggle={() => onToggleFavorite(recording.id)} />
           </>
         )}
       </div>

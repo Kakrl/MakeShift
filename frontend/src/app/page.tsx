@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { useCamera } from "./CameraContext";
 import CameraStatusOverlay from "./CameraStatusOverlay";
 import PlayAlongBar from "./midi/PlayAlongBar";
-import { startPlayAlong } from "./midi/playAlong";
+import { scorePlayAlongPress, startPlayAlong } from "./midi/playAlong";
 import SideNav from "./SideNav";
 import PedalControls from "./PedalControls";
 import PageTopBar from "./PageTopBar";
@@ -366,6 +366,7 @@ export default function Home() {
   useEffect(() => {
     const detach = session.attach();
     const disconnectNotes = connectPianoConsumers(session, recorder, setActivePitches);
+    const disconnectScoring = session.subscribeNotes(({ event }) => scorePlayAlongPress(event));
     let previousState = session.status.state;
     const unsubscribe = session.subscribe(() => {
       const status = session.status;
@@ -404,6 +405,7 @@ export default function Home() {
       detach();
       session.flushNotes();
       disconnectNotes();
+      disconnectScoring();
       recorder.stopRecording();
       cancelMetronomeRequest();
       metronomeController.close();
@@ -459,7 +461,7 @@ export default function Home() {
   // Called from the Play along click, so that gesture can start piano audio.
   const playAlong = async (song: Recording) => {
     if (!await enableAudio()) return session.status.message;
-    startPlayAlong(song);
+    startPlayAlong(song, session.layout);
     return null;
   };
 
@@ -612,13 +614,13 @@ export default function Home() {
               <div className="flex gap-3">
                 <button
                   onClick={() => { setShowWelcome(false); router.push("/tutorial"); }}
-                  className="ms-key flex-1 py-3"
+                  className="ms-key ms-key-primary flex-1 py-3"
                 >
                   Read Tutorial
                 </button>
                 <button
                   onClick={() => { setShowWelcome(false); setShowCalibrationIntro(true); }}
-                  className="ms-key ms-key-primary flex-1 py-3"
+                  className="ms-key flex-1 py-3"
                 >
                   Start Calibration
                 </button>

@@ -1,9 +1,11 @@
 // Browser client for the recordings API (#119, #122, #128). Same shape as
 // the mock store, so the share UI does not care which one it is using.
 import { isMeter, restoreMeter } from "../../lib/meter";
+import { MAX_QUERY_IDS, MAX_SEARCH_LENGTH, RECORDING_ID } from "../../lib/recordings";
 import type {
   DeleteRecordingResponse,
   RecordingApiError,
+  RecordingListQuery,
   RecordingListResponse,
   SharedRecording,
   UploadRecordingRequest,
@@ -19,7 +21,7 @@ export class ShareNotFoundError extends Error {
 }
 
 export type ShareStore = {
-  list(cursor?: string | null): Promise<RecordingListResponse>;
+  list(cursor?: string | null, query?: RecordingListQuery): Promise<RecordingListResponse>;
   /** Null when the recording is missing or hidden. */
   get(id: string): Promise<SharedRecording | null>;
   upload(request: UploadRecordingRequest): Promise<UploadRecordingResponse>;
@@ -30,6 +32,19 @@ export type ShareStore = {
 async function apiError(response: Response): Promise<Error> {
   const body = (await response.json().catch(() => null)) as RecordingApiError | null;
   return new Error(body?.issues?.[0]?.message ?? body?.error ?? `Request failed (${response.status}).`);
+}
+
+export function listQueryString(cursor: string | null, query: RecordingListQuery = {}): string {
+  const params = new URLSearchParams();
+  const q = query.q?.trim().slice(0, MAX_SEARCH_LENGTH);
+  if (q) params.set("q", q);
+  if (query.sort && query.sort !== "newest") params.set("sort", query.sort);
+  if (query.maxOctaves) params.set("maxOctaves", String(query.maxOctaves));
+  if (query.ids)
+    params.set("ids", query.ids.filter((id) => RECORDING_ID.test(id)).slice(0, MAX_QUERY_IDS).join(","));
+  if (cursor) params.set("cursor", cursor);
+  const text = params.toString();
+  return text ? `?${text}` : "";
 }
 
 export function createShareApi(fetchImpl: typeof fetch = (...args) => fetch(...args)): ShareStore {
@@ -46,8 +61,8 @@ export function createShareApi(fetchImpl: typeof fetch = (...args) => fetch(...a
   });
 
   return {
-    async list(cursor = null) {
-      const page = await call<RecordingListResponse>(cursor ? `?cursor=${encodeURIComponent(cursor)}` : "");
+    async list(cursor = null, query) {
+      const page = await call<RecordingListResponse>(listQueryString(cursor, query));
       return { ...page, recordings: page.recordings.map((r) => ({ ...r, meter: restoreMeter(r.meter) })) };
     },
 
