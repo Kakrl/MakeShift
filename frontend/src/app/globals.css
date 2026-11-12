@@ -110,6 +110,11 @@
   --gutter-r: clamp(12px, 3.2vw, 47px);
 }
 
+html {
+  /* Keep page gutters consistent when a classic scrollbar appears. */
+  scrollbar-gutter: stable;
+}
+
 body {
   background: var(--color-surface);
   color: var(--color-ink);
