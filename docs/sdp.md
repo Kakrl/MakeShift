@@ -178,3 +178,12 @@ rejection and safe cancellation; free play outside count-in remains available.
 No change to latency thresholds or pedal recording scope. Mapped tests CI-01
 through CI-04 cover software behavior; physical camera/audio evidence remains
 pending in the [manual procedure](../tests/manual/2026-10-27_CI-04.md).
+
+## Official address and impersonation response (#199)
+
+Before public promotion, Carl Xu confirms the official production address
+(currently <https://make-shift-chi.vercel.app>, confirmation pending) and owns
+monthly lookalike checks and provider reports; Jadden Picardal keeps
+user-facing links consistent. Camera prompt redesign and database changes are
+out of scope. Procedure: [deployment](deployment.md#official-address-and-impersonation-response-199);
+tests SEC-01 and SEC-02.

@@ -200,3 +200,13 @@ rejection and safe cancellation; free play outside count-in remains available.
 No change to latency thresholds or pedal recording scope. Mapped tests CI-01
 through CI-04 cover software behavior; physical camera/audio evidence remains
 pending in the [manual procedure](../tests/manual/2026-10-27_CI-04.md).
+
+## Official address and impersonation (#199)
+
+SEC-1 adds a security process requirement alongside 5.2: user-facing links use
+one official HTTPS address, a named owner runs periodic lookalike checks, and a
+documented procedure covers evidence, provider/registrar reports and official
+warnings. HTTPS (5.2) protects the connection but does not prove site identity,
+and checks cannot prevent a separate-domain impersonator. Mapped tests SEC-01
+and SEC-02; hosting confirmation of the address is pending. See
+[the procedure](deployment.md#official-address-and-impersonation-response-199).

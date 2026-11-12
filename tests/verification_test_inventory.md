@@ -103,6 +103,7 @@ Existing proposed dates remain planning estimates, not renewed commitments.
 | 6.2 | Guided calibration sequence | 6.2.1, 6.2.2, 6.2.3, 6.2.4 |
 | 6.3 | MIDI recording tutorial | 6.3.1, 6.3.2, 6.3.3 |
 | PB-1 | Recording playback transport (#130; RVTM addendum) | PB-1.1 to PB-1.5 |
+| SEC-1 | One official address and impersonation response (#199; RVTM addendum) | SEC-01, SEC-02 |
 
 ## Inventory
 
@@ -360,6 +361,18 @@ First CI execution: [frontend job](https://github.com/Kakrl/MakeShift/actions/ru
 | 5.1.2 | System | 5.1 | **Added.** Production worklet, procedural and sampled DSP, piano sample MP3/manifest, model and pinned MediaPipe WASM load with expected content types (model as `application/octet-stream`); five pages finish MediaPipe/OpenCV initialization without uncaught or displayed errors; three enable/play/stop rounds make zero network requests ([source](frontend/deployment.browser.mjs)) | Harry Deng | Playwright + Chromium | Yes | Implemented, fake devices only | Yes (`frontend-ci.yml`) | [Local record](README.md#deployment-verification-issues-89-and-116) passed; deployed preview assets checked with `vercel curl`; [Actions job log](https://github.com/Kakrl/MakeShift/actions/runs/36735042554/job/109954414324) passed 2026-09-30 for prior assets; [#210 expanded assets](manual/2026-10-19_210-register-balance.md) passed locally 2026-10-19, new Actions pending |
 | 3.2.5 | Integration | 3.2 | **Added.** Camera denial shows a blocked message; retry acquires the camera; an ended track shows "Camera disconnected"; each retry removes the message and the preview renders fresh frames from the new stream ([source](frontend/deployment.browser.mjs)). Runs on `/calibration`; the home page overlay is covered by 3.2.3 (#112, fixed in #113) | Jadden Picardal | Playwright + Chromium fake camera | Yes | Implemented, scripted denial and simulated track end | Yes (`frontend-ci.yml`) | [Local record](README.md#deployment-verification-issues-89-and-116) passed, and failed with the track-end handler removed; [Actions job log](https://github.com/Kakrl/MakeShift/actions/runs/36735042554/job/109954414324) passed 2026-09-30; unchanged camera cases rerun in Edge 2026-10-19 ([record](manual/2026-10-19_210-register-balance.md)); [report](manual/2026-09-30_3.2.5.md) |
 | 5.1.3 | Unit | 5.1 | **Added.** `/api/health` database check: unconfigured without network, row-free HEAD with the secret key, status-only errors and detail-free network failures ([source](frontend/supabaseHealth.test.ts)). Live playing does not call it | Harry Deng | Vitest | Yes | Implemented | Yes (`frontend-ci.yml`) | [Local record](README.md#deployment-verification-issues-89-and-116) passed; deployed preview returned `200 ok`; [Actions job log](https://github.com/Kakrl/MakeShift/actions/runs/36735042554/job/109954414324) passed 2026-09-30 |
+
+## Official address and impersonation response (#199)
+
+Documentation and process checks for Threat 2 (lookalike sites). Procedure,
+owners and cadence: [deployment](../docs/deployment.md#official-address-and-impersonation-response-199).
+Hosting confirmation of the official address by Carl Xu is pending; finding an
+actual impersonator is not required.
+
+| Test ID | Level | Requirement | Description / source | Owner | Tool | Automated? | Implementation Status | CI Integrated? | Execution evidence |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| SEC-01 | Documentation | SEC-1, 5.2 | **Added.** Every user-facing production link (README, tutorial, how-to, deployment, app pages) and test runner example uses exactly `https://make-shift-chi.vercel.app`; previews and unconfirmed domains are not linked; every other link origin in those surfaces is reviewed as a known third party ([check command](../docs/deployment.md#official-address)) | Jadden Picardal | `git grep` origin listing + exact-origin check + review | Partial (command, manual review of other origins) | Implemented; official address hosting confirmation pending | No | Local run on the #199 branch, 2026-11-12: exact-origin check printed nothing; listed origins were the official address, localhost examples, w3.org, cdn.jsdelivr.net, github.com, nextjs.org, nodejs.org, safebrowsing.google.com and vercel.com; reviewer rerun and Carl Xu confirmation pending |
+| SEC-02 | Process | SEC-1 | **Added.** Recurring lookalike search (monthly, before public promotion, within 2 days of a report) and impersonation response: evidence, provider/registrar reports, official warnings ([procedure](../docs/deployment.md#responding-to-an-impersonator)) | Carl Xu (Jadden Picardal backup) | Web search, `dig`/WHOIS, GitHub | No | Planned; procedure documented, ownership agreement pending | N/A (manual) | Pending; no check recorded yet |
 
 ## Browser storage module (#114)
 
