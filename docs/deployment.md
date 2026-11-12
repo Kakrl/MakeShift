@@ -116,14 +116,28 @@ given. It is the Vercel production alias for `kakrl/make-shift`, built from
 
 User-facing links must use the exact official address: the [README](../README.md),
 [tutorial](tutorial.md), [how-to](how-to.md), this page, and any link added to
-the app. Test runner examples may use it as `MAKE_SHIFT_URL`. Check with:
+the app. Test runner examples may use it as `MAKE_SHIFT_URL`. List every link
+origin in those surfaces:
 
 ```sh
-git grep -nE "https?://[a-z0-9.-]*(vercel\.app|makeshift[a-z0-9.-]*)" -- . ':!docs/SBOM.json' ':!tests/README.md'
+SURFACES="README.md docs/tutorial.md docs/how-to.md docs/deployment.md frontend/src/app"
+git grep -ohE "https?://[^][ )\"'<>\`]+" -- $SURFACES \
+  | sed -E 's#^(https?://[^/?#]+).*#\1#' | sort | uniq -c
 ```
 
-Every hit should be `https://make-shift-chi.vercel.app`; historical preview URLs
-in `tests/README.md` execution records are evidence, not user links.
+Every link to MakeShift itself must have exactly the origin
+`https://make-shift-chi.vercel.app`. Review each other origin and confirm it
+is a known third party (GitHub, Vercel, Node.js, and so on), not a stand-in
+for the app. This must print nothing:
+
+```sh
+git grep -ohE "https?://[^][ )\"'<>\`]+" -- $SURFACES \
+  | sed -E 's#^(https?://[^/?#]+).*#\1#' | sort -u \
+  | grep -vxF 'https://make-shift-chi.vercel.app' | grep -iE 'vercel\.app$|make-?shift'
+```
+
+Historical preview URLs in `tests/README.md` execution records are evidence,
+not user links, so that file is not scanned.
 
 ### Ownership and cadence
 
@@ -152,8 +166,11 @@ issue.
    `shasum -a 256` or `sha256sum`; do not run it), the TLS certificate issuer and subject,
    `dig`/WHOIS output for the domain, and how it was found or reported.
 2. **Open an issue** in `Kakrl/MakeShift` titled `security: impersonating
-   site <domain>` with the evidence. Do not link the site as a clickable URL;
-   write it as code (`example[.]com`).
+   site <domain>`. The issue is public, so post only defanged URLs written as
+   code (`example[.]com`, query strings removed), download hashes and redacted
+   screenshots. Keep raw evidence (saved HTML, downloads, full URLs, WHOIS
+   output) in a private location shared with the owners below, and note in
+   the issue where it is kept.
 3. **Report it.** Carl Xu reports to the hosting provider (for `*.vercel.app`,
    Vercel's abuse report; otherwise the provider shown by `dig`/WHOIS), the
    domain registrar's abuse contact from WHOIS, and Google Safe Browsing
@@ -162,8 +179,8 @@ issue.
 4. **Warn users** through official channels only: a pinned issue and a notice at
    the top of the [README](../README.md) in `Kakrl/MakeShift`, and a notice on
    the official site if one is deployed. Each warning restates the official
-   address and that MakeShift's only downloads are the piano sheet PDFs and
-   the user's own MIDI exports; it never asks users to install software.
+   address and that MakeShift's only downloads are printable piano sheets and
+   MIDI recordings; it never asks users to install software.
 5. **Close out** when the site is down or reports are exhausted: remove
    temporary notices, keep the issue as the record.
 
