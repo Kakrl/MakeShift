@@ -179,14 +179,23 @@ request before merging/deploying. Hosted migration status remains unverified.
 
 ## Octaves migration (#281)
 
-`20261109000000_recording_octaves.sql` adds `recordings.octaves` (the pitch
-span in 12s, rounded up, at least 1), backfills it from each recording's
-notes, adds visible-row indexes for the oldest and longest sorts, and makes
-`upload_recording` store it. Title search is a `ilike` scan, which is fine
+`20261109000000_recording_octaves.sql` adds `public.recording_octaves(notes)`
+and `recordings.octaves`: the octaves of the smallest sheet that holds the
+song. Sheets start on a C and run 1-3 octaves to a shared final C, so the
+count is measured from the C at or below the lowest note (B4 to D5 needs two)
+and matches `recordingOctaves` in `frontend/src/lib/recordings.ts`. The
+migration backfills every row with that function, adds visible-row indexes for
+the oldest and longest sorts, and makes `upload_recording` store the `octaves`
+the API sends, or derive it from `notes` when the field is absent. That
+fallback keeps uploads from the API deployed before this migration working
+during the rollout window. Only `service_role` may call the function. Title search is a `ilike` scan, which is fine
 at the current table size; add a trigram index if the list grows large.
 
-Local migration execution is pending: no Postgres is available in this
-checkout, so the backfill SQL has not been run. Apply it to a throwaway
+On 2026-11-12 the migrations ran in PGlite 0.3.14 (an ad hoc script, not a
+repository test): the backfill gave B4-D5 2, C4-C5 1, C3-D5 3, A3-E5 3 and
+empty or unparseable notes 1, and `upload_recording` derived 2 for a B4-D5
+upload without `octaves` and kept a sent value. Hosted Postgres execution is
+still pending. Apply it to a throwaway
 database first, then `npx supabase db push --linked`, and check
 `supabase migration list --linked` plus a live list request with `sort=longest`
 and `maxOctaves=1` before deploying. Apply it before the deploy that sends

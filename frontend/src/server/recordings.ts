@@ -9,6 +9,7 @@ import { restoreMeter } from "../lib/meter";
 import {
   MAX_QUERY_IDS,
   MAX_SEARCH_LENGTH,
+  RECORDING_ID,
   RECORDING_LIST_PAGE_SIZE,
   RECORDING_SORTS,
   recordingDurationMs,
@@ -54,7 +55,6 @@ export const MAX_UPLOAD_BYTES = 1_000_000;
 export const UPLOAD_RATE_LIMIT = { uploads: 5, windowSeconds: 600 } as const;
 
 const SUMMARY_COLUMNS = "id,title,author_name,bpm,meter,duration_ms,note_count,octaves,created_at";
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // A Postgres timestamptz as PostgREST returns it. Kept as text, because a JS
 // Date would drop the microseconds the keyset compares against.
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/;
@@ -156,7 +156,7 @@ function encodeCursor(sort: RecordingSort, row: SummaryRow): string {
 function decodeCursor(cursor: string, sort: RecordingSort): Cursor | null {
   try {
     const value: unknown = JSON.parse(Buffer.from(cursor, "base64url").toString());
-    if (!Array.isArray(value) || value.length !== 2 || typeof value[1] !== "string" || !UUID.test(value[1]))
+    if (!Array.isArray(value) || value.length !== 2 || typeof value[1] !== "string" || !RECORDING_ID.test(value[1]))
       return null;
     const key = value[0];
     const valid =
@@ -189,7 +189,7 @@ function parseListQuery(url: URL): ListQuery | string {
   if (octaves !== null && !/^\d{1,2}$/.test(octaves)) return "Invalid maxOctaves.";
   const ids = get("ids");
   const list = ids === null ? null : ids === "" ? [] : ids.split(",");
-  if (list && (list.length > MAX_QUERY_IDS || !list.every((id) => UUID.test(id)))) return "Invalid ids.";
+  if (list && (list.length > MAX_QUERY_IDS || !list.every((id) => RECORDING_ID.test(id)))) return "Invalid ids.";
   return {
     sort: sort as RecordingSort,
     search,
@@ -243,7 +243,7 @@ export function listRecordings(request: Request, deps: RecordingsDeps) {
 
 /** `GET /api/recordings/:id`: one visible recording with its notes. */
 export function getRecording(id: string, deps: RecordingsDeps) {
-  if (!UUID.test(id)) return Promise.resolve(fail(404, "Recording not found."));
+  if (!RECORDING_ID.test(id)) return Promise.resolve(fail(404, "Recording not found."));
   return withDatabase(deps, async (rest) => {
     const rows = await rest<(SummaryRow & { notes: RecordedNote[] })[]>(
       new URLSearchParams({
@@ -362,7 +362,7 @@ export async function deleteRecording(id: string, request: Request, deps: Record
   const token = (read.body as { deleteToken?: unknown } | null)?.deleteToken;
   if (typeof token !== "string" || token.length === 0 || token.length > 256)
     return fail(403, "A valid delete token is required.");
-  if (!UUID.test(id)) return fail(404, "Recording not found.");
+  if (!RECORDING_ID.test(id)) return fail(404, "Recording not found.");
 
   return withDatabase(deps, async (rest) => {
     const deleted = await rest<{ id: string }[]>(

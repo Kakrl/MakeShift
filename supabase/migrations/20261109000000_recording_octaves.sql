@@ -1,30 +1,38 @@
--- Octaves of keyboard a recording spans: the pitch span in 12s, rounded up,
--- at least 1. The list API filters on it (#281). Pitch names are parsed
--- like pitchToMidi in frontend/src/cv/noteMap.ts.
-alter table public.recordings add column octaves smallint not null default 1
-  check (octaves between 1 and 11);
-
-update public.recordings r
-set octaves = spans.octaves
-from (
-  select id, greatest(1, ceil((max(midi) - min(midi)) / 12.0))::smallint as octaves
+-- Smallest C-to-C sheet holding the notes, like recordingOctaves.
+create or replace function public.recording_octaves(p_notes jsonb)
+returns smallint
+language sql
+immutable
+set search_path = ''
+as $$
+  select coalesce(
+    greatest(1, ceil((max(midi) - floor(min(midi) / 12) * 12) / 12.0)),
+    1
+  )::smallint
   from (
     select
-      id,
-      (m[3]::integer + 1) * 12
+      (m[3]::numeric + 1) * 12
         + (array[0, 2, 4, 5, 7, 9, 11])[position(m[1] in 'CDEFGAB')]
         + (case m[2] when '#' then 1 when 'b' then -1 else 0 end) as midi
     from (
-      select
-        r2.id,
-        regexp_match(n ->> 'pitch', '^([A-G])([#b]?)(-?[0-9]+)$') as m
-      from public.recordings r2, jsonb_array_elements(r2.notes) as n
+      select regexp_match(n ->> 'pitch', '^([A-G])([#b]?)(-?[0-9]+)$') as m
+      from jsonb_array_elements(
+        case jsonb_typeof(p_notes) when 'array' then p_notes else '[]' end
+      ) as n
     ) parsed
     where m is not null
   ) pitches
-  group by id
-) spans
-where r.id = spans.id;
+  where midi between 0 and 127;
+$$;
+
+revoke all on function public.recording_octaves(jsonb)
+  from public, anon, authenticated;
+grant execute on function public.recording_octaves(jsonb) to service_role;
+
+alter table public.recordings add column octaves smallint not null default 1
+  check (octaves between 1 and 11);
+
+update public.recordings set octaves = public.recording_octaves(notes);
 
 create index recordings_visible_oldest_idx
   on public.recordings (created_at, id)
@@ -74,7 +82,10 @@ begin
     p_recording->'meter',
     (p_recording->>'duration_ms')::integer,
     (p_recording->>'note_count')::integer,
-    (p_recording->>'octaves')::smallint,
+    coalesce(
+      (p_recording->>'octaves')::smallint,
+      public.recording_octaves(p_recording->'notes')
+    ),
     p_recording->'notes',
     p_recording->>'delete_token_hash'
   ) returning id into new_id;

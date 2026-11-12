@@ -1,7 +1,7 @@
 // Browser client for the recordings API (#119, #122, #128). Same shape as
 // the mock store, so the share UI does not care which one it is using.
 import { isMeter, restoreMeter } from "../../lib/meter";
-import { MAX_QUERY_IDS, MAX_SEARCH_LENGTH } from "../../lib/recordings";
+import { MAX_QUERY_IDS, MAX_SEARCH_LENGTH, RECORDING_ID } from "../../lib/recordings";
 import type {
   DeleteRecordingResponse,
   RecordingApiError,
@@ -40,7 +40,8 @@ export function listQueryString(cursor: string | null, query: RecordingListQuery
   if (q) params.set("q", q);
   if (query.sort && query.sort !== "newest") params.set("sort", query.sort);
   if (query.maxOctaves) params.set("maxOctaves", String(query.maxOctaves));
-  if (query.ids) params.set("ids", query.ids.slice(0, MAX_QUERY_IDS).join(","));
+  if (query.ids)
+    params.set("ids", query.ids.filter((id) => RECORDING_ID.test(id)).slice(0, MAX_QUERY_IDS).join(","));
   if (cursor) params.set("cursor", cursor);
   const text = params.toString();
   return text ? `?${text}` : "";

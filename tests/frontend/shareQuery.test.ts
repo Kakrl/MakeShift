@@ -30,6 +30,9 @@ async function everything(query: RecordingListQuery) {
   return rows;
 }
 
+const A = "0b6f1a52-3c4d-4e5f-8a9b-0c1d2e3f4a5b";
+const B = "9f8e7d6c-5b4a-4c3d-9e2f-1a0b9c8d7e6f";
+
 describe("listQueryString", () => {
   it("is empty for a plain newest-first list", () => {
     expect(listQueryString(null)).toBe("");
@@ -41,14 +44,19 @@ describe("listQueryString", () => {
       q: `  ${"x".repeat(MAX_SEARCH_LENGTH + 20)}  `,
       sort: "longest",
       maxOctaves: 2,
-      ids: ["a", "b"],
+      ids: [A, B],
     });
     const params = new URLSearchParams(text);
     expect(params.get("q")).toBe("x".repeat(MAX_SEARCH_LENGTH));
     expect(params.get("sort")).toBe("longest");
     expect(params.get("maxOctaves")).toBe("2");
-    expect(params.get("ids")).toBe("a,b");
+    expect(params.get("ids")).toBe(`${A},${B}`);
     expect(params.get("cursor")).toBe("abc");
+  });
+
+  it("drops mock and local favorite ids the API would reject", () => {
+    expect(new URLSearchParams(listQueryString(null, { ids: ["demo-1", A, "1a2b3c4d"] })).get("ids")).toBe(A);
+    expect(new URLSearchParams(listQueryString(null, { ids: ["demo-1"] })).get("ids")).toBe("");
   });
 
   it("drops a blank search", () => {

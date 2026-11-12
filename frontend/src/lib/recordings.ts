@@ -42,6 +42,8 @@ export type RecordingSort = (typeof RECORDING_SORTS)[number];
 /** Sheets come in one, two and three octaves. */
 export const OCTAVE_CHOICES = [1, 2, 3] as const;
 export const MAX_QUERY_IDS = 100;
+/** Shared recording ids; mock and local ids are not UUIDs. */
+export const RECORDING_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const MAX_SEARCH_LENGTH = 100;
 
 /** Query of `GET /api/recordings`; every field is optional. */
@@ -56,7 +58,7 @@ export type RecordingListQuery = {
   ids?: string[];
 };
 
-/** Octaves needed to play the notes: the pitch span in 12s, rounded up, at least 1. */
+/** Octaves of the smallest sheet holding the notes: sheets run C to C, so B4 and D5 need two. */
 export function recordingOctaves(notes: readonly RecordedNote[]): number {
   let low = Infinity;
   let high = -Infinity;
@@ -66,7 +68,7 @@ export function recordingOctaves(notes: readonly RecordedNote[]): number {
     low = Math.min(low, midi);
     high = Math.max(high, midi);
   }
-  return high < low ? 1 : Math.max(1, Math.ceil((high - low) / 12));
+  return high < low ? 1 : Math.max(1, Math.ceil((high - Math.floor(low / 12) * 12) / 12));
 }
 
 /** `GET /api/recordings`, newest first unless `sort` says otherwise. Pass `nextCursor` back to get the next page; null on the last page. */
