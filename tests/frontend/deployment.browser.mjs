@@ -8,6 +8,7 @@
  * Uses fake media devices; real camera and speaker checks stay manual.
  */
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 const requireFromFrontend = createRequire(
   new URL("../../frontend/package.json", import.meta.url),
@@ -49,6 +50,7 @@ const ASSETS = [
   [base + "/audio/piano-samples/manifest.json", /application\/json/],
   [base + "/audio/piano-samples/C2.mp3", /audio\/mpeg/],
   [base + "/models/hand_landmarker.task", /^application\/octet-stream/],
+  [base + "/piano-sheets.zip", /^application\/zip/],
   [WASM_BASE + "/vision_wasm_internal.js", /javascript/],
   [WASM_BASE + "/vision_wasm_internal.wasm", /application\/wasm/],
 ];
@@ -84,6 +86,30 @@ async function checkPages(context) {
   }
   await page.close();
   results.pages = Object.keys(PAGES).join(", ");
+}
+
+async function checkPianoSheetDownloads(context) {
+  const archive = await readFile(
+    new URL("../../frontend/public/piano-sheets.zip", import.meta.url),
+  );
+  const page = await context.newPage();
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.addInitScript(() => localStorage.setItem("hasVisited", "true"));
+  for (const path of ["/", "/tutorial"]) {
+    await page.goto(base + path);
+    const link = page.getByRole("link", { name: "Download piano sheets (ZIP)" });
+    const bounds = await link.boundingBox();
+    assert(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 320);
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      link.click(),
+    ]);
+    assert.equal(download.suggestedFilename(), "piano-sheets.zip");
+    assert.deepEqual(await readFile(await download.path()), archive);
+    assert.equal(page.url(), base + path);
+  }
+  await page.close();
+  results.pianoSheets = "matching ZIP downloads from home and tutorial at 320px";
 }
 
 // Recovery means the overlay is gone and the preview shows the new stream's
@@ -211,6 +237,7 @@ async function checkHealth(request) {
   });
   try {
     const context = await browser.newContext();
+    await checkPianoSheetDownloads(context);
     await checkAssets(context.request);
     await checkPages(context);
     await checkLocalPlaying(context);
