@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { FALL_LEAD_MS } from "../../frontend/src/cv/fallingNotes";
 import { HIT_WINDOW_MS, createScorer } from "../../frontend/src/app/midi/playAlongScore";
 import { createPlayAlong, getPlayAlong, scorePlayAlongPress, startPlayAlong, stopPlayAlong } from "../../frontend/src/app/midi/playAlong";
 
@@ -40,6 +41,13 @@ describe("createScorer matching", () => {
     const scorer = createScorer(song);
     expect(scorer.press(60, 1000)).toBe(true);
     expect(scorer.press(60, 1010)).toBe(false);
+  });
+
+  it("lets a late-delivered in-window press override expiry from a refresh", () => {
+    const scorer = createScorer(song);
+    expect(scorer.snapshot(1000 + HIT_WINDOW_MS + 50)).toMatchObject({ hits: 0, misses: 1 });
+    expect(scorer.press(60, 1100)).toBe(true);
+    expect(scorer.snapshot(1000 + HIT_WINDOW_MS + 50)).toMatchObject({ hits: 1, misses: 0 });
   });
 
   it("gives a repeated pitch to the nearest note", () => {
@@ -107,7 +115,10 @@ const noteOn = (pitch: number, timestampMs: number) =>
   ({ version: 1, sessionId: "s", sequence: 1, timestampMs, type: "note-on", pressId: 1, pitch, velocity: 0.8 }) as const;
 
 describe("play-along scoring", () => {
-  afterEach(() => stopPlayAlong());
+  afterEach(() => {
+    stopPlayAlong();
+    vi.useRealTimers();
+  });
 
   it("does not score notes outside the keyboard layout", () => {
     const song = createPlayAlong(recording, undefined, { octaves: 1, startingMidi: 60, whiteKeys: 8 });
@@ -126,7 +137,60 @@ describe("play-along scoring", () => {
     const song = createPlayAlong(recording);
     await song.timeline.play();
     const at = performance.now() + 500;
-    expect(song.timeline.positionAt(at) - song.timeline.positionAt(at - 200)).toBeCloseTo(200, 0);
+    expect(song.timeline.positionAt(at)! - song.timeline.positionAt(at - 200)!).toBeCloseTo(200, 0);
     song.timeline.dispose();
+  });
+
+  it("keeps scoring through the final hit window after a short last note", async () => {
+    vi.useFakeTimers();
+    startPlayAlong({ ...recording, notes: [{ pitch: "C4", velocity: 80, startMs: 0, durationMs: 50 }] });
+    const song = getPlayAlong()!;
+    await vi.advanceTimersByTimeAsync(0);
+    const onset = performance.now() + FALL_LEAD_MS;
+    await vi.advanceTimersByTimeAsync(FALL_LEAD_MS + 100);
+    scorePlayAlongPress(noteOn(60, onset + 100));
+    expect(song.score.snapshot(FALL_LEAD_MS + 100)).toMatchObject({ hits: 1, misses: 0 });
+    expect(song.timeline.getSnapshot().state).toBe("playing");
+    await vi.advanceTimersByTimeAsync(HIT_WINDOW_MS);
+    expect(song.timeline.getSnapshot()).toMatchObject({ state: "ended", durationMs: FALL_LEAD_MS + HIT_WINDOW_MS });
+  });
+
+  it("counts a skipped final note as a miss once the song ends", async () => {
+    vi.useFakeTimers();
+    startPlayAlong({ ...recording, notes: [{ pitch: "C4", velocity: 80, startMs: 0, durationMs: 50 }] });
+    const song = getPlayAlong()!;
+    await vi.advanceTimersByTimeAsync(FALL_LEAD_MS + HIT_WINDOW_MS + 10);
+    expect(song.timeline.getSnapshot().state).toBe("ended");
+    expect(song.score.snapshot(Infinity)).toMatchObject({ hits: 0, misses: 1 });
+  });
+
+  it("drops a press made while paused even when it arrives after resume", async () => {
+    vi.useFakeTimers();
+    startPlayAlong(recording, { octaves: 1, startingMidi: 60, whiteKeys: 8 });
+    const song = getPlayAlong()!;
+    await vi.advanceTimersByTimeAsync(FALL_LEAD_MS - 50);
+    song.timeline.pause();
+    await vi.advanceTimersByTimeAsync(20);
+    const pausedPress = performance.now();
+    await vi.advanceTimersByTimeAsync(1000);
+    await song.timeline.play();
+    scorePlayAlongPress(noteOn(60, pausedPress));
+    expect(song.score.snapshot(FALL_LEAD_MS - 50)).toMatchObject({ hits: 0, misses: 0 });
+    scorePlayAlongPress(noteOn(60, performance.now() + 50));
+    expect(song.score.snapshot(FALL_LEAD_MS)).toMatchObject({ hits: 1, misses: 0 });
+  });
+
+  it("scores a press made before a pause at its playing-time position", async () => {
+    vi.useFakeTimers();
+    startPlayAlong(recording, { octaves: 1, startingMidi: 60, whiteKeys: 8 });
+    const song = getPlayAlong()!;
+    await vi.advanceTimersByTimeAsync(0);
+    const onset = performance.now() + FALL_LEAD_MS;
+    await vi.advanceTimersByTimeAsync(FALL_LEAD_MS + 20);
+    song.timeline.pause();
+    await vi.advanceTimersByTimeAsync(5000);
+    await song.timeline.play();
+    scorePlayAlongPress(noteOn(60, onset));
+    expect(song.score.snapshot(FALL_LEAD_MS + 20)).toMatchObject({ hits: 1, misses: 0 });
   });
 });

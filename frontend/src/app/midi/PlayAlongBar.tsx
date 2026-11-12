@@ -34,7 +34,7 @@ export default function PlayAlongBar() {
     const update = () => {
       const next = playAlong.timeline.getSnapshot();
       setSnapshot(next);
-      setScore(playAlong.score.snapshot(next.positionMs));
+      setScore(playAlong.score.snapshot(next.state === "ended" ? Infinity : next.positionMs));
     };
     update();
     const timer = setInterval(update, 250);

@@ -18,7 +18,8 @@ const MISSED = 2;
 /**
  * Matches presses to expected notes on the song clock. A press hits the
  * nearest unmatched note of its pitch inside the window; any other press is
- * a miss, and a note nobody hit by the end of its window is a miss.
+ * a miss, and a note nobody hit by the end of its window is a miss. A
+ * late-delivered press still hits a note its timestamp falls inside.
  */
 export function createScorer(notes: readonly ScoredNote[], windowMs = HIT_WINDOW_MS) {
   const expected = [...notes].sort((a, b) => a.startMs - b.startMs);
@@ -41,7 +42,7 @@ export function createScorer(notes: readonly ScoredNote[], windowMs = HIT_WINDOW
       for (let index = 0; index < expected.length; index++) {
         const note = expected[index];
         if (note.startMs - windowMs > positionMs) break;
-        if (status[index] !== PENDING || note.midi !== midi) continue;
+        if (status[index] === HIT || note.midi !== midi) continue;
         const distance = Math.abs(note.startMs - positionMs);
         if (distance <= windowMs && distance < bestDistance) {
           best = index;

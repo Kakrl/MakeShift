@@ -5,7 +5,7 @@ import { pitchToMidi } from "../../cv/noteMap";
 import type { NoteEvent } from "../../events/noteEvents";
 import type { Recording } from "./midiUtils";
 import { createPlaybackTimeline, type PlaybackAudio, type PlaybackTimeline } from "./playbackTimeline";
-import { createScorer, type Scorer } from "./playAlongScore";
+import { HIT_WINDOW_MS, createScorer, type Scorer } from "./playAlongScore";
 
 /** One song falling toward the keyboard (#131), on its own playback timeline. */
 export type PlayAlong = Readonly<{
@@ -41,10 +41,18 @@ export function createPlayAlong(
   const playable = layout
     ? notes.filter((note) => note.midi >= layout.startingMidi && note.midi <= layout.startingMidi + 12 * layout.octaves)
     : notes;
+  const last = shifted.notes.reduce<(typeof shifted.notes)[number] | null>(
+    (latest, note) => (!latest || note.startMs > latest.startMs ? note : latest),
+    null,
+  );
+  // A silent tail keeps the clock running through the last hit window.
+  const timed = last
+    ? { ...shifted, notes: [...shifted.notes, { ...last, velocity: 0, durationMs: HIT_WINDOW_MS }] }
+    : shifted;
   return Object.freeze({
     title: recording.name,
     notes,
-    timeline: createPlaybackTimeline(shifted, audio),
+    timeline: createPlaybackTimeline(timed, audio),
     score: createScorer(playable),
   });
 }
@@ -78,9 +86,9 @@ export function stopPlayAlong() {
   emit();
 }
 
-/** Feeds a live note event to the song's score while the song is playing. */
+/** Feeds a live note event to the song's score if the song was playing when it happened. */
 export function scorePlayAlongPress(event: NoteEvent) {
   if (event.type !== "note-on" || !current) return;
-  if (current.timeline.getSnapshot().state !== "playing") return;
-  current.score.press(event.pitch, current.timeline.positionAt(event.timestampMs));
+  const position = current.timeline.positionAt(event.timestampMs);
+  if (position !== null) current.score.press(event.pitch, position);
 }
