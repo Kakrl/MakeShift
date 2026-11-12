@@ -29,13 +29,49 @@ export type RecordingSummary = {
   meter?: Meter;
   durationMs: number;
   noteCount: number;
+  /** Octaves of keyboard the song spans, at least 1: see `recordingOctaves`. */
+  octaves: number;
   createdAt: string;
 };
 
 /** `GET /api/recordings/:id`. */
 export type SharedRecording = RecordingSummary & { notes: RecordedNote[] };
 
-/** `GET /api/recordings`, newest first. Pass `nextCursor` back to get the next page; null on the last page. */
+export const RECORDING_SORTS = ["newest", "oldest", "longest"] as const;
+export type RecordingSort = (typeof RECORDING_SORTS)[number];
+/** Sheets come in one, two and three octaves. */
+export const OCTAVE_CHOICES = [1, 2, 3] as const;
+export const MAX_QUERY_IDS = 100;
+/** Shared recording ids; mock and local ids are not UUIDs. */
+export const RECORDING_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const MAX_SEARCH_LENGTH = 100;
+
+/** Query of `GET /api/recordings`; every field is optional. */
+export type RecordingListQuery = {
+  /** Case-insensitive title match. */
+  q?: string;
+  /** Defaults to newest. */
+  sort?: RecordingSort;
+  /** Only songs that fit a sheet of this many octaves or fewer. */
+  maxOctaves?: number;
+  /** Only these recordings (favorites), at most MAX_QUERY_IDS. */
+  ids?: string[];
+};
+
+/** Octaves of the smallest sheet holding the notes: sheets run C to C, so B4 and D5 need two. */
+export function recordingOctaves(notes: readonly RecordedNote[]): number {
+  let low = Infinity;
+  let high = -Infinity;
+  for (const { pitch } of notes) {
+    const midi = pitchToMidi(pitch);
+    if (midi === null) continue;
+    low = Math.min(low, midi);
+    high = Math.max(high, midi);
+  }
+  return high < low ? 1 : Math.max(1, Math.ceil((high - Math.floor(low / 12) * 12) / 12));
+}
+
+/** `GET /api/recordings`, newest first unless `sort` says otherwise. Pass `nextCursor` back to get the next page; null on the last page. */
 export type RecordingListResponse = {
   recordings: RecordingSummary[];
   nextCursor: string | null;

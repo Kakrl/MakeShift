@@ -8,7 +8,9 @@ import type { RecordedNote, Recording } from "../midi/midiUtils";
 import {
   RECORDING_LIST_PAGE_SIZE,
   recordingDurationMs,
+  recordingOctaves,
   validateUpload,
+  type RecordingListQuery,
   type RecordingListResponse,
   type RecordingSummary,
   type SharedRecording,
@@ -105,6 +107,7 @@ const FIXTURE_RECORDINGS: SharedRecording[] = FIXTURES.map((fixture, index) => {
     bpm: fixture.bpm,
     durationMs: recordingDurationMs(notes),
     noteCount: notes.length,
+    octaves: recordingOctaves(notes),
     createdAt: new Date(Date.UTC(2026, 9, 12 - index, 18 - index, 15)).toISOString(),
     notes,
   };
@@ -130,12 +133,28 @@ function isStoredShares(value: unknown): value is StoredShare[] {
 function withoutToken(share: StoredShare): SharedRecording {
   const recording: SharedRecording & { deleteToken?: string } = { ...share };
   delete recording.deleteToken;
-  return { ...recording, meter: restoreMeter(recording.meter) };
+  return { ...recording, meter: restoreMeter(recording.meter), octaves: recordingOctaves(recording.notes) };
 }
 
 function summarize(recording: SharedRecording): RecordingSummary {
-  const { id, title, authorName, bpm, durationMs, noteCount, createdAt } = recording;
-  return { id, title, authorName, bpm, meter: restoreMeter(recording.meter), durationMs, noteCount, createdAt };
+  const { id, title, authorName, bpm, durationMs, noteCount, octaves, createdAt } = recording;
+  return { id, title, authorName, bpm, meter: restoreMeter(recording.meter), durationMs, noteCount, octaves, createdAt };
+}
+
+/** The route's filters and sorts, with ties broken by id so paging is stable. */
+function matching(recordings: SharedRecording[], query: RecordingListQuery): SharedRecording[] {
+  const q = query.q?.trim().toLowerCase();
+  const rows = recordings
+    .filter((r) => !q || r.title.toLowerCase().includes(q))
+    .filter((r) => !query.maxOctaves || r.octaves <= query.maxOctaves)
+    .filter((r) => !query.ids || query.ids.includes(r.id));
+  const order = (a: SharedRecording, b: SharedRecording) =>
+    query.sort === "longest"
+      ? b.durationMs - a.durationMs
+      : query.sort === "oldest"
+        ? a.createdAt.localeCompare(b.createdAt)
+        : b.createdAt.localeCompare(a.createdAt);
+  return rows.sort((a, b) => order(a, b) || a.id.localeCompare(b.id));
 }
 
 export function createMockShareStore(
@@ -161,10 +180,10 @@ export function createMockShareStore(
   }
 
   return {
-    /** `GET /api/recordings`. The cursor is the next offset. */
-    list(cursor: string | null = null): Promise<RecordingListResponse> {
+    /** `GET /api/recordings`. The cursor is the next offset into the sorted matches. */
+    list(cursor: string | null = null, query: RecordingListQuery = {}): Promise<RecordingListResponse> {
       return respond(() => {
-        const recordings = all();
+        const recordings = matching(all(), query);
         const start = cursor ? Number(cursor) : 0;
         const end = start + RECORDING_LIST_PAGE_SIZE;
         const page = recordings.slice(start, end).map(summarize);
@@ -195,6 +214,7 @@ export function createMockShareStore(
           id: crypto.randomUUID().slice(0, 8),
           durationMs: recordingDurationMs(upload.notes),
           noteCount: upload.notes.length,
+          octaves: recordingOctaves(upload.notes),
           createdAt: new Date().toISOString(),
           deleteToken: crypto.randomUUID(),
         };
