@@ -1,5 +1,16 @@
 # MakeShift Testing
 
+## Side navigation scrollbar fix (issue #247)
+
+2026-11-12, Windows, production build. Selenium Chrome passed 3.1.2 at
+1024×768, 1440×900 and 1920×1080 across home, developer home, Calibration
+and About. The Calibration navigation flow (6.2.1) passed. Record control
+visibility (3.1.1) still reported the known D25 failure.
+
+At 1440×900 in Chromium with classic scrollbars, the body measured 1425 px
+on both home and Calibration. Overriding the root gutter to `auto` restored
+the 15 px width difference. Updated Actions execution is pending.
+
 ## Paper-step simplification (issue #234, 2026-11-02)
 
 Branch `fix/234-remove-check-paper`, based on `233ffd4`, tested in an isolated
@@ -41,12 +52,12 @@ CV work stalls the route transition (D28).
 - **3.1.2 in GitHub Actions (ubuntu-latest Chrome, PR #246 first run):**
   every tab sat 15 px further left on `/` than on `/calibration` at all three
   viewports, matching home's classic scrollbar ([run](https://github.com/Kakrl/MakeShift/actions/runs/41236234016)).
-  Filed as D26 (#247). The runner now reports a shift that equals the
-  scrollbar width difference as a known failure and still fails any other move.
+  Filed as D26 (#247). The document root now reserves the classic scrollbar
+  gutter across routes, and the runner fails on any tab movement beyond 1 px.
 - **6.2.1, PASS (1440x900):** home Calibration tab opened the intro dialog,
   Begin Calibration reached `/calibration` with that tab `aria-current`, and
   the About page's Calibration link reached `/calibration`.
-- The runner exits 0 while D25 and D26 are open and fails on any other assertion.
+- The runner treats D25 as a known failure and fails on any tab movement beyond 1 px.
   Not covered: real camera, browsers other than Chrome, widths below `lg`,
   the Documentation control (no nav entry; `/documentation` is the Next.js
   starter page).
@@ -766,7 +777,7 @@ No test implementation requires an exception to this layout.
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
 | MIDI production download | `cd frontend && npm run test:midi-browser` | Running production server; Playwright and Edge; optional MAKE_SHIFT_URL / MIDI_BROWSER_CHANNEL |
 | Pipeline profiling | `cd frontend && npm run test:performance-browser` | Production server on port 3100, Playwright + Edge; synthetic camera; local only |
-| Selenium UI navigation | `cd frontend && npm run test:ui-selenium` | Running production server; optional MAKE_SHIFT_URL; Chrome and chromedriver found or downloaded by Selenium Manager. Prints `KNOWN FAIL` for D25 and D26 without failing |
+| Selenium UI navigation | `cd frontend && npm run test:ui-selenium` | Running production server; optional MAKE_SHIFT_URL; Chrome and chromedriver found or downloaded by Selenium Manager. Prints `KNOWN FAIL` for D25 without failing |
 | Camera feed layout | `cd frontend && npm run test:layout-browser` | Running production server; Playwright bundled Chromium; optional MAKE_SHIFT_URL / LAYOUT_BROWSER_CHANNEL |
 | RCA automation | `node --test tests/automation/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
 
@@ -1225,7 +1236,7 @@ defect report is filed.
 | D23 | Medium | Audio | (Req 2.4, related 2.2) User reports high-velocity strikes are not loud enough and wants more apparent velocity dynamics. Listening report 2026-10-14; cause and hardware verification pending. | `frontend/src/cv/fingerVelocity.ts`, `frontend/public/audio/synth.js` | [#209](https://github.com/Kakrl/MakeShift/issues/209) | DSP tuning implemented locally; [verification and listening limits](manual/2026-10-14_209-velocity.md); user confirmed audible velocity changes locally 2026-10-14; measured trials/chord distortion checks pending |
 | D24 | Medium | Audio | (Req 2.2, related 2.4) Higher notes dominated the procedural sound; +4 dB gain was insufficient. User selected sampled Salamander piano at +6 dB after RMS normalization. | `frontend/public/audio/sampled-piano.js`, `frontend/src/app/audio/pianoSamples.ts` | [#210](https://github.com/Kakrl/MakeShift/issues/210) | Sampled production implemented; [software and qualitative prototype evidence](manual/2026-10-19_210-register-balance.md); production hardware listening and review/merge pending |
 | D25 | Medium | UI | (Req 3.1) On first load the home Record control sits under the 16:9 camera feed, below the fold at 1024x768, 1440x900 and 1920x1080 (top at 874, 877 and 1121 px). The nav tabs are visible. Found by 3.1.1 | `frontend/src/app/page.tsx` | [#245](https://github.com/Kakrl/MakeShift/issues/245) | Open; 3.1.1 reports it as a known failure |
-| D26 | Low | UI | (Req 3.1) Home overflows the viewport (D25), so browsers with classic scrollbars show a scrollbar there but not on `/calibration`, and the side nav shifts left by its width (15 px in Actions Chrome). macOS overlay scrollbars hide it. Found by 3.1.2 in CI | `frontend/src/app/layout.tsx`, `frontend/src/app/page.tsx` | [#247](https://github.com/Kakrl/MakeShift/issues/247) | Open; 3.1.2 reports a scrollbar-only shift as a known failure |
+| D26 | Low | UI | (Req 3.1) Home overflows the viewport (D25), so browsers with classic scrollbars show a scrollbar there but not on `/calibration`, and the side nav shifts left by its width (15 px in Actions Chrome). macOS overlay scrollbars hide it. Found by 3.1.2 in CI | `frontend/src/app/globals.css` | [#247](https://github.com/Kakrl/MakeShift/issues/247) | Fixed locally. Selenium 3.1.2 passed at all three viewports. Updated Actions execution pending |
 | D28 | Medium | Calibration / UI | (Req 6.2) Begin Calibration could leave the user on `/`: the home marker and hand-tracking `requestAnimationFrame` loops kept the main thread busy enough to starve the `router.push("/calibration")` transition on slow CPUs. Made 6.2.1 flaky in CI after #246. Home now unmounts the CV overlays before navigating | `frontend/src/app/page.tsx` | [#260](https://github.com/Kakrl/MakeShift/issues/260) | Fixed locally; 6.2.1 with 6x CPU throttle fails on `main` and passes with the fix; review/merge pending |
 | D25 | Medium | Audio / UI | (Req 3.2, #207) Immediate per-beat clicks depended on React/main-thread timer delivery, allowing uneven intervals and accumulated drift under CV/render work. | `frontend/src/app/page.tsx`, `frontend/src/app/audio/countIn.ts` | [#232](https://github.com/Kakrl/MakeShift/issues/232) | Fix implemented; digital audio/timer regressions pass locally; physical listening, review/merge and Actions pending |
 
