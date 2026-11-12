@@ -139,16 +139,19 @@ Pitch names use MIDI's C4=60 convention, including sharps/flats; writer velociti
 press tokens. Cleanup releases only this timeline's tokens. Audio invalidation
 or rejected notes pauses the transport and exposes an error. Stop, pause, seek,
 and disposal invalidate pending initialization; obsolete timers cannot restart
-playback. The owner must dispose on navigation/unmount and may explicitly pause
-on backgrounding. A suspended/error audio owner pauses playback automatically.
+playback. The owner must dispose on navigation or unmount. A hidden document
+pauses playing recordings and cancels pending Play requests. An audio suspension
+also pauses active playback and reports the interruption. Returning to the tab
+or resuming the audio context leaves playback paused until the user selects Play.
 
 Scheduling is independent of React, but runs on the main thread. The current
 audio API accepts immediate commands, not future audio-clock timestamps. Delayed
 callbacks skip notes that have already ended and shorten late starts to their
 remaining interval; they do not replay the missed passage or shift later deadlines.
-This does not guarantee sample-accurate or background-tab timing. Existing audio
-voice/queue limits still apply. Fake-timer and mocked-device evidence does not
-establish physical latency, audible quality, or browser timing distributions.
+Existing audio voice and queue limits still apply. The issue #258 browser probe
+measures delivery to the first worklet render quantum after each command.
+See the [test procedure and results](../tests/README.md#recording-playback-under-main-thread-load-issue-258)
+for the foreground timing proposal and measurement limits.
 
 ### Note-list recorder and pause/resume (#115, #108)
 

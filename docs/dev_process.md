@@ -147,6 +147,8 @@ MakeShift/
 │   │   ├── liveSession.test.ts       # readiness transitions and stale-input safety
 │   │   ├── noteEvents.test.ts        # shared events, lifecycle, clocks and MessagePort
 │   │   ├── playbackTimeline.test.ts # recording playback clock and lifecycle
+│   │   ├── playbackTiming.browser.mjs # worklet delivery under stalls and interruptions
+│   │   ├── playbackTimingProbe.mjs # test-only worklet frame and silence probe
 │   │   ├── midiExport.browser.mjs  # production Export UI and downloaded MIDI bytes
 │   │   ├── cameraLayout.browser.mjs # home camera feed 16:9 across viewports
 │   │   ├── keyboardLayout.test.ts   # physical layout proportions and MIDI bounds

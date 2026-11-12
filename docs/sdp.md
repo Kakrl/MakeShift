@@ -49,7 +49,8 @@ detection-accuracy requirement retain their own evidence criteria.
 
 PB-1 adds a browser-local playback timeline over the existing `Recording` model:
 play, pause, seek and 0.25x–4x speed control, with note cleanup on transport changes
-and audio interruption. It supplies the transport for later piano-tiles views
+and audio interruption. Tab hide pauses playback, and returning to the tab
+requires explicit Play. It supplies the transport for later piano-tiles views
 (#131/#132), not the views or scoring themselves. Storage and calibration are
 not prerequisites for playing an in-memory recording. See the
 [RVTM mapping](rvtm_browser_addendum.md#recording-playback-extension-130) and

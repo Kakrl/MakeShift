@@ -110,14 +110,17 @@ neither physical contact accuracy nor sensor-to-sound latency.
 ## Recording playback extension (#130)
 
 PB-1: play an existing recording at 0.25x–4x speed with pause, seek, stop, and
-cleanup on audio interruption. Audio dispatch is independent of React rendering.
+cleanup on audio interruption or tab hide. Playback resumes on explicit Play.
+Audio dispatch is independent of React rendering.
 The timeline supplies position to future piano-tiles views; their visuals/scoring
 remain #131/#132. Existing live-CV accuracy/latency requirements are unchanged.
 
-Inventory PB-1.1–PB-1.5 maps timing, lifecycle, input validation, delayed callbacks,
-and production audio-owner integration. Deterministic timer/device fixtures do
-not establish audible browser performance or physical latency. Browser timing
-measurements and listening evidence remain pending.
+Inventory PB-1.1–PB-1.8 maps timing, lifecycle, input validation, delayed callbacks,
+and production audio-owner integration. PB-1.7 measures worklet delivery
+under a controlled stall and PB-1.8 verifies the interruption policy in a browser.
+The [local procedure and evidence](../tests/README.md#recording-playback-under-main-thread-load-issue-258)
+record the timing proposal and the limits of digital measurement. Acoustic
+playback and physical live-press latency have separate evidence requirements.
 
 ## Sampled piano and register balance (#210)
 
