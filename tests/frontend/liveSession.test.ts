@@ -36,6 +36,7 @@ let detach: () => void;
 let audio: {
   status: string;
   initialize: ReturnType<typeof vi.fn>;
+  resumeAfterBackground: ReturnType<typeof vi.fn>;
   noteOn: ReturnType<typeof vi.fn>;
   noteOff: ReturnType<typeof vi.fn>;
   pauseInput: ReturnType<typeof vi.fn>;
@@ -51,6 +52,7 @@ beforeEach(() => {
     initialize: vi.fn(async () => {
       audio.status = "ready";
     }),
+    resumeAfterBackground: vi.fn(async () => true),
     noteOn: vi.fn(() => ({ session: 1, press: 1 })),
     noteOff: vi.fn(() => true),
     pauseInput: vi.fn(),
@@ -293,7 +295,7 @@ it.each(["stop", "calibration", "tracking", "hidden"])(
     expect(gate.sessionId).toBeNull();
   },
 );
-it.each(["calibration", "tracking", "audio", "hidden", "timeout"])(
+it.each(["calibration", "tracking", "audio", "timeout"])(
   "releases held notes on %s and never auto resumes",
   async (reason) => {
     const id = await play();
@@ -304,7 +306,6 @@ it.each(["calibration", "tracking", "audio", "hidden", "timeout"])(
       audio.status = "suspended";
       invalidate();
     }
-    if (reason === "hidden") gate.setHidden(true);
     if (reason === "timeout") {
       now += TRACKING_TIMEOUT_MS;
       vi.advanceTimersByTime(TRACKING_TIMEOUT_MS);
@@ -317,6 +318,68 @@ it.each(["calibration", "tracking", "audio", "hidden", "timeout"])(
     expect(gate.play()).toBeNull();
     expect(await gate.prepare()).toBe(true);
     expect(gate.play()).not.toBe(id);
+  },
+);
+it("recovers live playing with a new session after fresh foreground observations", async () => {
+  const old = await play();
+  expect(gate.receive(note(old))).toBe("accepted");
+  gate.setHidden(true);
+  expect(audio.releaseAll).toHaveBeenCalledTimes(1);
+  observe();
+  gate.setHidden(false);
+  gate.observeTracking();
+  expect(audio.resumeAfterBackground).not.toHaveBeenCalled();
+  observe();
+  await vi.advanceTimersByTimeAsync(0);
+  const current = gate.sessionId!;
+  expect(current).toBeTruthy();
+  expect(current).not.toBe(old);
+  expect(gate.receive(note(old, 2))).toBe("stale");
+  expect(audio.noteOn).toHaveBeenCalledTimes(1);
+  expect(gate.receive(note(current))).toBe("accepted");
+});
+
+it("offers gesture retry after automatic resume fails", async () => {
+  await play();
+  audio.resumeAfterBackground.mockResolvedValueOnce(false);
+  gate.setHidden(true);
+  gate.setHidden(false);
+  observe();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(gate.status).toMatchObject({ reason: "audio-interrupted", action: "enable-audio" });
+  observe();
+  expect(audio.resumeAfterBackground).toHaveBeenCalledTimes(1);
+  expect(await gate.prepare()).toBe(true);
+  expect(gate.play()).toBeTruthy();
+});
+
+it("requires another gesture if the saved calibration changes while hidden", async () => {
+  await play();
+  gate.setHidden(true);
+  gate.setHidden(false);
+  const saved = calibration();
+  saved.contact.rest[0][0] = { x: 0.5, y: 0.6, z: 0 };
+  gate.observeCalibration(saved, saved.camera, saved.corners);
+  gate.observeTracking();
+  expect(audio.resumeAfterBackground).not.toHaveBeenCalled();
+  expect(gate.status.action).toBe("enable-audio");
+});
+
+it.each(["stop", "background", "tracking failure"] as const)(
+  "ignores late foreground audio readiness after %s",
+  async (cancel) => {
+    await play();
+    let resolve!: (ready: boolean) => void;
+    audio.resumeAfterBackground.mockImplementationOnce(() => new Promise<boolean>(done => { resolve = done; }));
+    gate.setHidden(true);
+    gate.setHidden(false);
+    observe();
+    if (cancel === "stop") gate.stop();
+    if (cancel === "background") gate.setHidden(true);
+    if (cancel === "tracking failure") gate.trackingFailed();
+    resolve(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(gate.sessionId).toBeNull();
   },
 );
 it("checks freshness on dispatch even when the watchdog is delayed", async () => {

@@ -71,6 +71,53 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+it.each(["running", "suspended", "interrupted"])(
+  "reuses a %s graph and waits for the background reset to be consumed",
+  async state => {
+    const audio = new BrowserAudio();
+    await audio.initialize();
+    const [context] = Context.instances;
+    const [node] = Worklet.instances;
+    node.ack();
+    const held = audio.noteOn(60)!;
+    audio.releaseAll();
+    context.state = state;
+    context.onstatechange?.();
+    const ready = audio.resumeAfterBackground();
+    expect(audio.noteOn(61)).toBeNull();
+    node.ack();
+    expect(await ready).toBe(true);
+    const next = audio.noteOn(61);
+    expect(next).not.toBeNull();
+    expect(next?.session).not.toBe(held.session);
+    expect(Context.instances).toHaveLength(1);
+    expect(context.audioWorklet.addModule).toHaveBeenCalledTimes(1);
+    expect(context.resume).toHaveBeenCalledTimes(state === "running" ? 1 : 2);
+    await audio.close();
+  },
+);
+
+it("bounds a blocked foreground resume and leaves gesture retry available", async () => {
+  vi.useFakeTimers();
+  const audio = new BrowserAudio();
+  expect(await audio.resumeAfterBackground()).toBe(false);
+  await audio.initialize();
+  const [context] = Context.instances;
+  context.state = "suspended";
+  context.onstatechange?.();
+  let resolve!: () => void;
+  context.resume.mockImplementationOnce(() => new Promise<void>(done => { resolve = done; }));
+  const ready = audio.resumeAfterBackground();
+  await vi.advanceTimersByTimeAsync(1500);
+  expect(await ready).toBe(false);
+  expect(audio.status).toBe("suspended");
+  await audio.initialize();
+  Worklet.instances[0].ack();
+  expect(audio.noteOn(60)).not.toBeNull();
+  resolve();
+  await audio.close();
+});
+
 it("silences piano and pedals in order without invalidation and rejects gated activation", async () => {
   const audio = new BrowserAudio(); await audio.initialize();
   const invalidate = vi.fn(); audio.subscribeInvalidation(invalidate);

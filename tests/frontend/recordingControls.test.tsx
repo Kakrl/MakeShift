@@ -66,6 +66,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("../../frontend/src/app/audio/audioEngine", () => ({
   browserAudio: {
     initialize: fixtures.initializeAudio,
+    resumeAfterBackground: async () => true,
     status: "ready",
     subscribeInvalidation: (listener: () => void) => {
       fixtures.invalidate = listener;
@@ -656,16 +657,39 @@ it("Stop cancels initial audio startup and offers a clean retry", async () => {
   await start();
 });
 
-it("backgrounding releases the session and closes the recording", async () => {
+it.each(["tab switch", "page restoration"])("resumes live piano after %s but keeps the recording closed", async (method) => {
   await start();
   await keys(115);
-  await act(async () => window.dispatchEvent(new window.Event("pagehide")));
+  const hidden = vi.spyOn(document, "hidden", "get");
+  if (method === "tab switch") {
+    hidden.mockReturnValue(true);
+    await act(async () => document.dispatchEvent(new dom.window.Event("visibilitychange")));
+  } else {
+    await act(async () => window.dispatchEvent(new window.Event("pagehide")));
+  }
   expect(fixtures.takes).toHaveLength(1);
   expect(button("Start recording").disabled).toBe(true);
   expect(host.textContent).toContain("background");
   // Kept without the save question: the person never chose to stop.
   expect(document.body.textContent).toContain("1 recording");
   expect(document.body.textContent).not.toContain("Would you like to save");
+  hidden.mockReturnValue(false);
+  if (method === "tab switch") {
+    await act(async () => document.dispatchEvent(new dom.window.Event("visibilitychange")));
+  } else {
+    await act(async () => window.dispatchEvent(new window.Event("pageshow")));
+  }
+  expect(button("Start recording").disabled).toBe(true);
+  const scans = fixtures.detect.mock.calls.length;
+  await keys();
+  expect(fixtures.detect).toHaveBeenCalledTimes(scans + 1);
+  expect(host.querySelector('[role="status"]')?.textContent).toContain("Playing");
+  expect(button("Start recording").disabled).toBe(false);
+  expect(fixtures.initializeAudio).toHaveBeenCalledTimes(1);
+  const notes = vi.mocked(browserAudio.noteOn).mock.calls.length;
+  await keys(115);
+  expect(browserAudio.noteOn).toHaveBeenCalledTimes(notes + 1);
+  expect(fixtures.takes).toHaveLength(1);
 });
 
 

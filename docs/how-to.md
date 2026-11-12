@@ -20,6 +20,11 @@ You have to first get through calibration to enable audio.
 4. Finally, exit the calibration phase.
 5. Get the camera to detect your MakeShift piano sheet.
 6. Click on ``Enable Audio``.
+
+If you switch tabs while playing, return to MakeShift and keep the sheet and
+its markers in view. Piano sound returns after tracking reconnects. If the
+browser blocks audio recovery, select **Enable audio** again. Start a new take
+if you want to keep recording.
 7. Start playing on your paper piano.
 
 ## How to get the camera to detect your piano sheet

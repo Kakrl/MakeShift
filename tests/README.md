@@ -1,5 +1,20 @@
 # MakeShift Testing
 
+## Piano audio after tab switch (issue #237)
+
+Windows, Node 22.20.0, 2026-11-08. The mocked session, Web Audio and Home
+tests exercise tab return and page restoration, fresh marker and hand
+observations, the worklet reset acknowledgement, new live notes, stale
+identity rejection, cancellation and gesture retry. Home also checks that
+the interrupted recording remains saved and closed.
+
+Vitest passed 781 tests across 40 files with one existing skip. Lint,
+TypeScript, the production build and all 37 contrast checks passed.
+Production Edge 157.0.4341.42 passed the deployment, keyboard layout and
+audio browser suites. The tab-return regressions use simulated visibility,
+camera and audio state. Physical camera and audible verification on macOS
+Chrome and GitHub Actions execution remain pending.
+
 ## Paper-step simplification (issue #234, 2026-11-02)
 
 Branch `fix/234-remove-check-paper`, based on `233ffd4`, tested in an isolated

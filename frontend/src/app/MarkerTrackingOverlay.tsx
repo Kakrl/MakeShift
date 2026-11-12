@@ -428,6 +428,11 @@ export default function MarkerTrackingOverlay({
     let lastDetectionTime = -Infinity;
     let lastCamera: CameraSignature | null = null;
     let videoWasUnavailable = false;
+    const scanOnReturn = () => {
+      if (!document.hidden) lastDetectionTime = -Infinity;
+    };
+    document.addEventListener("visibilitychange", scanOnReturn);
+    window.addEventListener("pageshow", scanOnReturn);
 
     // Camera/source changes begin a new acquisition session.
     markerGeometryPolicyRef.current.reset();
@@ -548,6 +553,8 @@ export default function MarkerTrackingOverlay({
       });
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", scanOnReturn);
+      window.removeEventListener("pageshow", scanOnReturn);
       cancelAnimationFrame(animationFrame);
       detector?.dispose();
     };
