@@ -68,6 +68,7 @@ export function createPlaybackTimeline(
         a.time - b.time || Number(a.on) - Number(b.on) || a.index - b.index,
     );
   const active = new Map<number, AudioToken>();
+  const visibilityDocument = typeof document === "undefined" ? undefined : document;
   let state: PlaybackState = "stopped";
   let position = 0;
   let anchor = 0;
@@ -112,6 +113,14 @@ export function createPlaybackTimeline(
     releaseNotes();
   }
 
+  function pauseWhenHidden() {
+    if (!visibilityDocument?.hidden) return false;
+    if (state === "loading" || state === "playing") pause();
+    return true;
+  }
+
+  visibilityDocument?.addEventListener("visibilitychange", pauseWhenHidden);
+
   function fail(message: string) {
     error = message;
     pause();
@@ -139,7 +148,7 @@ export function createPlaybackTimeline(
   }
 
   function tick() {
-    if (state !== "playing") return;
+    if (state !== "playing" || pauseWhenHidden()) return;
     try {
       const now = positionMs();
       while (cursor < boundaries.length && boundaries[cursor].time <= now) {
@@ -210,7 +219,7 @@ export function createPlaybackTimeline(
     },
 
     async play(): Promise<boolean> {
-      if (state === "disposed") return false;
+      if (state === "disposed" || pauseWhenHidden()) return false;
       if (state === "playing") return true;
       if (state === "loading") return false;
       cancelTimer();
@@ -219,7 +228,7 @@ export function createPlaybackTimeline(
       error = null;
       try {
         await audio.initialize();
-        if (ticket !== generation) return false;
+        if (ticket !== generation || pauseWhenHidden()) return false;
         if (position >= durationMs) position = 0;
         begin();
         return error === null;
@@ -250,7 +259,7 @@ export function createPlaybackTimeline(
       const resume = state === "playing";
       pause();
       position = Math.max(0, Math.min(durationMs, milliseconds));
-      if (resume) begin();
+      if (resume && !visibilityDocument?.hidden) begin();
     },
 
     setPlaybackRate(value: number) {
@@ -270,6 +279,7 @@ export function createPlaybackTimeline(
       if (state === "disposed") return;
       pause();
       unsubscribe();
+      visibilityDocument?.removeEventListener("visibilitychange", pauseWhenHidden);
       state = "disposed";
     },
   };

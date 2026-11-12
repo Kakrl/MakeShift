@@ -1,5 +1,81 @@
 # MakeShift Testing
 
+## Recording playback under main-thread load (issue #258)
+
+From the repository root after installing frontend dependencies and Playwright
+Chromium, run the timing and suspension cases, then the visibility case in an
+interactive desktop session:
+
+```powershell
+node tests/frontend/playbackTiming.browser.mjs
+$env:PLAYBACK_VISIBILITY_ONLY = '1'
+node tests/frontend/playbackTiming.browser.mjs
+Remove-Item Env:PLAYBACK_VISIBILITY_ONLY
+```
+
+Set `AUDIO_BROWSER_CHANNEL` to `msedge` or `chrome` for the timing and suspension
+cases on an installed browser. The visibility case uses Playwright Chromium
+in a regular window with its own temporary profile.
+The runner serves the production timeline, audio owner, loader, piano samples,
+and worklet from a loopback fixture. The test-only processor subclass observes
+commands and PCM at the first render quantum after delivery. Each row reports
+signed milliseconds relative to the recording's expected deadline, pairing the
+main monotonic clock and the AudioContext render clock at playback start.
+Release rows mark delivery of the release command. The sampler then renders its
+normal 200 ms release tail.
+
+### Local digital evidence
+
+2026-11-12, headless Edge 157.0.4341.46 on Windows x64 build 26200, Intel
+Core i9-14900K, 48 kHz AudioContext. Eight takes per condition. The loaded
+case blocked the renderer's main thread from a timer targeting 90 ms until
+245 ms (152.40 ms median, 154.70 ms maximum). The stall overlapped an
+expired short note, a three-note chord onset, and an already sounding note's
+release. A separate burst followed at 400/410/420 ms.
+
+| Condition | Boundary | Samples | p50 (ms) | p95 (ms) | Max (ms) |
+| :--- | :--- | ---: | ---: | ---: | ---: |
+| Baseline | Onset | 64 | 0.00 | 10.67 | 21.43 |
+| Baseline | Release | 64 | 4.33 | 11.33 | 11.43 |
+| Baseline | Following burst onset | 24 | 1.33 | 11.43 | 21.43 |
+| Stalled | Onset | 56 | 2.00 | 90.67 | 90.67 |
+| Stalled | Release | 56 | 4.43 | 65.10 | 75.67 |
+| Stalled | Following burst onset | 24 | 0.67 | 10.67 | 10.77 |
+
+All eight expired notes were skipped. Each delayed chord used its remaining
+interval, and the later burst retained the original deadlines. Rate/seek,
+pause/resume, stop and explicit AudioContext suspend/resume passed. Command
+traces and final zero PCM verified canceled callbacks and cleared voices after
+release tails or reset.
+
+Headed Chromium 151.0.7922.34 also passed an actual tab hide/show on the same
+host. Playback stayed paused across tab return, even after two upcoming note
+boundaries had passed. The worklet rendered the original note, then went silent.
+The same test against main at 5668488 observed playback still playing after
+the tab became hidden. A Vitest regression covers a hide during pending startup
+and explicit Play after returning.
+
+Proposed playback budget for team review is **p95 ≤25 ms** software lateness
+for foreground note boundaries outside a deliberate stall, including the
+first burst after recovery. This gives headroom over the baseline and recovered
+burst in this fixture. Under a stall, require expiry filtering, shortened
+late starts, and preserved subsequent deadlines. The runner uses a wider
+50 ms timing assertion for detecting shifts in the fixture's subsequent deadlines.
+Agreement and validation on additional hardware are pending.
+
+The clock comparison is approximate to render-quantum and clock-pairing
+resolution and can report small negative values. Chord voices share render
+quanta, and the PCM probe observes mixed output. This fixture bypasses React,
+CV, and the production bundle, and substitutes a controlled busy loop for CV
+load. It measures software timing before device output. Acoustic output,
+physical speakers and Bluetooth latency, mobile and real CV load are pending.
+
+Lint, TypeScript, Vitest (772 passed, one existing skip), all 37 contrast pairs,
+and the production build passed locally. The build used a temporary Turbopack
+root to resolve dependencies linked from the worktree. Chromium 151.0.7922.34
+passed deployment, keyboard layout, and audio smoke checks on the local
+production build with fake camera media and an unconfigured database.
+
 ## Paper-step simplification (issue #234, 2026-11-02)
 
 Branch `fix/234-remove-check-paper`, based on `233ffd4`, tested in an isolated

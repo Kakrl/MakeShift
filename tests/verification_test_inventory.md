@@ -188,12 +188,14 @@ Existing proposed dates remain planning estimates, not renewed commitments.
 | 6.3.2 | System | Check that the tutorial explains how to stop a MIDI recording | 6.3 | Jadden Picardal | Manual content review | No | Planned | N/A (manual) | 2026-10-21 | 2026-10-22 | 4.1.2 and 4.2.2; tutorial text matches stop/export flow. | No execution evidence yet |
 | 6.3.3 | System | Check that the tutorial explains how to pause a MIDI recording | 6.3 | Jadden Picardal | Manual content review | No | Planned | N/A (manual) | 2026-10-21 | 2026-10-22 | 4.1.1 and 3.2.2; tutorial text matches pause/resume behavior. | No execution evidence yet |
 
-## Recording playback transport (#130)
+## Recording playback transport (#130, #258)
 
 Source: [timeline tests](frontend/playbackTimeline.test.ts) and
 [audio-owner integration](frontend/browserAudioLifecycle.test.ts). Evidence:
 [local execution record](README.md#playback-timeline-verification-issue-130).
-No camera, browser listening, or physical latency result is claimed.
+Issue #258 adds a [browser runner](frontend/playbackTiming.browser.mjs) with a test-only worklet probe.
+The [local evidence](README.md#recording-playback-under-main-thread-load-issue-258)
+records software delivery and interruption checks. Acoustic evidence is pending.
 
 | Test ID | Level | Requirement | Behavior tested | Owner | Tool | Automated? | Implementation Status | CI Integrated? | Execution evidence |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -202,6 +204,10 @@ No camera, browser listening, or physical latency result is claimed.
 | PB-1.3 | Unit | PB-1 | Input snapshot isolation, pitch/velocity conversion, empty/silent/zero-duration takes, invalid notes/BPM/rate/seek ([source](frontend/playbackTimeline.test.ts)) | Harry Deng | Vitest | Yes | Implemented | No (D3) | [Local record](README.md#playback-timeline-verification-issue-130) - passed 2026-09-29; Actions pending |
 | PB-1.4 | Unit | PB-1 | Late callback skips expired notes and retains the current note's endpoint ([source](frontend/playbackTimeline.test.ts)) | Carl Xu | Vitest fake clock | Yes | Implemented — no real scheduling measurements | No (D3) | [Local record](README.md#playback-timeline-verification-issue-130) - passed 2026-09-29; Actions pending |
 | PB-1.5 | Integration | PB-1 | Production BrowserAudio receives distinct press tokens and matched releases; suspension, processor failure and close pause playback without later dispatch ([source](frontend/browserAudioLifecycle.test.ts)) | Carl Xu | Vitest, mocked AudioContext/Worklet | Yes | Partially implemented — real device/browser checks pending | Yes (`frontend-ci.yml`, Vitest) | [Local record](README.md#playback-timeline-verification-issue-130) - passed 2026-09-29; sampled-owner mock regression rerun 2026-10-19, Actions pending |
+
+| PB-1.6 | Unit | PB-1 | Tab hide cancels pending initialization, hidden Play is rejected, and showing the tab waits for explicit Play ([source](frontend/playbackTimeline.test.ts)) | Harry Deng | Vitest, simulated visibility and audio | Yes | Implemented | Yes (`frontend-ci.yml`, Vitest) | [Local record](README.md#recording-playback-under-main-thread-load-issue-258). Actions pending |
+| PB-1.7 | Integration | PB-1 | Baseline and stalled worklet onset/release delivery, expired notes skipped, late chord shortened, and subsequent burst retains absolute deadlines ([runner](frontend/playbackTiming.browser.mjs), [probe](frontend/playbackTimingProbe.mjs)) | Carl Xu | Playwright, AudioWorklet | Yes, local | Implemented — digital timing | No | [Local record](README.md#recording-playback-under-main-thread-load-issue-258) |
+| PB-1.8 | Integration | PB-1 | Rate, seek, pause/resume, stop, tab hide/show, and audio suspend/resume check transport state, command identities, stale callbacks, and worklet silence ([runner](frontend/playbackTiming.browser.mjs), [probe](frontend/playbackTimingProbe.mjs)) | Harry Deng | Playwright, AudioWorklet | Yes, local | Implemented — tab-switch support depends on browser and launch mode | No | [Local record](README.md#recording-playback-under-main-thread-load-issue-258) |
 
 ## Falling-notes view (#131)
 
