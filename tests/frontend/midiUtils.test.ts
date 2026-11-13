@@ -11,6 +11,7 @@ vi.mock("midi-writer-js", () => ({
     Track: class {
       buildData = vi.fn();
       setTempo = setTempo;
+      setTimeSignature = vi.fn();
       addEvent = addEvent;
     },
     NoteEvent: class {

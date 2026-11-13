@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { FingerVelocity, MIN_PRESS_VELOCITY, speedToVelocity } from "../../frontend/src/cv/fingerVelocity";
 import { LiveContactPipeline } from "../../frontend/src/cv/liveContactPipeline";
 import { getFingertips, type HandObservation } from "../../frontend/src/cv/collision";
-import { Synth } from "../../frontend/public/audio/synth.js";
+import { PIANO_SAMPLES, SampledPiano, preparePianoSample } from "../../frontend/public/audio/sampled-piano.js";
 import type { ShadowWorkerRequest, ShadowWorkerResponse } from "../../frontend/src/cv/shadowHeuristics";
 
 function hand(z = 0, x = 0.5, translation = 0, scale = 1): HandObservation {
@@ -20,17 +20,35 @@ function observe(estimator: FingerVelocity, observation: HandObservation, at: nu
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 it("maps stationary/noisy, slow and fast motion monotonically into finite audible velocities", () => {
-  const velocities = [0, 0.4, 0.5, 2, 8, 100].map(speedToVelocity);
-  [0.2, 0.2, 0.2, 0.36, 1, 1].forEach((expected, index) =>
+  const velocities = [0, 0.4, 0.5, 2, 4, 8, 100].map(speedToVelocity);
+  [0.2, 0.2, 0.2, 0.5428571428571429, 1, 1, 1].forEach((expected, index) =>
     expect(velocities[index]).toBeCloseTo(expected));
   for (const speed of [-1, NaN, Infinity]) expect(speedToVelocity(speed)).toBe(MIN_PRESS_VELOCITY);
+});
+
+it("reaches strong velocities with less speed while preserving soft control", () => {
+  expect(speedToVelocity(0.5)).toBe(0.2);
+  expect(speedToVelocity(0.51)).toBeGreaterThan(0.2);
+  expect(speedToVelocity(0.51)).toBeLessThan(0.21);
+  expect(speedToVelocity(2.90625)).toBeCloseTo(0.75);
+  expect(speedToVelocity(3.99)).toBeLessThan(1);
+  expect(speedToVelocity(4)).toBe(1);
+  let previous = speedToVelocity(0.5);
+  for (let step = 1; step <= 350; step++) {
+    const speed = 0.5 + step / 100;
+    const current = speedToVelocity(speed);
+    const priorMapping = 0.2 + 0.8 * (speed - 0.5) / 7.5;
+    expect(current).toBeGreaterThan(previous);
+    expect(current).toBeGreaterThan(priorMapping);
+    previous = current;
+  }
 });
 
 it.each([10, 20, 40])("uses elapsed time for the same depth speed at %i ms frame intervals", (interval) => {
   const estimator = new FingerVelocity();
   observe(estimator, hand(), 100);
   observe(estimator, hand(-0.2 * 2 * interval / 1000), 100 + interval);
-  expect(estimator.takeVelocity(100 + interval)).toBeCloseTo(0.36);
+  expect(estimator.takeVelocity(100 + interval)).toBeCloseTo(0.5428571428571429);
 });
 
 it("removes hand translation and normalizes hand scale", () => {
@@ -39,7 +57,7 @@ it("removes hand translation and normalizes hand scale", () => {
   observe(estimator, hand(0, 0.5, 0.1, 1.5), 120);
   expect(estimator.takeVelocity(120)).toBe(0.2);
   observe(estimator, hand(-0.008, 0.5, 0.1, 1.5), 140);
-  expect(estimator.takeVelocity(140)).toBeCloseTo(0.36);
+  expect(estimator.takeVelocity(140)).toBeCloseTo(0.5428571428571429);
 });
 
 it.each([[640, 480], [1280, 960], [1920, 1080]])("corrects image aspect at %i by %i", (width, height) => {
@@ -49,7 +67,7 @@ it.each([[640, 480], [1280, 960], [1920, 1080]])("corrects image aspect at %i by
   const landmarks = [...observation.landmarks];
   landmarks[8] = { ...landmarks[8], y: 0.408 };
   estimator.observe({ ...observation, landmarks }, 8, width, height, 120, "fixture");
-  expect(estimator.takeVelocity(120)).toBeCloseTo(0.36);
+  expect(estimator.takeVelocity(120)).toBeCloseTo(0.5428571428571429);
 });
 
 it("supports xy-only observations without introducing a spike when depth appears", () => {
@@ -58,7 +76,7 @@ it("supports xy-only observations without introducing a spike when depth appears
     landmarks: hand(0, x).landmarks.map(({ x, y }) => ({ x, y })) });
   observe(estimator, flat(0.5), 100);
   observe(estimator, flat(0.508), 120);
-  expect(estimator.takeVelocity(120)).toBeCloseTo(0.36);
+  expect(estimator.takeVelocity(120)).toBeCloseTo(0.5428571428571429);
   observe(estimator, hand(-0.2, 0.508), 140);
   expect(estimator.takeVelocity(140)).toBe(0.2);
 });
@@ -119,10 +137,10 @@ it("latches pipeline onset velocity through a hold and clears it on loss/reset",
   frame(hand());
   now = 120;
   frame(hand(-0.008));
-  expect(pipeline.pressVelocities.get("0-8")).toBeCloseTo(0.36);
+  expect(pipeline.pressVelocities.get("0-8")).toBeCloseTo(0.5428571428571429);
   now = 140;
   frame(hand(-0.1));
-  expect(pipeline.pressVelocities.get("0-8")).toBeCloseTo(0.36);
+  expect(pipeline.pressVelocities.get("0-8")).toBeCloseTo(0.5428571428571429);
   frame(null);
   expect(pipeline.pressVelocities.size).toBe(0);
   now = 160;
@@ -140,14 +158,20 @@ it("latches pipeline onset velocity through a hold and clears it on loss/reset",
 });
 
 it("estimated fast motion produces a louder production DSP render than slow motion", () => {
-  const rms = (z: number) => {
+  const rms = (z: number, fixedVelocity?: number) => {
     const estimator = new FingerVelocity();
     observe(estimator, hand(), 100);
     observe(estimator, hand(z), 120);
-    const synth = new Synth(48000);
+    const bank = PIANO_SAMPLES.map(({ note }) => {
+      const pcm = Float32Array.from({ length: 48000 * 2 }, (_, i) =>
+        0.5 * Math.sin(2 * Math.PI * 440 * 2 ** ((Number(note) - 69) / 12) * i / 48000));
+      return preparePianoSample(note, { sampleRate: 48000, length: pcm.length,
+        numberOfChannels: 1, getChannelData: () => pcm });
+    });
+    const synth = new SampledPiano(48000, bank);
     synth.handle({ type: "reset", session: 1 });
     synth.handle({ type: "note-on", session: 1, press: 1, note: 60,
-      velocity: estimator.takeVelocity(120) });
+      velocity: fixedVelocity ?? estimator.takeVelocity(120) });
     const samples = new Float32Array(48000);
     synth.render(samples);
     let sum = 0;
@@ -160,6 +184,7 @@ it("estimated fast motion produces a louder production DSP render than slow moti
   expect(slow / fast).toBeGreaterThan(0.15);
   expect(slow / fast).toBeLessThan(0.6);
   expect(20 * Math.log10(fast / slow)).toBeGreaterThan(5);
+  expect(20 * Math.log10(slow / rms(-0.008, 0.36))).toBeCloseTo(5.35, 1);
 });
 
 it("retains pre-contact speed for delayed shadow confirmation and rejects results after reset", () => {

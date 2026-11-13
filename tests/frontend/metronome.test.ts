@@ -14,6 +14,19 @@ afterEach(() => {
   vi.useRealTimers();
 });
 describe("audio-thread metronome", () => {
+  it.each([[4,4],[3,4],[6,8],[7,8],[2,2],[32,32]])(
+    "counts %i/%i on denominator-note boundaries and completes after a full measure", (beats, denominator) => {
+      const h = fixture();
+      h.command("configure", { tempo: 120, beats, denominator, audible: true });
+      h.command("count-in");
+      const spacing = 48000 * 0.5 * 4 / denominator;
+      h.render(beats * spacing + 1);
+      expect(h.events.filter(e => e.beat !== null).map(e => e.frame))
+        .toEqual(Array.from({ length: beats }, (_, beat) => beat * spacing));
+      expect(h.events.filter(e => e.type === "complete").map(e => e.frame))
+        .toEqual([beats * spacing]);
+    },
+  );
   it.each([44100, 48000, 96000])(
     "keeps exact beat spacing at %i Hz independently of message delivery",
     (rate) => {

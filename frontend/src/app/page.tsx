@@ -1,4 +1,5 @@
 "use client";
+import { DEFAULT_METER, DENOMINATORS, MIN_NUMERATOR, MAX_NUMERATOR, isMeter, restoreMeter, formatMeter, type Meter } from "../lib/meter";
 
 import { registerCameraVideo } from "../diagnostics/cameraVideo";
 
@@ -7,6 +8,8 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCamera } from "./CameraContext";
 import CameraStatusOverlay from "./CameraStatusOverlay";
+import PlayAlongBar from "./midi/PlayAlongBar";
+import { scorePlayAlongPress, startPlayAlong } from "./midi/playAlong";
 import SideNav from "./SideNav";
 import PedalControls from "./PedalControls";
 import PageTopBar from "./PageTopBar";
@@ -36,7 +39,7 @@ const MIN_TEMPO = 20;
 const MAX_TEMPO = 300;
 const SETTINGS_NAME = "playback-settings";
 const SETTINGS_VERSION = 1;
-type PlaybackSettings = { tempo: number };
+type PlaybackSettings = { tempo: number; meter?: unknown };
 const DEFAULT_SETTINGS: PlaybackSettings = { tempo: 60 };
 
 function isPlaybackSettings(value: unknown): value is PlaybackSettings {
@@ -54,14 +57,6 @@ const CVOverlayCoordinator = dynamic(
   () => import("./CVOverlayCoordinator"),
   { ssr: false },
 );
-
-function ChevronDown() {
-  return (
-    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 function RecordIcon() {
   return (
@@ -193,7 +188,6 @@ export default function Home() {
   const [liveStatus, setLiveStatus] = useState(session.status);
   const [activePitches, setActivePitches] = useState<ReadonlySet<number>>(new Set());
   const [recorder] = useState(createRecorder);
-  const consumersRef = useRef<ReturnType<typeof connectPianoConsumers> | null>(null);
   const recordingsLibraryRef = useRef<RecordingsLibraryHandle | null>(null);
   const [libraryLoaded, setLibraryLoaded] = useState(false);
   const [hasRecordings, setHasRecordings] = useState(false);
@@ -225,8 +219,20 @@ export default function Home() {
   const [tempo, setTempo] = useState(DEFAULT_SETTINGS.tempo);
   const [tempoInput, setTempoInput] = useState(String(DEFAULT_SETTINGS.tempo));
   const [tempoError, setTempoError] = useState<string | null>(null);
-  const [timeSignature, setTimeSignature] = useState("4/4");
-  const beatsPerMeasure = parseInt(timeSignature.split("/")[0]);
+  const [meter, setMeter] = useState<Meter>(DEFAULT_METER);
+  const [numeratorDraft, setNumeratorDraft] = useState("4");
+  const [meterError, setMeterError] = useState<string | null>(null);
+  const beatsPerMeasure = meter.numerator;
+  function commitMeter(denominator = meter.denominator) {
+    const next = { numerator: Number(numeratorDraft), denominator };
+    if (!numeratorDraft.trim() || !isMeter(next)) {
+      setNumeratorDraft(String(meter.numerator));
+      setMeterError(`Use an integer from ${MIN_NUMERATOR} to ${MAX_NUMERATOR}. Restored ${formatMeter(meter)}.`);
+      return;
+    }
+    setMeter(next);
+    setMeterError(null);
+  }
 
   // ── Metronome ────────────────────────────────────────────────────────────
   const [metronome, setMetronome] = useState(false);
@@ -239,8 +245,8 @@ export default function Home() {
   useEffect(() => {
     // Initial defaults must not overwrite preferences before restoration.
     if (!settingsLoaded) return;
-    writeStored(SETTINGS_NAME, SETTINGS_VERSION, { tempo });
-  }, [settingsLoaded, tempo]);
+    writeStored(SETTINGS_NAME, SETTINGS_VERSION, { tempo, meter });
+  }, [settingsLoaded, tempo, meter]);
 
   // ── Count-in beat (1 → beatsPerMeasure, then recording starts) ──────────
   const [countInBeat, setCountInBeat] = useState<number | null>(null);
@@ -294,6 +300,9 @@ export default function Home() {
       );
       setTempo(saved.tempo);
       setTempoInput(String(saved.tempo));
+      const restored = restoreMeter(saved.meter);
+      setMeter(restored);
+      setNumeratorDraft(String(restored.numerator));
       setSettingsLoaded(true);
       const dev = isDevMode();
       setDevMode(dev);
@@ -317,20 +326,20 @@ export default function Home() {
     if (!action) return;
     if (session.status.state !== "playing") {
       metronomeController.stop();
-      session.interrupt("Readiness changed during count-in. Wait for tracking, then select Enable audio.");
+      session.interrupt();
       return;
     }
     setCountInBeat(null);
     session.flushNotes();
     if (action === "resume") recorder.resumeRecording();
-    else recorder.startRecording(tempo);
-    consumersRef.current?.captureHeld();
+    else recorder.startRecording(tempo, undefined, meter);
+    session.resumeInput();
     setRecordingState(recorder.getState());
     countInActionRef.current = null;
-  }, [session, recorder, tempo, metronomeController]);
+  }, [session, recorder, tempo, meter, metronomeController]);
 
   useEffect(() => {
-    metronomeController.configure({ tempo, beatsPerMeasure, audible: metronome }, {
+    metronomeController.configure({ tempo, beatsPerMeasure, denominator: meter.denominator, audible: metronome }, {
       onCountInBeat: setCountInBeat,
       onCountInComplete: finishCountIn,
       onUnavailable: () => {
@@ -338,12 +347,13 @@ export default function Home() {
         const countInPending = countInActionRef.current !== null;
         countInActionRef.current = null;
         setCountInBeat(null);
+        session.resumeInput();
         setMetronomeError(countInPending
           ? "Count-in audio interrupted. Select Start or Resume recording to retry."
           : "Metronome audio interrupted. Turn it on again to retry.");
       },
     });
-  }, [metronomeController, tempo, beatsPerMeasure, metronome, finishCountIn, session]);
+  }, [metronomeController, tempo, beatsPerMeasure, meter.denominator, metronome, finishCountIn, session]);
 
   useEffect(() => {
     metronomeController.setPlaying(metronome || liveStatus.state === "playing", isPaused);
@@ -356,7 +366,7 @@ export default function Home() {
   useEffect(() => {
     const detach = session.attach();
     const disconnectNotes = connectPianoConsumers(session, recorder, setActivePitches);
-    consumersRef.current = disconnectNotes;
+    const disconnectScoring = session.subscribeNotes(({ event }) => scorePlayAlongPress(event));
     let previousState = session.status.state;
     const unsubscribe = session.subscribe(() => {
       const status = session.status;
@@ -395,7 +405,7 @@ export default function Home() {
       detach();
       session.flushNotes();
       disconnectNotes();
-      consumersRef.current = null;
+      disconnectScoring();
       recorder.stopRecording();
       cancelMetronomeRequest();
       metronomeController.close();
@@ -448,8 +458,15 @@ export default function Home() {
       setMetronomeError("Metronome audio could not start. Turn it on again to retry.");
     }
   };
+  // Called from the Play along click, so that gesture can start piano audio.
+  const playAlong = async (song: Recording) => {
+    if (!await enableAudio()) return session.status.message;
+    startPlayAlong(song, session.layout);
+    return null;
+  };
+
   const handlePlay = async () => {
-    if (audioPreparingRef.current || countInBeat !== null || session.status.state === "starting") return;
+    if (audioPreparingRef.current || countInActionRef.current !== null || session.status.state === "starting") return;
     if (isRecording && !isPaused) {
       session.flushNotes();
       recorder.pauseRecording();
@@ -458,8 +475,18 @@ export default function Home() {
       return;
     }
     if (!canPlay || !libraryLoaded) return;
+    countInActionRef.current = isRecording && isPaused ? "resume" : "start";
     const request = ++playRequestRef.current;
-    if (!await enableAudio(true) || request !== playRequestRef.current) return;
+    session.pauseInput();
+    pedalClearRef.current?.();
+    if (request !== playRequestRef.current) return;
+    if (!await enableAudio(true) || request !== playRequestRef.current) {
+      if (request === playRequestRef.current) {
+        countInActionRef.current = null;
+        session.resumeInput();
+      }
+      return;
+    }
     if (countInBeat !== null) return; // already counting in
     if (isRecording && isPaused) {
       // Keep the existing take paused until the count-in finishes.
@@ -490,6 +517,7 @@ export default function Home() {
     playRequestRef.current += 1;
     countInActionRef.current = null;
     setCountInBeat(null);
+    session.resumeInput();
     // An initial count-in has no take; a resume count-in does.
     if (!isRecording) return;
     const recording = recorder.stopRecording();
@@ -522,9 +550,16 @@ export default function Home() {
   const recordDisabled = !libraryLoaded || !canPlay || countInBeat !== null || audioPreparing || liveStatus.state === "starting";
   const stopDisabled = !isRecording && countInBeat === null && !audioPreparing && liveStatus.state !== "starting";
   // Metronome settings are usable independently once preferences have loaded.
-  const settingsLocked = !settingsLoaded;
+  const settingsLocked = !settingsLoaded || isRecording || countInBeat !== null || audioPreparing;
   const needsCalibration = isCalibrated === false;
   const openCalibration = () => setShowCalibrationIntro(true);
+  // Home CV loops can starve the route transition on slow CPUs (#260).
+  const [leavingForCalibration, setLeavingForCalibration] = useState(false);
+  const goToCalibration = () => {
+    setShowCalibrationIntro(false);
+    setLeavingForCalibration(true);
+    router.push("/calibration");
+  };
   const settingLabel = settingsLocked ? "text-ink-muted" : "text-ink";
   const statusTone =
     liveStatus.state === "error" ? "bg-danger" :
@@ -539,10 +574,12 @@ export default function Home() {
         >
           <span aria-hidden="true" className={`mt-[7px] size-1.5 shrink-0 rounded-full transition-colors duration-200 ${statusTone}`} />
           {liveStatus.message}
+          {liveStatus.action === "calibrate" && !devMode && <a href="/calibration" className="shrink-0 underline underline-offset-2">Calibrate</a>}
+          {liveStatus.action === "reload" && <button onClick={() => window.location.reload()} className="shrink-0 underline underline-offset-2">Reload tracker</button>}
         </p>
       </PageTopBar>
       <div aria-live="polite" className="sr-only">
-        {countInBeat !== null ? (isPaused ? "Count-in to resume recording" : "Count-in to start recording") : isPaused ? "Recording paused" : isRecording ? "Recording started" : showRecordingComplete ? "Recording complete" : ""}
+        {countInBeat !== null ? "Count-in started. Piano paused. Select Stop to cancel." : isPaused ? "Recording paused" : isRecording ? "Recording started" : showRecordingComplete ? "Recording complete" : ""}
       </div>
 
       {/* ── Welcome Modal (first visit) ─────────────────────────────────────── */}
@@ -577,13 +614,13 @@ export default function Home() {
               <div className="flex gap-3">
                 <button
                   onClick={() => { setShowWelcome(false); router.push("/tutorial"); }}
-                  className="ms-key flex-1 py-3"
+                  className="ms-key ms-key-primary flex-1 py-3"
                 >
                   Read Tutorial
                 </button>
                 <button
                   onClick={() => { setShowWelcome(false); setShowCalibrationIntro(true); }}
-                  className="ms-key ms-key-primary flex-1 py-3"
+                  className="ms-key flex-1 py-3"
                 >
                   Start Calibration
                 </button>
@@ -637,13 +674,13 @@ export default function Home() {
             </ol>
             <div className="px-6 sm:px-8 pt-6 pb-7 flex gap-3 justify-end">
               <button
-                onClick={() => { setShowCalibrationIntro(false); router.push("/calibration"); }}
+                onClick={goToCalibration}
                 className="ms-key ms-key-ghost px-5"
               >
                 Skip
               </button>
               <button
-                onClick={() => { setShowCalibrationIntro(false); router.push("/calibration"); }}
+                onClick={goToCalibration}
                 className="ms-key ms-key-primary px-6 py-3"
               >
                 Begin Calibration
@@ -663,13 +700,16 @@ export default function Home() {
             muted
             className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
           />
-          <CVOverlayCoordinator
-            session={session}
-            videoRef={videoRef}
-            enabled={canPlay && liveStatus.state === "playing"}
-            activePitches={activePitches}
-          />
+          {!leavingForCalibration && (
+            <CVOverlayCoordinator
+              session={session}
+              videoRef={videoRef}
+              enabled={canPlay && liveStatus.state === "playing"}
+              activePitches={activePitches}
+            />
+          )}
           <CameraStatusOverlay />
+          <PlayAlongBar />
           {devMode && <p className="ms-pill absolute top-3 right-3 z-30 py-1.5 px-3 text-[12px] font-semibold">Dev mode: calibration skipped</p>}
 
           {/* Calibrate-first call to action: the first thing to do on this page */}
@@ -704,6 +744,7 @@ export default function Home() {
           {/* Count-in overlay, one measure of beats before recording */}
           {countInBeat !== null && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-dark/60 z-40 pointer-events-none">
+              <p className="text-white">Piano paused for count-in · Stop to cancel</p>
               <span
                 key={countInBeat}
                 className="ms-beat font-display text-white font-bold leading-none tabular-nums"
@@ -711,7 +752,7 @@ export default function Home() {
               >
                 {countInBeat}
               </span>
-              <div className="flex items-center gap-2.5 mt-6">
+              <div className="flex flex-wrap justify-center max-w-[240px] items-center gap-2.5 mt-6">
                 {Array.from({ length: beatsPerMeasure }, (_, i) => (
                   <div
                     key={i}
@@ -723,7 +764,6 @@ export default function Home() {
           )}
 
           {!canPlay && devMode && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Dev mode: show all four sheet markers and your hands to play.</span></p>}
-          {!canPlay && !devMode && isCalibrated === true && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Show the calibrated sheet and camera, or <a href="/calibration" className="underline underline-offset-2 font-medium">calibrate again</a>. Saved data is checked before playing.</span></p>}
         </div>
 
         {/* Right sidebar (below the camera under lg) */}
@@ -767,20 +807,27 @@ export default function Home() {
             {/* Time Signature */}
             <div className="flex flex-col gap-2">
               <label htmlFor="time-signature" className={`ms-label transition-colors ${settingLabel}`}>Time Signature</label>
-              <div className="relative">
-                <select
-                  id="time-signature"
-                  value={timeSignature}
-                  onChange={(e) => setTimeSignature(e.target.value)}
-                  disabled={settingsLocked}
-                  className="ms-input w-full"
-                >
-                  <option>4/4</option>
-                  <option>3/4</option>
-                  <option>6/8</option>
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-ink-muted"><ChevronDown /></div>
+              <div className="flex items-center gap-2">
+                <input id="time-signature" type="number" min={MIN_NUMERATOR} max={MAX_NUMERATOR} step={1}
+                  aria-label="Time signature numerator" disabled={settingsLocked} value={numeratorDraft}
+                  onChange={(e) => { setNumeratorDraft(e.target.value); setMeterError(null); }}
+                  onBlur={() => commitMeter()} onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); commitMeter(); }
+                    if (e.key === "Escape") { setNumeratorDraft(String(meter.numerator)); setMeterError(null); }
+                  }} aria-invalid={meterError !== null} aria-describedby={meterError ? "meter-help meter-error" : "meter-help"}
+                  className="ms-input w-full min-w-0" />
+                <span aria-hidden="true">/</span>
+                <div className="relative w-full min-w-0">
+                  <select aria-label="Time signature denominator" disabled={settingsLocked}
+                    value={meter.denominator} onChange={(e) => commitMeter(Number(e.target.value))}
+                    className="ms-input w-full min-w-0 pr-8">
+                    {DENOMINATORS.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted"><path d="m6 9 6 6 6-6" /></svg>
+                </div>
               </div>
+              <p id="meter-help" className="text-sm text-ink-muted">{formatMeter(meter)} · Quarter-note BPM. Stop to edit.</p>
+              {meterError && <p id="meter-error" role="alert">{meterError}</p>}
             </div>
 
             {/* Metronome toggle */}
@@ -800,12 +847,12 @@ export default function Home() {
           </section>
 
           <div className="mt-[23px] lg:pl-[43px]">
-            <RecordingsLibrary ref={recordingsLibraryRef} onStatusChange={updateLibraryStatus} />
+            <RecordingsLibrary ref={recordingsLibraryRef} onStatusChange={updateLibraryStatus} onPlayAlong={playAlong} />
           </div>
         </SideNav>
       </div>
 
-      <PedalControls active={liveStatus.state === "playing"} clearRef={pedalClearRef} />
+      <PedalControls active={liveStatus.state === "playing" && countInBeat === null && !audioPreparing} clearRef={pedalClearRef} />
       {/* Bottom: Listen (left) + transport (centre) */}
       <div className="flex items-center shrink-0 pl-(--gutter-l) pr-(--gutter-r) pb-[clamp(16px,3dvh,36px)] pt-[clamp(16px,2.5dvh,28px)]">
         <div className="flex-1 relative flex flex-wrap items-center justify-center gap-x-4 gap-y-3">

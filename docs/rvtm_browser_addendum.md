@@ -119,6 +119,31 @@ and production audio-owner integration. Deterministic timer/device fixtures do
 not establish audible browser performance or physical latency. Browser timing
 measurements and listening evidence remain pending.
 
+## Sampled piano and register balance (#210)
+
+Requirement 2.2 now uses a locally preloaded stereo Salamander piano as the live
+default (#210), replacing procedural modal timbre. Related 2.4 keeps the existing
+velocity exponent and shared/MIDI event contract. The live motion mapping now
+reaches full velocity at 4 rather than 8 palm lengths/s, retaining the 0.5
+noise floor and soft 0.2 fallback; newly captured velocities rise accordingly,
+while saved takes retain their values. Register tuning
+uses RMS-normalized recordings and a bounded +6 dB bass curve selected through
+user listening; it is not a new universal equal-loudness or acoustic SPL claim.
+A uniform +6 dB output boost preserves that balance, with a fixed 0.95 output
+ceiling for exceptional overloads. SP-01 checks the gain ratio for all MIDI
+pitches; SP-02 checks the ceiling and sampled pedal lifecycle after merging #176.
+One recorded dynamic layer is in scope; further layers, pedal resonance and
+release-noise modeling remain separate. Native reference requirements remain.
+
+Inventory SP-01 maps sample preparation/PCM/assets and loader paths; SP-02 maps
+rendering/pitch/velocity/lifecycle and six-rate headroom; 2.2.15 maps owner
+loading/cancellation/recovery, and 2.2.16 maps real decoded assets and offline
+browser graph checks. SP-03 records qualitative prototype acceptance at +6 dB
+and the production listening/device gaps. Historical PT-01/PT-02 and legacy
+results retain their original renderer scope. Under-50 ms physical latency and
+hardware distortion verification are still pending; preload time and memory
+are reported separately. See [the production audio contract](browser_audio.md#sampled-production-piano-and-register-balance-210).
+
 ## Document maintenance
 
 For this browser transition, use this addendum with the inventory as the
@@ -161,3 +186,36 @@ clicks only when enabled. Preserve selected tempo and existing meter semantics
 (including six beats for 6/8), pause silence, cancellation, readiness checks and
 MIDI exclusion. Verification: MET-01, MET-02 and MET-03 in the inventory. Visual
 and recording-clock synchronization remain separate follow-up #225.
+## Configurable meter scope (#207)
+
+Requirements 3.2, 4.1 and 4.2 now include validated 1-32 numerator and
+1/2/4/8/16/32 denominator, quarter-note BPM with denominator-note count-in,
+immutable take metadata, compatible preferences/library restoration and MIDI
+signature metadata at tick zero. Share/API preservation includes a database
+migration; live deployment verification is pending. Note timing/velocity/pitch
+and quarter-note tick conversion remain unchanged. Grouped accents, dotted-beat
+tempo and meter changes within a take are outside scope. See [the contract](meter.md)
+and METER-01 through METER-04 in the verification inventory for mapped tests
+and explicit hardware/manual limitations.
+
+## Count-in input policy (#205)
+
+CI-1 refines requirements 2.2, 3.2 and 4.1: start/resume count-ins silence
+existing voices and pedal captures and discard new piano input for every full
+meter interval, including asynchronous startup. Camera/calibration/contact
+tracking and optional clicks continue. CI-2 requires held note/pedal release
+and a fresh press, deterministic recorder-before-input opening, stale-event
+rejection and safe cancellation; free play outside count-in remains available.
+No change to latency thresholds or pedal recording scope. Mapped tests CI-01
+through CI-04 cover software behavior; physical camera/audio evidence remains
+pending in the [manual procedure](../tests/manual/2026-10-27_CI-04.md).
+
+## Official address and impersonation (#199)
+
+SEC-1 adds a security process requirement alongside 5.2: user-facing links use
+one official HTTPS address, a named owner runs periodic lookalike checks, and a
+documented procedure covers evidence, provider/registrar reports and official
+warnings. HTTPS (5.2) protects the connection but does not prove site identity,
+and checks cannot prevent a separate-domain impersonator. Mapped tests SEC-01
+and SEC-02; hosting confirmation of the address is pending. See
+[the procedure](deployment.md#official-address-and-impersonation-response-199).

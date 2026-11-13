@@ -1,6 +1,6 @@
 /* Deployment smoke test (#89). Run against `npm run build && npm start`
  * or a Vercel URL:
- *   MAKE_SHIFT_URL=https://make-shift-seven.vercel.app npm run test:deployment
+ *   MAKE_SHIFT_URL=https://make-shift-chi.vercel.app npm run test:deployment
  * MAKE_SHIFT_URL defaults to http://127.0.0.1:3000. BROWSER_CHANNEL selects
  * the browser (default "chromium": full Chromium in new headless mode; the
  * headless shell has no camera support). Install: npx playwright install chromium
@@ -45,6 +45,9 @@ const WASM_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${tasksV
 const ASSETS = [
   [base + "/audio/piano-worklet.js", /javascript/],
   [base + "/audio/synth.js", /javascript/],
+  [base + "/audio/sampled-piano.js", /javascript/],
+  [base + "/audio/piano-samples/manifest.json", /application\/json/],
+  [base + "/audio/piano-samples/C2.mp3", /audio\/mpeg/],
   [base + "/models/hand_landmarker.task", /^application\/octet-stream/],
   [WASM_BASE + "/vision_wasm_internal.js", /javascript/],
   [WASM_BASE + "/vision_wasm_internal.wasm", /application\/wasm/],

@@ -1,12 +1,16 @@
-// Mock shared recordings (#203). Stands in for the recordings API (#119,
-// #122, #128) with the same #117 request and response shapes, so wiring the
-// real routes only replaces this module. Fixtures are fixed; shares made in
-// the browser are kept in localStorage so a copied link opens in a new tab.
-// Append `?mock=empty` or `?mock=error` to a page URL to see those states.
+// Mock shared recordings (#203), with the same #117 shapes as the real
+// recordings API. Append `?mock=1` to a page URL to use these fixtures
+// instead of the API, or `?mock=empty` / `?mock=error` for those states.
+// Shares made in the browser are kept in localStorage so a copied link
+// opens in a new tab.
+import { isMeter, restoreMeter } from "../../lib/meter";
 import type { RecordedNote, Recording } from "../midi/midiUtils";
 import {
+  RECORDING_LIST_PAGE_SIZE,
   recordingDurationMs,
+  recordingOctaves,
   validateUpload,
+  type RecordingListQuery,
   type RecordingListResponse,
   type RecordingSummary,
   type SharedRecording,
@@ -14,19 +18,19 @@ import {
   type UploadRecordingResponse,
 } from "../../lib/recordings";
 import { readStored, writeStored, type StorageAccess } from "../../lib/storage";
-import { loadOrCreateProfile, saveProfile } from "../../lib/deviceProfile";
+import { ShareNotFoundError, type ShareStore } from "./shareApi";
 
-export const PAGE_SIZE = 6;
 const STORAGE_NAME = "mock-shared-recordings";
 const STORAGE_VERSION = 1;
 const LATENCY_MS = 350;
 
 export type MockMode = "normal" | "empty" | "error";
 
-/** Reads `?mock=` from the current URL. */
-export function mockMode(): MockMode {
-  if (typeof window === "undefined") return "normal";
+/** Reads `?mock=` from the current URL; null means use the real API. */
+export function mockMode(): MockMode | null {
+  if (typeof window === "undefined") return null;
   const value = new URLSearchParams(window.location.search).get("mock");
+  if (value === null) return null;
   return value === "empty" || value === "error" ? value : "normal";
 }
 
@@ -103,6 +107,7 @@ const FIXTURE_RECORDINGS: SharedRecording[] = FIXTURES.map((fixture, index) => {
     bpm: fixture.bpm,
     durationMs: recordingDurationMs(notes),
     noteCount: notes.length,
+    octaves: recordingOctaves(notes),
     createdAt: new Date(Date.UTC(2026, 9, 12 - index, 18 - index, 15)).toISOString(),
     notes,
   };
@@ -119,6 +124,7 @@ function isStoredShares(value: unknown): value is StoredShare[] {
         entry !== null &&
         typeof entry.id === "string" &&
         typeof entry.deleteToken === "string" &&
+        (entry.meter === undefined || isMeter(entry.meter)) &&
         Array.isArray(entry.notes),
     )
   );
@@ -127,19 +133,35 @@ function isStoredShares(value: unknown): value is StoredShare[] {
 function withoutToken(share: StoredShare): SharedRecording {
   const recording: SharedRecording & { deleteToken?: string } = { ...share };
   delete recording.deleteToken;
-  return recording;
+  return { ...recording, meter: restoreMeter(recording.meter), octaves: recordingOctaves(recording.notes) };
 }
 
 function summarize(recording: SharedRecording): RecordingSummary {
-  const { id, title, authorName, bpm, durationMs, noteCount, createdAt } = recording;
-  return { id, title, authorName, bpm, durationMs, noteCount, createdAt };
+  const { id, title, authorName, bpm, durationMs, noteCount, octaves, createdAt } = recording;
+  return { id, title, authorName, bpm, meter: restoreMeter(recording.meter), durationMs, noteCount, octaves, createdAt };
+}
+
+/** The route's filters and sorts, with ties broken by id so paging is stable. */
+function matching(recordings: SharedRecording[], query: RecordingListQuery): SharedRecording[] {
+  const q = query.q?.trim().toLowerCase();
+  const rows = recordings
+    .filter((r) => !q || r.title.toLowerCase().includes(q))
+    .filter((r) => !query.maxOctaves || r.octaves <= query.maxOctaves)
+    .filter((r) => !query.ids || query.ids.includes(r.id));
+  const order = (a: SharedRecording, b: SharedRecording) =>
+    query.sort === "longest"
+      ? b.durationMs - a.durationMs
+      : query.sort === "oldest"
+        ? a.createdAt.localeCompare(b.createdAt)
+        : b.createdAt.localeCompare(a.createdAt);
+  return rows.sort((a, b) => order(a, b) || a.id.localeCompare(b.id));
 }
 
 export function createMockShareStore(
   storage?: StorageAccess,
   latencyMs = LATENCY_MS,
-  mode: () => MockMode = mockMode,
-) {
+  mode: () => MockMode = () => mockMode() ?? "normal",
+): ShareStore {
   const loadShares = () =>
     readStored<StoredShare[]>(STORAGE_NAME, STORAGE_VERSION, [], isStoredShares, storage);
 
@@ -158,12 +180,12 @@ export function createMockShareStore(
   }
 
   return {
-    /** `GET /api/recordings`. The cursor is the next offset. */
-    list(cursor: string | null = null): Promise<RecordingListResponse> {
+    /** `GET /api/recordings`. The cursor is the next offset into the sorted matches. */
+    list(cursor: string | null = null, query: RecordingListQuery = {}): Promise<RecordingListResponse> {
       return respond(() => {
-        const recordings = all();
+        const recordings = matching(all(), query);
         const start = cursor ? Number(cursor) : 0;
-        const end = start + PAGE_SIZE;
+        const end = start + RECORDING_LIST_PAGE_SIZE;
         const page = recordings.slice(start, end).map(summarize);
         return {
           recordings: page,
@@ -187,10 +209,12 @@ export function createMockShareStore(
           title: upload.title,
           authorName: upload.authorName,
           bpm: upload.bpm,
+          meter: restoreMeter(upload.meter),
           notes: upload.notes,
           id: crypto.randomUUID().slice(0, 8),
           durationMs: recordingDurationMs(upload.notes),
           noteCount: upload.notes.length,
+          octaves: recordingOctaves(upload.notes),
           createdAt: new Date().toISOString(),
           deleteToken: crypto.randomUUID(),
         };
@@ -220,54 +244,6 @@ export function createMockShareStore(
   };
 }
 
-/** The share is already gone (a 404), so there is nothing left to stop. */
-export class ShareNotFoundError extends Error {
-  constructor() {
-    super("Recording not found.");
-    this.name = "ShareNotFoundError";
-  }
-}
-
-export const mockShareStore = createMockShareStore();
-
-// Which local takes are shared. #133 keeps the returned id and delete token
-// next to the take, so stopping a share works after a reload.
-const TAKE_SHARES_NAME = "take-shares";
-const TAKE_SHARES_VERSION = 1;
-export type TakeShare = UploadRecordingResponse;
-type TakeShares = Record<string, TakeShare>;
-
-function isTakeShares(value: unknown): value is TakeShares {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.values(value).every(
-      (share) =>
-        typeof share === "object" &&
-        share !== null &&
-        typeof share.id === "string" &&
-        typeof share.deleteToken === "string",
-    )
-  );
-}
-
-export function loadTakeShares(storage?: StorageAccess): TakeShares {
-  return readStored(TAKE_SHARES_NAME, TAKE_SHARES_VERSION, {}, isTakeShares, storage);
-}
-
-export function saveTakeShare(
-  takeId: string,
-  share: TakeShare | null,
-  storage?: StorageAccess,
-): TakeShares {
-  const next = { ...loadTakeShares(storage) };
-  if (share) next[takeId] = share;
-  else delete next[takeId];
-  writeStored(TAKE_SHARES_NAME, TAKE_SHARES_VERSION, next, storage);
-  return next;
-}
-
 /**
  * Dev-only stand-in for a just-finished take (`?dev=1&demo=take`), so the
  * post-recording share prompt can be seen without a sheet or camera. The id
@@ -281,60 +257,4 @@ export function demoTake(): Recording {
     createdAt: new Date().toISOString(),
     notes: song(100, TWINKLE, TWINKLE_CHORDS),
   };
-}
-
-/** The sharing name from the device profile (#125), shown in the sidebar too. */
-export const loadShareName = () => loadOrCreateProfile().profile.displayName;
-
-/**
- * Uploads a local take under a title and display name, from this device's
- * profile ID, and keeps the name as the profile's sharing name.
- */
-export async function uploadTake(
-  take: Recording,
-  title: string,
-  authorName: string,
-): Promise<TakeShare> {
-  const share = await mockShareStore.upload({
-    title,
-    authorName,
-    deviceId: loadOrCreateProfile().profile.deviceId,
-    bpm: take.bpm,
-    notes: take.notes,
-  });
-  const { profile } = loadOrCreateProfile();
-  if (profile.displayName !== authorName.trim()) saveProfile({ ...profile, displayName: authorName });
-  return share;
-}
-
-/** A local take in the shared shape, so the shared player can preview it. */
-export function asSharedRecording(take: Recording): SharedRecording {
-  return {
-    id: take.id,
-    title: take.name,
-    authorName: "",
-    bpm: take.bpm,
-    durationMs: recordingDurationMs(take.notes),
-    noteCount: take.notes.length,
-    createdAt: take.createdAt,
-    notes: take.notes,
-  };
-}
-
-export function shareUrl(id: string): string {
-  const origin = typeof window === "undefined" ? "" : window.location.origin;
-  return `${origin}/play/${id}`;
-}
-
-export function formatDuration(ms: number): string {
-  const seconds = Math.round(ms / 1000);
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-}
-
-export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }

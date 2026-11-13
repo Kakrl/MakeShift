@@ -91,6 +91,8 @@ vi.mock("../../frontend/src/app/audio/audioEngine", () => ({
     subscribeInvalidation: () => () => {},
     noteOn: vi.fn(() => ({ session: 1, press: 1 })),
     noteOff: vi.fn(() => true),
+    pauseInput: vi.fn(),
+    resumeInput: vi.fn(),
     releaseAll: vi.fn(),
   },
 }));
@@ -162,6 +164,37 @@ describe("home page", () => {
     window.history.replaceState(null, "", "/");
   });
 
+  it.each([undefined, null, {numerator:0,denominator:4}, {numerator:7,denominator:3}])("restores corrupt/legacy meter independently of tempo and metronome", meter => {
+    saveCalibration();
+    localStorage.setItem(storageKey("playback-settings",1), JSON.stringify({tempo:180,metronome:false,meter}));
+    renderHome();
+    expect((screen.getByLabelText("Time signature numerator") as HTMLInputElement).value).toBe("4");
+    expect((screen.getByLabelText("Time signature denominator") as HTMLSelectElement).value).toBe("4");
+    expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("180");
+    expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("commits meter only on Enter/blur, explains invalid drafts, and restores preferences", () => {
+    saveCalibration(); renderHome();
+    const numerator = screen.getByLabelText("Time signature numerator") as HTMLInputElement;
+    fireEvent.change(numerator, { target: { value: "" } });
+    expect(numerator.value).toBe("");
+    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!).meter.numerator).toBe(4);
+    fireEvent.keyDown(numerator, { key: "Enter" });
+    expect(numerator.value).toBe("4");
+    expect(screen.getByRole("alert").textContent).toContain("Restored 4/4");
+    fireEvent.change(numerator, { target: { value: "7.5" } });
+    fireEvent.blur(numerator);
+    expect(numerator.value).toBe("4");
+    fireEvent.change(numerator, { target: { value: "7" } });
+    fireEvent.keyDown(numerator, { key: "Enter" });
+    fireEvent.change(screen.getByLabelText("Time signature denominator"), { target: { value: "8" } });
+    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!).meter).toEqual({ numerator: 7, denominator: 8 });
+    cleanup(); renderHome();
+    expect((screen.getByLabelText("Time signature numerator") as HTMLInputElement).value).toBe("7");
+    expect((screen.getByLabelText("Time signature denominator") as HTMLSelectElement).value).toBe("8");
+  });
+
   it("restores saved preferences without overwriting them on initial render", () => {
     const key = storageKey("playback-settings", 1);
     localStorage.setItem(key, JSON.stringify({ tempo: 180, metronome: false }));
@@ -175,7 +208,7 @@ describe("home page", () => {
   it("allows metronome settings before calibration while piano audio remains unavailable", async () => {
     renderHome();
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).disabled).toBe(false);
-    expect((screen.getByLabelText("Time Signature") as HTMLSelectElement).disabled).toBe(false);
+    expect((screen.getByLabelText("Time signature numerator") as HTMLInputElement).disabled).toBe(false);
     const toggle = screen.getByLabelText("Toggle metronome") as HTMLButtonElement;
     expect(toggle.disabled).toBe(false);
     await act(async () => fireEvent.click(toggle));
@@ -193,7 +226,7 @@ describe("home page", () => {
     fireEvent.blur(screen.getByLabelText("Set Tempo"));
     fireEvent.click(screen.getByLabelText("Toggle metronome"));
     expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("true");
-    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!)).toEqual({ tempo: 175 });
+    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!)).toEqual({ tempo: 175, meter: { numerator: 4, denominator: 4 } });
     cleanup();
     renderHome();
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("175");
@@ -233,7 +266,7 @@ describe("home page", () => {
     renderHome();
     expect((screen.getByLabelText("Set Tempo") as HTMLInputElement).value).toBe("180");
     expect(screen.getByLabelText("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
-    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!)).toEqual({ tempo: 180 });
+    expect(JSON.parse(localStorage.getItem(storageKey("playback-settings", 1))!)).toEqual({ tempo: 180, meter: { numerator: 4, denominator: 4 } });
   });
 
   it.each([20, 300])("restores valid boundary tempo %s", (tempo) => {
@@ -316,6 +349,8 @@ describe("home page", () => {
   it("shows the welcome modal on the first visit only", () => {
     renderHome();
     expect(screen.getByText("Welcome to MakeShift")).toBeTruthy();
+    expect(screen.getByText("Read Tutorial").classList.contains("ms-key-primary")).toBe(true);
+    expect(screen.getByText("Start Calibration").classList.contains("ms-key-primary")).toBe(false);
     fireEvent.click(screen.getByText("Skip for now"));
     expect(screen.queryByText("Welcome to MakeShift")).toBeNull();
 
@@ -412,8 +447,8 @@ describe("home page", () => {
     await act(async () => {
       fireEvent.click(screen.getByLabelText("Start recording"));
     });
-    expect(screen.getByText("1")).toBeTruthy();
-    // One 4/4 measure at 60 BPM, advanced through the simulated worklet clock.
+    expect(screen.getByText("1", { selector: "span.ms-beat" })).toBeTruthy();
+    // One 4/4 measure at the default 60 BPM. Advanced through the simulated worklet clock.
     for (let beat = 0; beat < 4; beat++) act(() => vi.advanceTimersByTime(1000));
     expect(screen.getByText("Recording started")).toBeTruthy();
 
@@ -473,7 +508,8 @@ describe("home page", () => {
 
   it("saves and shares to everyone, then shows the link", async () => {
     // The dev demo take has notes; a take with none can only stay private.
-    window.history.replaceState(null, "", "/?dev=1&demo=take");
+    // `mock=1` keeps sharing on the mock store; the API has its own spec.
+    window.history.replaceState(null, "", "/?dev=1&demo=take&mock=1");
     localStorage.setItem("hasVisited", "true");
     renderHome();
     const review = screen.getByRole("dialog", { name: "Would you like to save your recording?" });
@@ -508,6 +544,65 @@ describe("home page", () => {
     });
     expect(localStorage.getItem("makeshift:mock-shared-recordings:v1")).not.toContain("Twinkle");
     expect(localStorage.getItem("makeshift:take-shares:v1")).not.toContain("demo-take");
+  });
+
+  it("keeps a shared take and its token when stopping the share fails", async () => {
+    window.history.replaceState(null, "", "/?dev=1&demo=take&mock=1");
+    localStorage.setItem("hasVisited", "true");
+    renderHome();
+    const review = screen.getByRole("dialog", { name: "Would you like to save your recording?" });
+    fireEvent.click(within(review).getByRole("button", { name: "Yes, save it" }));
+    const details = screen.getByRole("dialog", { name: "Save your recording" });
+    fireEvent.change(within(details).getByLabelText("Recording name"), { target: { value: "Twinkle" } });
+    fireEvent.click(within(details).getByRole("radio", { name: /Everyone/ }));
+    fireEvent.change(within(details).getByLabelText("Your name"), { target: { value: "Jo" } });
+    await act(async () => {
+      fireEvent.click(within(details).getByRole("button", { name: "Save and share" }));
+      await vi.advanceTimersByTimeAsync(400);
+    });
+    // The share was made on the mock store, so its link stays there.
+    const done = screen.getByRole("dialog", { name: "Your song is shared!" });
+    expect(within(done).getByText(/\/play\/[\w-]+\?mock=1/)).toBeTruthy();
+    fireEvent.click(within(done).getByRole("button", { name: "Done" }));
+    expect(localStorage.getItem("makeshift:take-shares:v1")).toContain('"mock":true');
+
+    // The store now fails: the take holds the only delete token, so it stays.
+    window.history.replaceState(null, "", "/?dev=1&mock=error");
+    fireEvent.click(screen.getByRole("button", { name: "My recordings" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Twinkle/ }));
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+      await vi.advanceTimersByTimeAsync(400);
+    });
+    expect(screen.getAllByRole("alert").some((alert) => /could not be stopped/.test(alert.textContent ?? ""))).toBe(true);
+    expect(localStorage.getItem("makeshift:take-shares:v1")).toContain("demo-take");
+    expect(screen.getByRole("button", { name: "Delete" })).toBeTruthy();
+  });
+
+  it("undoes a share when this device can't keep its delete token", async () => {
+    window.history.replaceState(null, "", "/?dev=1&demo=take&mock=1");
+    localStorage.setItem("hasVisited", "true");
+    renderHome();
+    const write = localStorage.setItem.bind(localStorage);
+    vi.spyOn(window.localStorage, "setItem").mockImplementation((key: string, value: string) => {
+      if (key === "makeshift:take-shares:v1") throw new DOMException("full", "QuotaExceededError");
+      write(key, value);
+    });
+    const review = screen.getByRole("dialog", { name: "Would you like to save your recording?" });
+    fireEvent.click(within(review).getByRole("button", { name: "Yes, save it" }));
+    const details = screen.getByRole("dialog", { name: "Save your recording" });
+    fireEvent.change(within(details).getByLabelText("Recording name"), { target: { value: "Twinkle" } });
+    fireEvent.click(within(details).getByRole("radio", { name: /Everyone/ }));
+    fireEvent.change(within(details).getByLabelText("Your name"), { target: { value: "Jo" } });
+    await act(async () => {
+      fireEvent.click(within(details).getByRole("button", { name: "Save and share" }));
+      await vi.advanceTimersByTimeAsync(800);
+    });
+
+    expect(screen.queryByRole("dialog", { name: "Your song is shared!" })).toBeNull();
+    expect(within(details).getByRole("alert").textContent).toMatch(/undone/);
+    expect(localStorage.getItem("makeshift:mock-shared-recordings:v1") ?? "").not.toContain("Twinkle");
   });
 
   it("asks for the sharing name only until it is set", async () => {

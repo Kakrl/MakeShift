@@ -1,0 +1,4 @@
+# Do not scan an earlier generated inventory as input to its replacement.
+exclude:
+  - './docs/SBOM.json'
+  - './docs/SBOM.commit.txt'

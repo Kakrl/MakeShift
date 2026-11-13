@@ -6,7 +6,18 @@ AudioWorklet synthesis, MIDI recording/export, and feedback run on the user's
 device. Vercel hosts the application/assets; no per-note network or WebRTC
 transport is required.
 
-The initial browser synthesizer uses JavaScript in an AudioWorklet. The existing
+The browser piano uses preloaded local recordings in a JavaScript AudioWorklet
+(#210), superseding the initial procedural synth. Nineteen attributed Salamander
+recordings, stereo playback, fixed ten-voice headroom and the selected +6 dB bass
+curve plus a uniform +6 dB output boost with a fixed overload ceiling are in scope.
+Binary sustain/sostenuto and soft strike attenuation remain supported (#176);
+additional dynamic layers and acoustic pedal/resonance modeling are
+not included. Readiness includes loading/decoding, while playing has no per-note
+network dependency. The live velocity mapping reaches full strength at 4 palm
+lengths/s instead of 8, retaining the existing noise/soft floor and sampled
+gain exponent; requirement 2.4 and physical verification targets are unchanged.
+See [the sampled playback contract](browser_audio.md#sampled-production-piano-and-register-balance-210).
+The existing
 C++/PortAudio implementation remains a native reference. WebAssembly is optional
 future work justified by measurements or DSP reuse, not a prerequisite.
 Calibration validity, session cleanup, pitch correctness and measured
@@ -153,3 +164,35 @@ clicks only when enabled. Preserve selected tempo and existing meter semantics
 (including six beats for 6/8), pause silence, cancellation, readiness checks and
 MIDI exclusion. Verification: MET-01, MET-02 and MET-03 in the inventory. Visual
 and recording-clock synchronization remain separate follow-up #225.
+## Configurable meter scope (#207)
+
+Requirements 3.2, 4.1 and 4.2 now include validated 1-32 numerator and
+1/2/4/8/16/32 denominator, quarter-note BPM with denominator-note count-in,
+immutable take metadata, compatible preferences/library restoration and MIDI
+signature metadata at tick zero. Share/API preservation includes a database
+migration; live deployment verification is pending. Note timing/velocity/pitch
+and quarter-note tick conversion remain unchanged. Grouped accents, dotted-beat
+tempo and meter changes within a take are outside scope. See [the contract](meter.md)
+and METER-01 through METER-04 in the verification inventory for mapped tests
+and explicit hardware/manual limitations.
+
+## Count-in input policy (#205)
+
+CI-1 refines requirements 2.2, 3.2 and 4.1: start/resume count-ins silence
+existing voices and pedal captures and discard new piano input for every full
+meter interval, including asynchronous startup. Camera/calibration/contact
+tracking and optional clicks continue. CI-2 requires held note/pedal release
+and a fresh press, deterministic recorder-before-input opening, stale-event
+rejection and safe cancellation; free play outside count-in remains available.
+No change to latency thresholds or pedal recording scope. Mapped tests CI-01
+through CI-04 cover software behavior; physical camera/audio evidence remains
+pending in the [manual procedure](../tests/manual/2026-10-27_CI-04.md).
+
+## Official address and impersonation response (#199)
+
+Before public promotion, Carl Xu confirms the official production address
+(currently <https://make-shift-chi.vercel.app>, confirmation pending) and owns
+monthly lookalike checks and provider reports; Jadden Picardal keeps
+user-facing links consistent. Camera prompt redesign and database changes are
+out of scope. Procedure: [deployment](deployment.md#official-address-and-impersonation-response-199);
+tests SEC-01 and SEC-02.

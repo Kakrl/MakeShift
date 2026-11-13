@@ -1,3 +1,4 @@
+import { isMeter, restoreMeter, type Meter } from "./meter";
 // Shared recordings API contract (#117). Server routes and client code both
 // import these types and `validateUpload`, so an upload the client accepts is
 // exactly one the server accepts. Limits mirror the `recordings` table checks
@@ -16,21 +17,61 @@ export const RECORDING_LIMITS = {
   maxDurationMs: 30 * 60 * 1000,
 } as const;
 
+/** Recordings per `GET /api/recordings` page. */
+export const RECORDING_LIST_PAGE_SIZE = 6;
+
 /** One row in `GET /api/recordings`; omits the note list. */
 export type RecordingSummary = {
   id: string;
   title: string;
   authorName: string;
   bpm: number;
+  meter?: Meter;
   durationMs: number;
   noteCount: number;
+  /** Octaves of keyboard the song spans, at least 1: see `recordingOctaves`. */
+  octaves: number;
   createdAt: string;
 };
 
 /** `GET /api/recordings/:id`. */
 export type SharedRecording = RecordingSummary & { notes: RecordedNote[] };
 
-/** `GET /api/recordings`, newest first. Pass `nextCursor` back to get the next page; null on the last page. */
+export const RECORDING_SORTS = ["newest", "oldest", "longest"] as const;
+export type RecordingSort = (typeof RECORDING_SORTS)[number];
+/** Sheets come in one, two and three octaves. */
+export const OCTAVE_CHOICES = [1, 2, 3] as const;
+export const MAX_QUERY_IDS = 100;
+/** Shared recording ids; mock and local ids are not UUIDs. */
+export const RECORDING_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const MAX_SEARCH_LENGTH = 100;
+
+/** Query of `GET /api/recordings`; every field is optional. */
+export type RecordingListQuery = {
+  /** Case-insensitive title match. */
+  q?: string;
+  /** Defaults to newest. */
+  sort?: RecordingSort;
+  /** Only songs that fit a sheet of this many octaves or fewer. */
+  maxOctaves?: number;
+  /** Only these recordings (favorites), at most MAX_QUERY_IDS. */
+  ids?: string[];
+};
+
+/** Octaves of the smallest sheet holding the notes: sheets run C to C, so B4 and D5 need two. */
+export function recordingOctaves(notes: readonly RecordedNote[]): number {
+  let low = Infinity;
+  let high = -Infinity;
+  for (const { pitch } of notes) {
+    const midi = pitchToMidi(pitch);
+    if (midi === null) continue;
+    low = Math.min(low, midi);
+    high = Math.max(high, midi);
+  }
+  return high < low ? 1 : Math.max(1, Math.ceil((high - Math.floor(low / 12) * 12) / 12));
+}
+
+/** `GET /api/recordings`, newest first unless `sort` says otherwise. Pass `nextCursor` back to get the next page; null on the last page. */
 export type RecordingListResponse = {
   recordings: RecordingSummary[];
   nextCursor: string | null;
@@ -42,6 +83,7 @@ export type UploadRecordingRequest = {
   authorName: string;
   deviceId: string;
   bpm: number;
+  meter?: Meter;
   notes: RecordedNote[];
 };
 
@@ -134,6 +176,7 @@ export function validateUpload(body: unknown): UploadValidation {
   const authorName = text(issues, body, "authorName", RECORDING_LIMITS.authorNameLength);
   const deviceId = text(issues, body, "deviceId", RECORDING_LIMITS.deviceIdLength);
 
+  if (body.meter !== undefined && !isMeter(body.meter)) issues.push({ field: "meter", message: "Invalid time signature" });
   const { bpm } = body;
   const bpmLimits = RECORDING_LIMITS.bpm;
   if (!Number.isInteger(bpm) || !inRange(bpm, bpmLimits.min, bpmLimits.max))
@@ -169,6 +212,7 @@ export function validateUpload(body: unknown): UploadValidation {
       authorName,
       deviceId,
       bpm: bpm as number,
+      meter: restoreMeter(body.meter),
       notes: (notes as RecordedNote[]).map(
         ({ pitch, velocity, startMs, durationMs }) => ({
           pitch,
