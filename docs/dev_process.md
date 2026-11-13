@@ -30,7 +30,11 @@ MakeShift/
 │       ├── Bindings.cpp             # nanobind Python bindings
 │       └── __init__.py
 ├── docs/
+│   ├── tutorial.md                  # user getting-started walkthrough
+│   ├── how-to.md                    # developer setup, code map, mock recordings and contribution guide
 │   ├── architecture.md              # browser target, tooling, delivery boundaries
+│   ├── explanation.md               # current architecture, decisions and limitations
+│   ├── reference.md                 # developer lookup: APIs, config, schemas, storage
 │   ├── cv_automated_testing.md       # working plan for labeled CV recordings and metrics
 │   ├── cv_video_tests.md             # quick guide for preparing and running CV video tests
 │   ├── cv_knuckle_boundary.md        # current knuckle eligibility heuristic and review questions
@@ -149,6 +153,7 @@ MakeShift/
 │   │   ├── keyBoundary.test.ts      # projected key interior and gray-band geometry
 │   │   ├── liveContactPipeline.test.ts # active finger key ownership and boundary switching
 │   │   ├── keyboardLayout.browser.mjs # production layout/override/persistence controls
+│   │   ├── uiNavigation.selenium.mjs # Selenium control visibility, tab position, calibration nav
 │   │   ├── midiUtils.test.ts
 │   │   ├── storage.test.ts           # versioned localStorage module
 │   │   └── check-contrast.mjs
@@ -461,7 +466,7 @@ evidence are recorded under CI-03 in the verification inventory.
 
 Issue #222 adds `frontend/src/app/midi/recordedPedals.ts` (versioned control
 validation, copies and ordered boundaries), `tests/frontend/recordedPedals.test.ts`,
-`supabase/migrations/20261102000000_recording_pedals.sql` and the prepared
+`supabase/migrations/20261113000000_recording_pedals.sql` and the prepared
 `tests/manual/2026-11-02_PR-05.md` procedure. No subsystem boundary changes.
 
 `tests/frontend/recordedPedals.browser.mjs` is the manually invoked real-worklet

@@ -124,6 +124,28 @@ function midiEvents(recording: Recording) {
 }
 
 describe("ordered pedal performance", () => {
+  it("skips a missed strike under sustain while releasing an already sounding note", async () => {
+    const { audio, synth } = audioFixture();
+    const recording = take();
+    recording.pedals = {
+      version: 1,
+      noteOrder: [{ on: 1, off: 3 }, { on: 2, off: 4 }],
+      events: [
+        { timeMs: 0, order: 0, state: { ...off, sustain: true } },
+        { timeMs: 200, order: 5, state: off },
+      ],
+    };
+    const timeline = createPlaybackTimeline(recording, audio);
+    await timeline.play();
+    vi.spyOn(performance, "now").mockReturnValue(175);
+    await vi.advanceTimersByTimeAsync(50);
+    expect(audio.noteOn).toHaveBeenCalledTimes(1);
+    expect(audio.noteOff).toHaveBeenCalledExactlyOnceWith({ session: 1, press: 1 });
+    expect(synth.voices[0]).toMatchObject({ press: 1, held: false, releasing: false });
+    expect(audio.setPedals).toHaveBeenLastCalledWith({ ...off, sustain: true });
+    timeline.dispose();
+  });
+
   it("does not resurrect a stolen held press after later retained voices are cleared", async () => {
     const { audio } = audioFixture();
     const recording = take();

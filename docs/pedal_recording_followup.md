@@ -55,6 +55,10 @@ restart playback. Pause, seek, stop, end and disposal send ordered release-all,
 clearing every voice/capture/pedal without invalidating or gating the transport.
 On transport failure, the owner resets the session as before.
 
+If a timer fires after a missed strike's physical release, playback skips that
+strike even when sustain is down. An already dispatched strike still receives
+its note-off and can ring until the pedal lifts.
+
 Resume/seek simulates history in memory. It restores final pedals, original soft
 strike state and sostenuto membership for at most ten nonretired physical presses spanning the selected position.
 The history model counts physical/retained voices and retires the oldest at ten;
@@ -79,4 +83,4 @@ provided. The [Frontend CI job](https://github.com/Kakrl/MakeShift/actions/runs/
 passed for head 41a81e5, including 763 tests and Chromium smoke checks. Deterministic/reference DSP,
 mocked transport and parsed MIDI bytes do not establish external instrument
 compatibility, actual speaker output or physical latency. Database migration
-`20261102000000_recording_pedals.sql` must precede API deployment.
+`20261113000000_recording_pedals.sql` must precede API deployment.

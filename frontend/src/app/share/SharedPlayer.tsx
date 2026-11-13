@@ -47,6 +47,7 @@ export default function SharedPlayer({
   fill = false,
   shareActions = true,
   actions,
+  onPlayAlong,
 }: {
   recording: SharedRecording | null;
   /** Fill a flex column: the roll takes the free space, keys sit at the bottom. */
@@ -55,10 +56,14 @@ export default function SharedPlayer({
   shareActions?: boolean;
   /** Extra keys after Play, e.g. a local take's Download, Share and Delete. */
   actions?: ReactNode;
+  /** Shows a Play along key that drops the song onto the keyboard (#131). Resolves to an error message, or null once it started. */
+  onPlayAlong?: (recording: Recording) => Promise<string | null>;
 }) {
   const [timeline, setTimeline] = useState<PlaybackTimeline | null>(null);
   const [state, setState] = useState<PlaybackState>("stopped");
   const [error, setError] = useState<string | null>(null);
+  const [alongPending, setAlongPending] = useState(false);
+  const [alongError, setAlongError] = useState<string | null>(null);
 
   const rollRef = useRef<PianoRollHandle>(null);
   const frame = useRef(0);
@@ -112,6 +117,11 @@ export default function SharedPlayer({
           Sound could not start: {error}
         </p>
       )}
+      {alongError && (
+        <p role="alert" className="mt-3 text-[14px] text-danger">
+          Play along could not start: {alongError}
+        </p>
+      )}
       <div className="mt-4 flex shrink-0 flex-wrap items-center gap-2">
         <button
           type="button"
@@ -127,6 +137,26 @@ export default function SharedPlayer({
           <PlayIcon playing={playing} />
           {playing ? "Pause" : state === "ended" ? "Play again" : "Play"}
         </button>
+        {onPlayAlong && (
+          <button
+            type="button"
+            className={secondary}
+            disabled={!recording || alongPending}
+            onClick={() => {
+              if (!recording) return;
+              timeline?.pause();
+              sync();
+              setAlongPending(true);
+              setAlongError(null);
+              void onPlayAlong(asRecording(recording)).then((message) => {
+                setAlongPending(false);
+                setAlongError(message);
+              });
+            }}
+          >
+            Play along
+          </button>
+        )}
         {shareActions && (
           <>
             <button

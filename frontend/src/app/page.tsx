@@ -8,6 +8,8 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useCamera } from "./CameraContext";
 import CameraStatusOverlay from "./CameraStatusOverlay";
+import PlayAlongBar from "./midi/PlayAlongBar";
+import { scorePlayAlongPress, startPlayAlong } from "./midi/playAlong";
 import SideNav from "./SideNav";
 import PedalControls from "./PedalControls";
 import PageTopBar from "./PageTopBar";
@@ -364,6 +366,7 @@ export default function Home() {
   useEffect(() => {
     const detach = session.attach();
     const disconnectNotes = connectPianoConsumers(session, recorder, setActivePitches);
+    const disconnectScoring = session.subscribeNotes(({ event }) => scorePlayAlongPress(event));
     let previousState = session.status.state;
     const unsubscribe = session.subscribe(() => {
       const status = session.status;
@@ -402,6 +405,7 @@ export default function Home() {
       detach();
       session.flushNotes();
       disconnectNotes();
+      disconnectScoring();
       recorder.stopRecording();
       cancelMetronomeRequest();
       metronomeController.close();
@@ -454,6 +458,13 @@ export default function Home() {
       setMetronomeError("Metronome audio could not start. Turn it on again to retry.");
     }
   };
+  // Called from the Play along click, so that gesture can start piano audio.
+  const playAlong = async (song: Recording) => {
+    if (!await enableAudio()) return session.status.message;
+    startPlayAlong(song, session.layout);
+    return null;
+  };
+
   const handlePlay = async () => {
     if (audioPreparingRef.current || countInActionRef.current !== null || session.status.state === "starting") return;
     if (isRecording && !isPaused) {
@@ -542,6 +553,13 @@ export default function Home() {
   const settingsLocked = !settingsLoaded || isRecording || countInBeat !== null || audioPreparing;
   const needsCalibration = isCalibrated === false;
   const openCalibration = () => setShowCalibrationIntro(true);
+  // Home CV loops can starve the route transition on slow CPUs (#260).
+  const [leavingForCalibration, setLeavingForCalibration] = useState(false);
+  const goToCalibration = () => {
+    setShowCalibrationIntro(false);
+    setLeavingForCalibration(true);
+    router.push("/calibration");
+  };
   const settingLabel = settingsLocked ? "text-ink-muted" : "text-ink";
   const statusTone =
     liveStatus.state === "error" ? "bg-danger" :
@@ -596,13 +614,13 @@ export default function Home() {
               <div className="flex gap-3">
                 <button
                   onClick={() => { setShowWelcome(false); router.push("/tutorial"); }}
-                  className="ms-key flex-1 py-3"
+                  className="ms-key ms-key-primary flex-1 py-3"
                 >
                   Read Tutorial
                 </button>
                 <button
                   onClick={() => { setShowWelcome(false); setShowCalibrationIntro(true); }}
-                  className="ms-key ms-key-primary flex-1 py-3"
+                  className="ms-key flex-1 py-3"
                 >
                   Start Calibration
                 </button>
@@ -656,13 +674,13 @@ export default function Home() {
             </ol>
             <div className="px-6 sm:px-8 pt-6 pb-7 flex gap-3 justify-end">
               <button
-                onClick={() => { setShowCalibrationIntro(false); router.push("/calibration"); }}
+                onClick={goToCalibration}
                 className="ms-key ms-key-ghost px-5"
               >
                 Skip
               </button>
               <button
-                onClick={() => { setShowCalibrationIntro(false); router.push("/calibration"); }}
+                onClick={goToCalibration}
                 className="ms-key ms-key-primary px-6 py-3"
               >
                 Begin Calibration
@@ -682,13 +700,16 @@ export default function Home() {
             muted
             className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
           />
-          <CVOverlayCoordinator
-            session={session}
-            videoRef={videoRef}
-            enabled={canPlay && liveStatus.state === "playing"}
-            activePitches={activePitches}
-          />
+          {!leavingForCalibration && (
+            <CVOverlayCoordinator
+              session={session}
+              videoRef={videoRef}
+              enabled={canPlay && liveStatus.state === "playing"}
+              activePitches={activePitches}
+            />
+          )}
           <CameraStatusOverlay />
+          <PlayAlongBar />
           {devMode && <p className="ms-pill absolute top-3 right-3 z-30 py-1.5 px-3 text-[12px] font-semibold">Dev mode: calibration skipped</p>}
 
           {/* Calibrate-first call to action: the first thing to do on this page */}
@@ -826,7 +847,7 @@ export default function Home() {
           </section>
 
           <div className="mt-[23px] lg:pl-[43px]">
-            <RecordingsLibrary ref={recordingsLibraryRef} onStatusChange={updateLibraryStatus} />
+            <RecordingsLibrary ref={recordingsLibraryRef} onStatusChange={updateLibraryStatus} onPlayAlong={playAlong} />
           </div>
         </SideNav>
       </div>

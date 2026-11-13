@@ -7,6 +7,7 @@ import { parsePersistedDepthCalibration } from "../../frontend/src/cv/depthCalib
 import { loadKeyboardLayout } from "../../frontend/src/lib/keyboardSettings";
 const fixture = vi.hoisted(() => ({
   markers: true,
+  validGeometry: true,
   hands: true,
   handStatus: "ready" as "loading" | "ready" | "error",
   detectedHand: "Right",
@@ -79,7 +80,7 @@ vi.mock("../../frontend/src/cv/markerDetector", () => ({
           [900, 100],
           [900, 900],
           [100, 900],
-        ].map(([x, y], id) => ({ id, center: { x, y }, corners: [] })),
+        ].map(([x, y], id) => ({ id, center: fixture.validGeometry ? { x, y } : { x: 100, y: 100 }, corners: [] })),
       }),
     }),
   },
@@ -106,6 +107,7 @@ beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.useFakeTimers();
   fixture.markers = true;
+  fixture.validGeometry = true;
   fixture.hands = true;
   fixture.handStatus = "ready";
   fixture.detectedHand = "Right";
@@ -184,7 +186,6 @@ async function paper() {
 }
 async function complete() {
   await paper();
-  await click("Check paper");
   await click("Next Step");
   await depth("Right");
   await click("Next Step");
@@ -202,16 +203,33 @@ async function depth(hand: "Right" | "Left") {
 it("blocks paper acceptance without markers and recovers with real geometry", async () => {
   fixture.markers = false;
   await paper();
-  expect(find("Next Step")).toBeUndefined();
-  await click("Check paper");
+  expect(find("Check paper")).toBeUndefined();
+  expect(host.textContent).toContain("Missing: 3");
   expect(find("Next Step")).toBeUndefined();
   fixture.markers = true;
-  await click("Check paper");
+  await tick(250);
   expect(find("Next Step")).toBeDefined();
+});
+it("rejects invalid geometry automatically and reacquires when returning to paper", async () => {
+  fixture.validGeometry = false;
+  await paper();
+  expect(find("Next Step")).toBeUndefined();
+  expect(host.textContent).not.toContain("Sheet geometry validated");
+  fixture.validGeometry = true;
+  await tick(10000);
+  expect(host.textContent).toContain("Sheet geometry validated");
+  expect(find("Check paper")).toBeUndefined();
+  await click("Next Step");
+  fixture.markers = false;
+  await click("Back");
+  expect(find("Next Step")).toBeUndefined();
+  fixture.markers = true;
+  await tick(250);
+  await click("Next Step");
+  expect(host.textContent).toContain("Step 4: Calibrate the right hand");
 });
 it("requires detected hands before advancing through depth calibration", async () => {
   await paper();
-  await click("Check paper");
   await click("Next Step");
   expect(host.textContent).toContain("Step 4: Calibrate the right hand");
   fixture.hands = false;
@@ -224,7 +242,6 @@ it("requires detected hands before advancing through depth calibration", async (
 });
 it("recovers from a failed hand-detector load with a successful retry", async () => {
   await paper();
-  await click("Check paper");
   await click("Next Step");
   fixture.handStatus = "error";
   await act(async () => root.render(<Calibration />));
@@ -241,7 +258,6 @@ it("recovers from a failed hand-detector load with a successful retry", async ()
 });
 it("keeps hand calibration progress when going back and resuming", async () => {
   await paper();
-  await click("Check paper");
   await click("Next Step");
   await depth("Right");
   await click("Next Step");
@@ -279,7 +295,6 @@ it("captures both phases and persists a validated result only on completion", as
 });
 it("requires a real hand capture at each depth position", async () => {
   await paper();
-  await click("Check paper");
   await click("Next Step");
   fixture.hands = false;
   await click("Capture top-left corner position");
@@ -373,7 +388,6 @@ it("restores the companion depth model if the primary calibration write fails", 
 
 it("discards in-progress depth captures when another tab changes configuration", async () => {
   await paper();
-  await click("Check paper");
   await click("Next Step");
   await click("Capture top-left corner position");
   await act(async () => {
@@ -390,7 +404,6 @@ it("discards in-progress depth captures when another tab changes configuration",
 
 it("does not restart depth captures when markers are missed at the final position", async () => {
   await paper();
-  await click("Check paper");
   await click("Next Step");
   for (const label of ["top-left corner", "top-right corner", "bottom-left corner", "bottom-right corner"]) {
     fixture.depthCapture++;
@@ -417,7 +430,6 @@ it("does not restart depth captures when markers are missed at the final positio
 
 it("keeps the final position available when camera settings changed", async () => {
   await paper();
-  await click("Check paper");
   await click("Next Step");
   for (const label of ["top-left corner", "top-right corner", "bottom-left corner", "bottom-right corner"]) {
     fixture.depthCapture++;

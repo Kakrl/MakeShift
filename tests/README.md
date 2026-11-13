@@ -1,6 +1,78 @@
 # MakeShift Testing
 
+## Paper-step simplification (issue #234, 2026-11-02)
+
+Branch `fix/234-remove-check-paper`, based on `233ffd4`, tested in an isolated
+worktree to preserve unrelated checkout edits. Removed the manual paper-check
+button, its duplicate scan/error path and obsolete recovery instructions. The
+automatic paper scan now reuses the initialized detector; validation, settings
+snapshots, navigation and detector readiness remain in place.
+
+Windows / Node 22.20.0: lint, TypeScript, all 37 contrast pairs and full Vitest
+passed (697 tests, one existing skip, 36 files). All 19 calibration workflow
+cases passed, including missing-marker acquisition, invalid geometry, Back to
+paper reacquisition, both hand captures, settings mismatch and persistence.
+The production Turbopack build passed after temporarily expanding its root to
+include the worktree dependency junction; the config was restored afterward.
+Vitest needed outside-sandbox execution after cache rename EPERM.
+
+Edge 156.0.4314.58 production deployment, keyboard-layout and audio browser
+checks passed against port 3234 with fake media; database unconfigured. Chromium
+was attempted for all three checks but could not launch (`spawn UNKNOWN`).
+Real camera/printed-paper verification and new Actions execution remain pending.
+## Selenium UI navigation verification (issue #244)
+
+Local macOS execution on 2026-10-31, Node 26.8.1, Selenium WebDriver 4.50.0,
+headless Chrome from Selenium Manager with fake media, production build of
+`8d7e944` served by `next start`. Viewports set exactly through
+`Emulation.setDeviceMetricsOverride`. Since #260, 6.2.1 throttles the CPU 6x
+for the home → intro → Begin Calibration step so it fails reliably when home
+CV work stalls the route transition (D28).
+
+- **3.1.1, KNOWN FAIL (D25, #245):** after "Skip for now" on the welcome
+  dialog, the Calibration, Tutorial and About tabs were inside the viewport,
+  unscrolled and uncovered at 1024x768, 1440x900 and 1920x1080. The Record
+  control was below the fold at all three (top/bottom 874/917, 877/920 and
+  1121/1164 px), uncalibrated and in `?dev=1`.
+- **3.1.2, PASS:** the three tabs kept identical rects (within 1 px) across
+  `/`, `/?dev=1`, `/calibration` and `/about` at each viewport, for example
+  `1127,126,267,72` for Calibration at 1440x900. `/tutorial` has no side nav
+  and is not covered. macOS overlay scrollbars hide D26.
+- **3.1.2 in GitHub Actions (ubuntu-latest Chrome, PR #246 first run):**
+  every tab sat 15 px further left on `/` than on `/calibration` at all three
+  viewports, matching home's classic scrollbar ([run](https://github.com/Kakrl/MakeShift/actions/runs/41236234016)).
+  Filed as D26 (#247). The runner now reports a shift that equals the
+  scrollbar width difference as a known failure and still fails any other move.
+- **6.2.1, PASS (1440x900):** home Calibration tab opened the intro dialog,
+  Begin Calibration reached `/calibration` with that tab `aria-current`, and
+  the About page's Calibration link reached `/calibration`.
+- The runner exits 0 while D25 and D26 are open and fails on any other assertion.
+  Not covered: real camera, browsers other than Chrome, widths below `lg`,
+  the Documentation control (no nav entry; `/documentation` is the Next.js
+  starter page).
+- GitHub Actions (ubuntu-latest Chrome, PR #246 at the D26 commit): [Actions job log](https://github.com/Kakrl/MakeShift/actions/runs/41236674591/job/124641810203)
+  matched locally for 3.1.1 (D25) and 6.2.1 (PASS); 3.1.2 was KNOWN FAIL (D26)
+  with a 15 px scrollbar on `/` and `/?dev=1`.
+
 ## Ordered pedal performances (issue #222)
+
+### PR #253 merge and review verification (2026-11-13)
+
+Merged main at `4a8d2b4`. A delayed callback skips an undispatched strike
+after its physical release, including under sustain. A strike that already
+sounded can still ring after its release. The reference synth regression
+covers both cases in a single delayed callback.
+
+Windows / Node 22.20.0: lint, TypeScript, 864 Vitest passes with one existing
+skip, 37 contrast pairs and the production build passed. The local build
+temporarily expanded the Turbopack root for the dependency junction.
+Chromium 151.0.7922.34 passed deployment, keyboard-layout and audio smoke
+checks with fake media and an unconfigured database.
+PGlite 0.3.14 applied the migration chain and verified pedal and legacy uploads,
+octave fallback, quota rejection, rollback on invalid pedals and RPC grants.
+The hosted Supabase migration and live API round trip remain pending.
+
+### Original verification
 
 Carl Xu tested the production implementation at `http://localhost:3222` on
 2026-11-02 and confirmed "it works as intended," requesting PR #253 be made
@@ -49,7 +121,7 @@ $env:AUDIO_BROWSER_CHANNEL = 'msedge'
 node tests/frontend/recordedPedals.browser.mjs
 ```
 
-Apply `20261102000000_recording_pedals.sql` before API deployment. The local
+Apply `20261113000000_recording_pedals.sql` before API deployment. The local
 Supabase CLI was unavailable; `npx --no-install supabase db push --linked`
 failed resolving the package (ENOTFOUND). Live migration/round trips, external
 MIDI-instrument import, detailed camera/audio conditions and physical latency
@@ -728,6 +800,7 @@ tests/
 │   ├── browserAudio.browser.mjs  # production browser graph check
 │   ├── cameraLayout.browser.mjs  # home camera feed 16:9 across viewports
 │   ├── deployment.browser.mjs    # production assets, camera recovery, offline playing
+│   ├── uiNavigation.selenium.mjs # Selenium control visibility, tab position, calibration nav
 │   ├── sampledPiano.test.ts         # sample bank, stereo renderer, assets and loader
 │   ├── homePage.test.ts              # home page modals and overlays (jsdom)
 │   ├── supabaseHealth.test.ts    # /api/health database check
@@ -772,6 +845,7 @@ No test implementation requires an exception to this layout.
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
 | MIDI production download | `cd frontend && npm run test:midi-browser` | Running production server; Playwright and Edge; optional MAKE_SHIFT_URL / MIDI_BROWSER_CHANNEL |
 | Pipeline profiling | `cd frontend && npm run test:performance-browser` | Production server on port 3100, Playwright + Edge; synthetic camera; local only |
+| Selenium UI navigation | `cd frontend && npm run test:ui-selenium` | Running production server; optional MAKE_SHIFT_URL; Chrome and chromedriver found or downloaded by Selenium Manager. Prints `KNOWN FAIL` for D25 and D26 without failing |
 | Camera feed layout | `cd frontend && npm run test:layout-browser` | Running production server; Playwright bundled Chromium; optional MAKE_SHIFT_URL / LAYOUT_BROWSER_CHANNEL |
 | RCA automation | `node --test tests/automation/rca.test.cjs` | Node 22; no package installation or GitHub credentials needed |
 
@@ -1224,11 +1298,14 @@ defect report is filed.
 | D22 | Medium | Calibration | Final depth sheet-check exception removed capture/Next controls. Reset collector/index on exception so all five depth positions can be retried. | `frontend/src/app/calibration/page.tsx` | [#178](https://github.com/Kakrl/MakeShift/issues/178) | Fixed in PR #177; local 6.2.3 regression passed; CI/merge pending |
 | D21 | High | Calibration | (Req 6.2, 1.1, 2.1) #148 replaced the reachable result capture with depth buttons and navigated before validation/save. Final depth capture now creates the primary result; completion retains its model and saves both records before navigation. 6.2.3's expected failures are restored as passing regressions. | `frontend/src/app/calibration/page.tsx` | [#162](https://github.com/Kakrl/MakeShift/issues/162) | Fix verified locally 2026-10-06; review/merge and physical check pending |
 | D24 | Medium | Audio | User camera-device testing of the initial #206 implementation found no live accompaniment and unstable clicks during page actions. | `frontend/src/app/audio/metronome.ts` | [#206](https://github.com/Kakrl/MakeShift/issues/206) | Worklet revision verified automatically; [user-reported behavior retest passed](manual/2026-10-25_MET-04.md), tested device commit 2cf30d0 confirmed |
-| D25 | Medium | MIDI / UI | Confirmed No, delete it plus accepted browser confirmation leaves the take accessible through Recordings; reload persistence not yet separately confirmed. | `frontend/src/app/midi/RecordingsLibraryPanel.tsx`, `frontend/src/app/share/SaveTakeDialog.tsx` | [#224](https://github.com/Kakrl/MakeShift/issues/224) | Open; user-reported manual reproduction, exact follow-up commit pending |
+| D25 | Medium | MIDI / UI | Confirmed No, delete it plus accepted browser confirmation leaves the take accessible through Recordings; reload persistence not yet separately confirmed. | `frontend/src/app/midi/RecordingsLibraryPanel.tsx`, `frontend/src/app/share/SaveTakeDialog.tsx` | [#224](https://github.com/Kakrl/MakeShift/issues/224) | Not reproduced on current main: panel and real-page regression tests ([LIB-05](verification_test_inventory.md)) pass; reporter retest on a current build pending |
 | D26 | Medium | Audio / UI | Visual count-in falls behind audible beats, especially at 300 BPM; offset and recording-start alignment unmeasured. | `frontend/src/app/page.tsx`, `frontend/src/app/audio/metronome.ts` | [#225](https://github.com/Kakrl/MakeShift/issues/225) | Open; [MET-04 observation](manual/2026-10-25_MET-04.md), 300 BPM follow-up reported 2026-10-26 |
 | D27 | Medium | Calibration / UI | Moving the sheet after calibration leaves audio/record controls disabled while the marker overlay appears valid, without clear mismatch/recovery feedback. | `frontend/src/events/liveSession.ts`, `frontend/src/app/MarkerTrackingOverlay.tsx`, `frontend/src/app/page.tsx` | [#226](https://github.com/Kakrl/MakeShift/issues/226) | Open; overlaps broader recovery/alignment work in [#220](https://github.com/Kakrl/MakeShift/issues/220) |
 | D23 | Medium | Audio | (Req 2.4, related 2.2) User reports high-velocity strikes are not loud enough and wants more apparent velocity dynamics. Listening report 2026-10-14; cause and hardware verification pending. | `frontend/src/cv/fingerVelocity.ts`, `frontend/public/audio/synth.js` | [#209](https://github.com/Kakrl/MakeShift/issues/209) | DSP tuning implemented locally; [verification and listening limits](manual/2026-10-14_209-velocity.md); user confirmed audible velocity changes locally 2026-10-14; measured trials/chord distortion checks pending |
 | D24 | Medium | Audio | (Req 2.2, related 2.4) Higher notes dominated the procedural sound; +4 dB gain was insufficient. User selected sampled Salamander piano at +6 dB after RMS normalization. | `frontend/public/audio/sampled-piano.js`, `frontend/src/app/audio/pianoSamples.ts` | [#210](https://github.com/Kakrl/MakeShift/issues/210) | Sampled production implemented; [software and qualitative prototype evidence](manual/2026-10-19_210-register-balance.md); production hardware listening and review/merge pending |
+| D25 | Medium | UI | (Req 3.1) On first load the home Record control sits under the 16:9 camera feed, below the fold at 1024x768, 1440x900 and 1920x1080 (top at 874, 877 and 1121 px). The nav tabs are visible. Found by 3.1.1 | `frontend/src/app/page.tsx` | [#245](https://github.com/Kakrl/MakeShift/issues/245) | Open; 3.1.1 reports it as a known failure |
+| D26 | Low | UI | (Req 3.1) Home overflows the viewport (D25), so browsers with classic scrollbars show a scrollbar there but not on `/calibration`, and the side nav shifts left by its width (15 px in Actions Chrome). macOS overlay scrollbars hide it. Found by 3.1.2 in CI | `frontend/src/app/layout.tsx`, `frontend/src/app/page.tsx` | [#247](https://github.com/Kakrl/MakeShift/issues/247) | Open; 3.1.2 reports a scrollbar-only shift as a known failure |
+| D28 | Medium | Calibration / UI | (Req 6.2) Begin Calibration could leave the user on `/`: the home marker and hand-tracking `requestAnimationFrame` loops kept the main thread busy enough to starve the `router.push("/calibration")` transition on slow CPUs. Made 6.2.1 flaky in CI after #246. Home now unmounts the CV overlays before navigating | `frontend/src/app/page.tsx` | [#260](https://github.com/Kakrl/MakeShift/issues/260) | Fixed locally; 6.2.1 with 6x CPU throttle fails on `main` and passes with the fix; review/merge pending |
 | D25 | Medium | Audio / UI | (Req 3.2, #207) Immediate per-beat clicks depended on React/main-thread timer delivery, allowing uneven intervals and accumulated drift under CV/render work. | `frontend/src/app/page.tsx`, `frontend/src/app/audio/countIn.ts` | [#232](https://github.com/Kakrl/MakeShift/issues/232) | Fix implemented; digital audio/timer regressions pass locally; physical listening, review/merge and Actions pending |
 
 | D25 | Medium | Calibration / UI | (Req 3.2, 6.2) A moved sheet can have all four markers and a visible debug keyboard while saved calibration is incompatible, leaving Enable audio/Record disabled without a clear recovery explanation. | `frontend/src/events/liveSession.ts`, `frontend/src/app/page.tsx`, `frontend/src/app/SheetAlignment.tsx` | [#226](https://github.com/Kakrl/MakeShift/issues/226) | Addressed with #220 in [PR #238](https://github.com/Kakrl/MakeShift/pull/238); 2.1.5/REC-03 automated recovery checks passed; physical recovery, including knuckles enabled, remains pending in REC-04; review/merge pending |

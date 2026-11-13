@@ -149,6 +149,7 @@ import Coordinator from "../../frontend/src/app/CVOverlayCoordinator";
 import Marker from "../../frontend/src/app/MarkerTrackingOverlay";
 import { saveKeyboardLayout } from "../../frontend/src/lib/keyboardSettings";
 import { getWhiteKeyPolygons } from "../../frontend/src/cv/keyboardGeometry";
+import { getPlayAlong } from "../../frontend/src/app/midi/playAlong";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -569,6 +570,26 @@ it("Stop during resume count-in preserves the take and cancels the pending resum
   expect(fixtures.takes[0].notes[0].durationMs).toBe(500);
   expect(button("Start recording").disabled).toBe(false);
   expect(button("Stop recording").disabled).toBe(true);
+});
+
+it("No, delete it removes the stopped take from the library and storage after both confirmations", async () => {
+  const confirm = vi.fn(() => true);
+  dom.window.confirm = confirm;
+  const stored = () => JSON.parse(localStorage.getItem("makeshift:recordings:v1") ?? "[]") as Recording[];
+  const discard = () => [...document.querySelectorAll("button")].find(item => item.textContent?.trim() === "No, delete it")!;
+  await start();
+  await keys(115);
+  await advance(200);
+  await click(button("Stop recording"));
+  await countIn();
+  expect(stored()).toHaveLength(1);
+
+  await act(async () => discard().click());
+
+  expect(confirm).toHaveBeenCalledTimes(1);
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(stored()).toEqual([]);
+  expect(host.textContent).toContain("No recordings yet.");
 });
 
 it("cancels an initial count-in without making a take", async () => {
@@ -1097,4 +1118,64 @@ it.each([false, true])("keeps audible clicks while piano is gated (resume: %s)",
   await advance(1500);
   expect(host.querySelector(".ms-beat")).toBeNull();
   await click(button("Stop recording"));
+});
+
+async function remountWithSong() {
+  await act(async () => root.unmount());
+  localStorage.setItem("makeshift:recordings:v1", JSON.stringify([{
+    id: "song", name: "Song", bpm: 120, createdAt: "2026-10-31T00:00:00Z",
+    notes: [{ pitch: "C4", velocity: 80, startMs: 0, durationMs: 500 }],
+  }]));
+  root = createRoot(host);
+  await act(async () => root.render(<Home />));
+  await advance(0);
+  await keys();
+}
+
+// The songs dialog renders in a portal outside the page host.
+function dialogButton(label: RegExp) {
+  const result = [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')]
+    .find(button => label.test(button.textContent?.trim() ?? ""));
+  if (!result) throw new Error(`Missing dialog button: ${label}`);
+  return result;
+}
+
+async function openPlayAlong() {
+  await click(button("My recordings"));
+  await click(dialogButton(/^Song/));
+  return dialogButton(/^Play along$/);
+}
+
+it("prepares piano audio from the Play along click and starts the song only once playing (#131)", async () => {
+  await remountWithSong();
+  let finish!: () => void;
+  fixtures.initializeAudio.mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));
+  const calls = fixtures.initializeAudio.mock.calls.length;
+  await click(await openPlayAlong());
+  expect(fixtures.initializeAudio.mock.calls.length).toBe(calls + 1);
+  expect(getPlayAlong()).toBeNull();
+  expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+
+  await act(async () => finish());
+  await advance(0);
+  expect(getPlayAlong()?.title).toBe("Song");
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(button("Enable audio").disabled).toBe(true);
+
+  // Leaving the page (e.g. for Tutorial) ends the song.
+  const song = getPlayAlong()!;
+  await act(async () => root.unmount());
+  root = createRoot(host);
+  expect(getPlayAlong()).toBeNull();
+  expect(song.timeline.getSnapshot().state).toBe("disposed");
+});
+
+it("keeps the songs dialog open with the reason when Play along cannot start audio (#131)", async () => {
+  await remountWithSong();
+  fixtures.initializeAudio.mockRejectedValue(new Error("blocked"));
+  await click(await openPlayAlong());
+  await advance(0);
+  expect(getPlayAlong()).toBeNull();
+  expect(document.querySelector('[role="dialog"] [role="alert"]')?.textContent).toContain("Play along could not start");
+  expect(dialogButton(/^Play along$/).disabled).toBe(false);
 });

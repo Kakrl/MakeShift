@@ -10,6 +10,13 @@ layout; add extension copies for two or three octaves. Recalibrate when replacin
 the print. Select the playable octave count, starting C and actual assembled
 paper count in step 1. See the [layout contract](piano_sheet.md#marker-and-application-compatibility).
 
+Step 3 automatically detects and validates all four sheet markers. There is no
+manual paper-check action: wait for **Sheet geometry validated**, then select
+**Next Step**. Missing markers or invalid geometry block advancement until a
+usable observation arrives. Returning to step 3 reacquires the paper and camera/
+keyboard settings before continuing. The initialized marker detector is reused
+for these scans and disposed when leaving calibration.
+
 ## Version 1 contract
 
 `frontend/src/cv/calibration.ts` owns validation, storage and compatibility.

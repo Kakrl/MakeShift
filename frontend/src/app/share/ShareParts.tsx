@@ -1,8 +1,15 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { RECORDING_LIMITS } from "../../lib/recordings";
+import { useEffect, useState, type ReactNode } from "react";
+import {
+  MAX_SEARCH_LENGTH,
+  OCTAVE_CHOICES,
+  RECORDING_LIMITS,
+  RECORDING_SORTS,
+  type RecordingSort,
+} from "../../lib/recordings";
 import CopyLinkButton from "./CopyLinkButton";
+import type { SongFilters } from "./songFilters";
 import { shareUrl } from "./shareStore";
 
 export function CloseIcon() {
@@ -66,5 +73,94 @@ export function AuthorNameField({ id, value, onChange }: { id: string; value: st
       />
       <p className="mt-1.5 text-[13px] text-ink-muted">Shown next to your song. Don&apos;t use your full name.</p>
     </>
+  );
+}
+
+export function StarButton({
+  title,
+  favorite,
+  onToggle,
+  className = "",
+}: {
+  title: string;
+  favorite: boolean;
+  onToggle: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={favorite}
+      aria-label={`Favorite ${title}`}
+      onClick={onToggle}
+      className={`ms-key ms-key-ghost ms-key-icon size-9 shrink-0 ${favorite ? "text-ink" : "text-ink-muted"} ${className}`}
+    >
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill={favorite ? "currentColor" : "none"}>
+        <path
+          d="M9 2.2l2.0 4.2 4.6.6-3.4 3.2.9 4.6L9 12.5l-4.1 2.3.9-4.6L2.4 7l4.6-.6L9 2.2z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
+  );
+}
+
+const SORT_LABELS: Record<RecordingSort, string> = { newest: "Newest", oldest: "Oldest", longest: "Longest" };
+
+/** Search, sort, octave size and favorites-only for either song list. */
+export function SongControls({ filters, onChange }: { filters: SongFilters; onChange: (filters: SongFilters) => void }) {
+  const [text, setText] = useState(filters.search);
+
+  useEffect(() => {
+    if (text === filters.search) return;
+    const timer = setTimeout(() => onChange({ ...filters, search: text }), 250);
+    return () => clearTimeout(timer);
+  }, [text, filters, onChange]);
+
+  return (
+    <div role="search" aria-label="Find songs" className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="relative min-w-[160px] flex-1">
+        <input
+          type="search"
+          aria-label="Search songs by title"
+          placeholder="Search songs"
+          value={text}
+          maxLength={MAX_SEARCH_LENGTH}
+          onChange={(event) => setText(event.target.value)}
+          className="ms-input w-full"
+        />
+      </div>
+      <select
+        aria-label="Sort songs"
+        value={filters.sort}
+        onChange={(event) => onChange({ ...filters, sort: event.target.value as RecordingSort })}
+        className="ms-input"
+      >
+        {RECORDING_SORTS.map((sort) => (
+          <option key={sort} value={sort}>{SORT_LABELS[sort]}</option>
+        ))}
+      </select>
+      <select
+        aria-label="Fits a sheet of this many octaves or fewer"
+        value={filters.maxOctaves}
+        onChange={(event) => onChange({ ...filters, maxOctaves: Number(event.target.value) })}
+        className="ms-input"
+      >
+        <option value={0}>Any size</option>
+        {OCTAVE_CHOICES.map((octaves) => (
+          <option key={octaves} value={octaves}>{octaves} {octaves === 1 ? "octave" : "octaves"} or fewer</option>
+        ))}
+      </select>
+      <button
+        type="button"
+        aria-pressed={filters.favoritesOnly}
+        className={`ms-key px-3 py-2 text-[14px] ${filters.favoritesOnly ? "ms-key-primary" : ""}`}
+        onClick={() => onChange({ ...filters, favoritesOnly: !filters.favoritesOnly })}
+      >
+        Favorites only
+      </button>
+    </div>
   );
 }

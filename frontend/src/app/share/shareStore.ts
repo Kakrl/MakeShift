@@ -6,6 +6,8 @@ import type { Recording } from "../midi/midiUtils";
 import {
   RECORDING_LIST_PAGE_SIZE,
   recordingDurationMs,
+  recordingOctaves,
+  validateUpload,
   type SharedRecording,
   type UploadRecordingResponse,
 } from "../../lib/recordings";
@@ -22,7 +24,7 @@ const mock = createMockShareStore();
 const current = () => (mockMode() ? mock : api);
 
 export const shareStore: ShareStore = {
-  list: (cursor) => current().list(cursor),
+  list: (cursor, query) => current().list(cursor, query),
   get: (id) => current().get(id),
   upload: (request) => current().upload(request),
   remove: (id, deleteToken) => current().remove(id, deleteToken),
@@ -68,7 +70,9 @@ export const loadShareName = () => loadOrCreateProfile().profile.displayName;
 
 /**
  * Uploads a local take under a title and display name, from this device's
- * profile ID, and keeps the name as the profile's sharing name. A share
+ * profile ID, and keeps the name as the profile's sharing name. The body is
+ * checked with the same `validateUpload` the route uses, so a take the
+ * server would reject never leaves the browser. A share
  * whose delete token can't be saved is undone, since it couldn't be stopped
  * after a reload; if undoing fails, it stays kept in memory and this throws.
  */
@@ -79,7 +83,7 @@ export async function uploadTake(
   keep: KeepShare,
 ): Promise<TakeShare> {
   const mocked = mockMode() !== null;
-  const uploaded = await (mocked ? mock : api).upload({
+  const checked = validateUpload({
     title,
     authorName,
     deviceId: loadOrCreateProfile().profile.deviceId,
@@ -88,6 +92,8 @@ export async function uploadTake(
     notes: take.notes,
     ...(take.pedals ? { pedals: take.pedals } : {}),
   });
+  if (!checked.ok) throw new Error(checked.issues[0].message);
+  const uploaded = await (mocked ? mock : api).upload(checked.value);
   const { profile } = loadOrCreateProfile();
   if (profile.displayName !== authorName.trim()) saveProfile({ ...profile, displayName: authorName });
   const share: TakeShare = mocked ? { ...uploaded, mock: true } : uploaded;
@@ -124,6 +130,7 @@ export function asSharedRecording(take: Recording): SharedRecording {
     meter: restoreMeter(take.meter),
     durationMs: recordingDurationMs(take.notes, take.pedals),
     noteCount: take.notes.length,
+    octaves: recordingOctaves(take.notes),
     createdAt: take.createdAt,
     notes: take.notes,
     ...(take.pedals ? { pedals: take.pedals } : {}),
