@@ -42,7 +42,10 @@ export function filterMine(
     .filter(({ recording }) => !q || recording.name.toLowerCase().includes(q))
     .filter(({ recording }) => !filters.maxOctaves || recordingOctaves(recording.notes) <= filters.maxOctaves)
     .filter(({ recording }) => !filters.favoritesOnly || favoriteIds.includes(recording.id))
-    .map((entry) => ({ entry, duration: recordingDurationMs(entry.recording.notes) }));
+    .map((entry) => ({
+      entry,
+      duration: recordingDurationMs(entry.recording.notes, entry.recording.pedals),
+    }));
   const by = (a: (typeof rows)[number], b: (typeof rows)[number]) => {
     const at = a.entry.recording.createdAt;
     const bt = b.entry.recording.createdAt;

@@ -147,7 +147,7 @@ PD-1 expands piano requirements 2.2/2.4: independent sustain/sostenuto/soft,
 clear-all preserving physically held notes, bounded voices and finite decay.
 PD-2 adds accessible live switches and versioned Hold/Toggle keyboard bindings,
 safe focus/capture/conflict behavior and nonpersistent activation. PD-3 preserves
-note recording semantics and documents deferred pedal recording/replay. Audio and
+physical note recording semantics; #222 now adds ordered control recording/replay. Audio and
 latency owner: Carl Xu; UI/accessibility: Jadden Picardal; bindings and MIDI: Harry
 Deng. Deterministic verification is implemented. Carl Xu reported a manual
 functional pass for all pedals and programmable bindings on 2026-10-23. Automated
@@ -187,3 +187,13 @@ monthly lookalike checks and provider reports; Jadden Picardal keeps
 user-facing links consistent. Camera prompt redesign and database changes are
 out of scope. Procedure: [deployment](deployment.md#official-address-and-impersonation-response-199);
 tests SEC-01 and SEC-02.
+
+## Scope expansion: ordered recorded pedals (#222)
+
+PR-1 preserves physical key durations while separately recording validated v1
+binary control history. PR-2 requires deterministic MIDI CC/channel ordering and
+press identities. PR-3 requires bounded session-scoped replay, emergency silence,
+legacy compatibility and documented discontinuity restoration. These extend
+PD-3 beyond its original live-only disclosure. Scope and limits are specified
+in [the control contract](pedal_recording_followup.md); verification maps PR-01
+through PR-05. Physical latency targets remain unchanged.

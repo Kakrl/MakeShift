@@ -299,8 +299,17 @@ and verification limits in the linked document.
 Physical note identities and note-off timing remain unchanged. The browser audio
 transport separately accepts {type: "pedals", version: 1, session, sustain,
 sostenuto, soft}, with exactly boolean states. Commands share ordered bounded
-transport with notes and reset; they do not enter MIDI or deferred note observers.
+transport with notes and reset; they bypass deferred note observers. Issue #222
+records effective transitions through a synchronous callback after audio dispatch.
 PedalController dispatches synchronously before React observation and filters
 unchanged effective states. Session reset clears capture and rejects stale control
 messages. See [audio contract](browser_audio.md#live-binary-pedals-176) and the
-[recording follow-up](pedal_recording_followup.md).
+[ordered recording contract](pedal_recording_followup.md).
+
+## Recorded control ordering (#222)
+
+Physical note records retain their start/duration fields. Optional version-1
+`pedals` stores binary state transitions and a parallel `noteOrder` array.
+Timestamp then performance order governs same-time notes and controls; legacy
+notes retain release-before-onset ties. See the [complete contract](pedal_recording_followup.md)
+for normalization, deferred-note draining, MIDI channels and discontinuities.

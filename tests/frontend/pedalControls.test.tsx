@@ -27,6 +27,19 @@ it.each(["hold", "toggle"])("requires keyup and a fresh %s pedal press after a c
   expect(sustain().getAttribute("aria-checked")).toBe("true");
 });
 const sustain = () => screen.getByRole("switch", { name: /Sustain/ });
+it("publishes effective recording transitions after audio and includes clear-all", () => {
+  const observed: unknown[] = [];
+  render(<PedalControls active onTransition={state => {
+    expect(audio.send).toHaveBeenLastCalledWith(state);
+    observed.push({ ...state });
+  }} />);
+  fireEvent.click(sustain());
+  fireEvent.click(screen.getByRole("switch", { name: /No pedals/ }));
+  expect(observed).toEqual([
+    { sustain: true, sostenuto: false, soft: false },
+    { sustain: false, sostenuto: false, soft: false },
+  ]);
+});
 function assign(code = "KeyS") {
   fireEvent.click(screen.getByRole("button", { name: "Assign Sustain (damper)" }));
   fireEvent.keyDown(window, { code });

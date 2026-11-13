@@ -513,7 +513,7 @@ function MineList({
                 )}
               </span>
               <span className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-ink-muted tabular-nums">
-                <span>{formatDuration(recordingDurationMs(recording.notes))}</span>
+                <span>{formatDuration(recordingDurationMs(recording.notes, recording.pedals))}</span>
                 <span>{recording.notes.length} notes</span>
                 <span>{formatDate(recording.createdAt)}</span>
               </span>

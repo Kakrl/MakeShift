@@ -71,6 +71,24 @@ const del = (body: unknown) =>
 
 const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
 
+it("stores and reads ordered pedal controls and includes their final boundary in duration", async () => {
+  const pedals = { version: 1, noteOrder: [{ on: 0, off: 3 }, { on: 2, off: 4 }], events: [
+    { timeMs: 100, order: 1, state: { sustain: true, sostenuto: false, soft: false } },
+    { timeMs: 900, order: 5, state: { sustain: false, sostenuto: false, soft: false } },
+  ] };
+  const db = database({ id: ID }, [{ ...row(1), notes: upload.notes, pedals, duration_ms: 900 }]);
+  expect((await uploadRecording(post({ ...upload, pedals }), db.deps)).status).toBe(201);
+  expect(JSON.parse(db.calls[0].init.body as string)).toMatchObject({
+    p_recording: { pedals, duration_ms: 900, octaves: 1 },
+  });
+  expect(await (await getRecording(ID, db.deps)).json()).toMatchObject({ pedals, durationMs: 900 });
+  const invalid = database();
+  expect((await uploadRecording(post({ ...upload, pedals: { ...pedals, version: 2 } }), invalid.deps)).status).toBe(400);
+  expect(invalid.calls).toHaveLength(0);
+  const client = createShareApi(vi.fn(async () => Response.json({ ...row(1), notes: upload.notes, pedals: { ...pedals, version: 2 } })) as typeof fetch);
+  await expect(client.get(ID)).rejects.toThrow("Invalid recorded pedal controls");
+});
+
 describe("GET /api/recordings", () => {
   it("lists visible summaries newest first and pages with a keyset cursor", async () => {
     const rows = Array.from({ length: RECORDING_LIST_PAGE_SIZE + 1 }, (_, i) => row(i));

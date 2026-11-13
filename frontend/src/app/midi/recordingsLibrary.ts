@@ -1,3 +1,4 @@
+import { validRecordedPedals, copyPedals } from "./recordedPedals";
 import { isMeter, restoreMeter } from "../../lib/meter";
 import {
   readStored,
@@ -51,6 +52,7 @@ function isRecording(value: unknown): value is Recording {
     typeof value.createdAt === "string" &&
     Number.isFinite(Date.parse(value.createdAt)) &&
     Array.isArray(value.notes) &&
+    validRecordedPedals(value.pedals, value.notes) &&
     value.notes.every(
       (note) =>
         isObject(note) &&
@@ -73,7 +75,7 @@ function isLibrary(value: unknown): value is Recording[] {
 }
 
 function copyRecording(recording: Recording): Recording {
-  return { ...recording, meter: restoreMeter(recording.meter), notes: recording.notes.map((note) => ({ ...note })) };
+  return { ...recording, ...(recording.pedals ? { pedals: copyPedals(recording.pedals) } : {}), meter: restoreMeter(recording.meter), notes: recording.notes.map((note) => ({ ...note })) };
 }
 
 export function loadRecordings(storage?: StorageAccess): Recording[] {
