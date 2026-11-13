@@ -20,6 +20,23 @@ Edge 156.0.4314.58 production deployment, keyboard-layout and audio browser
 checks passed against port 3234 with fake media; database unconfigured. Chromium
 was attempted for all three checks but could not launch (`spawn UNKNOWN`).
 Real camera/printed-paper verification and new Actions execution remain pending.
+## Record control visibility (issue #245)
+
+The Home transport sits above the camera. Test 3.1.1 now fails if the Record
+control is clipped, covered unexpectedly, or requires scrolling at 1024×768,
+1440×900, or 1920×1080. It checks both a fresh visit after dismissing the
+welcome dialog and a visit in dev mode.
+
+On 2026-11-12, Selenium 4.50.0 with headless Chrome 157 on Windows and
+Node 22.20.0 passed 3.1.1 at all three sizes against the production build
+with fake media. Calibration navigation (6.2.1) passed. The classic scrollbar
+shift (3.1.2, #247) still reported KNOWN FAIL. A Playwright geometry check
+confirmed a 16:9 Home feed from 390×844 through 2560×1080 and matching
+Calibration and About box dimensions at the four tested desktop sizes.
+Lint, TypeScript, contrast (37 pairs), Vitest (771 passed, one skipped),
+production build, and Chromium deployment, keyboard layout and audio checks
+passed. The deployment check used an unconfigured database. Actions pending.
+
 ## Selenium UI navigation verification (issue #244)
 
 Local macOS execution on 2026-10-31, Node 26.8.1, Selenium WebDriver 4.50.0,
@@ -46,7 +63,7 @@ CV work stalls the route transition (D28).
 - **6.2.1, PASS (1440x900):** home Calibration tab opened the intro dialog,
   Begin Calibration reached `/calibration` with that tab `aria-current`, and
   the About page's Calibration link reached `/calibration`.
-- The runner exits 0 while D25 and D26 are open and fails on any other assertion.
+- At the time, the runner reported D25 and D26 without failing the run.
   Not covered: real camera, browsers other than Chrome, widths below `lg`,
   the Documentation control (no nav entry; `/documentation` is the Next.js
   starter page).
@@ -1224,7 +1241,7 @@ defect report is filed.
 | D27 | Medium | Calibration / UI | Moving the sheet after calibration leaves audio/record controls disabled while the marker overlay appears valid, without clear mismatch/recovery feedback. | `frontend/src/events/liveSession.ts`, `frontend/src/app/MarkerTrackingOverlay.tsx`, `frontend/src/app/page.tsx` | [#226](https://github.com/Kakrl/MakeShift/issues/226) | Open; overlaps broader recovery/alignment work in [#220](https://github.com/Kakrl/MakeShift/issues/220) |
 | D23 | Medium | Audio | (Req 2.4, related 2.2) User reports high-velocity strikes are not loud enough and wants more apparent velocity dynamics. Listening report 2026-10-14; cause and hardware verification pending. | `frontend/src/cv/fingerVelocity.ts`, `frontend/public/audio/synth.js` | [#209](https://github.com/Kakrl/MakeShift/issues/209) | DSP tuning implemented locally; [verification and listening limits](manual/2026-10-14_209-velocity.md); user confirmed audible velocity changes locally 2026-10-14; measured trials/chord distortion checks pending |
 | D24 | Medium | Audio | (Req 2.2, related 2.4) Higher notes dominated the procedural sound; +4 dB gain was insufficient. User selected sampled Salamander piano at +6 dB after RMS normalization. | `frontend/public/audio/sampled-piano.js`, `frontend/src/app/audio/pianoSamples.ts` | [#210](https://github.com/Kakrl/MakeShift/issues/210) | Sampled production implemented; [software and qualitative prototype evidence](manual/2026-10-19_210-register-balance.md); production hardware listening and review/merge pending |
-| D25 | Medium | UI | (Req 3.1) On first load the home Record control sits under the 16:9 camera feed, below the fold at 1024x768, 1440x900 and 1920x1080 (top at 874, 877 and 1121 px). The nav tabs are visible. Found by 3.1.1 | `frontend/src/app/page.tsx` | [#245](https://github.com/Kakrl/MakeShift/issues/245) | Open; 3.1.1 reports it as a known failure |
+| D25 | Medium | UI | (Req 3.1) On first load the home Record control sits under the 16:9 camera feed, below the fold at 1024x768, 1440x900 and 1920x1080 (top at 874, 877 and 1121 px). The nav tabs are visible. Found by 3.1.1 | `frontend/src/app/page.tsx` | [#245](https://github.com/Kakrl/MakeShift/issues/245) | Fix verified locally on 2026-11-12 at all three desktop sizes; review/merge pending |
 | D26 | Low | UI | (Req 3.1) Home overflows the viewport (D25), so browsers with classic scrollbars show a scrollbar there but not on `/calibration`, and the side nav shifts left by its width (15 px in Actions Chrome). macOS overlay scrollbars hide it. Found by 3.1.2 in CI | `frontend/src/app/layout.tsx`, `frontend/src/app/page.tsx` | [#247](https://github.com/Kakrl/MakeShift/issues/247) | Open; 3.1.2 reports a scrollbar-only shift as a known failure |
 | D28 | Medium | Calibration / UI | (Req 6.2) Begin Calibration could leave the user on `/`: the home marker and hand-tracking `requestAnimationFrame` loops kept the main thread busy enough to starve the `router.push("/calibration")` transition on slow CPUs. Made 6.2.1 flaky in CI after #246. Home now unmounts the CV overlays before navigating | `frontend/src/app/page.tsx` | [#260](https://github.com/Kakrl/MakeShift/issues/260) | Fixed locally; 6.2.1 with 6x CPU throttle fails on `main` and passes with the fix; review/merge pending |
 | D25 | Medium | Audio / UI | (Req 3.2, #207) Immediate per-beat clicks depended on React/main-thread timer delivery, allowing uneven intervals and accumulated drift under CV/render work. | `frontend/src/app/page.tsx`, `frontend/src/app/audio/countIn.ts` | [#232](https://github.com/Kakrl/MakeShift/issues/232) | Fix implemented; digital audio/timer regressions pass locally; physical listening, review/merge and Actions pending |

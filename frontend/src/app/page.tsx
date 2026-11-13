@@ -690,80 +690,118 @@ export default function Home() {
         </div>
       )}
       <div className="flex flex-col lg:flex-row pl-(--gutter-l) pr-(--gutter-r)">
-        {/* Camera feed: 16:9 and sized like the calibration and about pages.
-            self-start keeps the taller sidebar from stretching it. */}
-        <div className="ms-stage w-full lg:w-auto lg:flex-1 lg:self-start aspect-video bg-surface-dark relative overflow-hidden">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
-          />
-          {!leavingForCalibration && (
-            <CVOverlayCoordinator
-              session={session}
-              videoRef={videoRef}
-              enabled={canPlay && liveStatus.state === "playing"}
-              activePitches={activePitches}
+        <div className="w-full min-w-0 lg:w-auto lg:flex-1">
+          <div className="relative flex flex-wrap items-center justify-center mx-auto my-4 w-fit max-w-full gap-x-4 gap-y-3">
+            <button
+              onClick={() => enableAudio()}
+              disabled={!canPlay || audioPreparing || liveStatus.state === "starting" || liveStatus.state === "playing"}
+              className="ms-key ms-transport-key"
+            >
+              <SpeakerIcon />
+              Enable audio
+            </button>
+
+            {/* Record / Pause / Resume button */}
+            <button
+              onClick={handlePlay}
+              aria-label={isRecording && !isPaused ? "Pause recording" : isPaused ? "Resume recording" : "Start recording"}
+              disabled={recordDisabled}
+              className={`ms-key ms-transport-key ${isRecording && !isPaused ? "ms-key-live" : ""} ${isPaused ? "text-info" : ""}`}
+            >
+              {isRecording && !isPaused
+                ? <PauseIcon />
+                : isPaused ? <ResumeIcon /> : <RecordIcon />}
+              {recordLabel}
+            </button>
+
+            {/* Stop button */}
+            <button
+              onClick={handleStop}
+              aria-label="Stop recording"
+              disabled={stopDisabled}
+              className="ms-key ms-transport-key"
+            >
+              <StopIcon />
+              Stop
+            </button>
+            {needsCalibration && (
+              <CalibrateFirstLock label="Calibrate first to record" />
+            )}
+          </div>
+          {/* Keep the camera sized like the calibration and about pages. */}
+          <div className="ms-stage w-full aspect-video bg-surface-dark relative overflow-hidden">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
             />
-          )}
-          <CameraStatusOverlay />
-          <PlayAlongBar />
-          {devMode && <p className="ms-pill absolute top-3 right-3 z-30 py-1.5 px-3 text-[12px] font-semibold">Dev mode: calibration skipped</p>}
+            {!leavingForCalibration && (
+              <CVOverlayCoordinator
+                session={session}
+                videoRef={videoRef}
+                enabled={canPlay && liveStatus.state === "playing"}
+                activePitches={activePitches}
+              />
+            )}
+            <CameraStatusOverlay />
+            <PlayAlongBar />
+            {devMode && <p className="ms-pill absolute top-3 right-3 z-30 py-1.5 px-3 text-[12px] font-semibold">Dev mode: calibration skipped</p>}
 
-          {/* Calibrate-first call to action: the first thing to do on this page */}
-          {needsCalibration && cameraReady && (
-            <div className="absolute inset-0 z-20 flex items-center justify-center p-3 pointer-events-none">
-              <section
-                aria-labelledby="calibrate-first-title"
-                className="ms-dialog pointer-events-auto flex max-w-[440px] flex-col items-center gap-2 px-6 py-4 sm:px-9 sm:py-7 text-center"
-              >
-                <div className="hidden sm:block mb-1"><KeysIllustration /></div>
-                <h2 id="calibrate-first-title" className="text-[24px] sm:text-[34px] font-bold leading-tight tracking-[-0.01em] text-ink">
-                  Calibrate first!
-                </h2>
-                <p className="hidden sm:block text-[15px] leading-relaxed text-ink-muted">
-                  Show MakeShift your paper piano. Then you can play!
-                </p>
-                <button onClick={openCalibration} className="ms-key ms-key-primary mt-2 px-7">
-                  Start calibration
-                </button>
-              </section>
-            </div>
-          )}
-
-          {/* Live recording indicator */}
-          {isRecording && (
-            <div aria-hidden="true" className="ms-pill absolute top-3 left-3 z-30 py-1.5 pl-3 pr-3.5 text-[12px] font-semibold tracking-[0.08em]">
-              <span className={`size-2 rounded-full ${isPaused ? "bg-ink-inverse-muted" : "bg-danger ms-rec-dot"}`} />
-              {isPaused ? "PAUSED" : "REC"}
-            </div>
-          )}
-
-          {/* Count-in overlay, one measure of beats before recording */}
-          {countInBeat !== null && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-dark/60 z-40 pointer-events-none">
-              <p className="text-white">Piano paused for count-in · Stop to cancel</p>
-              <span
-                key={countInBeat}
-                className="ms-beat font-display text-white font-bold leading-none tabular-nums"
-                style={{ fontSize: "clamp(80px,20vw,160px)" }}
-              >
-                {countInBeat}
-              </span>
-              <div className="flex flex-wrap justify-center max-w-[240px] items-center gap-2.5 mt-6">
-                {Array.from({ length: beatsPerMeasure }, (_, i) => (
-                  <div
-                    key={i}
-                    className={`size-2.5 rounded-full transition-[transform,background-color] duration-150 ease-out ${i + 1 <= countInBeat ? rainbow(i).fill : "bg-white/30"} ${i + 1 === countInBeat ? "scale-[1.4]" : ""}`}
-                  />
-                ))}
+            {/* Calibrate-first call to action: the first thing to do on this page */}
+            {needsCalibration && cameraReady && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center p-3 pointer-events-none">
+                <section
+                  aria-labelledby="calibrate-first-title"
+                  className="ms-dialog pointer-events-auto flex max-w-[440px] flex-col items-center gap-2 px-6 py-4 sm:px-9 sm:py-7 text-center"
+                >
+                  <div className="hidden sm:block mb-1"><KeysIllustration /></div>
+                  <h2 id="calibrate-first-title" className="text-[24px] sm:text-[34px] font-bold leading-tight tracking-[-0.01em] text-ink">
+                    Calibrate first!
+                  </h2>
+                  <p className="hidden sm:block text-[15px] leading-relaxed text-ink-muted">
+                    Show MakeShift your paper piano. Then you can play!
+                  </p>
+                  <button onClick={openCalibration} className="ms-key ms-key-primary mt-2 px-7">
+                    Start calibration
+                  </button>
+                </section>
               </div>
-            </div>
-          )}
+            )}
 
-          {!canPlay && devMode && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Dev mode: show all four sheet markers and your hands to play.</span></p>}
+            {/* Live recording indicator */}
+            {isRecording && (
+              <div aria-hidden="true" className="ms-pill absolute top-3 left-3 z-30 py-1.5 pl-3 pr-3.5 text-[12px] font-semibold tracking-[0.08em]">
+                <span className={`size-2 rounded-full ${isPaused ? "bg-ink-inverse-muted" : "bg-danger ms-rec-dot"}`} />
+                {isPaused ? "PAUSED" : "REC"}
+              </div>
+            )}
+
+            {/* Count-in overlay, one measure of beats before recording */}
+            {countInBeat !== null && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-dark/60 z-40 pointer-events-none">
+                <p className="text-white">Piano paused for count-in · Stop to cancel</p>
+                <span
+                  key={countInBeat}
+                  className="ms-beat font-display text-white font-bold leading-none tabular-nums"
+                  style={{ fontSize: "clamp(80px,20vw,160px)" }}
+                >
+                  {countInBeat}
+                </span>
+                <div className="flex flex-wrap justify-center max-w-[240px] items-center gap-2.5 mt-6">
+                  {Array.from({ length: beatsPerMeasure }, (_, i) => (
+                    <div
+                      key={i}
+                      className={`size-2.5 rounded-full transition-[transform,background-color] duration-150 ease-out ${i + 1 <= countInBeat ? rainbow(i).fill : "bg-white/30"} ${i + 1 === countInBeat ? "scale-[1.4]" : ""}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!canPlay && devMode && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Dev mode: show all four sheet markers and your hands to play.</span></p>}
+          </div>
         </div>
 
         {/* Right sidebar (below the camera under lg) */}
@@ -853,55 +891,11 @@ export default function Home() {
       </div>
 
       <PedalControls active={liveStatus.state === "playing" && countInBeat === null && !audioPreparing} clearRef={pedalClearRef} />
-      {/* Bottom: Listen (left) + transport (centre) */}
-      <div className="flex items-center shrink-0 pl-(--gutter-l) pr-(--gutter-r) pb-[clamp(16px,3dvh,36px)] pt-[clamp(16px,2.5dvh,28px)]">
-        <div className="flex-1 relative flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
-          {hasRecordings && (
-            <button className="ms-key lg:absolute lg:left-0 px-5">
-              Listen to Recording
-            </button>
-          )}
-
-          <div className="relative flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
-          <button
-            onClick={() => enableAudio()}
-            disabled={!canPlay || audioPreparing || liveStatus.state === "starting" || liveStatus.state === "playing"}
-            className="ms-key ms-transport-key"
-          >
-            <SpeakerIcon />
-            Enable audio
-          </button>
-
-          {/* Record / Pause / Resume button */}
-          <button
-            onClick={handlePlay}
-            aria-label={isRecording && !isPaused ? "Pause recording" : isPaused ? "Resume recording" : "Start recording"}
-            disabled={recordDisabled}
-            className={`ms-key ms-transport-key ${isRecording && !isPaused ? "ms-key-live" : ""} ${isPaused ? "text-info" : ""}`}
-          >
-            {isRecording && !isPaused
-              ? <PauseIcon />
-              : isPaused ? <ResumeIcon /> : <RecordIcon />}
-            {recordLabel}
-          </button>
-
-          {/* Stop button */}
-          <button
-            onClick={handleStop}
-            aria-label="Stop recording"
-            disabled={stopDisabled}
-            className="ms-key ms-transport-key"
-          >
-            <StopIcon />
-            Stop
-          </button>
-          {needsCalibration && (
-            <CalibrateFirstLock label="Calibrate first to record" />
-          )}
-          </div>
+      {hasRecordings && (
+        <div className="flex justify-center pl-(--gutter-l) pr-(--gutter-r) py-4 lg:justify-start">
+          <button className="ms-key px-5">Listen to Recording</button>
         </div>
-        <div className="hidden lg:block w-[267px] shrink-0" />
-      </div>
+      )}
     </div>
   );
 }

@@ -123,29 +123,24 @@ async function checkFirstLoadControls(viewport) {
     for (const label of TABS) {
       await assertVisible(driver, await navTab(driver, label), `${label} tab`);
     }
-    try {
-      // Uncalibrated first visit: Record shows behind its "Calibrate first" cover.
-      await assertVisible(
-        driver,
-        await driver.findElement(By.css('button[aria-label="Start recording"]')),
-        "Record control",
-        "Calibrate first to record",
-      );
+    // Uncalibrated first visit: Record shows behind its "Calibrate first" cover.
+    await assertVisible(
+      driver,
+      await driver.findElement(By.css('button[aria-label="Start recording"]')),
+      "Record control",
+      "Calibrate first to record",
+    );
 
-      // Dev mode counts as calibrated, so Record itself must be on top.
-      await open(driver, "/?dev=1");
-      await assertVisible(
-        driver,
-        await driver.wait(
-          until.elementLocated(By.css('button[aria-label="Start recording"]')),
-          TIMEOUT,
-        ),
-        "Record control (dev mode)",
-      );
-    } catch (error) {
-      if (error instanceof assert.AssertionError) throw new KnownDefect("D25", "#245", error);
-      throw error;
-    }
+    // Dev mode counts as calibrated, so Record itself must be on top.
+    await open(driver, "/?dev=1");
+    await assertVisible(
+      driver,
+      await driver.wait(
+        until.elementLocated(By.css('button[aria-label="Start recording"]')),
+        TIMEOUT,
+      ),
+      "Record control (dev mode)",
+    );
   } finally {
     await driver.quit();
   }
