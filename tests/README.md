@@ -2281,6 +2281,23 @@ These are automated graph/simulated-CV results, not a physical listening pass.
 Deployment smoke again stalled without a result and was stopped; it remains
 unverified. Manual count-off listening and new CI execution remain pending.
 No manual report is claimed. Synchronization work remains issue #225.
+### PR #248 review verification (2026-11-13)
+
+Based on merged revision `8727b749a82d1ac37d1e6e29c844d7da1bc3b3ae`,
+added a 6/8 case with accompaniment off. At 120 BPM and 48 kHz it verifies
+six audible clicks spaced 12000 frames (250 ms) apart, completion at frame
+72000 (1.5 seconds), and silence afterward. All 25 metronome tests and the
+TypeScript check passed locally. This new case has not yet run in Actions.
+
+The unmodified merged revision passed
+[frontend CI](https://github.com/Kakrl/MakeShift/actions/runs/43522599208/job/132220338681):
+853 tests passed, one skipped across 47 files, with lint, types, contrast,
+build and the configured browser checks passing. Its separate local production
+build and `metronome.browser.mjs` rerun passed in Chromium 151.0.7922.34:
+live output, busy-thread spacing within one sample of 500 ms, pause silence,
+resume, audible toggle-off count-off then silence, standalone Home toggle/mute
+with camera denied, and cleanup/reuse. No acoustic listening measurement.
+
 ## PR #238 main merge (2026-11-02)
 
 Merged main at b1700ee after #233/#235 landed. The Home conflict retains the

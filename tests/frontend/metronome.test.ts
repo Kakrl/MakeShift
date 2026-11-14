@@ -83,6 +83,35 @@ describe("audio-thread metronome", () => {
     expect(h.render(48000).every(value => value === 0)).toBe(true);
     expect(h.events.filter(event => event.type === "complete")).toHaveLength(1);
   });
+  it("plays six eighth-note count-off clicks in 6/8 with accompaniment off", () => {
+    const h = fixture(48000);
+    h.command("configure", {
+      tempo: 120,
+      beats: 6,
+      denominator: 8,
+      audible: false,
+    });
+    h.command("count-in");
+
+    // At 48 kHz, 12000 frames = 250 ms.
+    for (let beat = 0; beat < 6; beat++) {
+      const samples = h.render(12000);
+      expect(samples.some(value => Math.abs(value) > 0.1)).toBe(true);
+    }
+
+    const beats = h.events.filter(event => event.beat !== null);
+    expect(beats.map(event => event.beat)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(beats.map(event => event.frame)).toEqual([
+      0, 12000, 24000, 36000, 48000, 60000,
+    ]);
+
+    // Complete at 1.5 seconds without another click or accompaniment.
+    expect(h.render(48000).every(value => value === 0)).toBe(true);
+    expect(
+      h.events.filter(event => event.type === "complete")
+        .map(event => event.frame),
+    ).toEqual([72000]);
+  });
   it("preserves a count-off click across toggle-off and silences cancelled count-off", () => {
     const h = fixture();
     h.command("count-in");
