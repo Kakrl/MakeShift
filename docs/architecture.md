@@ -83,6 +83,16 @@ press identities, and keyboard eligibility is not chromatic pitch mapping. Nativ
 sharing this core across runtimes is the reason for that planned WASM build.
 No physical accuracy/latency claim is established by the native checks.
 
+Native Vision now accepts RGBA camera frames plus octaves and owns resizing,
+marker scanning, explicit first reference capture and guarded 10-second refresh.
+Checks reject active presses or detected tips within the newly scanned piano
+homography, ignoring outside/margin detections;
+blocked checks preserve old reference/geometry, success replaces both together.
+This is native behavior, not browser integration or physical empty-scene proof.
+The [proposed JavaScript contract](../backend/cv_wasm_interface.md) also specifies
+chromatic lookup and compact drawing output, pending along with bindings/WASM.
+The frontend owns starting MIDI pitch, session/event identities and audio dispatch.
+
 ## Calibration, geometry and contact
 
 The versioned result contains coordinate conventions, sheet transform, keyboard

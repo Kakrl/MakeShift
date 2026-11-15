@@ -1,5 +1,43 @@
 # MakeShift Testing
 
+## Vision-owned reference policy (2026-11-15)
+
+Native Vision owns analysis resizing and ArUco acquisition. First capture requires
+`setReference()` (viewer B), confirming empty paper and requesting one attempt on
+the next frame. Thereafter a monotonic 10-second or forced check requires four
+valid markers, no current/retained presses and no detected fingertip inside the
+newly scanned piano homography. The revised guard uses `withinHomography`,
+ignoring outside/clothing/margin detections; the earlier full-paper guard is
+superseded. Blocked checks keep accepted reference/geometry; success commits
+both from one frame and clears old detections/anchors. Layout/size/reset clears
+reference/timer and requires manual capture. The viewer shows scan status and
+the piano key outlines. No physical camera was opened for verification.
+
+`tests/cv/test_reference_policy.cpp` uses real generated ArUco markers and an
+injected clock: manual startup, one-shot missing-marker failures, 9999/10000 ms
+boundary, late frames without backlog, each blocker, retained presses despite
+rejected shadows, inside-piano blockers versus outside/margin tips, forced
+success/failure cadence, atomic moved-reference acceptance with an outside
+old-margin detection, size/layout invalidation, reset, invalid input preservation,
+1280x960-to-640x480 resizing/native marker coordinates and nonzero analysis
+sizes for very thin frames. Current inner-pipeline tests remain unchanged.
+
+Local Release viewer build/CTest passed 8/8 on macOS arm64 / AppleClang 15 /
+OpenCV 4.12. Camera-free configure/build/CTest passed 2/2; backend
+configure/build/CTest passed 12 tests with 2 hardware audio checks skipped.
+The camera wrapper's build/help command passed. Logs:
+`/tmp/makeshift-reference-policy-{build,ctest,core-build,core-ctest,backend-configure,backend-build,backend-ctest,camera-help}.log`.
+Clang-format 17 remains unavailable locally. No held-out empty-paper/contact accuracy, physical latency, WASM or CI
+result. Versions unchanged; objdetect is now required even without the viewer.
+
+
+Piano-only guard follow-up: local Release CTest 8/8 passed, including detected
+outside/margin tips allowing refresh and an inside-piano tip preserving the old
+reference when blocked. Logs: `/tmp/makeshift-piano-reference-guard-build.log`;
+camera-free CTest passed 2/2 and backend checks passed 12 tests with 2 hardware
+audio skips. Further logs use the same prefix with `core-build`, `core-ctest`,
+`backend-configure`, `backend-build`, `backend-ctest` suffixes. No camera was opened.
+
 ## Fixed press anchors and visible matching radius (2026-11-15)
 
 The native pipeline keeps a previous/next array of fixed native-coordinate press

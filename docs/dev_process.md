@@ -21,12 +21,13 @@ MakeShift/
 │       ├── sbom.yml                 # Syft CycloneDX generation, validation and artifact upload
 │       └── testing.yml              # pytest, CMake build, CTest
 ├── backend/
+│   ├── cv_wasm_interface.md         # proposed JavaScript input/output and lifecycle contract
 │   ├── CMakeLists.txt               # audio library, nanobind module, GoogleTest
 │   ├── run_shadow_camera.sh         # build/run native side-by-side CV viewer
 │   └── src/
 │       ├── API/
 │       ├── audio/                   # AudioEngine (PortAudio) and SpscQueue
-│       ├── CV/                     # native Pipeline.cpp overview, Constants.hpp, geometry/finger/shadow modules
+│       ├── CV/                     # Vision.cpp reference policy; Pipeline.cpp detector; Constants.hpp settings
 │       ├── MIDI/
 │       ├── Bindings.cpp             # nanobind Python bindings
 │       └── __init__.py
