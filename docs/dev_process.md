@@ -22,10 +22,11 @@ MakeShift/
 │       └── testing.yml              # pytest, CMake build, CTest
 ├── backend/
 │   ├── CMakeLists.txt               # audio library, nanobind module, GoogleTest
+│   ├── run_shadow_camera.sh         # build/run native side-by-side CV viewer
 │   └── src/
 │       ├── API/
 │       ├── audio/                   # AudioEngine (PortAudio) and SpscQueue
-│       ├── CV/
+│       ├── CV/                     # native Pipeline.cpp overview, Constants.hpp, geometry/finger/shadow modules
 │       ├── MIDI/
 │       ├── Bindings.cpp             # nanobind Python bindings
 │       └── __init__.py
@@ -35,6 +36,7 @@ MakeShift/
 │   ├── architecture.md              # browser target, tooling, delivery boundaries
 │   ├── explanation.md               # current architecture, decisions and limitations
 │   ├── reference.md                 # developer lookup: APIs, config, schemas, storage
+│   ├── cv_pipeline.md              # native algorithm, live viewer, build and verification
 │   ├── cv_automated_testing.md       # working plan for labeled CV recordings and metrics
 │   ├── cv_video_tests.md             # quick guide for preparing and running CV video tests
 │   ├── cv_knuckle_boundary.md        # current knuckle eligibility heuristic and review questions
@@ -118,6 +120,7 @@ MakeShift/
 ├── tests/
 │   ├── README.md                    # commands, known defects, RCA log
 │   ├── verification_test_inventory.md
+│   ├── cv/                        # standalone native pipeline and camera CLI tests
 │   ├── audio/
 │   │   ├── test_audio.cpp
 │   │   └── test_audio_events.cpp

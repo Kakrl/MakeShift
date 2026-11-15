@@ -1,0 +1,15 @@
+{
+    "version": "0.5",
+    "requires": [
+        "zlib/1.2.11#bfceb3f8904b735f75c2b0df5713b1e6%1743582315.558",
+        "opencv/4.12.0#3e7ef275a7ffede4327468adbb5371d7%1765973359.301",
+        "libwebp/1.6.0#eb5f8e35fc95980e32b5544a33a270b4%1754386366.205",
+        "libpng/1.6.54#b3ee4845d09981511d04205c52d78de1%1768574561.963",
+        "libjpeg/9f#8edfe2699565c80c825d0256002504ff%1723665907.087"
+    ],
+    "build_requires": [
+        "cmake/4.0.3#95907e383685c6d282821fd474aba76b%1750094039.673"
+    ],
+    "python_requires": [],
+    "config_requires": []
+}

@@ -69,6 +69,18 @@ Audio delivery must not await a React render or MIDI serialization. Direct
 message ports may be used where appropriate; shared memory requires profiling
 evidence and documented deployment constraints.
 
+## Native vision implementation
+
+The [native finger/shadow pipeline](cv_pipeline.md) now provides a modular C++
+core, shared constants and one combined contact flow, plus a desktop live video /
+shadow-class viewer. This is separate from the existing browser CV path. It
+uses RGB finger segmentation, geometric black-key recovery/normalization and
+reference-relative dark/light/mid rules. Frame-local candidate IDs do not supply
+persistent press identity, and keyboard eligibility is not chromatic pitch
+mapping. Native/WASM parity and browser-worker integration follow live review;
+sharing this core across runtimes is the reason for that planned WASM build.
+No physical accuracy/latency claim is established by the native checks.
+
 ## Calibration, geometry and contact
 
 The versioned result contains coordinate conventions, sheet transform, keyboard
