@@ -11,8 +11,9 @@ struct FrameResult {
     std::vector<uint8_t> fingerMask;
     ShadowMeasurements shadows;
     std::vector<Contact> contacts;
+    std::vector<Point> pressedAnchors; // Fixed native-camera points, not current fingertip positions.
 };
-// Owns one immutable reference and cached geometry. No capture, windows, or audio.
+// Owns reference, geometry and fixed press anchors. No capture, windows, or audio.
 class Pipeline {
   public:
     void setReference(const cv::Mat &analysisRgba, cv::Size nativeSize,
@@ -23,6 +24,8 @@ class Pipeline {
     bool ready() const { return !reference_.empty(); }
     uint64_t referenceRevision() const { return revision_; }
   private:
+    bool alreadyPressed(Point nativePoint);
+    std::vector<Point> prevPressed_, nextPressed_;
     cv::Mat reference_;
     cv::Size nativeSize_;
     std::optional<KeyboardGeometry> geometry_;

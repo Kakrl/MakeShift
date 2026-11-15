@@ -75,9 +75,11 @@ The [native finger/shadow pipeline](cv_pipeline.md) now provides a modular C++
 core, shared constants and one combined contact flow, plus a desktop live video /
 shadow-class viewer. This is separate from the existing browser CV path. It
 uses RGB finger segmentation, geometric black-key recovery/normalization and
-reference-relative dark/light/mid rules. Frame-local candidate IDs do not supply
-persistent press identity, and keyboard eligibility is not chromatic pitch
-mapping. Native/WASM parity and browser-worker integration follow live review;
+reference-relative dark/light/mid rules. Fixed spatial press anchors now retain
+accepted presses while an eligible current tip remains within a quarter white-key
+width; matched tips bypass shadow checks. Reference invalidation clears anchors.
+Frame-local candidate IDs do not supply anatomical identity or browser musical
+press identities, and keyboard eligibility is not chromatic pitch mapping. Native/WASM parity and browser-worker integration follow live review;
 sharing this core across runtimes is the reason for that planned WASM build.
 No physical accuracy/latency claim is established by the native checks.
 

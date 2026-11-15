@@ -6,6 +6,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 
@@ -74,6 +75,18 @@ int main(int argc, char **argv) {
                              double(video.cols) / native.cols, double(video.rows) / native.rows))
                         cv::polylines(video, polygon, true, {180, 180, 180}, 1);
                 }
+                if (pipeline.geometry()) {
+                    for (const auto anchor : result.pressedAnchors) {
+                        const auto outline = pipeline.geometry()->pressRangeOutline(
+                            anchor, double(video.cols) / native.cols, double(video.rows) / native.rows);
+                        const cv::Point center{cvRound(anchor.x * video.cols / native.cols),
+                                               cvRound(anchor.y * video.rows / native.rows)};
+                        for (cv::Mat *panel : {&video, &classes}) {
+                            if (!outline.empty()) cv::polylines(*panel, outline, true, {255, 80, 230}, 1, cv::LINE_AA);
+                            cv::drawMarker(*panel, center, {255, 80, 230}, cv::MARKER_CROSS, 5, 1);
+                        }
+                    }
+                }
                 for (const auto &contact : result.contacts) {
                     const cv::Scalar color = contact.state == ContactState::Pressed ? cv::Scalar(0, 220, 0) :
                         contact.state == ContactState::Released ? cv::Scalar(0, 0, 240) : cv::Scalar(0, 200, 240);
@@ -83,14 +96,19 @@ int main(int argc, char **argv) {
             }
             cv::Mat pair;
             cv::hconcat(video, classes, pair);
-            cv::Mat display(pair.rows + 96, pair.cols, CV_8UC3, cv::Scalar(28, 28, 28));
+            cv::Mat display(pair.rows + 118, pair.cols, CV_8UC3, cv::Scalar(28, 28, 28));
             pair.copyTo(display(cv::Rect(0, 0, pair.cols, pair.rows)));
             text(display, "B: empty reference   R: reset   Q/Esc: quit | Keep camera, paper and lighting fixed", pair.rows + 20);
             text(display, !result.ready ? "Waiting for reference: remove hands, show four markers, then press B" :
                 pipeline.geometry() ? "Reference ready | geometry/black-key processing active" :
-                                      "Reference ready | markers missing: geometry/black-key processing inactive", pair.rows + 42);
+                                      "Reference ready | markers missing: refinement/contact detection inactive", pair.rows + 42);
             text(display, "Classes: white=clear, blue=faint, cyan, green, yellow, orange, red; dark blue=finger; black=unknown", pair.rows + 64);
             text(display, "Tip circles: green=press, red=release, yellow=unknown | Scores: white=luma drop; black=percent loss", pair.rows + 86);
+            std::ostringstream rangeLabel;
+            rangeLabel << "Magenta ring/cross: fixed anchor, radius "
+                       << 100 * constants::pressMatchKeyFraction << "% of white-key width ("
+                       << constants::pressMatchRadiusMm << " mm)";
+            text(display, rangeLabel.str(), pair.rows + 108);
             cv::imshow(window, display);
             windowShown = true;
             const int key = cv::waitKey(1) & 0xff;

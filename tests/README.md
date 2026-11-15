@@ -1,5 +1,95 @@
 # MakeShift Testing
 
+## Fixed press anchors and visible matching radius (2026-11-15)
+
+The native pipeline keeps a previous/next array of fixed native-coordinate press
+anchors. Eligible tips match the first old anchor within 25% of white-key width
+(5.875 mm paper distance); an anchor is consumed at most once per frame. Matches
+skip contact detection and keep the original point. Unmatched tips use normal
+shadow detection; only accepted new presses enter the next array. Output contacts
+retain current candidate order/coordinates. Missing tips drop unmatched anchors;
+reset, recapture, geometry replacement and frame-size invalidation clear state.
+
+The viewer draws magenta anchor crosses/range outlines in both panels, using the
+same sheet-space radius and projecting it through the inverse homography.
+Expanded `tests/cv/test_pipeline.cpp` covers fixed anchors with rejected-shadow
+motion, no cumulative drift, expiration/no resurrection, one-to-one consumption,
+new-press isolation within a frame, mixed retained/new output ordering, reset,
+recapture, native-size invalidation and missing-geometry replacement. Geometry
+checks exercise horizontal/vertical/diagonal inside/outside distances under
+perspective, both sheet locations, 1–3 octaves, scaled display outline vertices,
+and invalid projections. Live camera visual review remains pending.
+
+Release build and CTest passed 7/7 on macOS arm64 / AppleClang 15 / OpenCV 4.12.
+The core-only build and CTest passed 1/1; backend configure/build/CTest passed
+12 tests with 2 hardware audio checks explicitly skipped. Logs:
+`/tmp/makeshift-press-anchors-{build,ctest,core-build,core-ctest,backend-configure,backend-build,backend-ctest}.log`.
+No physical accuracy, latency or CI claim; clang-format 17 remains unavailable
+locally. No staging or commits were performed.
+
+
+## Homography eligibility gates (2026-11-15)
+
+`KeyboardGeometry::withinHomography(Point nativePoint)` checks the playable
+keyboard footprint through the homography, including the edge-key regions beyond
+the marker centers. Both the initial refinement inputs and the final per-tip
+contact flow use this helper; no geometry admits no tips. Initial outside masks
+remain available for occlusion; full-frame shadow measurements still drive the
+class view. A refined tip moving outside is checked again before shadow searches.
+The viewer now states that refinement/contact detection are inactive when markers
+are missing. This intentionally tightens the previous no-geometry fallback;
+the earlier ungated reference-comparison record below is historical evidence.
+
+Expanded `tests/cv/test_pipeline.cpp` covers perspective footprint edges/corners
+for 1–3 octaves, inclusive vertical edges, invalid points/transforms, scaled
+native/analysis coordinates, ineligible/missing-geometry growth suppression,
+inside growth, a refined tip crossing the boundary, mixed inside/outside fingers
+with preserved occlusion masks, and identical light contacts accepted inside and
+released outside/without geometry. Local macOS arm64 Release viewer build and
+CTest passed 7/7; the camera-free core build and CTest passed 1/1. Backend
+configure/build/CTest also passed (12 passed, 2 hardware audio checks skipped).
+Logs: `/tmp/makeshift-homography-{build,ctest,core-build,core-ctest,backend-configure,backend-build,backend-ctest}.log`.
+Clang-format 17 remains unavailable locally. No camera, physical accuracy/latency
+or Actions claim.
+
+## Clean native CV pipeline (2026-11-15)
+
+Branch `feature/184-finger-shadow-impl`, based on `4a8d2b4`. Standalone native
+implementation and live-viewer instructions: [CV pipeline](../docs/cv_pipeline.md).
+Run `sh backend/run_shadow_camera.sh --help` to build without opening a camera,
+then `ctest --test-dir build/vision --output-on-failure`. Use `--camera=0` (or the
+appropriate device) for manual review; B captures reference, R resets, Q exits.
+
+Local macOS arm64 / AppleClang 15 / C++17 / OpenCV 4.12.0 / Release: all seven
+CTest checks passed (one synthetic pipeline suite, help and five invalid CLI
+arguments). The suite covers reference ownership/reset/native and analysis size
+invalidation, failed replacement, invalid inputs, RGB threshold boundaries,
+frozen one-ring growth, localized reverse seeds, 1–3 octave black rectangles,
+raw/percent score separation/inset/floors/alpha, dark threshold and paired-seed
+cancellation, two-sided light fallback, distinct strict mid floors/front veto,
+combined pipeline repeatability and shadow-class boundaries/precedence. A fresh
+core-only configure/build (`MAKESHIFT_LIVE_CAMERA=OFF`) and its CTest suite passed.
+The pinned Conan recipe resolved entirely from installed cache; no versions
+changed. The viewer build/help passed; camera hardware was not opened.
+
+A temporary comparison harness compiled the preserved native reference sources
+and the new library together. All 100 seeded synthetic frames plus saved 000
+analysis RGBA with black-key geometry enabled and disabled passed: 126 total
+candidates with equal masks, tip geometry, validity, shadow scores (tolerance
+0.0001), dark/light/both mid decisions and combined states. The ordinary-white
+floating-luma arithmetic was retained to preserve reference-floor behavior.
+This is development parity, not held-out contact accuracy. Harness/source and
+logs: `/tmp/makeshift-clean-parity/`; saved input buffers/transform:
+`/tmp/cv000-homography-black-ds0yylg7/`. These are temporary local evidence and
+not CI fixtures. Existing captures and reports were not regenerated.
+
+The repository backend configure/build/CTest passed (12 passed, 2 hardware audio
+checks explicitly skipped). Clang-format 17 and Ruff are unavailable locally.
+Physical camera review, accuracy, latency, native/WASM parity, browser integration
+and new GitHub Actions results remain pending. The standalone CV suite is not
+invoked by CI.
+
+
 ## Paper-step simplification (issue #234, 2026-11-02)
 
 Branch `fix/234-remove-check-paper`, based on `233ffd4`, tested in an isolated

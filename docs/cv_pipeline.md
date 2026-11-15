@@ -21,11 +21,17 @@ sh backend/run_shadow_camera.sh --camera=0 --octaves=1
 ```
 
 The left panel shows the live frame and accepted/released/unknown tip circles;
-the right panel shows the shadow classes from the same pipeline result.
+the right panel shows the shadow classes from the same pipeline result. Each
+active press anchor has a magenta cross and a magenta range outline in both
+panels. The outline is a circle on the paper projected through the homography,
+so it can appear elliptical/perspective-distorted on screen. Its **radius** is
+25% of a white-key width: 5.875 mm (11.75 mm diameter). The center stays fixed
+while an associated current fingertip moves; green tip circles still mark the
+current fingertip. The range setting is `pressMatchKeyFraction` in `Constants.hpp`.
 
 - **B:** with hands removed and four markers visible, capture the empty reference
-  and marker geometry from the same frame. A missing marker leaves geometry and
-  black-key processing inactive; the viewer explicitly displays that state.
+  and marker geometry from the same frame. Missing markers leave refinement,
+  contact searches and black-key processing inactive; the class view still runs.
 - **R:** clear reference and geometry together.
 - **Q / Escape / close window:** exit and release the camera.
 
@@ -54,7 +60,7 @@ ctest --test-dir build/vision-core --output-on-failure
 
 | Module | Responsibility |
 | :--- | :--- |
-| `Pipeline` | Own the reference/geometry revision and call stages in order |
+| `Pipeline` | Own reference/geometry revision, fixed press anchors and stage order |
 | `Constants` | Algorithm thresholds, physical dimensions, analysis and capture settings |
 | `Homography`, `KeyboardGeometry` | Sheet projection, keyboard eligibility and cached geometric black-key regions |
 | `FingerSegmentation` | Positive RGB seeds, localized reverse seeds, frozen exterior-ring refinement |
@@ -76,8 +82,10 @@ physical latency has not been measured.
 `setReference` owns a clone and caches projected regions. Failed replacement
 leaves the previous reference intact. `reset` and frame-size invalidation clear
 reference and geometry and advance a revision; unready results contain no
-contacts. Frame-local fingertip IDs are not persistent finger/press identities.
-Worker scheduling, musical transitions, chromatic pitch mapping, and audio remain
+contacts. Reference replacement/reset also clear stored press anchors.
+Frame-local fingertip IDs are not anatomical finger identities. The native
+pipeline now retains spatial press anchors as described below; worker scheduling,
+musical-event identities/transitions, chromatic pitch mapping, and audio remain
 application responsibilities.
 
 ## Selected behavior
@@ -90,17 +98,29 @@ methods, trial selectors, report generators, and contour trial are absent.
 1. Saturating encoded RGB drops seed fingers when channel spread is at least 30
    and fewer than two drops are below 15. Within projected black rectangles only,
    union the same predicate on reverse brightening.
-2. Extract initial fingertip geometry, freeze seeds/candidates, and add one
+2. Extract initial fingertip geometry. Keep only tips passing
+   `KeyboardGeometry::withinHomography(Point nativePoint)` as refinement inputs;
+   without geometry none are eligible. Freeze seeds/candidates, and add one
    exterior 8-neighbor ring from tip-minus-8 when the **current**, sum-normalized
    linear RGB spread is at least 0.25. Original pixels stay; growth does not
-   recurse. Re-extract final tips.
+   recurse. Keep the full seed mask, including outside fingers, as occlusion
+   evidence. Re-extract final tips; the gate selects fingers, not a pixel crop.
 3. Measure reference-minus-current encoded luma. White regions require valid
    alpha and reference luma at least 40. Preserve the reference implementation's
    floating arithmetic. Black regions require reference luma at least 5, retain
    the raw drop, and use `100*clamp(drop/referenceLuma,0,1)` only when raw drop
    exceeds 5. A one-pixel horizontal inset suppresses black-edge shadow scores,
    never finger recovery. Regions come from homography, not dark-pixel guesses.
-4. Gate proposals by keyboard area when geometry exists. Dark contact uses
+4. Recheck each final tip with the same `withinHomography` helper before
+   matching or contact searches. Outside tips, and all tips without valid
+   geometry, return Released. For eligible tips, `alreadyPressed` loops over
+   last frame's `prevPressed`: the first anchor in range is consumed once and
+   copied unchanged to `nextPressed`. The current tip is reported Pressed and
+   skips `detectContacts`. Only unmatched eligible tips run the shadow rules.
+   New accepted presses add their own position to `nextPressed`; they cannot
+   be inherited by another tip during this frame. Unmatched old anchors are
+   discarded when `nextPressed` replaces `prevPressed`.
+5. For unmatched tips, dark contact uses
    strict score >60, paired upward support/downward veto, support width at least
    two, and same-seed cancellation. Light fallback requires two clear front
    rows across at least two columns plus substantial shadow on both sides.
@@ -112,7 +132,28 @@ Black rectangles follow the printed 13.7×90 mm layout at white boundaries
 1/2/4/5/6 per octave, with one to three octaves. Processing remains in camera
 coordinates. The black-region pixel-center transform and native-tip mapping
 preserve the reference conventions. Keyboard eligibility uses the white-strip
-paper footprint; it does not assign chromatic MIDI pitches.
+paper footprint (inclusive edges), rather than just the marker-center unit
+square. Analysis tips are scaled back to native coordinates before either gate.
+This prevents missing edge keys beyond marker centers. The helper rejects invalid
+transforms and nonfinite points. It does not assign chromatic MIDI pitches.
+Full-frame RGB seeds, proposal extraction and shadow measurements remain available
+for mask context and the side-by-side class view; the per-tip refinement and
+contact searches alone are gated.
+
+Matching is based on Euclidean paper distance with a radius of 0.25×23.5 mm.
+Both native points are projected to sheet coordinates, then X and Y differences
+are converted to millimeters separately (horizontal marker span depends on
+printed octaves; vertical span is 150/(0.9−0.1)=187.5 mm). The display projects
+that same physical-radius circle back into the current camera image. Matching
+includes the radius boundary and uses fingertip/anchor array order, not anatomical
+tracking or nearest-neighbor assignment. `FrameResult::contacts` remains ordered
+by the current candidates; `pressedAnchors` contains the retained native points.
+
+Retention is automatic: a nearby eligible fingertip keeps the original press
+without rechecking shadows. Release occurs on a frame with no matching fingertip,
+or on reference reset/replacement/frame-size invalidation. There is no timeout,
+grace period, or shadow-based release check for a matched anchor. A new press
+needs normal detection again after its old anchor disappears.
 
 Shadow classes use upper-inclusive score bounds 5, 20, 40, 60, 70, 85, 95:
 white, faint blue, cyan, green, yellow, orange, red, dark red. Final fingers take
