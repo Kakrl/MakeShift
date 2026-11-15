@@ -1,11 +1,13 @@
 # Proposed Vision WebAssembly JavaScript interface
 
 Status: **design contract; bindings and WASM build are not implemented yet**.
-Vision will own resizing, marker detection, homography, reference capture,
-fingertip/contact processing and printed-key lookup. JavaScript supplies camera
+Native Vision now owns resizing, marker detection, homography, reference capture
+and fingertip/contact processing. Printed chromatic-key lookup and the compact
+JavaScript output remain proposed. JavaScript supplies camera
 frames and the printed octave count, then draws the results and handles music.
-This extends the [current native pipeline](../docs/cv_pipeline.md); the current
-core still takes an explicit reference/geometry and has white-strip lookup only.
+The [native Vision owner](../docs/cv_pipeline.md) takes a native RGBA `cv::Mat`
+and octaves. Its inner Pipeline retains an explicit reference setter for tests;
+current key lookup remains white-strip only.
 
 ## Calls and input
 
@@ -59,13 +61,14 @@ fingertips.” No independent hand model is required by this proposal.
 on the next available frame. Capture only when all three conditions hold:
 
 1. No active presses remain for the current frame, including retained anchors.
-2. No fingertips are detected on the paper.
+2. No fingertips are detected within the piano sheet homography.
 3. All four required markers are visible and form valid geometry in that frame.
 
 Evaluate current fingertips/presses with the existing reference before replacing
-it. The on-paper guard must include the printed assembly's margins/marker area,
-not just the playable-key eligibility region or the accepted-press list. Marker
-and empty-paper checks use the candidate capture frame. Replace reference and
+it. Check fingertip points against `withinHomography` on the newly scanned piano
+geometry, using the same playable-key bounds as detection. Outside points,
+including paper margins or clothing detections, do not block refresh. Marker
+and occupancy checks use the candidate capture frame. Replace reference and
 homography together; a successful capture clears anchors and advances the
 reference revision. Never combine a new homography with an old reference.
 
@@ -104,7 +107,7 @@ type VisionResult = {
   referenceScan: {
     status: "idle" | "captured" | "blocked";
     reason: null | "markers-missing-or-invalid" | "active-presses"
-                 | "fingertips-on-paper";
+                 | "fingertips-in-piano";
   };
   fingertips: Array<{
     id: number;              // Frame-local candidate ID, not anatomical identity.
@@ -116,7 +119,6 @@ type VisionResult = {
     frameToSheet: Homography;
     sheetToFrame: Homography;
     markerCenters: [Point, Point, Point, Point]; // IDs 0,1,2,3 in order.
-    paperOutline: Point[];   // Projected printed-assembly footprint for the guard/overlay.
     keyboardOutline: Quad;
     keys: Array<{ id: KeyId; kind: "white" | "black"; polygon: Quad }>;
   };
@@ -138,13 +140,13 @@ type VisionResult = {
   lookup and drawing. The frontend maps key ID to its configured starting MIDI
   pitch; Vision does not need a starting pitch or emit audio/MIDI events.
 - `homographyReady` means valid geometry is available for this coordinate frame;
-  `geometry` is null otherwise. Before first capture, Vision may expose a valid
-  marker proposal for drawing while `referenceReady=false`; that never enables
-  presses. During normal playing, expose accepted geometry, not a different
-  unaccepted proposal alongside old-reference contact results.
+  `geometry` is null otherwise. Native Vision scans only on requested/due checks;
+  before first accepted capture geometry is unavailable. During normal playing,
+  expose accepted geometry, not a different unaccepted proposal alongside
+  old-reference contact results.
 - On a successful capture, return the new geometry/revision with empty
   fingertips/press ranges for that capture frame; detection resumes next frame.
-  The frontend can draw the homography using marker centers and key/paper
+  The frontend can draw the homography using marker centers and key
   outlines without reconstructing printed geometry itself. See
   [sheet coordinates](../docs/piano_sheet.md) for the normalized convention.
 - `pressRanges` preserves the native viewer's anchor crosses/rings: each outline
@@ -173,11 +175,14 @@ fingertip IDs and key IDs do not replace musical press identities.
 
 ## Work before export
 
-These are proposed changes, not current native/WASM behavior: Vision-owned
-marker scanning/resizing/reference scheduling, the full-paper fingertip guard,
-black/white chromatic lookup, per-contact retained-anchor key assignment and the
-compact drawing output. Implement and test them natively before native/WASM
-sequence parity. Include first manual capture, each blocked refresh condition,
+Native Vision-owned marker scanning/resizing/reference scheduling and the
+piano-homography fingertip guard are implemented in `Vision.cpp`. Synthetic
+markers and a controlled clock exercise them in `tests/cv/test_reference_policy.cpp`.
+Only fingertips inside the newly scanned piano block refresh; outside/margin
+points are ignored. Black/white chromatic lookup,
+per-contact retained-anchor key assignment, compact drawing output and
+JavaScript bindings/WASM remain pending. Complete the interface features before
+claiming full contract parity. Include first manual capture, each blocked refresh condition,
 10-second timing, forced checks, atomic replacement, layout/dimension invalidation,
 key overlap priority, anchor retention/release, coordinate scaling and snapshot
 ownership. A successful build alone is not parity or physical accuracy evidence.

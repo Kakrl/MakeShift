@@ -2,7 +2,9 @@
 
 The clean implementation on `feature/184-finger-shadow-impl` provides one native
 contact pipeline and a side-by-side live camera viewer. Start at
-[`Pipeline::processFrame`](../backend/src/CV/Pipeline.cpp); algorithm settings
+[`Vision::processFrame`](../backend/src/CV/Vision.cpp) for native-frame/reference
+ownership, then [`Pipeline::processFrame`](../backend/src/CV/Pipeline.cpp) for
+detection stage order; algorithm settings
 live in [`Constants.hpp`](../backend/src/CV/Constants.hpp).
 
 ## Build and run
@@ -29,15 +31,18 @@ so it can appear elliptical/perspective-distorted on screen. Its **radius** is
 while an associated current fingertip moves; green tip circles still mark the
 current fingertip. The range setting is `pressMatchKeyFraction` in `Constants.hpp`.
 
-- **B:** with hands removed and four markers visible, capture the empty reference
-  and marker geometry from the same frame. Missing markers leave refinement,
-  contact searches and black-key processing inactive; the class view still runs.
+- **B:** request one reference check on the next frame. Before the first capture,
+  clear hands and show all four markers; this confirms empty paper. Later forced
+  checks obey automatic occupancy guards. Blocked checks keep the old reference
+  and report the reason.
 - **R:** clear reference and geometry together.
 - **Q / Escape / close window:** exit and release the camera.
 
 Keep the camera, paper, and lighting fixed. Recapture after changes. B does not
 prove that the frame is empty; marker motion is not automatically monitored.
-Native or analysis frame-size changes automatically clear the reference.
+Camera dimensions or octave changes clear reference/geometry/anchors; request
+capture again after the change. Automatic checks run every 10 seconds after first
+capture. The viewer shows the piano key outlines and last reference-check status.
 The viewer does not play notes or write captures/reports.
 
 To run the automated checks after building:
@@ -60,7 +65,8 @@ ctest --test-dir build/vision-core --output-on-failure
 
 | Module | Responsibility |
 | :--- | :--- |
-| `Pipeline` | Own reference/geometry revision, fixed press anchors and stage order |
+| `Vision` | Own native RGBA preprocessing, markers and manual/timed reference policy |
+| `Pipeline` | Own accepted reference/geometry revision, anchors and detection stages |
 | `Constants` | Algorithm thresholds, physical dimensions, analysis and capture settings |
 | `Homography`, `KeyboardGeometry` | Sheet projection, keyboard eligibility and cached geometric black-key regions |
 | `FingerSegmentation` | Positive RGB seeds, localized reverse seeds, frozen exterior-ring refinement |
@@ -68,25 +74,47 @@ ctest --test-dir build/vision-core --output-on-failure
 | `ShadowMeasurements` | Raw luma drops, effective scores and sample availability |
 | `ContactDetection` | Keyboard eligibility and one dark → light → mid decision flow |
 | `DarkShadow`, `LightShadow`, `MidShadow`, `ContactGeometry` | Internal contact rules and distal boundary geometry |
-| `MarkerDetection` | Native reference-frame ArUco acquisition, outside the core library |
+| `MarkerDetection` | ArUco acquisition within Vision, without camera/window dependencies |
 | `ShadowView`, `shadow_camera` | Class rendering and desktop capture/window lifecycle, outside the core library |
 
-The library accepts matched RGBA analysis frames with at most 640 pixels per
-side. It does not resize or rectify images. The viewer downsizes native BGR
-frames with INTER_AREA, without enlarging, and converts them to RGBA. Native
-capture requests 1280×720 at 30 fps with buffer size one; actual delivery depends
-on the camera/backend. Capture is synchronous with no application frame queue.
-The core performs bounded spatial processing but still allocates per frame;
-physical latency has not been measured.
+`Vision::processFrame(nativeRgba, octaves)` accepts a native RGBA camera image
+and owns INTER_AREA analysis resizing (longest side at most 640, no enlargement).
+The viewer only captures BGR and converts it to RGBA. The inner `Pipeline` takes
+matched analysis images and remains available for synthetic/parity tests.
+Capture requests 1280×720 at 30 fps with buffer size one; delivery depends on the
+camera/backend. There is no application frame queue. The core still allocates
+per frame; physical latency is unmeasured. The camera-free Vision build requires
+OpenCV objdetect/core/imgproc; highgui/videoio remain viewer-only. Versions unchanged.
 
-`setReference` owns a clone and caches projected regions. Failed replacement
-leaves the previous reference intact. `reset` and frame-size invalidation clear
-reference and geometry and advance a revision; unready results contain no
-contacts. Reference replacement/reset also clear stored press anchors.
-Frame-local fingertip IDs are not anatomical finger identities. The native
-pipeline now retains spatial press anchors as described below; worker scheduling,
-musical-event identities/transitions, chromatic pitch mapping, and audio remain
-application responsibilities.
+### Reference policy
+
+`Vision::setReference()` requests one attempt on the next supplied frame. There
+is no automatic first capture. First capture requires four valid ArUco markers
+and trusts the user's empty-paper confirmation: fingertip detection needs an
+existing reference. A blocked request is consumed; request again to retry now.
+
+After capture, check every 10 seconds using a monotonic clock. Process current
+tips/retained anchors against the old reference first. Refresh requires all four
+markers, no active presses and no detected fingertip within the newly scanned
+piano homography. The guard uses `withinHomography`, matching the playable piano
+bounds used by detection. Fingertips outside those bounds, including printed
+margins or clothing, do not block capture. Previous paper footprints are not used
+as extra occupancy regions. This detected-tip guard is not proof of an empty scene.
+
+Blocked automatic checks preserve accepted reference/geometry and normal
+detection, retrying after another 10 seconds. Failed forced checks do not postpone
+the automatic deadline. Success accepts reference/geometry from the same frame,
+clears anchors and restarts the interval. The capture frame has
+`referenceReady=true` but no old-reference detections; detection resumes next
+frame. Size/layout changes and reset clear geometry, pending requests, timer
+and anchors, so request B again after the change.
+
+The inner `Pipeline::setReference(image, nativeSize, geometry)` clones the
+accepted snapshot and commits cached regions together. Failed replacement
+preserves previous values. This remains an internal/test entry point, rather
+than the proposed frontend capture API. Frame-local IDs are not anatomical
+identities. Musical events, browser session identities, chromatic pitch mapping
+and audio remain integration work.
 
 ## Selected behavior
 
@@ -168,6 +196,10 @@ Synthetic tests and matched development inputs establish implementation behavior
 not physical contact truth. Camera review, held-out accuracy, and physical
 press-to-sound latency remain pending. Under 3% errors and under 50 ms remain
 targets, not claims.
+
+The [proposed JavaScript interface](../backend/cv_wasm_interface.md) documents the
+frame/reference policy now implemented in native Vision. Chromatic key lookup,
+compact JavaScript drawing outputs, bindings and WASM build remain pending.
 
 After live native review, build WebAssembly from the same core and verify
 native/WASM parity before browser-worker integration. Reusing one algorithm

@@ -1,5 +1,5 @@
 #include "Constants.hpp"
-#include "MarkerDetection.hpp"
+#include "Vision.hpp"
 #include "Pipeline.hpp"
 #include "ShadowView.hpp"
 #include <iostream>
@@ -18,13 +18,6 @@ int parseNumber(const std::string &arg, const std::string &prefix) {
         throw std::invalid_argument("Expected nonnegative integer: " + arg);
     return std::stoi(value);
 }
-cv::Mat analysisFrame(const cv::Mat &bgr) {
-    const double scale = std::min(1.0, double(constants::analysisSide) / std::max(bgr.cols, bgr.rows));
-    cv::Mat small, rgba;
-    cv::resize(bgr, small, {}, scale, scale, cv::INTER_AREA);
-    cv::cvtColor(small, rgba, cv::COLOR_BGR2RGBA);
-    return rgba;
-}
 void text(cv::Mat &image, const std::string &value, int y) {
     cv::putText(image, value, {12, y}, cv::FONT_HERSHEY_SIMPLEX, 0.48,
                 {240, 240, 240}, 1, cv::LINE_AA);
@@ -37,8 +30,8 @@ int main(int argc, char **argv) {
             const std::string arg = argv[i];
             if (arg == "--help") {
                 std::cout << "Usage: shadow_camera [--camera=0] [--octaves=1]\n"
-                             "B: capture empty sheet reference and markers; R: reset; Q/Esc: quit.\n"
-                             "Live video on left, shadow classes on right.\n";
+                             "B: request empty sheet reference and markers; R: reset; Q/Esc: quit.\n"
+                             "Live video on left, shadow classes on right; guarded reference checks every 10 seconds.\n";
                 return 0;
             }
             if (arg.rfind("--camera=", 0) == 0) device = parseNumber(arg, "--camera=");
@@ -53,31 +46,42 @@ int main(int argc, char **argv) {
         camera.set(cv::CAP_PROP_FRAME_HEIGHT, constants::cameraHeight);
         camera.set(cv::CAP_PROP_FPS, constants::cameraFps);
         camera.set(cv::CAP_PROP_BUFFERSIZE, 1);
-        Pipeline pipeline;
+        Vision vision;
+        std::string scanStatus = "Reference: press B with empty paper and all four markers visible";
         const std::string window = "MakeShift - live video | shadow classes";
         cv::namedWindow(window, cv::WINDOW_NORMAL);
         bool windowShown = false;
         while (true) {
             cv::Mat native;
             if (!camera.read(native) || native.empty()) {
-                pipeline.reset();
+                vision.reset();
                 throw std::runtime_error("Camera stopped delivering frames");
             }
-            const auto rgba = analysisFrame(native);
-            const auto result = pipeline.processFrame(rgba, native.size());
+            cv::Mat nativeRgba;
+            cv::cvtColor(native, nativeRgba, cv::COLOR_BGR2RGBA);
+            const auto output = vision.processFrame(nativeRgba, octaves);
+            const auto &rgba = output.analysisRgba;
+            const auto &result = output.detection;
+            switch (output.referenceScan) {
+            case ReferenceScan::Captured: scanStatus = "Reference captured; next automatic check in 10 seconds"; break;
+            case ReferenceScan::BlockedMarkers: scanStatus = "Reference check blocked: four valid markers required"; break;
+            case ReferenceScan::BlockedPresses: scanStatus = "Reference check blocked: active press"; break;
+            case ReferenceScan::BlockedFingertips: scanStatus = "Reference check blocked: fingertip inside piano homography"; break;
+            case ReferenceScan::Idle: break;
+            }
             cv::Mat video;
             cv::cvtColor(rgba, video, cv::COLOR_RGBA2BGR);
             cv::Mat classes(video.size(), CV_8UC3, cv::Scalar(0, 0, 0));
             if (result.ready) {
                 classes = renderShadowClasses(result);
-                if (pipeline.geometry()) {
-                    for (const auto &polygon : pipeline.geometry()->polygons(
+                if (vision.geometry()) {
+                    for (const auto &polygon : vision.geometry()->polygons(
                              double(video.cols) / native.cols, double(video.rows) / native.rows))
                         cv::polylines(video, polygon, true, {180, 180, 180}, 1);
                 }
-                if (pipeline.geometry()) {
+                if (vision.geometry()) {
                     for (const auto anchor : result.pressedAnchors) {
-                        const auto outline = pipeline.geometry()->pressRangeOutline(
+                        const auto outline = vision.geometry()->pressRangeOutline(
                             anchor, double(video.cols) / native.cols, double(video.rows) / native.rows);
                         const cv::Point center{cvRound(anchor.x * video.cols / native.cols),
                                                cvRound(anchor.y * video.rows / native.rows)};
@@ -96,12 +100,11 @@ int main(int argc, char **argv) {
             }
             cv::Mat pair;
             cv::hconcat(video, classes, pair);
-            cv::Mat display(pair.rows + 118, pair.cols, CV_8UC3, cv::Scalar(28, 28, 28));
+            cv::Mat display(pair.rows + 140, pair.cols, CV_8UC3, cv::Scalar(28, 28, 28));
             pair.copyTo(display(cv::Rect(0, 0, pair.cols, pair.rows)));
             text(display, "B: empty reference   R: reset   Q/Esc: quit | Keep camera, paper and lighting fixed", pair.rows + 20);
-            text(display, !result.ready ? "Waiting for reference: remove hands, show four markers, then press B" :
-                pipeline.geometry() ? "Reference ready | geometry/black-key processing active" :
-                                      "Reference ready | markers missing: refinement/contact detection inactive", pair.rows + 42);
+            text(display, !output.referenceReady ? "Waiting for reference: clear paper, show four markers, then press B" :
+                          "Reference ready | automatic guarded checks every 10 seconds", pair.rows + 42);
             text(display, "Classes: white=clear, blue=faint, cyan, green, yellow, orange, red; dark blue=finger; black=unknown", pair.rows + 64);
             text(display, "Tip circles: green=press, red=release, yellow=unknown | Scores: white=luma drop; black=percent loss", pair.rows + 86);
             std::ostringstream rangeLabel;
@@ -109,16 +112,20 @@ int main(int argc, char **argv) {
                        << 100 * constants::pressMatchKeyFraction << "% of white-key width ("
                        << constants::pressMatchRadiusMm << " mm)";
             text(display, rangeLabel.str(), pair.rows + 108);
+            text(display, scanStatus, pair.rows + 130);
             cv::imshow(window, display);
             windowShown = true;
             const int key = cv::waitKey(1) & 0xff;
             if (key == 27 || key == 'q' || key == 'Q' ||
                 (windowShown && cv::getWindowProperty(window, cv::WND_PROP_VISIBLE) < 1)) break;
-            if (key == 'r' || key == 'R') pipeline.reset();
+            if (key == 'r' || key == 'R') {
+                vision.reset();
+                scanStatus = "Reference cleared; press B to capture again";
+            }
             if (key == 'b' || key == 'B')
-                pipeline.setReference(rgba, native.size(), detectKeyboard(native, octaves));
+                vision.setReference();
         }
-        pipeline.reset();
+        vision.reset();
         camera.release();
         cv::destroyAllWindows();
         return 0;
