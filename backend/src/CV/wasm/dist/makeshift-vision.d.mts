@@ -8,6 +8,8 @@ export interface FrameInput {
   octaves: 1 | 2 | 3;
 }
 export interface VisionResult {
+  /** Sorted unique semitone offsets from leftmost C (0..12*octaves), not MIDI pitches. */
+  pressedKeys: number[];
   width: number;
   height: number;
   referenceReady: boolean;

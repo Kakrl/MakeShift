@@ -29,6 +29,7 @@ export async function checkContract(loadVision, manifest, readBytes, setTime) {
   const model = api.createVision();
   const independent = api.createVision();
   let frames = 0, pixels = 0, saved, savedText, savedPlane, savedPlaneCopy;
+  let pressedFrames = 0;
   const times = [];
   const wallNow = Date.now.bind(Date);
   try {
@@ -50,6 +51,14 @@ export async function checkContract(loadVision, manifest, readBytes, setTime) {
       const actual = model.processFrame(input);
       times.push(wallNow() - started);
       compare(actual, normalize(step.expected), `frame${frames}`);
+      assert(actual.pressedKeys.every((key, i, keys) => Number.isInteger(key) &&
+        key >= 0 && key <= 12 * input.octaves && (i === 0 || key > keys[i - 1])),
+      'Pressed keys are sorted unique chromatic offsets in layout bounds');
+      assert(actual.pressedKeys.length <= actual.pressRanges.length,
+        'Each pressed key comes from a retained press anchor');
+      if (!actual.referenceReady || actual.referenceScan.status === 'captured')
+        assert(actual.pressedKeys.length === 0, 'Capture/unready snapshots have no pressed keys');
+      if (actual.pressedKeys.length) pressedFrames++;
       assert(rgba.byteLength === bytes.length, 'Input array remains owned by caller');
       if (!saved && actual.referenceReady) { saved = actual; savedText = JSON.stringify(actual); }
       if (saved) assert(JSON.stringify(saved) === savedText, 'Returned result survives subsequent calls');
@@ -89,6 +98,7 @@ export async function checkContract(loadVision, manifest, readBytes, setTime) {
     rejects(() => independent.setReference(), 'Destroyed instance rejects capture');
     rejects(() => independent.getDiagnostics(), 'Destroyed instance rejects diagnostic access');
     for (let i = 0; i < 20; i++) { const instance = api.createVision(); instance.destroy(); }
-    return { frames, comparedPlaneSamples: pixels, maxProcessMs: Math.max(...times) };
+    assert(pressedFrames > 0, 'Parity fixtures exercise nonempty pressed-key snapshots');
+    return { frames, pressedFrames, comparedPlaneSamples: pixels, maxProcessMs: Math.max(...times) };
   } finally { model.destroy(); independent.destroy(); }
 }

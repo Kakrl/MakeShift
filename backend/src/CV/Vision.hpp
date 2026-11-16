@@ -8,6 +8,7 @@ enum class ReferenceScan { Idle, Captured, BlockedMarkers, BlockedPresses, Block
 struct VisionFrameResult {
     cv::Mat analysisRgba;
     FrameResult detection;
+    std::vector<int> pressedKeys; // Sorted unique semitone offsets from the leftmost C.
     bool referenceReady = false;
     bool homographyReady = false;
     ReferenceScan referenceScan = ReferenceScan::Idle;

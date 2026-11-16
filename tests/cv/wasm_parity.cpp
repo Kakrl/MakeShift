@@ -42,6 +42,9 @@ void result(cv::FileStorage &f, const VisionFrameResult &r, const Vision &v, cv:
     f << "{" << "width" << size.width << "height" << size.height;
     f << "referenceReady" << int(r.referenceReady) << "homographyReady" << int(r.homographyReady);
     f << "referenceRevision" << double(r.detection.referenceRevision);
+    f << "pressedKeys" << "[";
+    for (const auto key : r.pressedKeys) f << key;
+    f << "]";
     const auto scan = r.referenceScan;
     f << "referenceScan" << "{" << "status" << (scan == ReferenceScan::Idle ? "idle" :
         scan == ReferenceScan::Captured ? "captured" : "blocked") << "reason" <<
@@ -112,7 +115,8 @@ int main(int argc, char **argv) {
             f << "}";
         };
         frame(paper()); action("setReference"); frame(paper()); frame(paper());
-        frame(finger(300, 260, true)); frame(finger(303, 260, false));
+        frame(finger(300, 260, true)); frame(finger(310, 260, false));
+        frame(finger(303, 260, false));
         action("setReference"); frame(finger(303, 260, false));
         frame(paper()); frame(finger(300, 260, false));
         action("setReference"); frame(finger(300, 260, false));

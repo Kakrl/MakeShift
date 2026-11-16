@@ -16,7 +16,7 @@ endif()
 find_package(OpenCV 4.12 CONFIG REQUIRED COMPONENTS ${cv_components})
 
 add_library(makeshift_vision STATIC
-    Vision.cpp MarkerDetection.cpp Pipeline.cpp ContactDetection.cpp Homography.cpp KeyboardGeometry.cpp FingerSegmentation.cpp
+    Vision.cpp ChromaticLookup.cpp MarkerDetection.cpp Pipeline.cpp ContactDetection.cpp Homography.cpp KeyboardGeometry.cpp FingerSegmentation.cpp
     Fingertips.cpp ShadowMeasurements.cpp DarkShadow.cpp LightShadow.cpp MidShadow.cpp)
 target_include_directories(makeshift_vision PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(makeshift_vision PUBLIC opencv_core opencv_imgproc opencv_objdetect)
@@ -40,6 +40,9 @@ if(EMSCRIPTEN)
 endif()
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(chromatic_lookup_tests ../../../tests/cv/test_chromatic_lookup.cpp)
+    target_link_libraries(chromatic_lookup_tests PRIVATE makeshift_vision)
+    add_test(NAME cv_chromatic_lookup COMMAND chromatic_lookup_tests)
     add_executable(vision_tests ../../../tests/cv/test_pipeline.cpp)
     target_link_libraries(vision_tests PRIVATE makeshift_shadow_view)
     add_test(NAME cv_pipeline COMMAND vision_tests)

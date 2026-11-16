@@ -1,4 +1,5 @@
 #include "Vision.hpp"
+#include "ChromaticLookup.hpp"
 #include "Constants.hpp"
 #include "MarkerDetection.hpp"
 #include <algorithm>
@@ -67,6 +68,8 @@ VisionFrameResult Vision::processFrame(const cv::Mat &native, int octaves) {
     }
     result.referenceReady = pipeline_.ready();
     result.homographyReady = geometry().has_value();
+    if (geometry())
+        result.pressedKeys = pressedChromaticKeys(*geometry(), result.detection.pressedAnchors);
     return result;
 }
 } // namespace makeshift::vision

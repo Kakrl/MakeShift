@@ -1,4 +1,5 @@
 #include "Constants.hpp"
+#include "ChromaticLookup.hpp"
 #include "Vision.hpp"
 #include <algorithm>
 #include <cmath>
@@ -104,14 +105,24 @@ void refreshGuards() {
     f.frame(paper());
     r = f.frame(finger(300, 260, true));
     require(r.detection.pressedAnchors.size() == 1, "Fixture establishes an active press");
+    const auto heldKeys = r.pressedKeys;
+    require(heldKeys.size() == 1, "Vision maps an accepted press to a chromatic key");
+    r = f.frame(finger(310, 260));
+    require(r.pressedKeys == heldKeys && r.detection.pressedAnchors.size() == 1,
+            "Retained press keeps its original pitch when the fingertip moves");
+    const auto &tip = r.detection.contacts.front().tip;
+    require(chromaticKeyAt(*f.vision.geometry(), {double(tip.x), double(tip.y)}) != heldKeys.front(),
+            "Retention fixture crosses a chromatic region boundary");
     f.millis = 40000;
     r = f.frame(finger(300, 260));
     require(r.referenceScan == ReferenceScan::BlockedPresses && r.detection.pressedAnchors.size() == 1,
             "Retained press blocks refresh even when fresh shadows reject");
+    require(r.pressedKeys == heldKeys, "Blocked reference refresh preserves held pitches");
     f.millis = 40001;
     r = f.frame(paper());
     require(r.referenceScan == ReferenceScan::Idle && r.detection.pressedAnchors.empty(),
             "Releasing press does not bypass refresh cadence");
+    require(r.pressedKeys.empty(), "Absent anchors release the complete key snapshot");
     f.millis = 50000;
     r = f.frame(paper());
     require(r.referenceScan == ReferenceScan::Captured && r.detection.referenceRevision > revision &&

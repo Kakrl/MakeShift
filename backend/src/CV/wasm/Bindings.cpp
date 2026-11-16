@@ -57,6 +57,10 @@ class VisionBinding {
             out.set("referenceRevision", double(last_.detection.referenceRevision));
             out.set("homographyReady", last_.homographyReady);
             out.set("referenceScan", scanResult(last_.referenceScan));
+            auto pressedKeys = val::array();
+            for (size_t i = 0; i < last_.pressedKeys.size(); ++i)
+                pressedKeys.set(i, last_.pressedKeys[i]);
+            out.set("pressedKeys", pressedKeys);
             auto tips = val::array();
             const double sx = double(width) / last_.analysisRgba.cols;
             const double sy = double(height) / last_.analysisRgba.rows;

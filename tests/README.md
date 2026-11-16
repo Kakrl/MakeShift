@@ -7,7 +7,7 @@ Local 2026-11-15 / macOS arm64: OpenCV 4.12.0 source revision
 `e4fe26ef59168ff44f4c23c466e497bf60b3411e`, Release single-threaded/no SIMD,
 exceptions enabled. Build/use commands: [WASM handoff](../docs/cv_wasm.md).
 Artifact directory: `backend/src/CV/wasm/dist/` (tracked handoff bundle). The public module wraps
-native Vision without chromatic lookup or application integration.
+native Vision including chromatic lookup; application integration remains pending.
 
 Native CV CTest passed 8/8; WASM CTest passed 2/2 (same pipeline and controlled-
 clock reference-policy suites). The native fixture exporter
@@ -52,6 +52,41 @@ published runtime files are byte-identical. The updated Node and Chrome worker
 runners both passed all 23 frames/15,974,400 plane samples from the new location.
 Node log: `/tmp/makeshift-wasm-tracked-node-parity.log`; browser fixture evidence:
 `/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-wasm-browser-KtRKA3`.
+
+
+
+## Vision chromatic lookup (2026-11-15)
+
+`ChromaticLookup.cpp` uses the frontend's physical white/black regions and
+black-key priority. Vision returns sorted unique semitone offsets in
+`pressedKeys` from fixed anchors. The frontend and calibration flow are unchanged.
+
+Local macOS arm64 Release checks passed:
+
+- Native CV CTest: 9/9, including the new `cv_chromatic_lookup` suite.
+- WASM CTest: 3/3, running the same lookup, pipeline and reference-policy suites.
+- Backend CMake configure/build and CTest: 12 passed, 2 hardware audio tests
+  explicitly skipped. Logs: `/tmp/makeshift-chromatic-backend-{configure,build,ctest}.log`.
+- Node 24.2.0 public-loader parity: 24 frames, 4 nonempty pressed-key frames,
+  17,203,200 diagnostic plane samples. Fixtures:
+  `/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-wasm-parity-CqLGnH`.
+- Chrome 157.0.8103.51 module-worker parity: the same 24 frames/17,203,200 samples.
+  Fixtures:
+  `/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-wasm-browser-wrSzfy`.
+- Standalone TypeScript declaration check passed using `tsc --noEmit
+  --skipLibCheck --module nodenext --moduleResolution nodenext` on the published
+  `.d.mts` file. The bundle was rebuilt with `bash backend/build_vision_wasm.sh`.
+
+Lookup tests cover all white/black pitches and final C across 1–3 octaves,
+perspective, black-cap dimensions and precedence, inclusive/shared boundaries,
+outside/nonfinite inputs, singular transforms, unsupported layouts, and
+sorted/deduplicated/empty snapshots. Reference tests additionally cross a
+chromatic boundary during retention, preserve the pitch through a blocked refresh,
+and release on missing anchors. The native exporter and shared Node/browser
+assertions compare complete key snapshots, ordering, bounds and capture/unready
+emptiness. No physical contact/latency, app integration or CI pass is claimed.
+Clang-format 17 is unavailable locally. Build/CTest logs:
+`/tmp/makeshift-chromatic-{native-build,wasm-build,wasm-ctest}.log`.
 
 
 ## Vision-owned reference policy (2026-11-15)

@@ -1,9 +1,10 @@
 # Vision WebAssembly JavaScript interface
 
-The WASM export wraps the current native Vision implementation. Chromatic key
-lookup is deferred: the frontend can map returned camera points through the
-homography using its existing keyboard geometry. This module emits no key ID,
-MIDI pitch or audio event. Build instructions and verification are in
+The WASM export wraps the current native Vision implementation. Chromatic lookup
+lives in `src/CV/ChromaticLookup.cpp`, using the existing frontend physical key
+regions and black-key priority. `pressedKeys` contains chromatic offsets from the
+leftmost C; the caller adds its starting MIDI pitch. No audio/MIDI events are
+emitted. Build instructions and verification are in
 [the WASM handoff](../docs/cv_wasm.md); the authoritative declarations are
 [`makeshift-vision.d.mts`](src/CV/wasm/makeshift-vision.d.mts).
 
@@ -86,6 +87,7 @@ leak into normal drawing output.
 | `referenceRevision` | Instance-local safe integer; advances on accepted capture, reset or size/layout invalidation |
 | `homographyReady` | Accepted keyboard geometry exists; false before capture/after invalidation |
 | `referenceScan` | `{ status: 'idle' \| 'captured' \| 'blocked', reason }`; reason is null, `markers-missing-or-invalid`, `active-presses` or `fingertips-in-piano` |
+| `pressedKeys` | Sorted unique integer semitone offsets 0..12*octaves, including final C. C=0, C#=1, D=2. Fixed press anchors determine pitch; multiple anchors on a key collapse to one. This is a complete held-key snapshot, not events or MIDI pitches. |
 | `fingertips` | All final candidates, at most 20, each `{ id, point: {x,y}, pressed, state }`; state is `unknown`/`released`/`pressed`; IDs are frame-local |
 | `geometry` | Null without accepted homography; otherwise matrices, marker centers, keyboard outline and white-key polygons below |
 | `pressRanges` | `{ anchor: {x,y}, outline: Point[] }[]`; fixed anchors and their projected matching-radius rings |
@@ -98,8 +100,9 @@ contain four camera-space vertices in that same corner order. Polygon indices
 are white-strip indices only, not chromatic keys. The normalized coordinates
 follow [the printed-sheet geometry](../docs/piano_sheet.md).
 
-Before capture, fingertips/ranges are empty and geometry is null. On capture,
-return new geometry/revision with empty fingertips/ranges; detection resumes next
+Before capture, `pressedKeys` and fingertips/ranges are empty and geometry is
+null. On capture, return new geometry/revision with empty keys/fingertips/ranges;
+detection resumes next
 frame. Outside tips are included with `pressed=false`. Unknown maps to false
 unless a previous anchor retained the press. During playing, geometry is the
 accepted transform, not an unrelated new proposal. Fingertips and press ranges
@@ -108,8 +111,15 @@ are not index-aligned and provide no persistent musical-event identities.
 Results are complete snapshots, not deltas: absent old anchors are no longer
 retained. Callers must release old notes after reset/invalidation or an empty
 press result. A blocked refresh still reports normal old-reference detections;
-it does not force every key to release. Starting MIDI pitch, key selection,
-audio/MIDI dispatch, session/frame IDs and worker scheduling remain frontend work.
+it does not force every key to release. Compare consecutive `pressedKeys` sets
+for note-on/off transitions; held keys do not retrigger. Starting MIDI pitch,
+velocity, audio/MIDI dispatch, session/frame IDs and worker scheduling remain
+frontend work. Lookup uses exact physical regions (23.5 mm white pitch, 13.7 mm
+black width, 90/150 black length), with black priority and left-white selection
+at shared edges. It does not carry over the old frontend 8-pixel collision
+tolerance or landmark contact/velocity logic. Fingertip IDs are unnecessary for
+key consumers. Calibration UI is unchanged; saved landmarks cannot seed Vision
+and an explicit empty-piano reference is still required.
 
 ## Optional diagnostic output
 
