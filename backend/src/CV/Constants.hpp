@@ -5,6 +5,7 @@
 namespace makeshift::vision::constants {
 // Analysis pixels unless a physical unit is included in the name.
 inline constexpr int analysisSide = 640;
+inline constexpr int maximumWasmFrameSide = 4096;
 inline constexpr std::size_t maximumPixels = analysisSide * analysisSide;
 inline constexpr int referenceRefreshSeconds = 10;
 inline constexpr int cameraWidth = 1280, cameraHeight = 720, cameraFps = 30;

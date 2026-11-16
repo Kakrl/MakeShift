@@ -1,5 +1,59 @@
 # MakeShift Testing
 
+## Vision WASM export
+
+Local 2026-11-15 / macOS arm64: OpenCV 4.12.0 source revision
+`49486f61fb25722cbcf586b7f4320921d46fb38e`, Emscripten 4.0.20 SDK revision
+`e4fe26ef59168ff44f4c23c466e497bf60b3411e`, Release single-threaded/no SIMD,
+exceptions enabled. Build/use commands: [WASM handoff](../docs/cv_wasm.md).
+Artifact directory: `backend/src/CV/wasm/dist/` (tracked handoff bundle). The public module wraps
+native Vision without chromatic lookup or application integration.
+
+Native CV CTest passed 8/8; WASM CTest passed 2/2 (same pipeline and controlled-
+clock reference-policy suites). The native fixture exporter
+`tests/cv/wasm_parity.cpp` supplies 23 generated RGBA frames/33 actions, including
+actual ArUco images, manual/timed capture, missing markers, inside/outside tips,
+press creation/retention, blocked forced capture, release, reset, octave changes
+and native resizing across 1–3 octaves. Clock control is a test-runtime shim;
+production frames have no timestamp/clock-control field.
+
+`node tests/cv/wasm_parity.mjs` passed with Node 24.2.0: all 23 result snapshots
+and 15,974,400 diagnostic plane samples compared with the native oracle. Exact
+mask/validity, floating planes within absolute 0.001; geometry/matrices within
+0.001, drawing vertices within one pixel for rounding, remaining numbers within
+0.000001. Input type/length/dimension/octave rejection, offset/clamped arrays,
+instance independence, output/diagnostic snapshot lifetime and destruction checks
+passed. Default Node loader asset resolution also passed separately.
+
+`node tests/cv/wasm_browser.mjs` passed the same 23-frame/15,974,400-sample checks
+in a real module worker under headless Chrome 157.0.8103.51. A temporary localhost
+server served the compiled loader/WASM and fixtures; no camera, audio graph,
+Next.js route, application worker scheduling, MIDI or end-to-end physical latency
+was exercised. No COOP/COEP headers, threads or shared memory were required by
+this single-thread build. Fixture processing-time output is not a physical
+press-to-sound measurement or a performance acceptance result.
+
+Execution logs: `/tmp/makeshift-wasm-full-build.log`,
+`/tmp/makeshift-wasm-native-ctest.log`, `/tmp/makeshift-wasm-ctest.log`,
+`/tmp/makeshift-wasm-node-parity.log`. Browser execution returned PASS with
+fixtures preserved at
+`/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-wasm-browser-u8auXO`;
+Node fixtures at the same temp root under `makeshift-wasm-parity-eAzOb1`.
+Type declarations passed standalone TypeScript checking. Backend configure/build/
+CTest passed 12 tests with two hardware audio checks explicitly skipped;
+logs use `/tmp/makeshift-wasm-backend-{configure,build,ctest}.log`.
+Clang-format 17 is unavailable locally. No new Actions run;
+WASM checks are explicitly invoked and not integrated into CI.
+
+Tracked-bundle follow-up: `backend/build_vision_wasm.sh` now publishes the six-file
+bundle into `backend/src/CV/wasm/dist/`; intermediates/SDK remain ignored in
+`build/`. Git visibility and artifact hashes were checked, and staged versus
+published runtime files are byte-identical. The updated Node and Chrome worker
+runners both passed all 23 frames/15,974,400 plane samples from the new location.
+Node log: `/tmp/makeshift-wasm-tracked-node-parity.log`; browser fixture evidence:
+`/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-wasm-browser-KtRKA3`.
+
+
 ## Vision-owned reference policy (2026-11-15)
 
 Native Vision owns analysis resizing and ArUco acquisition. First capture requires
