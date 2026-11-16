@@ -19,7 +19,8 @@ event interface. Automated and physical verification remain pending; see the
 ## Playing the current preview
 
 Calibrate with the printed sheet, keep all four markers visible, and return to
-the home page. Select Enable audio for free play, or Record to enable audio
+the home page. Clear the keyboard, show all four markers, and select Set reference.
+After capture, select Enable audio for free play, or Record to enable audio
 and begin a count-in. Start/resume count-ins pause piano audio, pedals, MIDI capture
 and sounding-key feedback. Contact tracking continues, but held keys require release
 and a fresh press after completion. Free play continues during Pause and after Stop.
@@ -27,18 +28,26 @@ Pause closes captured notes and excludes paused and resume count-in time. Stop c
 the take for MIDI export. Restore tracking and select Enable audio after an
 interruption.
 
-Highlighted keys now represent accepted musical events. A fingertip over a key
-is not enough to mark it as sounding during live play: `soundFeedbackOnly`
-disables raw collision coloring while `activePitches` retains accepted-note
-highlights. This also prevents muted keys held through a count-in from lighting
-up before a fresh press.
+White keys highlight red and black keys highlight blue while their MIDI pitches
+are active in the accepted event stream. Highlights clear on release or
+interruption and remain off for count-in-suppressed contacts. Black caps are
+masked out of the white fill, using the accepted Vision transform for drawing.
+Sounding-note labels represent the same accepted musical events. Vision geometry and
+press-anchor outlines provide camera feedback separately from accepted pitches.
+Count-in suppression still requires release and a fresh press after completion.
 
-The preview detector uses polygon overlap, which can trigger on hovering; it is not intentional
-contact recognition. Live velocity now comes from recent fingertip motion;
-calibrated contact and camera-specific tuning remain #34/#29. Do not treat this
-preview as completed physical piano detection.
+Home now uses the native Vision WASM worker, with complete chromatic key
+snapshots feeding the existing sessions. Pitch is starting MIDI plus key offset.
+Velocity is fixed at 0.2 (MIDI 20); Vision has no motion/force estimate yet.
+Matching paper/playable octave counts are required. Calibration UI and saved
+calibration validation remain in place; a fresh empty-keyboard reference is
+also required. See [worker integration](cv_wasm.md#frontend-worker-integration).
+Physical contact accuracy and end-to-end latency remain unverified.
 
 ## Finger-speed velocity
+
+This describes the legacy landmark detector used by replay/tests. Home no longer
+loads this estimator; its Vision producer currently uses fixed velocity 0.2.
 
 `FingerVelocity` measures fingertip displacement relative to the wrist using
 landmark x/y and optional z. It converts y to the image-width scale, then

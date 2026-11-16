@@ -33,7 +33,7 @@ flowchart TD
 | Area | Existing implementation | Planned delivery |
 | :--- | :--- | :--- |
 | UI/camera | Next.js/React camera and calibration UI | Validated session lifecycle (#24, #87) |
-| CV | MediaPipe still-image helper, video overlay code, OpenCV.js marker/geometry modules; bounded k-means shadow worker and main-thread contact prototype with per-finger z-predicted note-on and shadow confirmation when knuckle/shadow switches are enabled (both enabled; z prediction disabled by default; combined camera behavior unverified) | Complete worker pipeline and validated intentional contact detection (#37, #34); prototype transitions are dispatched independently of diagnostic drawing |
+| CV | Home: native Vision WASM module worker, manual empty reference, chromatic pressed-key snapshots; calibration/replay retain MediaPipe/OpenCV.js helpers | Physical contact accuracy and latency verification (#34/#39/#30), velocity estimation; bounded worker transport implemented |
 | Calibration | Prototype flow/completion flag; known defect D6 | Versioned validated result (#87) |
 | Native audio | C++ PortAudio, nanobind, SPSC queue; ten 100 ms decaying sine hits at 44.1 kHz | Remains a native reference |
 | Browser audio | JavaScript AudioWorklet, ten stereo sampled voices, 19 preloaded Salamander recordings, +6 dB bass balance, press/session identities, velocity and Audio check page ([details](browser_audio.md)); native engine preserved | Shared event adapter (#86) implemented; ADSR (#27) implemented with user-reported listening pass; live readiness/wiring (#24, #28) |
@@ -60,7 +60,7 @@ Schedule newly available frames and bound pending work. Prefer recent frames to
 a backlog, count dropped frames, and evaluate missed brief presses. Document
 frame transfer/copy costs and ownership; dispose of transferred resources.
 Reuse detectors. Stop media tracks and close workers/models when sessions end.
-Use VIDEO inference for live frames while preserving still-image calibration.
+Preserve still-image calibration separately from the live Vision worker.
 
 Use ordinary worker messaging and bounded application queues. The #86 shared
 session contract interrupts and releases all notes on sequence gaps or overflow;
@@ -79,8 +79,10 @@ reference-relative dark/light/mid rules. Fixed spatial press anchors now retain
 accepted presses while an eligible current tip remains within a quarter white-key
 width; matched tips bypass shadow checks. Reference invalidation clears anchors.
 Frame-local candidate IDs do not supply anatomical identity or browser musical
-press identities, and keyboard eligibility is not chromatic pitch mapping. Native/WASM parity and browser-worker integration follow live review;
-sharing this core across runtimes is the reason for that planned WASM build.
+press identities, and keyboard eligibility is not chromatic pitch mapping.
+The [WASM export](cv_wasm.md) now compiles the same core and has synthetic
+native/WASM parity checks in Node and a browser module worker. Sharing one core
+is the reason for WASM. The home page now hosts it in a module worker.
 No physical accuracy/latency claim is established by the native checks.
 
 Native Vision now accepts RGBA camera frames plus octaves and owns resizing,
@@ -89,9 +91,13 @@ Checks reject active presses or detected tips within the newly scanned piano
 homography, ignoring outside/margin detections;
 blocked checks preserve old reference/geometry, success replaces both together.
 This is native behavior, not browser integration or physical empty-scene proof.
-The [proposed JavaScript contract](../backend/cv_wasm_interface.md) also specifies
-chromatic lookup and compact drawing output, pending along with bindings/WASM.
-The frontend owns starting MIDI pitch, session/event identities and audio dispatch.
+The [JavaScript contract](../backend/cv_wasm_interface.md) now returns compact
+fingertip/press/geometry snapshots with an optional diagnostic getter. Chromatic
+lookup now lives in a separate native `ChromaticLookup.cpp` and Vision returns
+sorted unique `pressedKeys` semitone offsets from fixed press anchors. Frontend
+application integration uses these snapshots; its existing calibration UI remains
+unchanged. The frontend owns starting MIDI pitch, session/event identities, worker scheduling
+and audio dispatch.
 
 ## Calibration, geometry and contact
 
@@ -122,20 +128,23 @@ occlusion and same-key multi-finger behavior. Relative hand-landmark depth is no
 automatically a calibrated distance from the paper. #29 tunes confidence and
 hysteresis against both accuracy and delay rather than assuming 25 ms debounce.
 
-The current prototype's [live contact controller](../frontend/src/cv/liveContactPipeline.ts)
-provides one `processFrame` entry point for key overlap, knuckle eligibility,
-and asynchronous shadow checks. It owns bounded shadow-worker scheduling,
-per-finger history, gate revisions, and the release watchdog. The overlay owns
-camera/marker geometry, rendering, and note dispatch through controller
-callbacks. Expensive segmentation remains in the worker; this refactor does
-not move hand inference into a worker or establish verified accuracy/latency.
+The home coordinator now uses [VisionCameraPipeline](../frontend/src/cv/visionCameraPipeline.ts).
+A main-thread canvas reads unmirrored RGBA only when the worker is ready and no
+frame is pending; its buffer is transferred to the module worker. New camera
+frames are sampled after completion, with no queued backlog. Vision owns marker
+scanning, reference/geometry, contact retention and chromatic lookup. A temporary
+Set reference button requests capture on the next submitted frame. The old
+`LiveContactPipeline`, hand overlay and shadow worker remain available for legacy
+replay/testing; the home page does not instantiate them. Calibration is unchanged.
 
-The contact controller also owns bounded per-finger motion estimators. Recent
-wrist-relative, palm-normalized landmark speed determines note-on velocity;
-velocity is latched at contact onset and forwarded unchanged to the shared
-musical event producer. Invalid/lost sources and session reset clear history.
-This is a motion heuristic, not a force measurement or contact classifier;
-see [mapping and limits](piano_integration.md#finger-speed-velocity).
+Frames carry the main observation timestamp and captured musical session ID.
+Replies older than 500 ms, worker errors and camera/source changes fail closed;
+reset epochs reject pending old results. Reference revisions clear the producer's
+old key snapshot without restarting a valid empty-playing session. Main-thread
+pitch conversion is `startingMidi + chromaticOffset`; one fixed velocity of 0.2
+replaces the old landmark motion heuristic. Audio dispatch precedes React drawing,
+MIDI and accepted-pitch feedback. Paper and keyboard octave counts must match
+because Vision currently accepts only one octave parameter.
 
 ## Event and clock contract
 
@@ -149,10 +158,11 @@ The configured white-key integration shares accepted events with MIDI and feedba
 readiness is delivered by #24. Contact detection (#34/#29), worker delivery (#37)
 and physical verification (#30/#39) remain pending. See [integration scope](piano_integration.md).
 
-Live hand observations invoke the overlay's contact-frame handler before React
+Vision worker replies invoke the chromatic event producer before React
 updates its drawing snapshot. Musical transitions therefore do not depend on
 a React commit; synchronous audio still precedes deferred MIDI and feedback.
-Hand inference and contact evaluation remain on the main thread (#37).
+Live contact evaluation runs inside the Vision worker; camera canvas readback
+and event delivery remain on the main thread.
 
 Specify ordering, malformed/duplicate events, repeated pitches and same-key
 multi-finger policy. Match releases to presses; a late release for a stolen
@@ -209,7 +219,7 @@ a MIDI file. Audio cannot await file generation.
 | Area | Existing tools / planned additions |
 | :--- | :--- |
 | Application | Next.js, React, TypeScript, npm lockfile |
-| CV | MediaPipe Tasks Vision, OpenCV.js/ArUco; live worker pipeline planned |
+| CV | Home: Vision/OpenCV WASM worker; calibration/replay: MediaPipe Tasks Vision and OpenCV.js/ArUco |
 | Audio | Native PortAudio reference; browser count-in and AudioWorklet synthesis implemented (#35), ADSR implemented (#27), user-reported listening pass |
 | MIDI | midi-writer-js; complete UI integration planned |
 | Native reference | C++23, CMake, PortAudio, nanobind, Python 3.12 |
@@ -289,7 +299,8 @@ Shared opt-in instrumentation lives in `frontend/src/diagnostics/`, consumed by
 CV, audio and events without importing instrumentation from the CV subsystem.
 Developer visibility switches live in `frontend/src/debugFlags.ts`.
 Outside production, `?dev=1` on the home page skips saved calibration: a
-complete live marker scan plus fresh hand tracking gates playing instead.
+manually captured Vision reference with accepted marker geometry and fresh worker
+results gates playing instead.
 The home calibration tab is disabled in dev mode; open `/` without the flag
 to calibrate.
 

@@ -113,8 +113,10 @@ The inner `Pipeline::setReference(image, nativeSize, geometry)` clones the
 accepted snapshot and commits cached regions together. Failed replacement
 preserves previous values. This remains an internal/test entry point, rather
 than the proposed frontend capture API. Frame-local IDs are not anatomical
-identities. Musical events, browser session identities, chromatic pitch mapping
-and audio remain integration work.
+identities. Chromatic lookup lives separately in `ChromaticLookup.cpp`, matching
+the frontend physical key dimensions and black-key priority. Vision maps fixed
+anchors to sorted unique semitone offsets in `pressedKeys`; musical events,
+browser session identities, starting MIDI pitch and audio remain integration work.
 
 ## Selected behavior
 
@@ -197,12 +199,10 @@ not physical contact truth. Camera review, held-out accuracy, and physical
 press-to-sound latency remain pending. Under 3% errors and under 50 ms remain
 targets, not claims.
 
-The [proposed JavaScript interface](../backend/cv_wasm_interface.md) documents the
-frame/reference policy now implemented in native Vision. Chromatic key lookup,
-compact JavaScript drawing outputs, bindings and WASM build remain pending.
-
-After live native review, build WebAssembly from the same core and verify
-native/WASM parity before browser-worker integration. Reusing one algorithm
-implementation is the reason for the planned WASM build. Preserve bounded fresh
-frames, calibration/session invalidation, and independent musical-event dispatch
-as described in [the architecture](architecture.md).
+The [JavaScript interface](../backend/cv_wasm_interface.md) now exports this
+Vision implementation. See the [WASM build/handoff](cv_wasm.md) for artifacts,
+usage and native/WASM parity checks. The module returns chromatic pressed-key
+snapshots alongside press points and geometry.
+Browser application/worker scheduling and audio/MIDI integration remain separate.
+Preserve bounded fresh-frame work, calibration/session invalidation and independent
+musical-event dispatch as described in [the architecture](architecture.md).

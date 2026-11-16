@@ -1,5 +1,78 @@
 # MakeShift Testing
 
+
+
+## Vision key highlights (2026-11-15)
+
+White keys now fill red and black keys blue from accepted live MIDI pitches.
+White fills exclude the projected black caps; all drawing uses accepted Vision
+geometry, with no frontend contact/key detection. Release/interruption clears
+highlights, and count-in-suppressed contacts remain unlit. Existing red/blue
+CSS tokens are reused. `recordingControls.test.tsx` now checks red white-key and
+blue black-key fills, no false white fill for a black press, and clearing on
+release/interruption. Inventory 2.1.7 covers these additions.
+
+Local checks passed: lint, TypeScript, 49 Vitest files / 866 tests, contrast and
+production build. Logs: `/tmp/makeshift-key-highlights-{lint,tsc,vitest,contrast,build}.log`.
+The live browser runner has new red-fill/release assertions, but those additions
+have not been run; the user is checking the overlay visually. Existing prior
+Vision browser integration results do not establish these new visual assertions.
+
+
+## Frontend Vision integration (2026-11-15)
+
+Home now uses the shipped native Vision WASM in a plain module worker instead
+of the MediaPipe/marker/LiveContactPipeline path. Calibration and replay retain
+their existing helpers. A Set reference button requests the next submitted
+frame; clear the piano and show all four markers. Compatible saved calibration
+is still required in normal mode. Local/preview `?dev=1` still bypasses saved
+calibration. Vision currently requires matching paper/playable octave counts.
+
+The camera owner transfers one full-frame RGBA buffer at a time, echoes main
+observation times and captured musical session IDs, drops obsolete epoch/camera
+replies and fails closed at 500 ms. Worker errors/camera loss release notes and
+require recovery. Fixed velocity is 0.2 (MIDI 20). Complete chromatic snapshots
+feed the existing audio-first sessions, recorder and accepted-pitch feedback.
+Empty reference refreshes preserve live playing and recording.
+
+Local macOS arm64 / Node 24.2.0 verification:
+
+- `npm run lint`, `npx tsc --noEmit`, contrast audit and production build passed.
+- `npx vitest run --maxWorkers=4`: 49 files / 866 tests passed. The default
+  unrestricted worker count hit a 5-second timeout in a CPU-heavy sampled-piano
+  test on this machine; bounded-worker runs avoid that contention. The recording
+  UI fixture allows 20 seconds of wall time for its long simulated video runs;
+  its simulated session/contact deadlines are unchanged. Page integration now has
+  58 tests using the documented synthetic Vision fixture, replacing the old
+  overlap-only contact fixture. Legacy velocity tests remain in their own suite;
+  Home tests assert fixed velocity. The former frame-loss skip is enabled.
+- New transport/producer suites: 20 tests for single-in-flight capture, reset,
+  source/session/time identities, stale/failure cleanup, reference request,
+  chromatic mapping, real recorder/feedback, held snapshots and count-in gating.
+- `MAKE_SHIFT_URL=http://127.0.0.1:3107 npm run test:vision-browser` passed with
+  Chrome 157.0.8103.51: generated RGBA camera images reached the actual production
+  worker and AudioWorklet (MIDI pitch 53), including manual/blocked reference,
+  hold/release/recapture and camera-loss reset; no old detector or note requests.
+  Fixtures: `/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-vision-live-1BhjNm`.
+- Deployment passed in Chrome: 12 assets with expected types, Home Vision and
+  unchanged calibration startup, five pages, three audio rounds with no note
+  requests, denial/retry/track-loss recovery. Database was explicitly unconfigured.
+- Keyboard-layout browser checks passed: 1–3 octaves/start/paper, reload,
+  warning/override, invalidation and MIDI bounds. Audio browser checks passed:
+  production sample bank, stereo/velocity/register checks, suspension recovery
+  and navigation cleanup. Installed Chrome was used; Playwright Chromium is absent.
+- Selenium navigation could not run: the declared `selenium-webdriver` package
+  is missing from local `node_modules`. Optional diagnostics-enabled profiling
+  was updated for Vision readiness/resources but has not been rerun.
+
+Logs: `/tmp/makeshift-vision-{lint,tsc,vitest,contrast,build,browser,deployment,layout-browser,audio-browser,selenium}.log`.
+No physical camera contact accuracy, audible hardware or physical latency claim.
+No GitHub issue/PR/Actions operation was performed; GitHub is user-owned here.
+Frontend CI now also triggers on tracked WASM bundle changes. The new unit suites
+are discovered by existing Vitest CI; the live synthetic browser runner requires
+the native fixture exporter and is explicitly invoked locally, not added to CI.
+
+
 ## Vision WASM export
 
 Local 2026-11-15 / macOS arm64: OpenCV 4.12.0 source revision
@@ -978,6 +1051,7 @@ No test implementation requires an exception to this layout.
 | Latency estimate | `python tests/python/latency_estimate.py profile.json config.json estimate.json` | #38 JSON export and explicit assumptions; [procedure](../docs/latency_estimation.md); no physical equipment required |
 | Frontend unit (Vitest) | `cd frontend && npx vitest run` | `npm ci` in `frontend/` |
 | Browser audio smoke | `cd frontend && npm run test:audio-browser` | Production server on `MAKE_SHIFT_URL` (default `http://127.0.0.1:3000`); `AUDIO_BROWSER_CHANNEL=chromium` for Playwright Chromium (default `msedge`) |
+| Vision live integration | `cd frontend && npm run test:vision-browser` | Running production server, installed Chrome (or `BROWSER_CHANNEL`), native fixture exporter (`sh backend/run_shadow_camera.sh --help`); synthetic camera pixels, no physical hardware claim |
 | Deployment smoke | `cd frontend && npm run test:deployment` | Production server or Vercel URL in `MAKE_SHIFT_URL`; `npx playwright install chromium`; network for jsDelivr WASM; `EXPECT_DATABASE=ok` requires Supabase secrets (`infisical run`) |
 | CV video replay | `cd frontend && npm run test:cv-video:auto` (all checked-in clips, sequentially) | Builds/starts production app once; Playwright Chromium installed once where supported (Apple Silicon Mac uses installed Chrome); optional `-- --clip N` or `-- --browser chrome`; per-clip and combined reports saved under `frontend/test-results/cv-video/` |
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |

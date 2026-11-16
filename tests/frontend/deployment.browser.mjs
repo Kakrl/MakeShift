@@ -26,9 +26,10 @@ const base = (process.env.MAKE_SHIFT_URL || "http://127.0.0.1:3000").replace(
 const INIT_TIMEOUT = 60_000;
 const PAGES = {
   "/": async (page) => {
-    const status = page.getByText(/MediaPipe (ready|unavailable)/);
+    const status = page.locator('[data-vision-state]:not([data-vision-state="loading"])');
     await status.waitFor({ timeout: INIT_TIMEOUT });
-    assert.match(await status.innerText(), /MediaPipe ready/);
+    assert.equal(await status.getAttribute("data-vision-state"), "ready");
+    assert.equal(await page.getByRole("button", { name: "Set reference", exact: true }).count(), 1);
   },
   "/calibration": async (page) => {
     for (const attribute of ["data-hand-detection", "data-sheet-detector"]) {
@@ -43,6 +44,10 @@ const PAGES = {
 };
 const WASM_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${tasksVisionVersion}/wasm`;
 const ASSETS = [
+  [base + "/vision/vision.worker.mjs", /javascript/],
+  [base + "/vision/makeshift-vision.mjs", /javascript/],
+  [base + "/vision/makeshift-vision-core.mjs", /javascript/],
+  [base + "/vision/makeshift-vision-core.wasm", /application\/wasm/],
   [base + "/audio/piano-worklet.js", /javascript/],
   [base + "/audio/synth.js", /javascript/],
   [base + "/audio/sampled-piano.js", /javascript/],

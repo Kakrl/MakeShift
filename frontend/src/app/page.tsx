@@ -763,7 +763,6 @@ export default function Home() {
             </div>
           )}
 
-          {!canPlay && devMode && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Dev mode: show all four sheet markers and your hands to play.</span></p>}
         </div>
 
         {/* Right sidebar (below the camera under lg) */}

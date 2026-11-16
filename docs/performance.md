@@ -92,13 +92,13 @@ physical sound output time. See [note events](note_events.md) for audio mapping.
 
 | Field | Boundary and limitation |
 | :--- | :--- |
-| processedFps / frameInterval | Changed `video.currentTime` polls in the hand overlay; these can repeat decoded frames. Unmount resets interval tracking. This is processing rate, not camera FPS. |
+| processedFps / frameInterval | Submitted Vision frames on Home; legacy hand-overlay media-time polls on replay. Busy/skipped frames are excluded. Unmount resets interval tracking. This is processing rate, not camera FPS. |
 | deliveredFps / presentationInterval | Browser `presentedFrames` advance divided by elapsed video callback intervals. Includes missed callback presentations; resets across video-element replacement. Null without video callbacks. Not sensor FPS. |
 | frameAge | Diagnostic `requestVideoFrameCallback` entry timestamp minus `presentationTime`; browser presentation-to-callback age, not exposure or physical press age. Unsupported callbacks leave the metric null. |
 | droppedFrames | Sum of gaps in `presentedFrames` between diagnostic callbacks on the same video element. Starts unavailable until two callbacks establish a gap (including zero). Does not count sensor, decoder or worker scheduler drops. |
 | inference | Around synchronous `detectForVideo`, including cold calls. Drawing and React work are excluded. |
 | markerDetection | Around `MarkerDetector.detect`, including OpenCV readback, excluding preceding canvas `drawImage`. |
-| detection | Synchronous live contact pipeline processing (overlap, knuckle eligibility and shadow-frame submission); excludes asynchronous shadow-worker execution and later contact callbacks, and excludes debug drawing. Does not measure physical press-to-sound latency. |
+| detection | Vision `processFrame` duration measured entirely within the worker, excluding transfer/readback and UI; legacy replay still measures synchronous contact processing and shadow submission. Does not measure physical press-to-sound latency. |
 | eventDelivery | Accepted event observation timestamp to NoteSession receipt. Recording happens after synchronous audio dispatch, before deferred MIDI/UI observers. No AudioWorklet or device latency claim. |
 | transfer | Contract for future worker send-to-receive elapsed time, including queueing and origin conversion. The shadow worker does not emit transfer timing, so production reports leave it null. |
 
@@ -125,8 +125,8 @@ Navigation off the owning page closes audio and CV owners; CameraProvider
 retains its one shared stream until provider teardown/retry. Tests must compare
 against these expected baselines, not require zero on every Play/Stop.
 
-Workers are null/unavailable because the live shadow-worker owner is not yet
-instrumented. Library-internal workers, GPU allocations, native OpenCV heaps,
+Home acquires/releases one instrumented Vision worker. Legacy shadow workers
+and library-internal workers are not fully instrumented. Library-internal workers, GPU allocations, native OpenCV heaps,
 and browser-internal objects are not enumerated. `performance.memory` supplies
 optional JS heap bytes where supported; otherwise null. This nonstandard value
 is approximate and GC-dependent, not proof of a leak or total process memory.

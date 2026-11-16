@@ -1,0 +1,6 @@
+/makeshift-vision.mjs
+/makeshift-vision-core.mjs
+/makeshift-vision-core.wasm
+/makeshift-vision.d.mts
+/toolchain.env
+/build-info.json

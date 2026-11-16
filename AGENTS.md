@@ -44,17 +44,21 @@ it separates existing behavior from planned work and links implementation issues
 | Path | Contents |
 | :--- | :--- |
 | `frontend/` | Next.js web client: camera, calibration, CV overlays, MIDI utils and local library operations |
+| `frontend/public/vision/`, `frontend/scripts/prepare-vision.mjs` | Home Vision module worker and verified build-time WASM asset copy |
 | `frontend/public/audio/` | Static AudioWorklet and shared fixed-voice DSP |
 | `frontend/src/app/audio/` | Browser audio owner and user-triggered sound check |
 | `frontend/src/app/share/` | Shared recordings UI: API client, store (mock fixtures with `?mock=`), post-recording save dialog, songs dialog (Shared and My recordings tabs), piano roll; `play/[id]/` share links open the shared-songs dialog |
 | `frontend/src/diagnostics/` | Shared bounded metrics and explicit camera-video registry |
 | `frontend/src/events/` | Shared browser note schema, clocks, session dispatch and audio adapter |
-| `frontend/src/cv/` | ArUco marker detection, homography, keyboard geometry, falling-notes geometry, prototype shadow worker and combined per-finger contact state |
+| `frontend/src/cv/` | ArUco marker detection, homography, keyboard geometry, falling-notes geometry, bounded home Vision camera worker owner, legacy shadow worker and per-finger contact state |
 | `frontend/src/lib/` | Shared utilities: versioned `localStorage` access, the recordings API types/validation used by client and server, and the latest GitHub release lookup for `/about` |
 | `frontend/src/app/api/` | Server routes; `/api/health` checks the recordings database, `/api/recordings` lists, reads, uploads and deletes shared recordings |
 | `frontend/src/server/` | Server-only Supabase access and recordings route handlers (never import from client code) |
 | `supabase/` | Supabase CLI config and SQL migrations for shared recordings |
-| `backend/` | C++ audio engine (PortAudio) and its nanobind Python module |
+| `backend/` | C++ audio engine (PortAudio), nanobind module and native CV viewer |
+| `backend/src/CV/` | Modular native finger/shadow pipeline; reference owner in `Vision.cpp`, detector in `Pipeline.cpp`, settings in `Constants.hpp`; see `docs/cv_pipeline.md` |
+| `backend/src/CV/wasm/` | Vision WASM bindings, public loader/types, pinned toolchain and tracked `dist/` handoff bundle; see `docs/cv_wasm.md` |
+| `tests/cv/` | Native CV suites and native/WASM Node/browser-worker parity checks |
 | `tests/` | Test inventory, testing guide, and suite subdirectories |
 | `tests/audio/` | C++ GoogleTest audio and queue suites |
 | `tests/frontend/` | Vitest MIDI tests and contrast audit |
@@ -90,9 +94,16 @@ it separates existing behavior from planned work and links implementation issues
 | Database | `npx supabase db push --linked` for new migrations; see `docs/supabase.md` |
 | Python | `python -m ruff check backend/src tests`, `python -m mypy backend/src --check-untyped-defs`, `python -m pytest` |
 | C++ | `cmake -B build -S backend && cmake --build build --config Release && ctest --test-dir build -C Release --output-on-failure` |
+| Native CV | `sh backend/run_shadow_camera.sh --help`, then `ctest --test-dir build/vision --output-on-failure`; live review per `docs/cv_pipeline.md` |
+| Vision WASM | `bash backend/build_vision_wasm.sh`, `ctest --test-dir build/vision-wasm --output-on-failure`, `node tests/cv/wasm_parity.mjs`, `node tests/cv/wasm_browser.mjs`; see `docs/cv_wasm.md` |
 | C++ formatting | `clang-format --dry-run --Werror` on changed files (`.clang-format`, clang-format 17) |
 | RCA automation | `node --test tests/automation/rca.test.cjs` (Node 22); CI: `rca-tests.yml` |
 | SBOM workflow | `actionlint .github/workflows/sbom.yml`; `node --test tests/automation/sbom.test.cjs`; generate with Syft v1.55.0 and run `node tests/automation/validate-sbom.cjs <SBOM.cdx.json>`; CI: `sbom.yml` |
+
+Frontend CI also runs when the tracked Vision WASM bundle changes. For the
+synthetic Home-to-worker-to-audio integration check, build the native fixture
+exporter with `sh backend/run_shadow_camera.sh --help`, then run
+`cd frontend && npm run test:vision-browser` against the production server.
 
 The C++ build requires Python 3.12 and nanobind (`pip install -r requirements.txt`).
 If a check cannot run locally (for example, no audio device or no CMake),

@@ -1,8 +1,9 @@
 # Vision WASM build and handoff
 
-This build exports the current native `Vision` implementation. Chromatic key
-lookup is deferred to the frontend/later work. There is no Next.js, camera,
-worker scheduling or audio integration in this change.
+This build exports the current native `Vision` implementation, including chromatic
+lookup in `ChromaticLookup.cpp` using the existing frontend key dimensions and
+black-key priority. The home page now integrates this bundle through a module
+worker; the standalone build and parity harness remain independent of Next.js.
 
 ## Build
 
@@ -56,7 +57,9 @@ model.setReference(); // First frame should show empty piano and all four marker
 const result = model.processFrame({
   rgba, width, height, octaves: 1,
 });
-// result.fingertips: current native-camera points, pressed booleans and states.
+// result.pressedKeys: sorted unique semitone offsets from the leftmost C.
+// MIDI pitch = configured startingMidi + key; dispatch changes through the session.
+// result.fingertips: optional drawing data, current camera points and contact states.
 // result.geometry: accepted homography, marker centers and white-key polygons.
 // result.pressRanges: fixed anchors and projected matching-radius outlines.
 
@@ -79,8 +82,11 @@ parity and a future browser shadow-class view. No raw WASM heap views escape.
 All ordinary result points use original input camera pixels. Apply display
 scaling/mirroring consistently in the frontend. Fingertip IDs remain frame-local;
 white-key polygon array indices are **white-strip indices**, not chromatic/MIDI
-key IDs. The module deliberately does not emit `key` or MIDI events. Geometry
-and pressed points are sufficient for the frontend's existing key lookup.
+key IDs. `pressedKeys` uses chromatic offsets 0..12*octaves (C=0, C#=1),
+including the final C. It maps fixed press anchors, so retained movement does not
+change pitch, and merges multiple anchors on one key. Capture/unready/released
+frames have an empty key snapshot. Starting pitch, velocity and musical events
+remain caller responsibilities. The existing calibration UI remains unchanged.
 The full reference/retention semantics are in the
 [interface contract](../backend/cv_wasm_interface.md).
 
@@ -96,9 +102,11 @@ node tests/cv/wasm_parity.mjs
 node tests/cv/wasm_browser.mjs
 ```
 
-Native/WASM CTest runs the same pipeline and controlled-clock reference-policy
-suites. The Node/browser runners generate temporary native RGBA fixtures and
-oracle snapshots. Both run the real public loader; the browser runs a module
+Native/WASM CTest runs the same chromatic lookup, pipeline and controlled-clock
+reference-policy suites. Lookup covers every key across 1–3 octaves, perspective,
+black priority/dimensions, bounds, invalid inputs and sorted/deduplicated snapshots.
+Reference tests check pitch retention across a key boundary and release. The
+Node/browser runners generate temporary native RGBA fixtures and oracle snapshots. Both run the real public loader; the browser runs a module
 worker served locally, without camera access or app integration. Browser testing
 uses the frontend's existing Playwright dependency and Chrome by default;
 `VISION_BROWSER_CHANNEL=chromium` selects an installed Playwright Chromium.
@@ -117,3 +125,35 @@ Timing printed by the harness is test-condition processing time, not physical
 press-to-sound latency. Fixture results are development/synthetic parity, not
 held-out physical contact or empty-paper accuracy. Execution status belongs in
 [the testing guide](../tests/README.md#vision-wasm-export).
+
+## Frontend worker integration
+
+`npm run dev` and `npm run build` in `frontend/` run
+`scripts/prepare-vision.mjs`, verify artifact hashes and copy the tracked bundle
+into ignored `public/vision/` files. No native compiler is needed for a frontend
+build. Keep the checked-in `public/vision/vision.worker.mjs` alongside those
+assets. This is a plain browser module worker so the generated Emscripten loader
+and binary retain their relative URLs. It requires no shared memory headers.
+
+`CVOverlayCoordinator` replaces the home hand/marker/contact overlays with
+`VisionCameraPipeline`. A canvas reads raw camera RGBA on the main thread and
+transfers the buffer, with at most one frame in flight. Vision copies the bytes
+into reusable native memory and downsamples internally; full-frame readback and
+copy costs remain to profile. Results carry main-clock observation times and
+captured session IDs. Stale results, camera changes and reset epochs cannot
+supply new notes to a replacement session. Failure releases notes and offers
+Reload tracker. Teardown terminates the worker, freeing its runtime/model memory.
+
+Clear the piano, show all four markers, then press Set reference. A blocked
+request preserves the old reference and normal detections. Accepted empty
+reference refreshes preserve playing/recording while clearing any old held-key
+snapshot. Normal playing still requires compatible saved calibration; the
+existing local/preview `?dev=1` bypass remains available. Matching paper/playable
+octaves are required; unsupported mixed settings show a recovery message.
+
+`createChromaticKeyProducer` differences complete snapshots into note-on/off,
+adds starting MIDI pitch and uses fixed velocity 0.2. It reuses LiveSession,
+NoteSession, AudioWorklet, MIDI recording, count-in and accepted-pitch feedback.
+No frontend landmark model is loaded on Home. Legacy modules remain for the
+unchanged calibration and video-replay paths. This is software integration,
+not physical accuracy or latency verification.
