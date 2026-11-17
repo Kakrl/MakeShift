@@ -13,8 +13,8 @@ export function registerProcessor(name, PianoProcessor) {
       };
     }
 
-    process(inputs, outputs) {
-      const keepAlive = super.process(inputs, outputs);
+    process(inputs, outputs, parameters) {
+      const keepAlive = super.process(inputs, outputs, parameters);
       const active = this.synth.voices.filter((voice) => voice.press !== 0).length;
       const settled = !active && !this.wasActive;
       if (this.commands.length || (this.awaitingSilence && settled)) {

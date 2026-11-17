@@ -107,6 +107,10 @@ printer/camera/audible checks remain pending in the manual report. Calibration
 save-before-navigation, replacing #162's expected failures. Software results establish
 neither physical contact accuracy nor sensor-to-sound latency.
 
+Issue #236 adds a same-origin ZIP download of the starter and extension PDFs
+from the home screen and Tutorial. [Inventory SHEET-02](../tests/verification_test_inventory.md#piano-sheet-download-236)
+covers the browser download.
+
 ## Recording playback extension (#130)
 
 PB-1: play an existing recording at 0.25x–4x speed with pause, seek, stop, and
@@ -174,12 +178,22 @@ it off. Verification: PREF-01, MET-02 and MET-03 in the test inventory.
 | :--- | :--- | :--- | :--- | :--- |
 | PD-1 / 2.2, 2.4 | Binary sustain, press-identity sostenuto, soft strikes, bounded lifetime/stealing, ordered session control | PD-01, PD-04, PD-03 | Carl Xu | Deterministic fixtures implemented; manual pedal functionality pass reported 2026-10-23; detailed device/performance evidence pending |
 | PD-2 | Four accessible live switches; Hold/Toggle bindings, persistence/conflicts, focus and clear-all suppression | PD-02, PD-03 | Jadden Picardal (UI), Harry Deng (bindings) | Automated UI/state tests implemented; manual functionality/programming pass reported 2026-10-23; specific hardware and recovery scenarios pending |
-| PD-3 | Preserve physical MIDI durations; visibly disclose missing pedal serialization | PD-02, PD-03 | Harry Deng | Disclosure implemented; recording/replay deferred to #222 |
+| PD-3 | Preserve physical MIDI durations with separately recorded controls | PD-02, PD-03, PR-01, PR-02 | Harry Deng | #222 implements v1 controls; hardware/importer verification pending |
 
 Software render/dispatch results do not establish requirement 2.3's physical
 latency. Real device/CV tests must report p50/p95/max, fraction >=50 ms, onset
 method, uncertainty, sample rate and complete hardware/browser metadata.
 
+## Audible recording count-off (#227)
+
+Audible count-off clarification (#227, user decision 2026-11-01): Start and
+Resume play one audible measure independently of the continuous-metronome
+toggle. The toggle remains default-off and non-persistent, with continuous
+clicks only when enabled. Preserve the selected tempo and meter, with count-off
+clicks following the meter's denominator note. Preserve pause silence,
+cancellation, readiness checks and
+MIDI exclusion. Verification: MET-01, MET-02 and MET-03 in the inventory. Visual
+and recording-clock synchronization remain separate follow-up #225.
 ## Configurable meter scope (#207)
 
 Requirements 3.2, 4.1 and 4.2 now include validated 1-32 numerator and
@@ -203,3 +217,47 @@ rejection and safe cancellation; free play outside count-in remains available.
 No change to latency thresholds or pedal recording scope. Mapped tests CI-01
 through CI-04 cover software behavior; physical camera/audio evidence remains
 pending in the [manual procedure](../tests/manual/2026-10-27_CI-04.md).
+
+## Official address and impersonation (#199)
+
+SEC-1 adds a security process requirement alongside 5.2: user-facing links use
+one official HTTPS address, a named owner runs periodic lookalike checks, and a
+documented procedure covers evidence, provider/registrar reports and official
+warnings. HTTPS (5.2) protects the connection but does not prove site identity,
+and checks cannot prevent a separate-domain impersonator. Mapped tests SEC-01
+and SEC-02; hosting confirmation of the address is pending. See
+[the procedure](deployment.md#official-address-and-impersonation-response-199).
+
+## Piano output volume (#228)
+
+VOL-1 refines 2.2/2.4 with a keyboard-accessible, persisted mute-to-louder
+volume control shared by live notes and recording playback. Smooth gain and
+post-render compression preserve note data, register balance and velocity
+data while controlling peaks. Per user feedback, above-unity volume expands
+strong strikes more than gentle strikes through per-voice velocity math;
+physical MIDI velocity is unchanged. VOL-01 covers UI/storage, VOL-02 owner routing
+and lifecycle, VOL-03 decoded PCM/keyboard verification, and VOL-04 speaker and
+headphone listening. No physical latency or acoustic distortion pass is implied
+by digital output. See [implementation and limits](browser_audio.md#piano-volume-228).
+
+## Ordered recorded controls (#222)
+
+| Requirement | Behavior | Verification | Owner | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| PR-1 | Physical note durations; validated, versioned effective pedal ordering and legacy storage | PR-01, PR-04 | Harry Deng | Automated; Actions pending |
+| PR-2 | Binary CC64/66/67, isolated repeated-pitch channels, deterministic physical edges and ten-voice policy | PR-02, PR-05 | Harry Deng | Byte parsing automated; external MIDI import pending |
+| PR-3 | Bounded replay, capture/strike semantics, pause/seek/stop/interruption silence and generation rejection | PR-03, PR-05 | Carl Xu | Automated checks and general localhost functional confirmation (PR-05); detailed hardware/scenario checks pending |
+
+See [contract](pedal_recording_followup.md). Seeking into released retained voices
+leaves them silent; only spanning physical presses rearticulate. No physical
+accuracy, hardware compatibility or latency compliance is claimed.
+
+## Standard piano pitch range (#262)
+
+Requirement 2.2 covers 88 browser audio pitches (MIDI 21–108) at 44.1, 48
+and 96 kHz for the accepted live and recording-playback event paths.
+[Inventory](../tests/verification_test_inventory.md) cases 2.2.16 and SP-02
+cover production-worklet output and sampler safety. PB-1.5 checks endpoint
+delivery through the recording timeline and audio owner. SP-03 covers
+subjective listening on a physical output device. The ten-voice limit,
+printed-keyboard range and physical latency measurement are separate.

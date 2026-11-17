@@ -16,6 +16,9 @@ const visibilityOnly = process.env.PLAYBACK_VISIBILITY_ONLY === "1";
 const modules = new Map();
 for (const path of [
   "app/midi/playbackTimeline",
+  "app/midi/recordedPedals",
+  "app/audio/volume",
+  "lib/storage",
   "app/audio/audioEngine",
   "app/audio/pianoSamples",
   "cv/noteMap",
