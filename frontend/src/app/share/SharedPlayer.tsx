@@ -22,6 +22,7 @@ function asRecording(shared: SharedRecording): Recording {
     meter: restoreMeter(shared.meter),
     createdAt: shared.createdAt,
     notes: shared.notes,
+    ...(shared.pedals ? { pedals: shared.pedals } : {}),
   };
 }
 

@@ -770,7 +770,7 @@ export default function Home() {
         </div>
 
         {/* Right sidebar (below the camera under lg) */}
-        <SideNav onCalibrationClick={() => setShowCalibrationIntro(true)} calibrationDisabled={devMode}>
+        <SideNav onCalibrationClick={() => setShowCalibrationIntro(true)} calibrationDisabled={devMode} showPianoSheetDownload>
           <section aria-label="Playback settings" className="relative grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-[23px] mt-6 lg:mt-[42px] lg:pl-[43px]">
             {/* Tempo */}
             <div className="flex flex-col gap-2">
@@ -856,7 +856,7 @@ export default function Home() {
       </div>
 
       <VolumeControl />
-      <PedalControls active={liveStatus.state === "playing" && countInBeat === null && !audioPreparing} clearRef={pedalClearRef} />
+      <PedalControls active={liveStatus.state === "playing" && countInBeat === null && !audioPreparing} clearRef={pedalClearRef} onTransition={state => { session.flushNotes(); recorder.pedals(state); }} />
       {/* Bottom: Listen (left) + transport (centre) */}
       <div className="flex items-center shrink-0 pl-(--gutter-l) pr-(--gutter-r) pb-[clamp(16px,3dvh,36px)] pt-[clamp(16px,2.5dvh,28px)]">
         <div className="flex-1 relative flex flex-wrap items-center justify-center gap-x-4 gap-y-3">

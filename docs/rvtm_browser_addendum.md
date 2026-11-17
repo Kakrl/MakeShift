@@ -107,6 +107,10 @@ printer/camera/audible checks remain pending in the manual report. Calibration
 save-before-navigation, replacing #162's expected failures. Software results establish
 neither physical contact accuracy nor sensor-to-sound latency.
 
+Issue #236 adds a same-origin ZIP download of the starter and extension PDFs
+from the home screen and Tutorial. [Inventory SHEET-02](../tests/verification_test_inventory.md#piano-sheet-download-236)
+covers the browser download.
+
 ## Recording playback extension (#130)
 
 PB-1: play an existing recording at 0.25x–4x speed with pause, seek, stop, and
@@ -171,7 +175,7 @@ it off. Verification: PREF-01, MET-02 and MET-03 in the test inventory.
 | :--- | :--- | :--- | :--- | :--- |
 | PD-1 / 2.2, 2.4 | Binary sustain, press-identity sostenuto, soft strikes, bounded lifetime/stealing, ordered session control | PD-01, PD-04, PD-03 | Carl Xu | Deterministic fixtures implemented; manual pedal functionality pass reported 2026-10-23; detailed device/performance evidence pending |
 | PD-2 | Four accessible live switches; Hold/Toggle bindings, persistence/conflicts, focus and clear-all suppression | PD-02, PD-03 | Jadden Picardal (UI), Harry Deng (bindings) | Automated UI/state tests implemented; manual functionality/programming pass reported 2026-10-23; specific hardware and recovery scenarios pending |
-| PD-3 | Preserve physical MIDI durations; visibly disclose missing pedal serialization | PD-02, PD-03 | Harry Deng | Disclosure implemented; recording/replay deferred to #222 |
+| PD-3 | Preserve physical MIDI durations with separately recorded controls | PD-02, PD-03, PR-01, PR-02 | Harry Deng | #222 implements v1 controls; hardware/importer verification pending |
 
 Software render/dispatch results do not establish requirement 2.3's physical
 latency. Real device/CV tests must report p50/p95/max, fraction >=50 ms, onset
@@ -232,6 +236,18 @@ physical MIDI velocity is unchanged. VOL-01 covers UI/storage, VOL-02 owner rout
 and lifecycle, VOL-03 decoded PCM/keyboard verification, and VOL-04 speaker and
 headphone listening. No physical latency or acoustic distortion pass is implied
 by digital output. See [implementation and limits](browser_audio.md#piano-volume-228).
+
+## Ordered recorded controls (#222)
+
+| Requirement | Behavior | Verification | Owner | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| PR-1 | Physical note durations; validated, versioned effective pedal ordering and legacy storage | PR-01, PR-04 | Harry Deng | Automated; Actions pending |
+| PR-2 | Binary CC64/66/67, isolated repeated-pitch channels, deterministic physical edges and ten-voice policy | PR-02, PR-05 | Harry Deng | Byte parsing automated; external MIDI import pending |
+| PR-3 | Bounded replay, capture/strike semantics, pause/seek/stop/interruption silence and generation rejection | PR-03, PR-05 | Carl Xu | Automated checks and general localhost functional confirmation (PR-05); detailed hardware/scenario checks pending |
+
+See [contract](pedal_recording_followup.md). Seeking into released retained voices
+leaves them silent; only spanning physical presses rearticulate. No physical
+accuracy, hardware compatibility or latency compliance is claimed.
 
 ## Standard piano pitch range (#262)
 
