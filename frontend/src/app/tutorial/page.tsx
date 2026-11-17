@@ -73,6 +73,15 @@ export default function Tutorial() {
         </div>
 
         <div className="overflow-y-auto overscroll-contain px-6 sm:px-8 pb-8">
+          <div className="ms-well mb-6 flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+            <p className="text-ink-muted text-[15px]">
+              Print the starter and any extensions at 100% / Actual size.
+            </p>
+            <a href="/piano-sheets.zip" download className="ms-key px-5">
+              Download piano sheets (ZIP)
+            </a>
+          </div>
+
           {/* Video placeholder */}
           <div className="w-full aspect-video bg-surface-dark rounded-[16px] flex items-center justify-center mb-8 shadow-(--ring)">
             <div className="flex flex-col items-center gap-3">

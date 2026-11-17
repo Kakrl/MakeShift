@@ -2669,3 +2669,25 @@ the metronome, deployment, keyboard-layout and audio checks with the local
 production server. The stalled countdown retained a boundary about 208 ms
 before callback receipt. Database and physical audio were outside this run.
 The build temporarily expanded the Turbopack root for the dependency junction.
+
+## Piano sheet download verification (issue #236)
+
+On 2026-11-08, two runs of the pinned generator produced identical ZIPs.
+The archive passed CRC checks and contained exactly the starter and extension
+PDFs, each byte-identical to the checked-in print file.
+
+Lint, TypeScript, contrast and the production build passed. Vitest passed
+771 tests across 40 files with one skip. Edge 157.0.4341.42 passed the
+deployment, keyboard layout and audio browser suites against the production
+build. The deployment suite downloaded the same archive from Home and
+Tutorial at 320px, confirmed neither click navigated away, and verified the
+ZIP response content type. The Playwright Chromium executable failed to
+launch on this Windows host. Actions execution is pending.
+
+On 2026-11-16, merged main at `9c901d3` and made the ZIP download label
+visible on Home. Lint, TypeScript, 877 Vitest tests (one existing skip),
+all 37 contrast pairs and the production build passed. Chromium 151.0.7922.34
+passed deployment, keyboard-layout and audio checks on the local production
+server. At 320px, both links displayed the download label before activation,
+served the expected ZIP and left the page open. Both archived PDFs matched
+the checked-in originals by SHA-256. The database was unconfigured.
