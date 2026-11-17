@@ -1274,7 +1274,7 @@ defect report is filed.
 | D21 | High | Calibration | (Req 6.2, 1.1, 2.1) #148 replaced the reachable result capture with depth buttons and navigated before validation/save. Final depth capture now creates the primary result; completion retains its model and saves both records before navigation. 6.2.3's expected failures are restored as passing regressions. | `frontend/src/app/calibration/page.tsx` | [#162](https://github.com/Kakrl/MakeShift/issues/162) | Fix verified locally 2026-10-06; review/merge and physical check pending |
 | D24 | Medium | Audio | User camera-device testing of the initial #206 implementation found no live accompaniment and unstable clicks during page actions. | `frontend/src/app/audio/metronome.ts` | [#206](https://github.com/Kakrl/MakeShift/issues/206) | Worklet revision verified automatically; [user-reported behavior retest passed](manual/2026-10-25_MET-04.md), tested device commit 2cf30d0 confirmed |
 | D25 | Medium | MIDI / UI | Confirmed No, delete it plus accepted browser confirmation leaves the take accessible through Recordings; reload persistence not yet separately confirmed. | `frontend/src/app/midi/RecordingsLibraryPanel.tsx`, `frontend/src/app/share/SaveTakeDialog.tsx` | [#224](https://github.com/Kakrl/MakeShift/issues/224) | Not reproduced on current main: panel and real-page regression tests ([LIB-05](verification_test_inventory.md)) pass; reporter retest on a current build pending |
-| D26 | Medium | Audio / UI | Visual count-in falls behind audible beats, especially at 300 BPM; offset and recording-start alignment unmeasured. | `frontend/src/app/page.tsx`, `frontend/src/app/audio/metronome.ts` | [#225](https://github.com/Kakrl/MakeShift/issues/225) | Open; [MET-04 observation](manual/2026-10-25_MET-04.md), 300 BPM follow-up reported 2026-10-26 |
+| D26 | Medium | Audio / UI | Visual count-in and recording boundary drift under delayed message handling; original physical offset remains unmeasured. | `frontend/src/app/page.tsx`, `frontend/src/app/audio/metronome.ts` | [#225](https://github.com/Kakrl/MakeShift/issues/225) | Fix verified automatically locally 2026-11-05; [user-reported device checklist passed at 5022324](manual/2026-11-05_MET-06.md); quantitative offset, review/merge pending; [verification](#count-in-synchronization-verification-225); original [MET-04 observation](manual/2026-10-25_MET-04.md), 300 BPM follow-up reported 2026-10-26 |
 | D27 | Medium | Calibration / UI | Moving the sheet after calibration leaves audio/record controls disabled while the marker overlay appears valid, without clear mismatch/recovery feedback. | `frontend/src/events/liveSession.ts`, `frontend/src/app/MarkerTrackingOverlay.tsx`, `frontend/src/app/page.tsx` | [#226](https://github.com/Kakrl/MakeShift/issues/226) | Open; overlaps broader recovery/alignment work in [#220](https://github.com/Kakrl/MakeShift/issues/220) |
 | D23 | Medium | Audio | (Req 2.4, related 2.2) User reports high-velocity strikes are not loud enough and wants more apparent velocity dynamics. Listening report 2026-10-14; cause and hardware verification pending. | `frontend/src/cv/fingerVelocity.ts`, `frontend/public/audio/synth.js` | [#209](https://github.com/Kakrl/MakeShift/issues/209) | DSP tuning implemented locally; [verification and listening limits](manual/2026-10-14_209-velocity.md); user confirmed audible velocity changes locally 2026-10-14; measured trials/chord distortion checks pending |
 | D24 | Medium | Audio | (Req 2.2, related 2.4) Higher notes dominated the procedural sound; +4 dB gain was insufficient. User selected sampled Salamander piano at +6 dB after RMS normalization. | `frontend/public/audio/sampled-piano.js`, `frontend/src/app/audio/pianoSamples.ts` | [#210](https://github.com/Kakrl/MakeShift/issues/210) | Sampled production implemented; [software and qualitative prototype evidence](manual/2026-10-19_210-register-balance.md); production hardware listening and review/merge pending |
@@ -2409,3 +2409,171 @@ the scope input and its values were checked against the pinned action's
 `action.yml`. The expanded-scope clean check passed at `6994a1e` on
 2026-11-14 ([job](https://github.com/Kakrl/MakeShift/actions/runs/43597152952/job/132453993053)); logs confirm runtime, development
 and unknown scopes. Vulnerable-update rejection remains unverified.
+
+## Count-in synchronization diagnostics (#225)
+
+Local 2026-11-05 on fix/225-count-in-sync, based on upstream 3ff061b.
+In the initial test-only phase, application behavior was unchanged. An optional simulated-transport delivery hook
+queues worklet notifications while the real processor clock and simulated fresh
+camera observations continue. This isolates message delay from tracking expiry;
+it is not a full simulation of a blocked browser or camera hardware.
+
+Command from frontend: npx vitest run ../tests/frontend/recordingControls.test.tsx
+-t "#225 diagnostic". Three prospective regression assertions fail, and one
+cancellation control passes. At that phase these tests were intentionally left failing until the behavior
+fix. The subsequent implementation results are recorded below; the original
+failures remain evidence of discovery.
+
+- At 300 BPM, deliver the first queued beat at 650 ms: the real Home DOM shows
+  1 instead of the current audio beat 4 (which began at 600 ms).
+- Deliver Start completion 200 ms late: the next captured note starts at 0 ms
+  instead of 200 ms relative to the actual count-in completion boundary.
+- Deliver Resume completion 200 ms late: the next note starts at 100 ms instead
+  of 300 ms after including the preceding 100 ms of active recording.
+- Stop before delivering the delayed completion: no take starts and recording
+  controls return to stopped. The stale generation is rejected.
+
+The visual result establishes a stale DOM update after notification handling,
+not that a user necessarily sees every queued number painted. React/browser
+batching and actual paint cadence remain to be measured. Real browser timing,
+physical camera load, animation perception, acoustic latency and CI execution
+are unverified. The 220 ms animation exceeds a 200 ms beat at 300 BPM in 4/4,
+but its contribution to the reported lag is not established.
+
+Full-suite diagnostic run: 772 passed, three #225 assertions failed, one
+existing skip across 40 files. Lint and TypeScript passed. git diff --check
+passed. No production build or browser test was run for this test-only phase.
+
+## Count-in synchronization verification (#225)
+
+### PR #266 merged-main verification (2026-11-13)
+
+Merged upstream main `4a8d2b4c3f460735a37317823689ab2f22478784` after review
+fix commit `9f62996`. The only textual conflict was the known-defects table:
+kept main's newer #224 non-reproduction status and this PR's #225 verification
+status. Product code and tests merged automatically and were verified together.
+
+Merged local checks passed: lint, TypeScript, 860 Vitest cases with one existing
+skip across 47 files, all 37 contrast pairs, production build and whitespace.
+Production Chromium 151.0.7922.34 passed `metronome.browser.mjs`, including the
+same-task pre-beat-4 stall and no stale callbacks; completion carried a boundary
+approximately 209.1 ms before callback receipt. Other browser suites and
+physical-device checks were not rerun for this merge. New Actions execution is
+pending; this local merge has not been pushed.
+
+### PR #266 first-beat review fix (2026-11-13)
+
+The controller now waits for the output clock to reach the scheduled first
+beat before reporting a countdown number. Home uses zero as a pending count-in
+state, retaining the overlay, disabled Record/settings and available Stop while
+withholding the animated number. Start and Resume both use this state.
+
+A controller regression simulates buffered output before the first beat,
+checks first-beat notification at the boundary and cancels a queued visual
+callback on Stop. Two Home integration cases cover pending Start/Resume,
+first notification and Stop while waiting. Existing meter and storage tests
+now wait for simulated beat delivery before expecting an animated number.
+Local Windows verification: 785 tests passed, one existing skip across 40
+files; lint, TypeScript, all 37 contrast pairs, production build and
+`git diff --check` passed. Browser and physical-device checks have not been
+rerun for this follow-up; no new Actions execution is claimed. The two other
+review requests about delayed callback and browser-stall fixtures were still
+open at the end of this first-fix verification.
+
+### PR #266 delayed completion review fix (2026-11-13)
+
+The simulated audio transport now has an optional animation-callback delivery
+hook alongside worklet-message delivery. The Start/Resume timestamp regression
+holds both paths from 600 ms until 1000 ms, past the 800 ms count-in boundary.
+Before releasing callbacks it checks the actual recorder remains stopped or
+paused, the overlay is present, and both callback queues are nonempty. After
+release it checks the recorder is recording and retains the existing note
+offset assertions (200 ms for Start, 300 ms for Resume).
+
+All 63 recording-controls tests passed with one existing skip. A controlled
+mutation temporarily removed Home's scheduled Start/Resume timestamp arguments:
+both regressions failed at their note-offset assertions (0 instead of 200 ms,
+100 instead of 300 ms). The source was restored immediately. This demonstrates
+the updated cases detect callback-time timestamps. After restoration, the full
+suite passed (785 tests, one existing skip across 40 files), along with lint
+and TypeScript. New Actions evidence remains pending.
+
+### PR #266 browser-stall review fix (2026-11-13)
+
+The production browser probe now detects its 550 ms output-clock threshold,
+asserts beat 3 was the last displayed beat and that beat 4 has not started,
+then blocks for 450 ms in that same browser task. There is no intervening
+Playwright round trip. It retains assertions that completion is the only
+post-stall notification and carries an earlier scheduled audio boundary.
+
+Chromium 151.0.7922.34 passed the updated probe against the local production
+build containing the first-beat fix: idle callbacks were ordered at 300 BPM,
+no stale beat followed the stall, and the completion boundary preceded callback
+receipt by approximately 211.6 ms. Existing busy-thread click spacing remained
+within one sample of 500 ms; pause/mute, resume, standalone Home with camera
+denied, and cleanup/reuse also passed. Targeted browser-test lint and
+`git diff --check` passed. These are digital audio/controller checks; no new
+physical listening or camera validation, other-browser result or Actions
+execution is claimed.
+
+Local implementation verification 2026-11-05. The processor reports sample-frame
+count-in metadata; the controller derives current progress from audio output
+position, samples on animation frames and emits only changed current beats.
+Start/Resume take a converted scheduled completion timestamp. Visual effects
+last at most half the denominator-note interval, capped at 120 ms. Settings,
+#205 input gating, cancellation, pause exclusion and live click timing remain
+in force. Count-off audibility is still separate #227 / PR #248 work.
+
+All four MET-05 regression cases now pass, including the three original failing
+assertions. The cancellation control now defers all messages (including the
+initial timeline), ensuring Stop occurs before any start authorization; once a
+timeline has arrived, its completion no longer needs a completion notification.
+MET-01 adds 20/120/300 BPM clock-only progress, late-duplicate suppression and
+boundary conversion. Recorder tests cover explicit timestamps and rejection of
+negative/nonfinite values without changing stopped/paused state.
+
+Full Vitest run: 782 passed, one existing skip across 40 files. Lint, TypeScript,
+all 37 contrast pairs and production build passed. Production Chromium
+151.0.7922.34 metronome, piano audio and keyboard-layout browser checks passed.
+The metronome probe verifies ordered idle callbacks at 300 BPM, then stalls the
+main thread for 450 ms across completion. It emits completion without replaying
+an obsolete beat and reports the scheduled boundary about 209.8 ms before callback
+receipt. This probe exercises the real controller/output clock, not full Home
+camera rendering or physical acoustics; Home/recorder integration uses simulated
+CV and transport. Existing 1.8-second busy-thread click spacing remains within
+one sample of the expected 500 ms interval. Production sampled-piano register,
+suspension/recovery and navigation checks passed. New Actions evidence pending.
+
+A blocked main thread can still freeze the display and delay release of the
+count-in input gate. Missed/suppressed notes are not reconstructed. These automated results alone
+do not establish physical camera/listening behavior, an absolute visual/audio
+offset or compatibility in other browsers. A later user-operated device test
+is recorded below. Deployment smoke is recorded separately below.
+
+Deployment smoke on this revision again stalled without a result and was
+stopped. It remains unverified; no camera readiness or physical listening pass
+is inferred from the other checks. git diff --check passed.
+
+### User-operated synchronization retest (MET-06)
+
+Harry confirmed the complete Start/Resume, 120/300 BPM in 4/4 and count-in Stop
+checklist worked well on 2026-11-05 at 5022324, using localhost/npm run dev and
+the unchanged Windows/Chrome/camera setup from MET-04. The
+[dated report](manual/2026-11-05_MET-06.md) records qualitative results and
+explicit limits: no offset measurement, new recording evidence, MIDI export
+check, deliberate stress, other browser, or #227 toggle-off count-off test.
+Review sign-off remains pending. This does not replace the stalled deployment
+smoke result or establish production-hosted behavior.
+
+## PR #266 conflict resolution (2026-11-16)
+
+Merged main at `56c46a8`. The simulated metronome keeps delayed notification
+and frame delivery alongside audible count-offs with the continuous metronome
+disabled. Both behaviors passed together in the real Chromium worklet.
+
+Lint, TypeScript, 877 Vitest tests (one existing skip, 48 files), all 37 contrast
+pairs and the production build passed on Windows. Chromium 151.0.7922.34 passed
+the metronome, deployment, keyboard-layout and audio checks with the local
+production server. The stalled countdown retained a boundary about 208 ms
+before callback receipt. Database and physical audio were outside this run.
+The build temporarily expanded the Turbopack root for the dependency junction.

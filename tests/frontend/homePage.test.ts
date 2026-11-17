@@ -448,6 +448,8 @@ describe("home page", () => {
     await act(async () => {
       fireEvent.click(screen.getByLabelText("Start recording"));
     });
+    expect(screen.queryByText("1", { selector: "span.ms-beat" })).toBeNull();
+    act(() => vi.advanceTimersByTime(0));
     expect(screen.getByText("1", { selector: "span.ms-beat" })).toBeTruthy();
     // One 4/4 measure at the default 60 BPM. Advanced through the simulated worklet clock.
     for (let beat = 0; beat < 4; beat++) act(() => vi.advanceTimersByTime(1000));

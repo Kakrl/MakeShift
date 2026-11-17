@@ -214,9 +214,23 @@ The separate `frontend/public/audio/metronome-worklet.js` processor owns
 sample-frame beat deadlines, accents, click synthesis and one-bar count-in.
 UI commands configure tempo, mute, live playing, pause/resume and cancellation.
 Click timing does not depend on React renders or individual JavaScript timers.
-The worklet reports visual count-in progress/completion to Home; main-thread
-stalls can still delay those notifications and the recorder's reaction. Audio
-hardware, browser suspension and live CV readiness are separate limitations.
+The worklet reports the count-in start frame, frozen beat interval and beat count
+alongside its messages (#225). The controller follows that audio timeline on
+animation frames and when messages arrive, notifying React only when the current
+beat changes. Delayed notifications do not replay obsolete beat numbers. The
+number animation and beat-dot transitions last at most half a beat, capped at
+120 ms. Start/Resume receive the scheduled completion boundary in the recorder's
+performance.now clock rather than the message-receipt time.
+
+The mapping uses AudioContext.getOutputTimestamp's related output-audio and
+performance times when available; startup/unsupported cases use a paired
+currentTime/performance.now sample. The fallback excludes output latency, and
+neither method establishes physical acoustic alignment. See the
+[Web Audio clock contract](https://www.w3.org/TR/webaudio/#dom-audiocontext-getoutputtimestamp).
+Main-thread stalls still freeze rendering and delay input-gate release. The
+recorder retains the correct time origin after recovery but cannot recover
+missed observations or notes suppressed while input was gated. Physical camera
+load, speaker latency and cross-browser timing remain separate verification.
 
 The toggle directly prepares the click context from its user gesture and
 starts standalone playback. It requires no camera, saved calibration or piano

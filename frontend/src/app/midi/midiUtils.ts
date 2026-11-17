@@ -38,11 +38,12 @@ export function createRecorder() {
     return Math.max(0, endTime - recordingStartTime - excludedPausedMs);
   }
 
-  function startRecording(bpm: number, name = "Untitled recording", meter: Meter = DEFAULT_METER): void {
+  function startRecording(bpm: number, name = "Untitled recording", meter: Meter = DEFAULT_METER, timestampMs = performance.now()): void {
     if (!Number.isFinite(bpm) || bpm <= 0) {
       throw new RangeError("Recording BPM must be positive.");
     }
     if (!isMeter(meter)) throw new RangeError("Invalid meter");
+    if (!Number.isFinite(timestampMs) || timestampMs < 0) throw new RangeError("Invalid recording timestamp");
     recording = {
       id: crypto.randomUUID(),
       name,
@@ -52,7 +53,7 @@ export function createRecorder() {
       notes: [],
     };
     activeNotes.clear();
-    recordingStartTime = performance.now();
+    recordingStartTime = timestampMs;
     pausedAt = null;
     excludedPausedMs = 0;
     recordingState = "recording";
@@ -101,9 +102,10 @@ export function createRecorder() {
     recordingState = "paused";
   }
 
-  function resumeRecording(): void {
+  function resumeRecording(timestampMs = performance.now()): void {
     if (recordingState !== "paused" || pausedAt === null) return;
-    excludedPausedMs += performance.now() - pausedAt;
+    if (!Number.isFinite(timestampMs) || timestampMs < 0) throw new RangeError("Invalid recording timestamp");
+    excludedPausedMs += Math.max(0, timestampMs - pausedAt);
     pausedAt = null;
     recordingState = "recording";
   }
