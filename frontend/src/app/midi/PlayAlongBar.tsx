@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { FALL_LEAD_MS } from "../../cv/fallingNotes";
 import { formatDuration } from "../share/shareStore";
 import { useKeyboardLayout } from "../useKeyboardLayout";
+import type { ScoreSnapshot } from "./playAlongScore";
 import { getPlayAlong, pausePlayAlong, stopPlayAlong, subscribePlayAlong } from "./playAlong";
 
 /** Title, time and transport for the song falling onto the keyboard (#131). */
@@ -11,6 +12,7 @@ export default function PlayAlongBar() {
   const playAlong = useSyncExternalStore(subscribePlayAlong, getPlayAlong, () => null);
   const layout = useKeyboardLayout();
   const [snapshot, setSnapshot] = useState(() => playAlong?.timeline.getSnapshot() ?? null);
+  const [score, setScore] = useState<ScoreSnapshot | null>(null);
 
   // The song lives with this view: hiding the page pauses it, leaving ends it.
   useEffect(() => {
@@ -29,7 +31,11 @@ export default function PlayAlongBar() {
   // Four updates a second is plenty for a clock; the notes draw elsewhere.
   useEffect(() => {
     if (!playAlong) return;
-    const update = () => setSnapshot(playAlong.timeline.getSnapshot());
+    const update = () => {
+      const next = playAlong.timeline.getSnapshot();
+      setSnapshot(next);
+      setScore(playAlong.score.snapshot(next.state === "ended" ? Infinity : next.positionMs));
+    };
     update();
     const timer = setInterval(update, 250);
     return () => clearInterval(timer);
@@ -52,6 +58,11 @@ export default function PlayAlongBar() {
     >
       <span className="min-w-0 truncate font-semibold">{playAlong.title}</span>
       <span className="shrink-0 tabular-nums text-ink-muted">{time}</span>
+      {score && (
+        <span className="shrink-0 tabular-nums" aria-label="Score">
+          {score.hits} hit · {score.misses} miss · {score.score}%
+        </span>
+      )}
       {outside > 0 && (
         <span className="hidden shrink-0 text-ink-muted sm:inline">
           {outside} {outside === 1 ? "note is" : "notes are"} off your keyboard
@@ -62,7 +73,10 @@ export default function PlayAlongBar() {
         className="ms-key shrink-0 px-3 py-1 text-[13px]"
         onClick={() => {
           if (playing) playAlong.timeline.pause();
-          else void playAlong.timeline.play();
+          else {
+            if (ended) playAlong.score.reset();
+            void playAlong.timeline.play();
+          }
           setSnapshot(playAlong.timeline.getSnapshot());
         }}
       >

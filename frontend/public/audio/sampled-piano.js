@@ -204,6 +204,7 @@ export class SampledPiano extends LegacySynth {
     this.voices = this.voices.map((v) => ({
       ...v,
       held: false,
+      velocity: 0,
       captured: false,
       preset: this.presets[60],
       age: 0,
@@ -282,14 +283,16 @@ export class SampledPiano extends LegacySynth {
     selected.held = true;
     selected.captured = false;
     selected.gain = event.velocity ** 1.5 * (this.pedals.soft ? 0.65 : 1);
+    selected.velocity = event.velocity;
     selected.age = 0;
     selected.oldL = oldL;
     selected.oldR = oldR;
     selected.fadeLeft = this.fade;
   }
 
-  render(left, right = left) {
+  render(left, right = left, volume) {
     for (let i = 0; i < left.length; i++) {
+      const amount = volume ? volume[volume.length === 1 ? 0 : i] : 1;
       let l = 0,
         r = 0;
       for (const v of this.voices) {
@@ -328,7 +331,9 @@ export class SampledPiano extends LegacySynth {
           voiceL += interpolate(sample.left, index, fraction) * gain;
           voiceR += interpolate(sample.right, index, fraction) * gain;
         }
-        const envelope = v.gain * v.level;
+        // Apply volume expression once to the blended voice.
+        const expression = amount <= 1 ? amount : 1 + (amount - 1) * v.velocity ** 2;
+        const envelope = v.gain * v.level * expression;
         v.lastL = voiceL * envelope;
         v.lastR = voiceR * envelope;
         if (v.fadeLeft) {
@@ -340,9 +345,8 @@ export class SampledPiano extends LegacySynth {
         r += v.lastR;
       }
       // Uniform output boost; only overloads reach this fixed safety ceiling.
-      left[i] = Math.max(-0.95, Math.min(0.95, l * OUTPUT_GAIN));
-      if (right !== left)
-        right[i] = Math.max(-0.95, Math.min(0.95, r * OUTPUT_GAIN));
+      left[i] = volume ? l * OUTPUT_GAIN : Math.max(-0.95, Math.min(0.95, l * OUTPUT_GAIN));
+      if (right !== left) right[i] = volume ? r * OUTPUT_GAIN : Math.max(-0.95, Math.min(0.95, r * OUTPUT_GAIN));
     }
   }
 }

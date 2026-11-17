@@ -54,7 +54,7 @@ async function measureRange() {
         `
     import { PianoProcessor } from ${JSON.stringify(new URL("/audio/piano-worklet.js", location.href))};
     registerProcessor("range-probe", class extends PianoProcessor {
-      process(inputs, outputs) {
+      process(inputs, outputs, parameters) {
         if (currentFrame % ${segment} === 0) {
           const index = currentFrame / ${segment};
           const session = index + 1;
@@ -63,7 +63,7 @@ async function measureRange() {
             type: "note-on", session, press: 1, note: index + 21, velocity: 1,
           } });
         }
-        return super.process(inputs, outputs);
+        return super.process(inputs, outputs, parameters);
       }
     });
   `,

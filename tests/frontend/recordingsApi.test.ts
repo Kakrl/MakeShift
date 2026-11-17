@@ -42,6 +42,7 @@ const row = (index: number) => ({
   bpm: 100,
   duration_ms: 1000,
   note_count: 2,
+  octaves: 1,
   created_at: `2026-10-${String(20 - index).padStart(2, "0")}T12:00:00.123456+00:00`,
 });
 
@@ -87,6 +88,7 @@ describe("GET /api/recordings", () => {
       meter: { numerator: 4, denominator: 4 },
       durationMs: 1000,
       noteCount: 2,
+      octaves: 1,
       createdAt: rows[0].created_at,
     });
     expect(page.recordings[0]).not.toHaveProperty("notes");
@@ -120,6 +122,79 @@ describe("GET /api/recordings", () => {
       expect(response.status).toBe(400);
     }
     expect(calls).toHaveLength(0);
+  });
+
+  it("filters by title, octaves and ids, escaping LIKE wildcards", async () => {
+    const { calls, deps } = database([row(0)]);
+    const ids = [ID, "00000000-0000-4000-8000-000000000001"];
+    const url = new URL("http://localhost/api/recordings");
+    url.searchParams.set("q", "  50%_off\\*  ");
+    url.searchParams.set("maxOctaves", "2");
+    url.searchParams.set("ids", ids.join(","));
+    expect((await listRecordings(new Request(url), deps)).status).toBe(200);
+    const query = calls[0].url.searchParams;
+    expect(query.get("title")).toBe("ilike.*50\\%\\_off\\\\*");
+    expect(query.get("octaves")).toBe("lte.2");
+    expect(query.get("id")).toBe(`in.(${ids.join(",")})`);
+  });
+
+  it("answers an empty ids list without querying", async () => {
+    const { calls, deps } = database();
+    const response = await listRecordings(new Request("http://localhost/api/recordings?ids="), deps);
+    expect(await response.json()).toEqual({ recordings: [], nextCursor: null });
+    expect(calls).toHaveLength(0);
+  });
+
+  it.each([
+    ["sort=sideways"],
+    ["maxOctaves=lots"],
+    ["ids=not-a-uuid"],
+    [`ids=${Array.from({ length: 101 }, () => ID).join(",")}`],
+    [`q=${"x".repeat(101)}`],
+  ])("rejects an invalid query (%s) without querying", async (search) => {
+    const { calls, deps } = database();
+    const response = await listRecordings(new Request(`http://localhost/api/recordings?${search}`), deps);
+    expect(response.status).toBe(400);
+    expect(calls).toHaveLength(0);
+  });
+
+  it.each([
+    ["oldest", "created_at.asc,id.asc", "gt"],
+    ["longest", "duration_ms.desc,id.desc", "lt"],
+  ])("orders by %s and pages with a cursor for that sort", async (sort, order, op) => {
+    const rows = Array.from({ length: RECORDING_LIST_PAGE_SIZE + 1 }, (_, i) => row(i));
+    const { calls, deps } = database(rows, []);
+    const first = await listRecordings(new Request(`http://localhost/api/recordings?sort=${sort}`), deps);
+    expect(calls[0].url.searchParams.get("order")).toBe(order);
+    const page = await first.json();
+    await listRecordings(new Request(`http://localhost/api/recordings?sort=${sort}&cursor=${page.nextCursor}`), deps);
+    const last = rows[RECORDING_LIST_PAGE_SIZE - 1];
+    const key = sort === "longest" ? String(last.duration_ms) : `"${last.created_at}"`;
+    const column = sort === "longest" ? "duration_ms" : "created_at";
+    expect(calls[1].url.searchParams.get("or")).toBe(
+      `(${column}.${op}.${key},and(${column}.eq.${key},id.${op}.${last.id}))`,
+    );
+  });
+
+  it("rejects a cursor from a different sort", async () => {
+    const { calls, deps } = database();
+    const timestamp = Buffer.from(JSON.stringify([row(0).created_at, ID])).toString("base64url");
+    const duration = Buffer.from(JSON.stringify([1000, ID])).toString("base64url");
+    for (const search of [`sort=longest&cursor=${timestamp}`, `sort=newest&cursor=${duration}`]) {
+      const response = await listRecordings(new Request(`http://localhost/api/recordings?${search}`), deps);
+      expect(response.status).toBe(400);
+    }
+    expect(calls).toHaveLength(0);
+  });
+
+  it("stores the octaves a song spans", async () => {
+    const { calls, deps } = database({ id: ID });
+    const wide = { ...upload, notes: [
+      { pitch: "C3", velocity: 80, startMs: 0, durationMs: 100 },
+      { pitch: "D5", velocity: 80, startMs: 100, durationMs: 100 },
+    ] };
+    await uploadRecording(post(wide), deps);
+    expect(JSON.parse(calls[0].init.body as string).p_recording.octaves).toBe(3);
   });
 
   it("returns 503 when unconfigured and 502 without echoing database errors", async () => {
@@ -173,6 +248,7 @@ describe("POST /api/recordings", () => {
       meter: { numerator: 4, denominator: 4 },
       duration_ms: 650,
       note_count: 2,
+      octaves: 1,
       notes: [
         { pitch: "C4", velocity: 80, startMs: 0, durationMs: 500 },
         { pitch: "E4", velocity: 70, startMs: 250, durationMs: 400 },
