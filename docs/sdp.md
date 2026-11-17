@@ -155,6 +155,16 @@ browser execution, specific device/environment evidence, detailed scenario check
 live-CV stress and physical latency remain pending. See PD inventory
 and the dated report before claiming completion.
 
+## Audible recording count-off (#227)
+
+Audible count-off clarification (#227, user decision 2026-11-01): Start and
+Resume play one audible measure independently of the continuous-metronome
+toggle. The toggle remains default-off and non-persistent, with continuous
+clicks only when enabled. Preserve the selected tempo and meter, with count-off
+clicks following the meter's denominator note. Preserve pause silence,
+cancellation, readiness checks and
+MIDI exclusion. Verification: MET-01, MET-02 and MET-03 in the inventory. Visual
+and recording-clock synchronization remain separate follow-up #225.
 ## Configurable meter scope (#207)
 
 Requirements 3.2, 4.1 and 4.2 now include validated 1-32 numerator and
@@ -178,6 +188,15 @@ rejection and safe cancellation; free play outside count-in remains available.
 No change to latency thresholds or pedal recording scope. Mapped tests CI-01
 through CI-04 cover software behavior; physical camera/audio evidence remains
 pending in the [manual procedure](../tests/manual/2026-10-27_CI-04.md).
+
+## Official address and impersonation response (#199)
+
+Before public promotion, Carl Xu confirms the official production address
+(currently <https://make-shift-chi.vercel.app>, confirmation pending) and owns
+monthly lookalike checks and provider reports; Jadden Picardal keeps
+user-facing links consistent. Camera prompt redesign and database changes are
+out of scope. Procedure: [deployment](deployment.md#official-address-and-impersonation-response-199);
+tests SEC-01 and SEC-02.
 
 ## Piano output volume (#228)
 

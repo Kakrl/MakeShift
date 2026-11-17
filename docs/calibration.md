@@ -10,6 +10,13 @@ layout; add extension copies for two or three octaves. Recalibrate when replacin
 the print. Select the playable octave count, starting C and actual assembled
 paper count in step 1. See the [layout contract](piano_sheet.md#marker-and-application-compatibility).
 
+Step 3 automatically detects and validates all four sheet markers. There is no
+manual paper-check action: wait for **Sheet geometry validated**, then select
+**Next Step**. Missing markers or invalid geometry block advancement until a
+usable observation arrives. Returning to step 3 reacquires the paper and camera/
+keyboard settings before continuing. The initialized marker detector is reused
+for these scans and disposed when leaving calibration.
+
 ## Version 1 contract
 
 `frontend/src/cv/calibration.ts` owns validation, storage and compatibility.
@@ -73,6 +80,21 @@ resolution, facing mode, sheet revision or layout requires new calibration.
 Moving the camera or sheet beyond tolerance requires restoring the original
 pose or recalibrating. A physically different but visually identical sheet with
 the same marker IDs cannot be distinguished by this camera-only contract.
+
+Issue #220 adds ordered compatibility diagnostics via `calibrationReason` without
+changing the compatibility predicate. Readiness distinguishes absent/invalid
+saved data, unavailable camera, changed device/resolution/direction, changed
+layout, unavailable markers and complete-scan geometry disagreement. Only the
+last case suggests restoring alignment; camera changes name the changed setting.
+Missing scans are not evidence of movement.
+
+`SheetAlignment` draws saved (solid) and current (dashed) sheet-reference
+quadrilaterals through marker centers. It uses the same mirrored cover crop as
+the camera, keeps the saved corners immutable and hides incomparable camera
+spaces. Current corners are labelled as the last complete scan and disappear
+after a miss or ten seconds; this display expiry does not expire calibration
+or change retained contact geometry. A static, token-based legend provides
+non-color cues without announcing each scan. See [recovery behavior](live_session.md#recovery-explanations-and-alignment-220).
 
 ## Playing and recording
 

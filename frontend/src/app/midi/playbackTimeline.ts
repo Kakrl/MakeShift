@@ -16,6 +16,7 @@ export type PlaybackState =
   | "disposed";
 type Note = { pitch: number; velocity: number; start: number; end: number };
 type Boundary = { time: number; index: number; on: boolean };
+type Span = { clock: number; position: number; rate: number; until: number };
 
 function pitchNumber(pitch: string): number {
   const value = pitchToMidi(pitch);
@@ -76,6 +77,7 @@ export function createPlaybackTimeline(
   let generation = 0;
   let error: string | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  const spans: Span[] = [];
 
   function positionMs() {
     return state === "playing"
@@ -84,6 +86,28 @@ export function createPlaybackTimeline(
           position + Math.max(0, performance.now() - anchor) * rate,
         )
       : position;
+  }
+
+  function openSpan() {
+    spans.push({ clock: anchor, position, rate, until: Infinity });
+    if (spans.length > 32) spans.shift();
+  }
+
+  function closeSpan(clockMs: number) {
+    const last = spans[spans.length - 1];
+    if (last && last.until === Infinity) last.until = clockMs;
+  }
+
+  function positionAtMs(clockMs: number): number | null {
+    for (let index = spans.length - 1; index >= 0; index--) {
+      const span = spans[index];
+      if (clockMs >= span.clock && clockMs < span.until)
+        return Math.min(
+          durationMs,
+          span.position + (clockMs - span.clock) * span.rate,
+        );
+    }
+    return null;
   }
 
   function cancelTimer() {
@@ -106,6 +130,7 @@ export function createPlaybackTimeline(
 
   function pause() {
     if (state === "disposed") return;
+    if (state === "playing") closeSpan(performance.now());
     position = positionMs();
     state = "paused";
     cancelTimer();
@@ -156,6 +181,7 @@ export function createPlaybackTimeline(
         if (state !== "playing") return;
       }
       if (now >= durationMs) {
+        closeSpan(performance.now());
         position = durationMs;
         state = "ended";
         cancelTimer();
@@ -180,6 +206,7 @@ export function createPlaybackTimeline(
   function begin() {
     anchor = performance.now();
     state = "playing";
+    openSpan();
     cursor = 0;
     while (cursor < boundaries.length && boundaries[cursor].time < position)
       cursor++;
@@ -208,6 +235,9 @@ export function createPlaybackTimeline(
         error,
       };
     },
+
+    /** Song position at a performance.now() timestamp, or null if not playing then. */
+    positionAt: positionAtMs,
 
     async play(): Promise<boolean> {
       if (state === "disposed") return false;
@@ -261,6 +291,8 @@ export function createPlaybackTimeline(
       anchor = performance.now();
       rate = value;
       if (state === "playing") {
+        closeSpan(anchor);
+        openSpan();
         cancelTimer();
         tick();
       }

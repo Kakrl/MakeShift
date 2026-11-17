@@ -1,6 +1,6 @@
 /* Deployment smoke test (#89). Run against `npm run build && npm start`
  * or a Vercel URL:
- *   MAKE_SHIFT_URL=https://make-shift-seven.vercel.app npm run test:deployment
+ *   MAKE_SHIFT_URL=https://make-shift-chi.vercel.app npm run test:deployment
  * MAKE_SHIFT_URL defaults to http://127.0.0.1:3000. BROWSER_CHANNEL selects
  * the browser (default "chromium": full Chromium in new headless mode; the
  * headless shell has no camera support). Install: npx playwright install chromium
