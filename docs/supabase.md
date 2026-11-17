@@ -200,3 +200,14 @@ database first, then `npx supabase db push --linked`, and check
 `supabase migration list --linked` plus a live list request with `sort=longest`
 and `maxOctaves=1` before deploying. Apply it before the deploy that sends
 those parameters.
+
+## Pedal migration (#222)
+
+Apply `20261113000000_recording_pedals.sql` before the new API. It adds nullable
+`pedals` JSONB; old rows remain note-only. The migration also updates the rate-limited
+`upload_recording` function to store pedals alongside notes and octaves.
+Read/upload routes preserve controls
+and compute duration through the last control boundary. The shared validator
+rejects malformed/unsupported control data before any database request.
+Migration execution and live round trips remain pending until the linked
+Supabase CLI/environment is available.

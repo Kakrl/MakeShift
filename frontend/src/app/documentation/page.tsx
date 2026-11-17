@@ -66,8 +66,8 @@ export default function Home() {
         </section>
         <section id="pedal-recording" className="bg-surface text-ink p-4">
           <h2 className="text-xl">Pedal recording and replay follow-up</h2>
-          <p>Live pedals affect sound only. Recordings and MIDI exports preserve physical key durations and do not record pedals.</p>
-          <p>Planned extension: separately ordered pedal events, MIDI control changes, playback restoration and safe pause/seek/stop resets. Public follow-up issue pending; tracked with issue #176.</p>
+          <p>New recordings and MIDI exports include Sustain, Sostenuto and Soft changes while preserving physical key durations. Older recordings play without pedals.</p>
+          <p>Pause, seek, Stop and interruptions silence pedal tails. Resume and seek restore pedal state and restart physically held notes; already released tails stay silent. Soft applies at the original strike, and Sostenuto captures only the original held presses.</p>
         </section>
       </main>
     </div>
