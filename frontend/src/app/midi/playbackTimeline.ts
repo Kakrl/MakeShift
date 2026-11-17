@@ -59,6 +59,7 @@ export function createPlaybackTimeline(
   if (hasPedals && (!audio.setPedals || !audio.silencePlayback)) throw new RangeError("Pedal playback requires pedal audio transport");
   const durationMs = boundaries.reduce((end, e) => Math.max(end, e.time), 0);
   const active = new Map<number, AudioToken>();
+  const visibilityDocument = typeof document === "undefined" ? undefined : document;
   let ownsAudio = false;
   let state: PlaybackState = "stopped";
   let position = 0;
@@ -135,6 +136,14 @@ export function createPlaybackTimeline(
     releaseNotes();
   }
 
+  function pauseWhenHidden() {
+    if (!visibilityDocument?.hidden) return false;
+    if (state === "loading" || state === "playing") pause();
+    return true;
+  }
+
+  visibilityDocument?.addEventListener("visibilitychange", pauseWhenHidden);
+
   function fail(message: string) {
     error = message;
     pause();
@@ -164,7 +173,7 @@ export function createPlaybackTimeline(
   }
 
   function tick() {
-    if (state !== "playing") return;
+    if (state !== "playing" || pauseWhenHidden()) return;
     try {
       const now = positionMs();
       while (cursor < boundaries.length && boundaries[cursor].time <= now) {
@@ -277,7 +286,7 @@ export function createPlaybackTimeline(
     positionAt: positionAtMs,
 
     async play(): Promise<boolean> {
-      if (state === "disposed") return false;
+      if (state === "disposed" || pauseWhenHidden()) return false;
       if (state === "playing") return true;
       if (state === "loading") return false;
       cancelTimer();
@@ -286,7 +295,7 @@ export function createPlaybackTimeline(
       error = null;
       try {
         await audio.initialize();
-        if (ticket !== generation) return false;
+        if (ticket !== generation || pauseWhenHidden()) return false;
         if (audio.claimPlayback && !audio.claimPlayback()) { fail("Audio playback ownership unavailable"); return false; }
         if (ticket !== generation) return false;
         if (position >= durationMs) position = 0;
@@ -319,7 +328,7 @@ export function createPlaybackTimeline(
       const resume = state === "playing";
       pause();
       position = Math.max(0, Math.min(durationMs, milliseconds));
-      if (resume) begin();
+      if (resume && !visibilityDocument?.hidden) begin();
     },
 
     setPlaybackRate(value: number) {
@@ -341,6 +350,7 @@ export function createPlaybackTimeline(
       if (state === "disposed") return;
       pause();
       unsubscribe();
+      visibilityDocument?.removeEventListener("visibilitychange", pauseWhenHidden);
       state = "disposed";
     },
   };
