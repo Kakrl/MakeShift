@@ -144,6 +144,11 @@ look-ahead delay. Test clock offsets, delayed messages, resets and pause/resume.
 
 ## Audio decision
 
+The browser audio range is A0–C8 (MIDI 21–108) for accepted live and
+recording-playback events. Audio check exercises this range without camera
+input. The ten-voice pool and 1–3 octave printed layout have independent
+limits. See [range verification](browser_audio.md#standard-piano-range-262).
+
 Use JavaScript sample playback in an AudioWorklet. Issue #210 replaces the
 procedural modal default with 19 locally hosted stereo Salamander recordings
 and the user-selected +6 dB bass curve after RMS normalization. Decode/copy

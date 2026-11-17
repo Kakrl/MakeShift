@@ -1,7 +1,7 @@
 import { SampledPiano } from "./sampled-piano.js";
 
 /* global AudioWorkletProcessor, registerProcessor, sampleRate */
-class PianoProcessor extends AudioWorkletProcessor {
+export class PianoProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [{ name: "volume", defaultValue: 1, minValue: 0, maxValue: 4, automationRate: "a-rate" }];
   }

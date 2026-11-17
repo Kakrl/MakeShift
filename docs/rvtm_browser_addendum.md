@@ -248,3 +248,13 @@ by digital output. See [implementation and limits](browser_audio.md#piano-volume
 See [contract](pedal_recording_followup.md). Seeking into released retained voices
 leaves them silent; only spanning physical presses rearticulate. No physical
 accuracy, hardware compatibility or latency compliance is claimed.
+
+## Standard piano pitch range (#262)
+
+Requirement 2.2 covers 88 browser audio pitches (MIDI 21–108) at 44.1, 48
+and 96 kHz for the accepted live and recording-playback event paths.
+[Inventory](../tests/verification_test_inventory.md) cases 2.2.16 and SP-02
+cover production-worklet output and sampler safety. PB-1.5 checks endpoint
+delivery through the recording timeline and audio owner. SP-03 covers
+subjective listening on a physical output device. The ten-voice limit,
+printed-keyboard range and physical latency measurement are separate.

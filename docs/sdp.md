@@ -220,3 +220,12 @@ legacy compatibility and documented discontinuity restoration. These extend
 PD-3 beyond its original live-only disclosure. Scope and limits are specified
 in [the control contract](pedal_recording_followup.md); verification maps PR-01
 through PR-05. Physical latency targets remain unchanged.
+
+## Standard piano pitch range (#262)
+
+Browser audio covers A0–C8 (MIDI 21–108) for accepted live events and recording
+playback, with ten simultaneous voices. The camera-free Audio check supports
+individual keys, endpoints, a chromatic sweep and a chord spanning the range.
+The printed keyboard retains its separate 1–3 octave scope. Full-range audio
+verification covers production graph output and pitch at 44.1, 48 and 96 kHz,
+with listening and physical latency tracked separately.
