@@ -136,6 +136,7 @@ try {
     window.countBeats = [];
     window.testMetronome.beginCountIn();
   });
+  assert((await page.evaluate(() => window.sampleClicks(650))) > 0.001);
   await page.waitForFunction(() => window.countCompletions === 2);
   assert.deepEqual(await page.evaluate(() => window.countBeats), [1, 2, 3, 4]);
   assert((await page.evaluate(() => window.sampleClicks(150))) < 0.00001);
@@ -298,7 +299,7 @@ try {
       delayedCompletionMs: probe.delayMs,
       pause: "silent",
       resume: "count-in and ongoing clicks",
-      mutedCountIn: "passed",
+      toggleOffCountIn: "audible count-off, silent accompaniment",
       toggleOff: "silent",
       cleanupReuse: "passed",
       audibleHardware: "not measured",

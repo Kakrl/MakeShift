@@ -54,6 +54,60 @@ CV work stalls the route transition (D28).
   matched locally for 3.1.1 (D25) and 6.2.1 (PASS); 3.1.2 was KNOWN FAIL (D26)
   with a 15 px scrollbar on `/` and `/?dev=1`.
 
+## Piano volume (issue #228)
+
+2026-11-16 merge verification against main at `1970f43`: lint, TypeScript,
+863 Vitest passes (one existing skip, 48 files), 37 contrast pairs and the
+production build passed. Chromium 151.0.7922.34 passed deployment, keyboard
+layout, audio and VOL-03 volume checks with a local production server
+and no database configuration. The build used a temporary Turbopack root
+adjustment for the worktree's dependency junction.
+
+2026-11-02, Windows / Node 22.20.0, isolated `feature/228-volume` worktree from
+`b1700ee`: lint, TypeScript, **733 Vitest passes** (one existing skip, 38 files),
+all 37 contrast pairs and production build passed. Vitest required execution
+outside the sandbox after EPERM cache renames. The build temporarily expanded
+Turbopack's root to include the existing dependency junction and used network
+access for Google Fonts; the repository config is unchanged.
+
+Edge 156.0.4314.58 passed production deployment, keyboard-layout, audio and
+count-in-gate checks against port 3229 (fake media, database unconfigured).
+`volume.browser.mjs` passed at 48 kHz using all 19 decoded recordings and the
+actual output graph helper. Following user listening feedback that soft notes
+were too loud with uniform gain, volume now adjusts each voice's velocity math.
+C2/C4/C6 at velocity 0.6 gained 6.3613 dB (2.08x) from 100% to 200%; velocity
+0.3 gained only 1.27x. Offline unit cases cover 0.1/0.3/0.6/1 strikes (respective
+maximum multipliers 1.03/1.27/2.08/4), downward gain and audio-rate held-note mute.
+The real BrowserAudio owner/worklet passed parameter delivery, held-note mute
+and unmute; original note/MIDI velocity data is unchanged. All 128 pitches with ten coherent
+sustain-held voices plus a mixed-register chord stayed below full scale over
+the first 1.2 s; worst absolute sample was 0.969187. Both initial mute and
+30 ms ramp-to-mute had exact-zero output after settling. Native End/Home/arrows,
+reload persistence and 320px page width passed. An earlier -3 dB threshold
+iteration exceeded full scale on MIDI 0; final -6 dB threshold passed all cases.
+Songs-dialog keyboard control and synchronization back to Home also passed.
+
+The initial uniform-gain preview was rejected by the user for over-amplifying
+low-velocity notes. Carl Xu subsequently confirmed the revised preview:
+"now it sounds good." This is a qualitative listening pass; device metadata
+and individual VOL-04 steps remain pending.
+
+Chromium was attempted outside the sandbox and failed before execution with
+`spawn UNKNOWN`; sandbox Edge could not write its profile, so successful Edge
+checks ran outside the sandbox. Browser PCM is digital evidence, not a listening
+or physical latency result. The compressor has makeup gain/lookahead and may
+change loud chord dynamics. Speaker/headphone maximum usability, full-duration
+peaks, other sample rates and latency under real CV remain pending in
+[VOL-04](manual/2026-11-02_VOL-04.md). No new Actions execution is claimed.
+
+Run the volume browser check with a production server:
+
+```powershell
+$env:MAKE_SHIFT_URL = 'http://127.0.0.1:3229'
+$env:AUDIO_BROWSER_CHANNEL = 'msedge'
+node tests/frontend/volume.browser.mjs
+```
+
 ## PR #235 main merge (2026-11-02)
 
 Merged main at a205fde into the count-in input gate. Retained the continuous
@@ -2256,6 +2310,48 @@ Deployment smoke was not repeated after the earlier stalled run documented
 above; physical camera/audio testing and new CI evidence remain pending.
 Recording-clock synchronization remains follow-up issue #225.
 
+## Audible recording count-off (#227)
+
+Local verification 2026-11-01 on feature/227-audible-count-off, based on PR #223
+commit 88f0fa1: Start/Resume count-offs are audible independently of continuous
+accompaniment. The toggle remains unchanged and defaults off. With it off, the
+completion boundary adds no click and recording proceeds silently. Stop cancels
+remaining count-off beats. Existing tempo and meter interpretation are retained.
+
+The production processor cases cover 3/4/6-beat count-offs, silent completion,
+toggle-off during a click, cancellation, pause and enabled accompaniment. Home
+integration covers toggle-off Start/Resume, cancellation of both, unchanged
+toggle, and parsing real exported MIDI to find only one piano note-on/off pair.
+The simulated transport now observes count-off clicks even with accompaniment
+off. All 18 metronome tests passed; recordingControls passed 40 with one existing
+frame-loss skip. Full Vitest: 612 passed, one existing skip across 33 files.
+Lint, TypeScript, all 37 contrast pairs and the production build passed.
+
+Production Chromium 151.0.7922.34 metronome checks passed, including audible
+toggle-off count-off, silent completion/accompaniment, pause, standalone Home
+without camera permission, close/reprepare, and sample spacing through a busy
+UI thread. Production audio and keyboard-layout browser checks also passed.
+These are automated graph/simulated-CV results, not a physical listening pass.
+Deployment smoke again stalled without a result and was stopped; it remains
+unverified. Manual count-off listening and new CI execution remain pending.
+No manual report is claimed. Synchronization work remains issue #225.
+### PR #248 review verification (2026-11-13)
+
+Based on merged revision `8727b749a82d1ac37d1e6e29c844d7da1bc3b3ae`,
+added a 6/8 case with accompaniment off. At 120 BPM and 48 kHz it verifies
+six audible clicks spaced 12000 frames (250 ms) apart, completion at frame
+72000 (1.5 seconds), and silence afterward. All 25 metronome tests and the
+TypeScript check passed locally. This new case has not yet run in Actions.
+
+The unmodified merged revision passed
+[frontend CI](https://github.com/Kakrl/MakeShift/actions/runs/43522599208/job/132220338681):
+853 tests passed, one skipped across 47 files, with lint, types, contrast,
+build and the configured browser checks passing. Its separate local production
+build and `metronome.browser.mjs` rerun passed in Chromium 151.0.7922.34:
+live output, busy-thread spacing within one sample of 500 ms, pause silence,
+resume, audible toggle-off count-off then silence, standalone Home toggle/mute
+with camera denied, and cleanup/reuse. No acoustic listening measurement.
+
 ## PR #238 main merge (2026-11-02)
 
 Merged main at b1700ee after #233/#235 landed. The Home conflict retains the
@@ -2272,6 +2368,47 @@ Metronome checks included camera-denied Home playback and audio-clock spacing
 under a busy UI thread. Recovery checked 320/390/1440px and keyboard navigation.
 Database unconfigured; fake media/digital output only, no physical sensing,
 acoustic or screen-reader pass. New Actions execution remains pending.
+
+## PR dependency review workflow (#197, first part)
+
+Local 2026-11-06 on chore/197-dependency-review. Added a PR workflow for frontend
+manifest/lockfile changes and edits to the workflow itself. Official dependency
+review action v5.0.0 is pinned to a1d282b36b6f3519aa1f3fc636f609c47dddb294,
+verified against its release tag/commit. The check fails on introduced known
+high/critical findings with read-only contents access, vulnerability checking
+enabled, license policy disabled, and no PR comments. No project package is
+installed or executed by this workflow. Existing package versions and the
+lockfile are unchanged. Branch protection is untouched. On 2026-11-07, Harry
+reported administrator confirmation that Dependabot alerts are enabled and
+malware alerts were also enabled. Alert triage ownership and the human review
+procedure are documented in docs/dev_process.md. No settings were changed by
+this workflow or independently verified by the agent.
+
+Actionlint 1.7.12 passed for .github/workflows/dependency-review.yml. Its official
+Windows archive was downloaded to a temporary directory and verified against
+the release SHA-256 checksum; no binary or dependency was added to the repo.
+On 2026-11-07, the clean comparison passed on PR #269 at revision
+`b103a9f2329e43292631597e711a21778a7746f3`
+([job log](https://github.com/Kakrl/MakeShift/actions/runs/42398149038/job/128479890167)).
+The logs show a dependency comparison and no introduced high/critical findings.
+This confirms workflow execution and dependency-review API access, superseding
+the earlier inconclusive API probes. Harry elected to skip the controlled
+known-vulnerable update test; blocking behavior remains unverified and that
+acceptance criterion of #197 remains unmet. See the retained verification
+procedure in docs/dev_process.md and inventory entry DEP-01.
+
+### PR #269 dependency scopes review fix (2026-11-14)
+
+Explicitly set `fail-on-scopes: runtime, development, unknown` so the action
+also rejects introduced high/critical findings in development dependencies and
+dependencies without a classified scope. The earlier clean runs used the
+action's default runtime scope; they do not verify this expanded configuration.
+The controlled vulnerable-update rejection test remains skipped by author
+decision, as recorded above. Actionlint 1.7.12 and `git diff --check` passed;
+the scope input and its values were checked against the pinned action's
+`action.yml`. The expanded-scope clean check passed at `6994a1e` on
+2026-11-14 ([job](https://github.com/Kakrl/MakeShift/actions/runs/43597152952/job/132453993053)); logs confirm runtime, development
+and unknown scopes. Vulnerable-update rejection remains unverified.
 
 ## Count-in synchronization diagnostics (#225)
 
@@ -2427,3 +2564,16 @@ explicit limits: no offset measurement, new recording evidence, MIDI export
 check, deliberate stress, other browser, or #227 toggle-off count-off test.
 Review sign-off remains pending. This does not replace the stalled deployment
 smoke result or establish production-hosted behavior.
+
+## PR #266 conflict resolution (2026-11-16)
+
+Merged main at `56c46a8`. The simulated metronome keeps delayed notification
+and frame delivery alongside audible count-offs with the continuous metronome
+disabled. Both behaviors passed together in the real Chromium worklet.
+
+Lint, TypeScript, 877 Vitest tests (one existing skip, 48 files), all 37 contrast
+pairs and the production build passed on Windows. Chromium 151.0.7922.34 passed
+the metronome, deployment, keyboard-layout and audio checks with the local
+production server. The stalled countdown retained a boundary about 208 ms
+before callback receipt. Database and physical audio were outside this run.
+The build temporarily expanded the Turbopack root for the dependency junction.
