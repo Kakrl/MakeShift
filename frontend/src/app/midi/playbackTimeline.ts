@@ -1,3 +1,4 @@
+import { performanceBoundaries, pedalsOff } from "./recordedPedals";
 import { browserAudio, type BrowserAudio } from "../audio/audioEngine";
 import { pitchToMidi } from "../../cv/noteMap";
 import type { Recording } from "./midiUtils";
@@ -6,7 +7,7 @@ type AudioToken = NonNullable<ReturnType<BrowserAudio["noteOn"]>>;
 export type PlaybackAudio = Pick<
   BrowserAudio,
   "initialize" | "noteOn" | "noteOff" | "subscribeInvalidation"
->;
+> & Partial<Pick<BrowserAudio, "setPedals" | "silencePlayback" | "claimPlayback">>;
 export type PlaybackState =
   | "stopped"
   | "loading"
@@ -15,7 +16,6 @@ export type PlaybackState =
   | "ended"
   | "disposed";
 type Note = { pitch: number; velocity: number; start: number; end: number };
-type Boundary = { time: number; index: number; on: boolean };
 type Span = { clock: number; position: number; rate: number; until: number };
 
 function pitchNumber(pitch: string): number {
@@ -54,21 +54,12 @@ export function createPlaybackTimeline(
       end,
     };
   });
-  const durationMs = notes.reduce((end, note) => Math.max(end, note.end), 0);
-  const boundaries: Boundary[] = notes
-    .flatMap((note, index) =>
-      note.start === note.end || note.velocity === 0
-        ? []
-        : [
-            { time: note.start, index, on: true },
-            { time: note.end, index, on: false },
-          ],
-    )
-    .sort(
-      (a, b) =>
-        a.time - b.time || Number(a.on) - Number(b.on) || a.index - b.index,
-    );
+  const boundaries = performanceBoundaries(recording.notes, recording.pedals);
+  const hasPedals = !!recording.pedals;
+  if (hasPedals && (!audio.setPedals || !audio.silencePlayback)) throw new RangeError("Pedal playback requires pedal audio transport");
+  const durationMs = boundaries.reduce((end, e) => Math.max(end, e.time), 0);
   const active = new Map<number, AudioToken>();
+  let ownsAudio = false;
   let state: PlaybackState = "stopped";
   let position = 0;
   let anchor = 0;
@@ -119,6 +110,13 @@ export function createPlaybackTimeline(
   function releaseNotes() {
     const tokens = [...active.values()];
     active.clear();
+    if (hasPedals) {
+      const owned = ownsAudio;
+      ownsAudio = false;
+      if (!owned) return;
+      try { if (!audio.silencePlayback!()) error ??= "Audio rejected emergency silence"; } catch { error ??= "Audio failed emergency silence"; }
+      return;
+    }
     for (const token of tokens) {
       try {
         if (!audio.noteOff(token)) error ??= "Audio rejected a note release";
@@ -144,8 +142,10 @@ export function createPlaybackTimeline(
 
   const unsubscribe = audio.subscribeInvalidation(() => {
     // Initialization resets the transport too; no playback exists until it resolves.
-    if (state === "playing")
+    if (state === "playing") {
+      ownsAudio = false;
       fail("Audio was interrupted; select Play to retry");
+    }
   });
 
   function startNote(index: number) {
@@ -169,9 +169,12 @@ export function createPlaybackTimeline(
       const now = positionMs();
       while (cursor < boundaries.length && boundaries[cursor].time <= now) {
         const event = boundaries[cursor++];
-        if (event.on) {
-          // A delayed timer must not replay a burst of notes already finished.
-          if (notes[event.index].end > now) startNote(event.index);
+        if (event.kind === "pedal") {
+          if (!audio.setPedals!(event.state)) fail("Audio rejected playback pedals");
+        } else if (event.kind === "on") {
+          // Skip missed strikes once the key would be up, even under sustain.
+          // An already dispatched strike still receives its release and can ring under pedals.
+          if (notes[event.index].end > now && notes[event.index].velocity > 0) startNote(event.index);
         } else {
           const token = active.get(event.index);
           active.delete(event.index);
@@ -204,6 +207,7 @@ export function createPlaybackTimeline(
   }
 
   function begin() {
+    ownsAudio = true;
     anchor = performance.now();
     state = "playing";
     openSpan();
@@ -211,12 +215,45 @@ export function createPlaybackTimeline(
     while (cursor < boundaries.length && boundaries[cursor].time < position)
       cursor++;
     try {
-      // Resume/seek rearticulates notes spanning the new position for their remainder.
-      for (let index = 0; index < notes.length; index++) {
-        const note = notes[index];
-        if (note.start < position && note.end > position && note.velocity > 0)
-          startNote(index);
-        if (state !== "playing") return;
+      // Reconstruct only physical presses, never released pedal tails. Simulate
+      // history in memory so a long seek cannot flood the bounded audio port.
+      let pedals = pedalsOff();
+      const held = new Map<number, { soft: boolean; captured: boolean; held: boolean }>();
+      for (const event of boundaries) {
+        if (event.time >= position) break;
+        if (event.kind === "pedal") {
+          if (!pedals.sostenuto && event.state.sostenuto) for (const value of held.values()) value.captured = value.held;
+          if (!event.state.sostenuto) for (const value of held.values()) value.captured = false;
+          pedals = event.state;
+          for (const [index, value] of held) if (!value.held && !(pedals.sustain || value.captured)) held.delete(index);
+        } else if (event.kind === "on" && notes[event.index].velocity > 0) {
+          if (hasPedals && held.size >= 10) held.delete(held.keys().next().value!);
+          held.set(event.index, { soft: pedals.soft, captured: false, held: true });
+        } else if (event.kind === "off") {
+          const value = held.get(event.index);
+          if (value) { value.held = false; if (!(pedals.sustain || value.captured)) held.delete(event.index); }
+        }
+      }
+      if (hasPedals) {
+        // Keep the most recent ten held strikes, matching the fixed voice budget.
+        const voices = [...held].filter(([, value]) => value.held).slice(-10);
+        const send = (value: typeof pedals) => { if (!audio.setPedals!(value)) throw new Error("Audio rejected pedal restoration"); };
+        send(pedalsOff());
+        for (const captured of [true, false]) {
+          for (const [index, value] of voices) {
+            if (value.captured !== captured || notes[index].end <= position) continue;
+            send({ sustain: false, sostenuto: !captured && pedals.sostenuto, soft: value.soft });
+            startNote(index);
+            if (state !== "playing") return;
+          }
+          if (captured && pedals.sostenuto) send({ ...pedals, sustain: false });
+        }
+        send(pedals);
+      } else {
+        for (const index of held.keys()) {
+          if (notes[index].end > position && held.get(index)?.held) startNote(index);
+          if (state !== "playing") return;
+        }
       }
       tick();
     } catch (cause) {
@@ -249,6 +286,8 @@ export function createPlaybackTimeline(
       error = null;
       try {
         await audio.initialize();
+        if (ticket !== generation) return false;
+        if (audio.claimPlayback && !audio.claimPlayback()) { fail("Audio playback ownership unavailable"); return false; }
         if (ticket !== generation) return false;
         if (position >= durationMs) position = 0;
         begin();
