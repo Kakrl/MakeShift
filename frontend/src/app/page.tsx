@@ -9,9 +9,10 @@ import { useRouter } from "next/navigation";
 import { useCamera } from "./CameraContext";
 import CameraStatusOverlay from "./CameraStatusOverlay";
 import PlayAlongBar from "./midi/PlayAlongBar";
-import { startPlayAlong } from "./midi/playAlong";
+import { scorePlayAlongPress, startPlayAlong } from "./midi/playAlong";
 import SideNav from "./SideNav";
 import PedalControls from "./PedalControls";
+import VolumeControl from "./VolumeControl";
 import PageTopBar from "./PageTopBar";
 import {
   createRecorder,
@@ -269,7 +270,7 @@ export default function Home() {
   useDialogFocus(calibrationIntroRef, showCalibrationIntro, () => setShowCalibrationIntro(false));
 
   // ── Recording state machine ──────────────────────────────────────────────
-  //   countInBeat      → 1 … beatsPerMeasure (one measure count-in), then recording
+  //   countInBeat      → 0 pending, then 1 … beatsPerMeasure, then recording
   //   isRecording      → actively recording (or paused)
   //   isPaused         → recording paused mid-session
   //   hasRecordings → stop pressed; MIDI controls visible
@@ -321,7 +322,7 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, []);
 
-  const finishCountIn = useCallback(() => {
+  const finishCountIn = useCallback((boundaryMs: number) => {
     const action = countInActionRef.current;
     if (!action) return;
     if (session.status.state !== "playing") {
@@ -331,8 +332,8 @@ export default function Home() {
     }
     setCountInBeat(null);
     session.flushNotes();
-    if (action === "resume") recorder.resumeRecording();
-    else recorder.startRecording(tempo, undefined, meter);
+    if (action === "resume") recorder.resumeRecording(boundaryMs);
+    else recorder.startRecording(tempo, undefined, meter, boundaryMs);
     session.resumeInput();
     setRecordingState(recorder.getState());
     countInActionRef.current = null;
@@ -366,6 +367,7 @@ export default function Home() {
   useEffect(() => {
     const detach = session.attach();
     const disconnectNotes = connectPianoConsumers(session, recorder, setActivePitches);
+    const disconnectScoring = session.subscribeNotes(({ event }) => scorePlayAlongPress(event));
     let previousState = session.status.state;
     const unsubscribe = session.subscribe(() => {
       const status = session.status;
@@ -396,19 +398,25 @@ export default function Home() {
       if (document.hidden) leave();
       else session.setHidden(false);
     };
+    const returnToPage = () => {
+      if (!document.hidden) session.setHidden(false);
+    };
     document.addEventListener("visibilitychange", visibility);
     window.addEventListener("pagehide", leave);
+    window.addEventListener("pageshow", returnToPage);
     visibility();
     return () => {
       unsubscribe();
       detach();
       session.flushNotes();
       disconnectNotes();
+      disconnectScoring();
       recorder.stopRecording();
       cancelMetronomeRequest();
       metronomeController.close();
       document.removeEventListener("visibilitychange", visibility);
       window.removeEventListener("pagehide", leave);
+      window.removeEventListener("pageshow", returnToPage);
     };
   }, [session, recorder, completeTake, metronomeController, cancelMetronomeRequest]);
   const enableAudio = async (withCountIn = false) => {
@@ -459,7 +467,7 @@ export default function Home() {
   // Called from the Play along click, so that gesture can start piano audio.
   const playAlong = async (song: Recording) => {
     if (!await enableAudio()) return session.status.message;
-    startPlayAlong(song);
+    startPlayAlong(song, session.layout);
     return null;
   };
 
@@ -489,7 +497,7 @@ export default function Home() {
     if (isRecording && isPaused) {
       // Keep the existing take paused until the count-in finishes.
       countInActionRef.current = "resume";
-      setCountInBeat(1);
+      setCountInBeat(0);
       metronomeController.setPlaying(true, true);
       metronomeController.beginCountIn();
       return;
@@ -498,7 +506,7 @@ export default function Home() {
     setRecordingState(recorder.getState());
     setShowRecordingComplete(false);
     countInActionRef.current = "start";
-    setCountInBeat(1);
+    setCountInBeat(0);
     metronomeController.setPlaying(true);
     metronomeController.beginCountIn();
   };
@@ -612,13 +620,13 @@ export default function Home() {
               <div className="flex gap-3">
                 <button
                   onClick={() => { setShowWelcome(false); router.push("/tutorial"); }}
-                  className="ms-key flex-1 py-3"
+                  className="ms-key ms-key-primary flex-1 py-3"
                 >
                   Read Tutorial
                 </button>
                 <button
                   onClick={() => { setShowWelcome(false); setShowCalibrationIntro(true); }}
-                  className="ms-key ms-key-primary flex-1 py-3"
+                  className="ms-key flex-1 py-3"
                 >
                   Start Calibration
                 </button>
@@ -780,17 +788,18 @@ export default function Home() {
             {countInBeat !== null && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-dark/60 z-40 pointer-events-none">
                 <p className="text-white">Piano paused for count-in · Stop to cancel</p>
-                <span
+                {countInBeat > 0 && <span
                   key={countInBeat}
                   className="ms-beat font-display text-white font-bold leading-none tabular-nums"
-                  style={{ fontSize: "clamp(80px,20vw,160px)" }}
+                  style={{ fontSize: "clamp(80px,20vw,160px)", animationDuration: `${Math.min(120, 120000 / (tempo * meter.denominator))}ms` }}
                 >
                   {countInBeat}
-                </span>
+                </span>}
                 <div className="flex flex-wrap justify-center max-w-[240px] items-center gap-2.5 mt-6">
                   {Array.from({ length: beatsPerMeasure }, (_, i) => (
                     <div
                       key={i}
+                      style={{ transitionDuration: `${Math.min(120, 120000 / (tempo * meter.denominator))}ms` }}
                       className={`size-2.5 rounded-full transition-[transform,background-color] duration-150 ease-out ${i + 1 <= countInBeat ? rainbow(i).fill : "bg-white/30"} ${i + 1 === countInBeat ? "scale-[1.4]" : ""}`}
                     />
                   ))}
@@ -803,7 +812,7 @@ export default function Home() {
         </div>
 
         {/* Right sidebar (below the camera under lg) */}
-        <SideNav onCalibrationClick={() => setShowCalibrationIntro(true)} calibrationDisabled={devMode}>
+        <SideNav onCalibrationClick={() => setShowCalibrationIntro(true)} calibrationDisabled={devMode} showPianoSheetDownload>
           <section aria-label="Playback settings" className="relative grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-[23px] mt-6 lg:mt-[42px] lg:pl-[43px]">
             {/* Tempo */}
             <div className="flex flex-col gap-2">
@@ -888,7 +897,8 @@ export default function Home() {
         </SideNav>
       </div>
 
-      <PedalControls active={liveStatus.state === "playing" && countInBeat === null && !audioPreparing} clearRef={pedalClearRef} />
+      <VolumeControl />
+      <PedalControls active={liveStatus.state === "playing" && countInBeat === null && !audioPreparing} clearRef={pedalClearRef} onTransition={state => { session.flushNotes(); recorder.pedals(state); }} />
       {hasRecordings && (
         <div className="flex justify-center pl-(--gutter-l) pr-(--gutter-r) py-4 lg:justify-start">
           <button className="ms-key px-5">Listen to Recording</button>

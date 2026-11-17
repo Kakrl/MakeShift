@@ -7,6 +7,9 @@ export type BeatMessage = {
   frame: number;
   rate: number;
   generation: number;
+  countStartFrame: number | null;
+  countIntervalFrames: number | null;
+  countTotal: number | null;
 };
 type Command = { type: string; generation: number; [key: string]: unknown };
 type Processor = {

@@ -3,6 +3,8 @@ import { processorHarness } from "./metronomeHarness";
 import type { createMetronome } from "../../frontend/src/app/audio/metronome";
 type Output = {
   prepare(): Promise<boolean>;
+  deliver?(notification: () => void): void;
+  deliverFrame?(notification: () => void): void;
   click(accent: boolean): void;
   silence(): void;
   close(): void;
@@ -17,8 +19,16 @@ export function createSimulatedMetronome(
       let timer: ReturnType<typeof setTimeout> | undefined;
       let connected = false;
       let audible = true;
+      let counting = false;
+      const epoch = Date.now();
+      const mainEpoch = performance.now();
       const context = {
         state: "suspended",
+        get currentTime() { return (Date.now() - epoch) / 1000; },
+        getOutputTimestamp() {
+          return { contextTime: context.currentTime,
+            performanceTime: mainEpoch + context.currentTime * 1000 };
+        },
         onstatechange: null,
         destination: {},
         audioWorklet: { addModule: async () => {} },
@@ -42,10 +52,13 @@ export function createSimulatedMetronome(
           ) {
             if (message.type === "configure")
               audible = Boolean(message.audible);
+            if (message.type === "count-in") counting = true;
+            if (message.type === "cancel-count-in" || message.type === "stop")
+              counting = false;
             if (
               message.type === "stop" ||
-              (message.type === "playing" && message.paused) ||
-              (message.type === "configure" && !audible)
+              (message.type === "playing" && message.paused && !counting) ||
+              (message.type === "configure" && !audible && !counting)
             )
               output.silence();
             harness.processor.command(message);
@@ -63,11 +76,15 @@ export function createSimulatedMetronome(
       };
       function pump() {
         if (!connected) return;
-        harness.scope.currentFrame = Date.now();
+        harness.scope.currentFrame = Date.now() - epoch;
         harness.render(1);
         for (const message of harness.events.splice(0)) {
-          if (audible) output.click(message.frame % 2000 === 0);
-          node.port.onmessage?.({ data: message });
+          if (message.type === "complete") counting = false;
+          if (audible || message.beat !== null)
+            output.click(message.frame % 2000 === 0);
+          const notify = () => node.port.onmessage?.({ data: message });
+          if (output.deliver) output.deliver(notify);
+          else notify();
         }
         timer = setTimeout(pump, 10);
       }
@@ -76,5 +93,13 @@ export function createSimulatedMetronome(
     },
     (context) =>
       (context as unknown as { testNode: AudioWorkletNode }).testNode,
+    {
+      request: callback => setTimeout(() => {
+        const notify = () => callback(performance.now());
+        if (output.deliverFrame) output.deliverFrame(notify);
+        else notify();
+      }, 16) as unknown as number,
+      cancel: id => clearTimeout(id),
+    },
   );
 }

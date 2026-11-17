@@ -1,9 +1,6 @@
-"use client";
-
 import SideNav from "../SideNav";
 import PageTopBar from "../PageTopBar";
-
-const REPO_URL = "https://github.com/Kakrl/MakeShift";
+import { getLatestRelease, REPO_URL } from "../../lib/release";
 
 function ExternalIcon() {
   return (
@@ -32,7 +29,8 @@ const FACTS: { label: string; color: string; body: string; link?: { href: string
   },
 ];
 
-export default function About() {
+export default async function About() {
+  const release = await getLatestRelease();
   return (
     <div className="flex-1 bg-surface flex flex-col">
       <PageTopBar />
@@ -43,6 +41,7 @@ export default function About() {
             <h1 className="font-display text-white text-[30px] sm:text-[44px] font-bold leading-[1.05] tracking-tight mb-[20px]">About MakeShift</h1>
             <p className="text-ink-inverse text-[17px] sm:text-[18px] leading-relaxed mb-[32px] max-w-[560px]">
               MakeShift turns paper into a piano. Your webcam watches your fingers and plays the notes.
+              {release && <> This is release {release}.</>}
             </p>
 
             <div className="grid gap-3 sm:grid-cols-3 max-w-[760px]">
