@@ -197,3 +197,15 @@ monthly lookalike checks and provider reports; Jadden Picardal keeps
 user-facing links consistent. Camera prompt redesign and database changes are
 out of scope. Procedure: [deployment](deployment.md#official-address-and-impersonation-response-199);
 tests SEC-01 and SEC-02.
+
+## Piano output volume (#228)
+
+VOL-1 extends 2.2/2.4: a visible, keyboard-accessible 0–200% piano volume
+preference controls live and recording playback equally, with smooth changes,
+local persistence, exact mute and a substantially louder maximum. Preserve the
+register balance and MIDI event data. Above 100%, adjust velocity-to-amplitude
+math per voice so gentle strikes stay quiet while strong strikes get more boost;
+below 100%, scale toward mute. Post-render compression supplies
+headroom; maximum usability requires listening to chords and pedal-held notes.
+VOL-01–VOL-04 map software and manual verification. Physical listening and
+latency with the added compressor remain pending; see [audio contract](browser_audio.md#piano-volume-228).

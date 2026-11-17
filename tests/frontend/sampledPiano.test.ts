@@ -47,6 +47,27 @@ function rms(data: Float32Array) {
 }
 afterEach(() => vi.unstubAllGlobals());
 
+describe("velocity-aware volume (#228)", () => {
+  it.each([0.1, 0.3, 0.6, 1])("keeps velocity %s quiet relative to strong strikes at maximum", velocity => {
+    const normal = start(48000, 60, velocity);
+    const boosted = start(48000, 60, velocity);
+    const baseline = new Float32Array(4800), maximum = new Float32Array(4800);
+    normal.render(baseline, new Float32Array(4800), new Float32Array([1]));
+    boosted.render(maximum, new Float32Array(4800), new Float32Array([4]));
+    expect(rms(maximum) / rms(baseline)).toBeCloseTo(1 + 3 * velocity ** 2, 5);
+  });
+  it("scales downward, mutes held notes and processes audio-rate changes without changing strike velocity", () => {
+    const reference = start(48000, 60, 0.3), piano = start(48000, 60, 0.3);
+    const baseline = new Float32Array(4800), changed = new Float32Array(4800);
+    reference.render(baseline, new Float32Array(4800), new Float32Array([1]));
+    const ramp = Float32Array.from({ length: 4800 }, (_, i) => i < 2400 ? 0.25 : 0);
+    piano.render(changed, new Float32Array(4800), ramp);
+    expect(rms(changed.subarray(0, 2400)) / rms(baseline.subarray(0, 2400))).toBeCloseTo(0.25, 6);
+    expect(changed.subarray(2400).every(x => x === 0)).toBe(true);
+    expect(piano.voices.find(v => v.press)?.velocity).toBe(0.3);
+  });
+});
+
 describe("sampled piano (#210)", () => {
   it("boosts every MIDI pitch by the same +6 dB", () => {
     expect(PIANO_BOOST_DB).toBe(6);

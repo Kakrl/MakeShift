@@ -220,3 +220,15 @@ warnings. HTTPS (5.2) protects the connection but does not prove site identity,
 and checks cannot prevent a separate-domain impersonator. Mapped tests SEC-01
 and SEC-02; hosting confirmation of the address is pending. See
 [the procedure](deployment.md#official-address-and-impersonation-response-199).
+
+## Piano output volume (#228)
+
+VOL-1 refines 2.2/2.4 with a keyboard-accessible, persisted mute-to-louder
+volume control shared by live notes and recording playback. Smooth gain and
+post-render compression preserve note data, register balance and velocity
+data while controlling peaks. Per user feedback, above-unity volume expands
+strong strikes more than gentle strikes through per-voice velocity math;
+physical MIDI velocity is unchanged. VOL-01 covers UI/storage, VOL-02 owner routing
+and lifecycle, VOL-03 decoded PCM/keyboard verification, and VOL-04 speaker and
+headphone listening. No physical latency or acoustic distortion pass is implied
+by digital output. See [implementation and limits](browser_audio.md#piano-volume-228).
