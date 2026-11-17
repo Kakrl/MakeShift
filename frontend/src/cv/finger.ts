@@ -28,6 +28,7 @@ export class Finger {
   private shadowsEnabled = true;
   private zMotionPredicted = false;
   private freshObservation = false;
+  private outsideSinceMs: number | null = null;
 
   constructor(readonly id: string) {}
 
@@ -51,6 +52,22 @@ export class Finger {
         (this.contact?.shadowFrameAtMs == null ||
           observation.frameAtMs > this.contact.shadowFrameAtMs),
     );
+
+    if (gate.available && this.contact?.active && this.keyIndex !== null &&
+      !gate.keyIndexes.includes(this.keyIndex)) {
+      // Allow brief edge jitter only for the current owner. Any other target
+      // starts a new contact and cannot inherit the old key's evidence.
+      this.outsideSinceMs ??= nowMs;
+      if (gate.keyIndexes.length === 0 &&
+        this.contact.state !== "predicted" &&
+        nowMs - this.outsideSinceMs < CONTACT_RELEASE_GRACE_MS)
+        return this.contact;
+
+      this.keyIndex = null;
+      this.outsideSinceMs = null;
+      return gate.knuckleEligible ? this.enterReady() : this.enterHover();
+    }
+    this.outsideSinceMs = null;
 
     let contact: FingerContactEvaluation;
     switch (this.contact?.state) {
@@ -77,8 +94,7 @@ export class Finger {
 
     if (!contact.active) this.keyIndex = null;
     else if (this.keyIndex === null)
-      this.keyIndex =
-        gate.containedKeyIndexes?.[0] ?? gate.keyIndexes[0] ?? null;
+      this.keyIndex = gate.keyIndexes[0] ?? null;
     return contact;
   }
 
@@ -189,6 +205,7 @@ export class Finger {
     this.observation = undefined;
     this.freshObservation = false;
     this.zMotionPredicted = false;
+    this.outsideSinceMs = null;
   }
 
   private gateAvailable(): boolean {

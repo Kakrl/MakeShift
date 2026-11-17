@@ -1,10 +1,59 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_LAYOUT, keyboardWidthMm, MARKER_INSET_MM, paperFits, startingNotes, usableLayout, validLayout } from "../../frontend/src/cv/keyboardLayout";
-import { getBlackKeyPolygons, getPianoCorners, getWhiteKeyPolygons } from "../../frontend/src/cv/keyboardGeometry";
+import { getBlackKeyPolygons, getKeyTargets, getPianoCorners, getWhiteKeyPolygons, projectKeyRegions } from "../../frontend/src/cv/keyboardGeometry";
+import { computeHomography, projectPoint } from "../../frontend/src/cv/homography";
+import { PAGE_CORNERS } from "../../frontend/src/cv/calibration";
+import { checkKeyOverlap } from "../../frontend/src/cv/contactPipeline";
+import type { Point } from "../../frontend/src/cv/types";
 import { blackKeyIndexToMidi, keyIndexToMidi, pianoKeyIndexToMidi } from "../../frontend/src/cv/noteMap";
 import { getKeyCollisions, getPianoKeyCollisions } from "../../frontend/src/cv/collision";
 
 describe("actual-size octave layouts", () => {
+  it.each([1, 2, 3])("matches printed target edges and angled hit testing for %i octaves", (octaves) => {
+    const layout = { octaves, startingMidi: 48, whiteKeys: 7 * octaves + 1 };
+    const markerInset = 188 / 22;
+    const markerSpan = 188 + (octaves - 1) * 164.5 - 2 * markerInset;
+    const homography = computeHomography(PAGE_CORNERS, [
+      { x: 180, y: 150 }, { x: 900, y: 110 },
+      { x: 1010, y: 750 }, { x: 70, y: 820 },
+    ])!;
+    const sheetPoint = (x: number, y: number) => ({
+      x: (x - markerInset) / markerSpan, y: 0.1 + y / 187.5,
+    });
+    const regions = getKeyTargets(layout);
+    const projected = projectKeyRegions(homography, regions)!;
+    const hit = (point: Point) => checkKeyOverlap(
+      { id: "tip", handIndex: 0, landmarkIndex: 8, point },
+      projected.white, projected.black,
+    );
+    const verify = (polygon: Point[], center: number, length: number, size: number, index: number) => {
+      const left = center - size / 2;
+      const right = center + size / 2;
+      const bottom = length - 2;
+      const top = bottom - size;
+      const expectedCorners = [
+        sheetPoint(left, top), sheetPoint(right, top),
+        sheetPoint(right, bottom), sheetPoint(left, bottom),
+      ];
+      const actual = index < layout.whiteKeys
+        ? projected.white[index] : projected.black[index - layout.whiteKeys];
+      expectedCorners.forEach((point, i) => {
+        expect(polygon[i].x).toBeCloseTo(point.x, 10);
+        expect(polygon[i].y).toBeCloseTo(point.y, 10);
+        const expected = projectPoint(homography, point)!;
+        expect(actual[i].x).toBeCloseTo(expected.x, 8);
+        expect(actual[i].y).toBeCloseTo(expected.y, 8);
+      });
+      expect(hit(projectPoint(homography, sheetPoint(center, bottom - size / 2))!)).toEqual([index]);
+      expect(hit(projectPoint(homography, sheetPoint(center, top - 1))!)).toEqual([]);
+    };
+    expect(regions.white).toHaveLength(layout.whiteKeys);
+    expect(regions.black).toHaveLength(octaves * 5);
+    regions.white.forEach((key, i) => verify(key, (i + 0.5) * 23.5, 150, 16, i));
+    regions.black.forEach((key, i) => verify(key,
+      (Math.floor(i / 5) * 7 + [1, 2, 4, 5, 6][i % 5]) * 23.5, 90, 10, layout.whiteKeys + i));
+  });
+
   it.each([1, 2, 3])("matches %i assembled octaves to millimeters and hit regions", (octaves) => {
     const layout = { octaves, startingMidi: 48, whiteKeys: 7 * octaves + 1, paperOctaves: octaves };
     const polygons = getWhiteKeyPolygons(layout);

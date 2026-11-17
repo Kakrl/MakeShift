@@ -22,7 +22,8 @@ detector, and the same live contact pipeline used by the app.
    Add captures for either hand you want in the dataset. Do not leave a capture
    empty when running the test.
 6. Label each note in `events`: `hand` and `finger` identify the performer,
-   `keyIndex` is the zero-based white-key index, and `midiNote` is the note.
+   `keyIndex` is the zero-based index with white keys first, followed by black
+   keys from left to right, and `midiNote` is the note.
    Give press and release a best-estimate frame plus earliest/latest plausible
    frames. `fullyLabeledRange` covers the clip interval you reviewed, including
    intervals where no note should be detected.
@@ -79,7 +80,10 @@ delegate and falls back to CPU if GPU initialization fails. The report records
 the selected delegate and WebGL renderer. ArUco detection follows the live
 250 ms acquisition / 10 s recheck cadence, retaining the last usable key
 geometry between scans. The replay starts the shadow worker when shadows are
-enabled and uses replay time for asynchronous shadow results.
+enabled and waits for each submitted shadow result at its capture time before
+advancing. This makes contact evidence repeatable across runs. Replay wall
+timings include this wait; live processing can drop samples while the worker
+is busy.
 
 The report includes every detected transition, matched and unmatched expected
 and predicted events, and scores presses and releases separately. It also
@@ -89,8 +93,8 @@ complete output with `CV_RESULT_FILE` to inspect all frames and transitions.
 
 The current score matches transitions by key and press/release type. Although
 the sidecar records hand and finger, finger attribution is not scored yet. The
-replay uses the app's current contact-technique defaults; knuckle and shadow
-gates are disabled there. This runner is the fast ordered accuracy run. It does
+replay uses the app's current contact-technique defaults, with calibrated
+knuckle and shadow gates enabled. This runner is the fast ordered accuracy run. It does
 not currently measure normal-speed frame drops or physical press-to-sound
 latency. Check the [full measurement plan](cv_automated_testing.md) before
 interpreting results.
@@ -98,3 +102,30 @@ interpreting results.
 The five automated evaluation-core cases cover parser and scoring setup.
 Validate that browser seeking selects the intended encoded frame on each clip
 before using its scores as an accuracy ceiling.
+
+## Compare key-tip squares with full keys
+
+1. Print the updated starter and two extensions at 100%. Measure the 50 mm
+   ruler. Calibrate one, two and three octaves in turn. Keep each assembly flat
+   and check the overlay at a near-frontal and an oblique angle. Take a screenshot
+   at each layout and angle and check that the projected outline follows all
+   four target edges, including the shared C at each seam.
+2. At each layout and angle, record a labeled clip with intended white and
+   black taps, held notes, edge jitter, departures, adjacent-key movement and
+   chords. Include hovers over targets and off-target touches as negative
+   trials. Record the camera model, resolution, frame rate, height, angle,
+   lighting, browser and contact calibration.
+3. Run the same clip and sidecar twice. Select **Key-tip squares** and
+   **Full keys** on the replay page, or set `CV_REGION_MODE` to `targets` and
+   `full-keys` with a distinct `CV_RESULT_FILE` for each run. Contact techniques,
+   tracking and calibration are identical in both modes.
+4. For each mode and setup report false triggers during negative trials,
+   misses on labeled notes, and wrong pitches when a predicted press occurs
+   in a labeled press window on a different key. Pair those substitutions
+   once. Report counts and denominators, plus median and p95 of signed
+   detection-onset deltas in milliseconds for correctly matched notes. Report
+   frame period and annotation uncertainty. To measure audible latency, use
+   a common timebase for physical contact and speaker output and report that
+   setup and its limits separately.
+
+Real paper alignment and paired trials for #278 are pending.

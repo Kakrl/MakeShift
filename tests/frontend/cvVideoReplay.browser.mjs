@@ -28,6 +28,9 @@ try {
   await page.goto(`${base}/cv-video-replay`);
   await page.locator("#clip").setInputFiles(videoPath);
   await page.locator("#sidecar").setInputFiles(sidecarPath);
+  const regionMode = process.env.CV_REGION_MODE ?? "targets";
+  assert(["targets", "full-keys"].includes(regionMode), "Set CV_REGION_MODE to targets or full-keys");
+  await page.getByLabel("Contact regions").selectOption(regionMode);
   await page.getByRole("button", { name: "Run replay" }).click();
   const status = page.getByRole("status");
   const deadline = Date.now() + 10 * 60 * 1000;
@@ -47,6 +50,7 @@ try {
   assert.equal(previousStatus, "Replay complete", "CV replay timed out");
   assert.deepEqual(pageErrors, [], "CV replay must not throw browser errors");
   const output = JSON.parse(await page.locator("pre").innerText());
+  assert.equal(output.regionMode, regionMode);
   const outputJson = JSON.stringify(output, null, 2);
   if (process.env.CV_RESULT_FILE) await writeFile(process.env.CV_RESULT_FILE, outputJson);
   process.stdout.write(`${outputJson}\n`);

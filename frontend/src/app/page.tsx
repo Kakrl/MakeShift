@@ -605,7 +605,7 @@ export default function Home() {
                 {[
                   { title: "Watch the tutorial", body: "See how it works." },
                   { title: "Calibrate", body: "Show MakeShift your paper piano." },
-                  { title: "Play!", body: "Tap the paper keys to make music." },
+                  { title: "Play!", body: "Tap the squares at the tips of the paper keys." },
                 ].map(({ title, body }, i) => (
                   <li key={title} className="flex gap-3.5 items-start">
                     <span className={`ms-step ${rainbow(i * 2).fill}`}>{i + 1}</span>

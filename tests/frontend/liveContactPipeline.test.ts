@@ -14,16 +14,16 @@ const video = {
 
 const whiteKeys: Point[][] = [
   [
-    { x: 0, y: 0 },
-    { x: 100, y: 0 },
-    { x: 100, y: 100 },
-    { x: 0, y: 100 },
+    { x: 10, y: 10 },
+    { x: 90, y: 10 },
+    { x: 90, y: 90 },
+    { x: 10, y: 90 },
   ],
   [
-    { x: 100, y: 0 },
-    { x: 200, y: 0 },
-    { x: 200, y: 100 },
-    { x: 100, y: 100 },
+    { x: 110, y: 10 },
+    { x: 190, y: 10 },
+    { x: 190, y: 90 },
+    { x: 110, y: 90 },
   ],
 ];
 
@@ -46,7 +46,7 @@ function makeFrame(x: number): ContactPipelineFrame {
   };
 }
 
-describe("LiveContactPipeline finger key boundary", () => {
+describe("LiveContactPipeline target ownership", () => {
   let now: number;
   let pipeline: LiveContactPipeline;
 
@@ -74,46 +74,45 @@ describe("LiveContactPipeline finger key boundary", () => {
     pipeline.processFrame(makeFrame(x));
   }
 
-  it("keeps the current key through the gray band and switches in the next interior", () => {
+  it("ignores brief edge jitter and releases once the fingertip stays out", () => {
     observe(50);
+    observe(50);
+    expect(pipeline.fingers.get("finger-1")?.keyIndex).toBe(0);
+
+    observe(91);
+    observe(89);
+    observe(91);
+    observe(89);
+    expect(pipeline.fingers.get("finger-1")?.keyIndex).toBe(0);
+    expect(pipeline.contacts.get("finger-1")?.active).toBe(true);
+
+    observe(91);
+    observe(91);
+    observe(91);
+    expect(pipeline.contacts.get("finger-1")?.active).toBe(true);
+    observe(91);
+    expect(pipeline.fingers.get("finger-1")?.keyIndex).toBeNull();
     expect(pipeline.contacts.get("finger-1")?.active).toBe(false);
-    observe(50);
-    expect(pipeline.contacts.get("finger-1")?.active).toBe(true);
-    expect(pipeline.fingers.get("finger-1")?.keyIndex).toBe(0);
-
-    observe(105);
-    expect(pipeline.fingers.get("finger-1")?.keyIndex).toBe(0);
-    observe(90);
-    expect(pipeline.fingers.get("finger-1")?.keyIndex).toBe(0);
-    observe(110);
-    expect(pipeline.fingers.get("finger-1")?.keyIndex).toBe(0);
-    expect(pipeline.contacts.get("finger-1")?.active).toBe(true);
-
-    observe(116);
-    expect(pipeline.fingers.get("finger-1")?.keyIndex).toBe(1);
-    expect(pipeline.contacts.get("finger-1")?.active).toBe(true);
   });
 
-  it("does not lock a key while hovering and presses the key under the finger", () => {
-    observe(50);
+  it("rejects a new onset just outside a square", () => {
+    observe(109);
+    observe(109);
+    expect(pipeline.gates.get("finger-1")?.keyIndexes).toEqual([]);
     expect(pipeline.contacts.get("finger-1")?.active).toBe(false);
-    expect(pipeline.fingers.get("finger-1")?.keyIndex).toBeNull();
 
-    observe(116);
-    expect(pipeline.contacts.get("finger-1")?.active).toBe(false);
-    expect(pipeline.fingers.get("finger-1")?.keyIndex).toBeNull();
-
-    observe(116);
-    expect(pipeline.contacts.get("finger-1")?.active).toBe(true);
+    observe(111);
+    observe(111);
     expect(pipeline.fingers.get("finger-1")?.keyIndex).toBe(1);
   });
 
-  it("assigns a new press just right of a shared edge to the containing key", () => {
-    observe(105);
-    expect(pipeline.gates.get("finger-1")?.keyIndexes).toEqual([0, 1]);
-    expect(pipeline.gates.get("finger-1")?.containedKeyIndexes).toEqual([1]);
-    observe(105);
-    expect(pipeline.contacts.get("finger-1")?.active).toBe(true);
+  it("releases the previous target before acquiring a different one", () => {
+    observe(50);
+    observe(50);
+    observe(150);
+    expect(pipeline.contacts.get("finger-1")?.active).toBe(false);
+    expect(pipeline.fingers.get("finger-1")?.keyIndex).toBeNull();
+    observe(150);
     expect(pipeline.fingers.get("finger-1")?.keyIndex).toBe(1);
   });
 });

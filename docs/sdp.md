@@ -230,3 +230,12 @@ individual keys, endpoints, a chromatic sweep and a chord spanning the range.
 The printed keyboard retains its separate 1–3 octave scope. Full-range audio
 verification covers production graph output and pitch at 44.1, 48 and 96 kHz,
 with listening and physical latency tracked separately.
+
+### Key-tip contact targets (#278)
+
+Requirements 1.2 and 2.1 include physical key-tip targets on the one- to
+three-octave printed layouts. The browser projects the same white and black
+squares it uses to gate new notes. Calibrated contact evidence and per-finger
+ownership remain part of every onset. A timed exit grace protects holds against
+edge jitter. Synthetic projection, state and PDF tests precede real-paper
+alignment and paired accuracy and onset measurements.

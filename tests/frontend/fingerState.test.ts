@@ -59,7 +59,7 @@ describe("Finger contact state machine", () => {
     expect(finger.keyIndex).toBe(4);
   });
 
-  it("keeps its assigned key when later overlaps change", () => {
+  it("releases its assigned key before a different target can use fresh evidence", () => {
     const finger = new Finger("finger-1");
     const overlappingGate = eligibleGate({ keyIndexes: [2, 3] });
     finger.checkState(overlappingGate, 99, {
@@ -76,7 +76,13 @@ describe("Finger contact state machine", () => {
       state: "press candidate",
       frameAtMs: 110,
     });
-    expect(finger.keyIndex).toBe(2);
+    expect(finger.keyIndex).toBeNull();
+    expect(finger.checkState(eligibleGate({ keyIndexes: [3] }), 111).active).toBe(false);
+    expect(finger.checkState(eligibleGate({ keyIndexes: [3] }), 120, {
+      state: "press candidate",
+      frameAtMs: 120,
+    }).active).toBe(true);
+    expect(finger.keyIndex).toBe(3);
   });
 
   it("stays ready when shadow evidence is unknown or stale", () => {
@@ -107,13 +113,26 @@ describe("Finger contact state machine", () => {
     });
     expect(pressed.state).toBe("pressed");
 
-    const hover = finger.checkState(
-      eligibleGate({ keyIndexes: [], knuckleEligible: false }),
+    const outside = eligibleGate({ keyIndexes: [], knuckleEligible: false });
+    expect(finger.checkState(
+      outside,
       120,
       { state: "press candidate", frameAtMs: 120 },
-    );
+    ).active).toBe(true);
+    const hover = finger.checkState(outside, 120 + CONTACT_RELEASE_GRACE_MS);
     expect(hover.state).toBe("hover");
     expect(hover.active).toBe(false);
+  });
+
+  it("requires a containing target even with predicted or confirmed contact", () => {
+    const finger = new Finger("finger-1");
+    finger.checkState(eligibleGate(), 100);
+    const outside = eligibleGate({ keyIndexes: [] });
+    expect(finger.checkState(outside, 110, {
+      state: "press candidate",
+      frameAtMs: 110,
+    }, { zMotionPredicted: true }).active).toBe(false);
+    expect(finger.keyIndex).toBeNull();
   });
 
   it("does not use a candidate captured before prediction as confirmation", () => {

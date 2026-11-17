@@ -79,7 +79,7 @@ to confirm that it has located the keyboard.
 
 Once **Enable audio** becomes available, select it.
 
-Press and release the printed keys to play notes. You should
+Press and release the printed squares at the key tips to play notes. You should
 hear sound and see visual feedback for detected presses.
 
 ### 3. Record your playing

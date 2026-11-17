@@ -206,10 +206,12 @@ it("retains pre-contact speed for delayed shadow confirmation and rejects result
     onShadowCameraPreview: vi.fn(), onShadowPreview: vi.fn(), onError: vi.fn(),
   }, { shadows: true, knuckles: false });
   const video = { videoWidth: 1000, videoHeight: 1000, readyState: 2 } as HTMLVideoElement;
-  const frame = (z: number) => {
+  const frame = (z: number, x?: number) => {
     const observation = hand(z);
     pipeline.processFrame({ video, hands: [observation],
-      fingertips: getFingertips([observation.landmarks], 1000, 1000).filter(f => f.landmarkIndex === 8),
+      fingertips: getFingertips([observation.landmarks], 1000, 1000)
+        .filter(f => f.landmarkIndex === 8)
+        .map(f => x === undefined ? f : { ...f, point: { ...f.point, x } }),
       whiteKeys: [[{ x: 400, y: 300 }, { x: 600, y: 300 }, { x: 600, y: 500 }, { x: 400, y: 500 }]],
       calibration: null, previewFingerId: null });
   };
@@ -225,6 +227,7 @@ it("retains pre-contact speed for delayed shadow confirmation and rejects result
   try {
     frame(0);
     confirm(600); // Hover evidence, not a press.
+    expect(pipeline.contacts.get("0-8")?.active).toBe(false);
     now = 120;
     frame(-0.032);
     now = 160;
@@ -234,6 +237,14 @@ it("retains pre-contact speed for delayed shadow confirmation and rejects result
     expect(pipeline.pressVelocities.get("0-8")).toBe(1);
     pipeline.reset();
     confirm(100);
+    expect(pipeline.pressVelocities.size).toBe(0);
+
+    now = 200;
+    frame(0);
+    now = 220;
+    frame(0, 399); // One pixel beyond the target edge.
+    confirm(100); // In-flight result was sampled inside the target.
+    expect(pipeline.contacts.get("0-8")?.active).toBe(false);
     expect(pipeline.pressVelocities.size).toBe(0);
   } finally { pipeline.dispose(); }
 });

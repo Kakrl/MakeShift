@@ -1,5 +1,7 @@
 import type { Point } from "./types";
+import { projectPoint, type Homography } from "./homography";
 import { DEFAULT_LAYOUT, MARKER_INSET_MM, keyboardWidthMm, paperOctaves, validLayout, type KeyboardLayout } from "./keyboardLayout";
+import keyTargets from "./keyTargets.json";
 
 const BLACK_KEY_WIDTH_MM = 13.7;
 const BLACK_KEY_LENGTH_MM = 90;
@@ -83,7 +85,52 @@ export function getBlackKeyPolygons(
   );
 }
 
-function drawWhiteKey(
+/** Canonical targets, in the same pitch order as the corresponding outlines. */
+export function getKeyTargets(layout: KeyboardLayout = DEFAULT_LAYOUT) {
+  const corners = getPianoCorners(layout);
+  if (corners.length !== 4) return { white: [], black: [] };
+
+  function target(center: number, keyLength: number, { sizeMm, tipInsetMm }: typeof keyTargets.white) {
+    const halfWidth = sizeMm / (2 * keyboardWidthMm(layout.octaves));
+    const bottom = (keyLength - tipInsetMm) / WHITE_KEY_LENGTH_MM;
+    const top = bottom - sizeMm / WHITE_KEY_LENGTH_MM;
+    return [
+      pointOnPiano(center - halfWidth, top, corners),
+      pointOnPiano(center + halfWidth, top, corners),
+      pointOnPiano(center + halfWidth, bottom, corners),
+      pointOnPiano(center - halfWidth, bottom, corners),
+    ];
+  }
+
+  return {
+    white: Array.from({ length: layout.whiteKeys }, (_, index) =>
+      target((index + 0.5) / layout.whiteKeys, WHITE_KEY_LENGTH_MM, keyTargets.white),
+    ),
+    black: Array.from({ length: layout.octaves }, (_, octave) =>
+      BLACK_KEY_BOUNDARIES.map((boundary) =>
+        target((octave * 7 + boundary) / layout.whiteKeys, BLACK_KEY_LENGTH_MM, keyTargets.black),
+      ),
+    ).flat(),
+  };
+}
+
+export function projectKeyRegions(
+  homography: Homography,
+  { white, black }: ReturnType<typeof getKeyTargets>,
+) {
+  const project = (keys: Point[][]) => keys.map((key) =>
+    key.map((point) => projectPoint(homography, point)),
+  );
+  const projectedWhite = project(white);
+  const projectedBlack = project(black);
+  const validPolygon = (key: (Point | null)[]): key is Point[] =>
+    key.every((point) => point !== null && Number.isFinite(point.x) && Number.isFinite(point.y));
+  return white.length && projectedWhite.every(validPolygon) && projectedBlack.every(validPolygon)
+    ? { white: projectedWhite, black: projectedBlack }
+    : null;
+}
+
+export function drawKeyPolygon(
   context: CanvasRenderingContext2D,
   key: Point[],
   fillStyle: string,
@@ -95,11 +142,13 @@ function drawWhiteKey(
     else context.lineTo(corner.x, corner.y);
   });
   context.closePath();
-  context.save();
-  context.globalAlpha = fillOpacity;
-  context.fillStyle = fillStyle;
-  context.fill();
-  context.restore();
+  if (fillOpacity > 0) {
+    context.save();
+    context.globalAlpha = fillOpacity;
+    context.fillStyle = fillStyle;
+    context.fill();
+    context.restore();
+  }
   context.stroke();
 }
 
@@ -108,7 +157,7 @@ export function pressWhiteKey(
   key: Point[],
   fillStyle: string,
 ): void {
-  drawWhiteKey(context, key, fillStyle, 0.78);
+  drawKeyPolygon(context, key, fillStyle, 0.78);
 }
 
 export function releaseWhiteKey(
@@ -116,7 +165,7 @@ export function releaseWhiteKey(
   key: Point[],
   fillStyle: string,
 ): void {
-  drawWhiteKey(context, key, fillStyle, 0.3);
+  drawKeyPolygon(context, key, fillStyle, 0.3);
 }
 
 /** Draw the black-key caps over the white-key regions. */
@@ -126,5 +175,5 @@ export function drawBlackKey(
   fillStyle: string,
 ): void {
   context.strokeStyle = fillStyle;
-  drawWhiteKey(context, key, fillStyle, 0.68);
+  drawKeyPolygon(context, key, fillStyle, 0.68);
 }
