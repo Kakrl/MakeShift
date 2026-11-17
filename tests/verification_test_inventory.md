@@ -598,3 +598,9 @@ METER-02 and metronome unit coverage passed in the combined 746-test run
 Edge; [execution record](README.md#pr-238-main-merge-2026-11-02).
 No test cases or CI integration were added by this conflict resolution;
 physical verification and new Actions evidence remain pending.
+
+## Dependency review (#197, PR gate only)
+
+| Test ID | Level | Requirement | Description / source | Owner | Tool | Automated? | Implementation Status | CI Integrated? | Execution evidence |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| DEP-01 | CI / security integration | #197 PR dependency check | Frontend manifest/lockfile PRs fail on introduced known high/critical vulnerabilities in runtime, development and unknown scopes; clean comparison passes; no package execution or PR comments ([workflow](../.github/workflows/dependency-review.yml), [verification procedure](../docs/dev_process.md#pr-dependency-review-197)) | Harry Deng | GitHub dependency-review action v5.0.0; actionlint 1.7.12 | Yes | Workflow implemented; earlier default-runtime clean comparison verified; expanded-scope clean check PASS 2026-11-14 at 6994a1e ([job](https://github.com/Kakrl/MakeShift/actions/runs/43597152952/job/132453993053)); vulnerable-update rejection test skipped by author, criterion unmet | Yes: dependency-review.yml executed on PR #269 | Actionlint passed locally; clean comparison PASS 2026-11-07 at b103a9f ([job](https://github.com/Kakrl/MakeShift/actions/runs/42398149038/job/128479890167)); earlier run used default runtime scope; expanded-scope clean check PASS 2026-11-14 at 6994a1e ([job](https://github.com/Kakrl/MakeShift/actions/runs/43597152952/job/132453993053)); rejection behavior unverified; [record](README.md#pr-dependency-review-workflow-197-first-part) |
