@@ -17,6 +17,7 @@ export function createSimulatedMetronome(
       let timer: ReturnType<typeof setTimeout> | undefined;
       let connected = false;
       let audible = true;
+      let counting = false;
       const context = {
         state: "suspended",
         onstatechange: null,
@@ -42,10 +43,13 @@ export function createSimulatedMetronome(
           ) {
             if (message.type === "configure")
               audible = Boolean(message.audible);
+            if (message.type === "count-in") counting = true;
+            if (message.type === "cancel-count-in" || message.type === "stop")
+              counting = false;
             if (
               message.type === "stop" ||
-              (message.type === "playing" && message.paused) ||
-              (message.type === "configure" && !audible)
+              (message.type === "playing" && message.paused && !counting) ||
+              (message.type === "configure" && !audible && !counting)
             )
               output.silence();
             harness.processor.command(message);
@@ -66,7 +70,9 @@ export function createSimulatedMetronome(
         harness.scope.currentFrame = Date.now();
         harness.render(1);
         for (const message of harness.events.splice(0)) {
-          if (audible) output.click(message.frame % 2000 === 0);
+          if (message.type === "complete") counting = false;
+          if (audible || message.beat !== null)
+            output.click(message.frame % 2000 === 0);
           node.port.onmessage?.({ data: message });
         }
         timer = setTimeout(pump, 10);

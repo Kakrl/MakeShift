@@ -915,20 +915,7 @@ it("accompanies live playing and recording, silences pause, resumes and keeps cl
   vi.spyOn(dom.window.HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) { uri = this.href; });
   actual.downloadMidi(fixtures.takes[0]);
   const bytes = Buffer.from(uri.split(",")[1], "base64");
-  let offset = 22;
-  let noteEvents = 0;
-  const readLength = () => {
-    let value = 0, byte: number;
-    do { byte = bytes[offset++]; value = value * 128 + (byte & 127); } while (byte & 128);
-    return value;
-  };
-  while (offset < bytes.length) {
-    readLength();
-    const status = bytes[offset++];
-    if (status === 255) { offset++; const length = readLength(); offset += length; }
-    else { expect([128, 144]).toContain(status); offset += 2; noteEvents++; }
-  }
-  expect(noteEvents).toBe(2); // one piano note-on and its note-off only
+  expect(midiNoteEvents(bytes)).toHaveLength(2); // one piano note-on and note-off
   await click(button("Toggle metronome"));
   const mutedClicks = fixtures.clicks.mock.calls.length;
   await advance(1000);
@@ -1068,6 +1055,78 @@ it("continues piano recording when metronome audio is interrupted", async () => 
   expect(fixtures.takes[0].notes).toHaveLength(2);
 });
 
+it("plays Start and Resume count-offs with the toggle off, then records only piano notes", async () => {
+  await click(button("Start recording"));
+  await countIn();
+  expect(fixtures.clicks).toHaveBeenCalledTimes(4);
+  expect(button("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
+  await keys(115);
+  await advance(200);
+  await keys();
+  await click(button("Pause recording"));
+  await advance(500);
+  expect(fixtures.clicks).toHaveBeenCalledTimes(4);
+  await click(button("Resume recording"));
+  await countIn();
+  expect(fixtures.clicks).toHaveBeenCalledTimes(8);
+  expect(button("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
+  await advance(500);
+  expect(fixtures.clicks).toHaveBeenCalledTimes(8);
+  await click(button("Stop recording"));
+  expect(fixtures.takes).toHaveLength(1);
+  expect(fixtures.takes[0].notes).toHaveLength(1);
+  const actual = await vi.importActual<typeof import("../../frontend/src/app/midi/midiUtils")>("../../frontend/src/app/midi/midiUtils");
+  let uri = "";
+  vi.spyOn(dom.window.HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) { uri = this.href; });
+  actual.downloadMidi(fixtures.takes[0]);
+  const bytes = Buffer.from(uri.split(",")[1], "base64");
+  expect(midiNoteEvents(bytes)).toEqual([
+    { status: 144, pitch: 48 },
+    { status: 128, pitch: 48 },
+  ]);
+  await advance(1000);
+  expect(fixtures.clicks).toHaveBeenCalledTimes(8);
+});
+
+it.each(["start", "resume"])("Stop cancels audible %s count-off with the toggle off", async action => {
+  if (action === "resume") {
+    await start();
+    await keys(115);
+    await advance(200);
+    await click(button("Pause recording"));
+  }
+  await click(button(action === "resume" ? "Resume recording" : "Start recording"));
+  await advance(500);
+  expect(fixtures.clicks).toHaveBeenCalled();
+  await click(button("Stop recording"));
+  const clicks = fixtures.clicks.mock.calls.length;
+  await advance(2500);
+  expect(fixtures.clicks).toHaveBeenCalledTimes(clicks);
+  expect(fixtures.takes).toHaveLength(action === "resume" ? 1 : 0);
+  expect(button("Start recording").disabled).toBe(false);
+  expect(button("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
+});
+
+function midiNoteEvents(bytes: Buffer) {
+  let offset = 22;
+  const notes: { status: number; pitch: number }[] = [];
+  const readLength = () => {
+    let value = 0, byte: number;
+    do { byte = bytes[offset++]; value = value * 128 + (byte & 127); } while (byte & 128);
+    return value;
+  };
+  while (offset < bytes.length) {
+    readLength();
+    const status = bytes[offset++];
+    if (status === 255) { offset++; const length = readLength(); offset += length; }
+    else {
+      expect([128, 144]).toContain(status);
+      notes.push({ status, pitch: bytes[offset] });
+      offset += 2;
+    }
+  }
+  return notes;
+}
 it("retires the gated request when count-in audio preparation fails", async () => {
   fixtures.prepareClicks.mockResolvedValueOnce(false);
   await click(button("Start recording"));

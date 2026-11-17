@@ -177,6 +177,16 @@ Software render/dispatch results do not establish requirement 2.3's physical
 latency. Real device/CV tests must report p50/p95/max, fraction >=50 ms, onset
 method, uncertainty, sample rate and complete hardware/browser metadata.
 
+## Audible recording count-off (#227)
+
+Audible count-off clarification (#227, user decision 2026-11-01): Start and
+Resume play one audible measure independently of the continuous-metronome
+toggle. The toggle remains default-off and non-persistent, with continuous
+clicks only when enabled. Preserve the selected tempo and meter, with count-off
+clicks following the meter's denominator note. Preserve pause silence,
+cancellation, readiness checks and
+MIDI exclusion. Verification: MET-01, MET-02 and MET-03 in the inventory. Visual
+and recording-clock synchronization remain separate follow-up #225.
 ## Configurable meter scope (#207)
 
 Requirements 3.2, 4.1 and 4.2 now include validated 1-32 numerator and

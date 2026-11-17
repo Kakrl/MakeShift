@@ -221,8 +221,11 @@ hardware, browser suspension and live CV readiness are separate limitations.
 The toggle directly prepares the click context from its user gesture and
 starts standalone playback. It requires no camera, saved calibration or piano
 Enable audio action. Tempo/meter controls are available before calibration. Pause recording silences clicks;
-Resume counts in; Stop recording returns to live accompaniment. A muted count-in
-still advances. Generation tokens reject stale notifications after cancellation,
+Resume counts in; Stop recording returns to live accompaniment. Start and Resume
+always play an audible one-bar count-off (#227), even when continuous clicks are
+off. The toggle controls accompaniment only and stays unchanged. With the toggle
+off, completion adds no extra click and recording continues silently. Toggle-off
+during a count-off preserves its remaining beats; Stop cancels the count-off. Generation tokens reject stale notifications after cancellation,
 and page cleanup closes the tracked context, node and message port. The same
 owner can prepare again after StrictMode cleanup. Unsuccessful preparation
 closes its context and any partially connected node, clears callbacks and the
