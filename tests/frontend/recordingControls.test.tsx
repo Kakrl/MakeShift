@@ -2,7 +2,7 @@ import { JSDOM } from "jsdom";
 import { act, createElement, StrictMode, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { Recording } from "../../frontend/src/app/midi/midiUtils";
+import type { Recorder, Recording } from "../../frontend/src/app/midi/midiUtils";
 import type { HandObservation, NormalizedLandmark } from "../../frontend/src/cv/collision";
 
 const fixtures = vi.hoisted(() => ({
@@ -10,6 +10,9 @@ const fixtures = vi.hoisted(() => ({
   landmarks: null as null | ((hands: HandObservation[]) => void),
   initializeAudio: vi.fn(async () => {}),
   prepareClicks: vi.fn(async () => true),
+  deferredClickMessages: null as null | (() => void)[],
+  deferredClickFrames: null as null | (() => void)[],
+  recorder: null as Recorder | null,
   interruptClicks: null as null | (() => void),
   resetClicks: null as null | (() => void),
   clicks: vi.fn(), silenceClicks: vi.fn(), closeClicks: vi.fn(),
@@ -28,6 +31,14 @@ vi.mock("../../frontend/src/app/audio/metronome", async original => {
   return { ...actual, createMetronome: () => {
     const controller = createSimulatedMetronome({
       prepare: fixtures.prepareClicks, click: fixtures.clicks,
+      deliver: notification => {
+        if (fixtures.deferredClickMessages) fixtures.deferredClickMessages.push(notification);
+        else notification();
+      },
+      deliverFrame: notification => {
+        if (fixtures.deferredClickFrames) fixtures.deferredClickFrames.push(notification);
+        else notification();
+      },
       silence: fixtures.silenceClicks, close: fixtures.closeClicks,
     }, actual.createMetronome);
     fixtures.resetClicks = controller.close;
@@ -74,6 +85,7 @@ vi.mock("../../frontend/src/app/audio/audioEngine", () => ({
     noteOn: vi.fn(() => ({ session: 1, press: 1 })),
     noteOff: vi.fn(() => true),
     pauseInput: vi.fn(),
+    setVolume: vi.fn(),
     resumeInput: vi.fn(),
     releaseAll: vi.fn(),
   },
@@ -85,6 +97,7 @@ vi.mock("../../frontend/src/app/midi/midiUtils", async (original) => {
     downloadMidi: fixtures.download,
     createRecorder: () => {
       const recorder = actual.createRecorder();
+      fixtures.recorder = recorder;
       const stop = recorder.stopRecording;
       recorder.stopRecording = () => {
         const take = stop();
@@ -166,6 +179,9 @@ beforeEach(async () => {
   vi.useFakeTimers();
   vi.clearAllMocks();
   now = 1000;
+  fixtures.deferredClickMessages = null;
+  fixtures.deferredClickFrames = null;
+  fixtures.recorder = null;
   currentHands = [];
   fixtures.takes.length = 0;
   fixtures.missNextDetection = false;
@@ -859,6 +875,7 @@ it.each([[4,4,500],[3,4,500],[6,8,250],[7,8,250],[2,2,1000]])(
     await click(button("Start recording"));
     const audioCalls = vi.mocked(browserAudio.noteOn).mock.calls.length;
     expect(host.querySelector<HTMLInputElement>("#time-signature")!.disabled).toBe(true);
+    await advance(0); // Deliver the first audio beat before expecting its number.
     for (let beat=1; beat<=numerator; beat++) {
       expect(host.querySelector(".ms-beat")?.textContent).toBe(String(beat));
       expect(host.querySelectorAll(".ms-beat + div > div")).toHaveLength(numerator);
@@ -874,6 +891,7 @@ it.each([[4,4,500],[3,4,500],[6,8,250],[7,8,250],[2,2,1000]])(
     expect(host.querySelector<HTMLInputElement>("#time-signature")!.disabled).toBe(true);
     await click(button("Resume recording"));
     const resumeCalls = vi.mocked(browserAudio.noteOn).mock.calls.length;
+    await advance(0);
     for(let beat=1;beat<=numerator;beat++) {
       expect(host.querySelector(".ms-beat")?.textContent).toBe(String(beat));
       await advance(interval);
@@ -1237,4 +1255,112 @@ it("keeps the songs dialog open with the reason when Play along cannot start aud
   expect(getPlayAlong()).toBeNull();
   expect(document.querySelector('[role="dialog"] [role="alert"]')?.textContent).toContain("Play along could not start");
   expect(dialogButton(/^Play along$/).disabled).toBe(false);
+});
+
+// #225 diagnostics: message delivery is delayed independently of the real
+// processor clock. Tracking stays fresh to isolate this from readiness loss.
+async function mountTimingFixture() {
+  await act(async () => root.unmount());
+  localStorage.setItem("makeshift:playback-settings:v1", JSON.stringify({
+    tempo: 300, metronome: false, meter: { numerator: 4, denominator: 4 },
+  }));
+  root = createRoot(host);
+  await act(async () => root.render(<Home />));
+  await advance(0);
+  await keys();
+}
+
+async function deliverClickMessages() {
+  const queued = fixtures.deferredClickMessages ?? [];
+  fixtures.deferredClickMessages = null;
+  // Separate acts model separate message tasks, not one artificial React batch.
+  for (const notify of queued) await act(async () => notify());
+}
+
+it("#225 diagnostic: an overdue beat must not replace the current countdown with beat 1", async () => {
+  await mountTimingFixture();
+  fixtures.deferredClickMessages = [];
+  await click(button("Start recording"));
+  await advance(650); // Beat 4 started at 600 ms; beat 1's message is still queued.
+  expect(host.querySelector(".ms-beat")).toBeNull();
+  const first = fixtures.deferredClickMessages!.shift()!;
+  await act(async () => first());
+  expect(host.querySelector(".ms-beat")?.textContent).toBe("4");
+  const animationMs = parseFloat(host.querySelector<HTMLElement>(".ms-beat")!.style.animationDuration);
+  expect(animationMs).toBeGreaterThan(0);
+  expect(animationMs).toBeLessThan(200);
+});
+
+it.each(["start", "resume"])("keeps the %s overlay pending until a beat arrives and allows Stop", async action => {
+  if (action === "resume") {
+    await start();
+    await keys(115);
+    await advance(100);
+    await keys();
+    await click(button("Pause recording"));
+  }
+  fixtures.deferredClickMessages = [];
+  await click(button(action === "resume" ? "Resume recording" : "Start recording"));
+  await advance(100);
+  expect(host.textContent).toContain("Piano paused for count-in");
+  expect(host.querySelector(".ms-beat")).toBeNull();
+  expect(button("Stop recording").disabled).toBe(false);
+  expect(button(action === "resume" ? "Resume recording" : "Start recording").disabled).toBe(true);
+  await deliverClickMessages();
+  expect(host.querySelector(".ms-beat")?.textContent).toBe("1");
+  await click(button("Stop recording"));
+
+  fixtures.deferredClickMessages = [];
+  await click(button("Start recording"));
+  await advance(100);
+  expect(host.querySelector(".ms-beat")).toBeNull();
+  await click(button("Stop recording"));
+  await deliverClickMessages();
+  expect(host.querySelector(".ms-beat")).toBeNull();
+  expect(host.textContent).not.toContain("Piano paused for count-in");
+});
+
+it.each(["start", "resume"])("#225 diagnostic: delayed %s completion preserves the audio recording boundary", async action => {
+  await mountTimingFixture();
+  if (action === "resume") {
+    await click(button("Start recording"));
+    await advance(800);
+    await keys(115);
+    await advance(100);
+    await keys();
+    await click(button("Pause recording"));
+  }
+  await click(button(action === "resume" ? "Resume recording" : "Start recording"));
+  await advance(600); // Deliver the four count-in beat notifications normally.
+  fixtures.deferredClickMessages = [];
+  fixtures.deferredClickFrames = [];
+  await advance(400); // Completion at 800 ms is now delivered 200 ms late.
+  expect(fixtures.recorder!.getState()).toBe(action === "resume" ? "paused" : "stopped");
+  expect(host.textContent).toContain("Piano paused for count-in");
+  expect(fixtures.deferredClickMessages.length).toBeGreaterThan(0);
+  expect(fixtures.deferredClickFrames.length).toBeGreaterThan(0);
+  const frames = fixtures.deferredClickFrames;
+  fixtures.deferredClickFrames = null;
+  await deliverClickMessages();
+  for (const notify of frames) await act(async () => notify());
+  expect(fixtures.recorder!.getState()).toBe("recording");
+  await keys(225);
+  await advance(100);
+  await keys();
+  await click(button("Stop recording"));
+  const notes = fixtures.takes.at(-1)!.notes;
+  expect(notes.at(-1)!.startMs).toBe(action === "resume" ? 300 : 200);
+});
+
+it("#225 diagnostic control: Stop rejects delayed completion without starting a take", async () => {
+  await mountTimingFixture();
+  fixtures.deferredClickMessages = [];
+  await click(button("Start recording"));
+  await advance(600);
+  await advance(400);
+  await click(button("Stop recording"));
+  await deliverClickMessages();
+  expect(fixtures.takes).toHaveLength(0);
+  expect(button("Start recording").disabled).toBe(false);
+  expect(button("Stop recording").disabled).toBe(true);
 });

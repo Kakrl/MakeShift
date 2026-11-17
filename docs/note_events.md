@@ -313,3 +313,20 @@ Physical note records retain their start/duration fields. Optional version-1
 Timestamp then performance order governs same-time notes and controls; legacy
 notes retain release-before-onset ties. See the [complete contract](pedal_recording_followup.md)
 for normalization, deferred-note draining, MIDI channels and discontinuities.
+
+## Count-in to recording clock (#225)
+
+The metronome worklet describes its count-in in sample frames. The controller
+uses the output stream position from getOutputTimestamp for progress and its
+paired performanceTime for boundary conversion:
+
+boundaryMs = performanceTime + (endFrame / sampleRate - contextTime) * 1000.
+
+Without a usable output timestamp, currentTime and performance.now form the
+fallback pair, without device-output-latency compensation. Keep frame arithmetic
+until the final conversion to avoid whole-sample errors from early division.
+The recorder accepts an optional explicit Start/Resume timestamp; existing
+callers retain their performance.now default. Pause exclusion ends at the audio
+boundary, not delayed callback receipt. No old count-in contacts are replayed:
+#205 input gating and release/repress rules remain in force. Stop, interruption
+and disposal cancel the animation callback and retire the generation.
