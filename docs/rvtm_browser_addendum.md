@@ -177,6 +177,16 @@ Software render/dispatch results do not establish requirement 2.3's physical
 latency. Real device/CV tests must report p50/p95/max, fraction >=50 ms, onset
 method, uncertainty, sample rate and complete hardware/browser metadata.
 
+## Audible recording count-off (#227)
+
+Audible count-off clarification (#227, user decision 2026-11-01): Start and
+Resume play one audible measure independently of the continuous-metronome
+toggle. The toggle remains default-off and non-persistent, with continuous
+clicks only when enabled. Preserve the selected tempo and meter, with count-off
+clicks following the meter's denominator note. Preserve pause silence,
+cancellation, readiness checks and
+MIDI exclusion. Verification: MET-01, MET-02 and MET-03 in the inventory. Visual
+and recording-clock synchronization remain separate follow-up #225.
 ## Configurable meter scope (#207)
 
 Requirements 3.2, 4.1 and 4.2 now include validated 1-32 numerator and
@@ -200,3 +210,25 @@ rejection and safe cancellation; free play outside count-in remains available.
 No change to latency thresholds or pedal recording scope. Mapped tests CI-01
 through CI-04 cover software behavior; physical camera/audio evidence remains
 pending in the [manual procedure](../tests/manual/2026-10-27_CI-04.md).
+
+## Official address and impersonation (#199)
+
+SEC-1 adds a security process requirement alongside 5.2: user-facing links use
+one official HTTPS address, a named owner runs periodic lookalike checks, and a
+documented procedure covers evidence, provider/registrar reports and official
+warnings. HTTPS (5.2) protects the connection but does not prove site identity,
+and checks cannot prevent a separate-domain impersonator. Mapped tests SEC-01
+and SEC-02; hosting confirmation of the address is pending. See
+[the procedure](deployment.md#official-address-and-impersonation-response-199).
+
+## Piano output volume (#228)
+
+VOL-1 refines 2.2/2.4 with a keyboard-accessible, persisted mute-to-louder
+volume control shared by live notes and recording playback. Smooth gain and
+post-render compression preserve note data, register balance and velocity
+data while controlling peaks. Per user feedback, above-unity volume expands
+strong strikes more than gentle strikes through per-voice velocity math;
+physical MIDI velocity is unchanged. VOL-01 covers UI/storage, VOL-02 owner routing
+and lifecycle, VOL-03 decoded PCM/keyboard verification, and VOL-04 speaker and
+headphone listening. No physical latency or acoustic distortion pass is implied
+by digital output. See [implementation and limits](browser_audio.md#piano-volume-228).

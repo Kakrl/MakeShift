@@ -214,15 +214,32 @@ The separate `frontend/public/audio/metronome-worklet.js` processor owns
 sample-frame beat deadlines, accents, click synthesis and one-bar count-in.
 UI commands configure tempo, mute, live playing, pause/resume and cancellation.
 Click timing does not depend on React renders or individual JavaScript timers.
-The worklet reports visual count-in progress/completion to Home; main-thread
-stalls can still delay those notifications and the recorder's reaction. Audio
-hardware, browser suspension and live CV readiness are separate limitations.
+The worklet reports the count-in start frame, frozen beat interval and beat count
+alongside its messages (#225). The controller follows that audio timeline on
+animation frames and when messages arrive, notifying React only when the current
+beat changes. Delayed notifications do not replay obsolete beat numbers. The
+number animation and beat-dot transitions last at most half a beat, capped at
+120 ms. Start/Resume receive the scheduled completion boundary in the recorder's
+performance.now clock rather than the message-receipt time.
+
+The mapping uses AudioContext.getOutputTimestamp's related output-audio and
+performance times when available; startup/unsupported cases use a paired
+currentTime/performance.now sample. The fallback excludes output latency, and
+neither method establishes physical acoustic alignment. See the
+[Web Audio clock contract](https://www.w3.org/TR/webaudio/#dom-audiocontext-getoutputtimestamp).
+Main-thread stalls still freeze rendering and delay input-gate release. The
+recorder retains the correct time origin after recovery but cannot recover
+missed observations or notes suppressed while input was gated. Physical camera
+load, speaker latency and cross-browser timing remain separate verification.
 
 The toggle directly prepares the click context from its user gesture and
 starts standalone playback. It requires no camera, saved calibration or piano
 Enable audio action. Tempo/meter controls are available before calibration. Pause recording silences clicks;
-Resume counts in; Stop recording returns to live accompaniment. A muted count-in
-still advances. Generation tokens reject stale notifications after cancellation,
+Resume counts in; Stop recording returns to live accompaniment. Start and Resume
+always play an audible one-bar count-off (#227), even when continuous clicks are
+off. The toggle controls accompaniment only and stays unchanged. With the toggle
+off, completion adds no extra click and recording continues silently. Toggle-off
+during a count-off preserves its remaining beats; Stop cancels the count-off. Generation tokens reject stale notifications after cancellation,
 and page cleanup closes the tracked context, node and message port. The same
 owner can prepare again after StrictMode cleanup. Unsuccessful preparation
 closes its context and any partially connected node, clears callbacks and the
@@ -384,3 +401,41 @@ ownership and gates validated musical delivery. The separate metronome worklet
 remains audible when enabled. Ordinary interruption/reset still invalidates sessions.
 Pedal UI sources clear synchronously at entry; inactive assigned keydowns are
 remembered as suppressed until keyup, for both Hold and Toggle.
+
+## Piano volume (#228)
+
+Home and the Songs dialog share a labeled native keyboard slider (0–200%).
+Zero mutes, 100% retains the base velocity curve, and 200% expands strong strikes
+while keeping gentle strikes quiet. For slider percentage `p`, `g = (p/100)^2`.
+Multiply each voice's existing `velocity^1.5` amplitude by `g` when `g <= 1`,
+or by `1 + (g-1)*velocity^2` above unity. At 200%, velocities 0.1/0.3/0.6/1
+receive 1.03/1.27/2.08/4 times their baseline amplitude. The same expression
+applies to live and playback voices, including held/pedal-captured notes.
+Versioned `makeshift:piano-volume:v1` storage validates finite 0–200
+values; corrupt/blocked reads use 100%. Failed writes retain the current visit's
+setting with visible feedback. Both controls share the in-memory preference.
+
+The shared live/recording-playback owner connects worklet → GainNode →
+stereo-linked DynamicsCompressorNode → destination. The sample bank, register
+curve are unchanged; the velocity-to-amplitude math now depends on volume,
+while note events and MIDI export retain their original velocities. The gain
+node stays at unity. The worklet's audio-rate `volume` AudioParam controls each
+voice's expression before its stealing crossfade; boosted mixing bypasses the
+old renderer clamp and feeds the compressor. The metronome has a separate graph
+and stays audible at piano mute. A change cancels/holds pending automation and
+linearly ramps the expression parameter over 30 ms, including exact zero.
+Initialization applies the parameter before
+connecting; close, processor error and failed initialization disconnect both
+output nodes and release diagnostics accounting.
+
+Compression uses a -6 dB threshold, 6 dB knee, 20:1 ratio, zero attack and
+150 ms release. It supplies headroom after amplification rather than driving
+the sample renderer's existing clamp. Browser compression includes makeup gain
+and lookahead, so 100% is not bit-identical historical output;
+loud chord peaks are compressed and physical latency must be remeasured.
+This is not a mathematical true-peak limiter or an acoustic distortion guarantee.
+
+VOL-01–VOL-04 in the inventory separate automated evidence from the pending
+[listening procedure](../tests/manual/2026-11-02_VOL-04.md). Run the new browser
+test against a production server with `node tests/frontend/volume.browser.mjs`
+and `MAKE_SHIFT_URL` / `AUDIO_BROWSER_CHANNEL` as needed.

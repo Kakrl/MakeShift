@@ -73,8 +73,9 @@ observations. On return, the next usable camera frame triggers a marker scan.
 If piano was playing before backgrounding, compatible markers and fresh hand
 tracking trigger one attempt to resume the existing audio graph. The worklet
 must acknowledge the previous session's reset before the new session can play.
-If the graph cannot resume within 1.5 seconds, Enable audio is available for a
-gesture-based retry. Recordings and metronome clicks stay stopped.
+If the attempt fails or reaches the 1.5-second timeout, recovery requires
+selecting Enable audio, even after more fresh tracking observations.
+Recordings and metronome clicks stay stopped.
 
 Route unmount releases sound and closes the recorder and count-in context. The
 shared browser synthesizer remains reusable for the Audio check route. Audio

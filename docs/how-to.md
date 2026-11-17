@@ -6,7 +6,7 @@ This guide explains how to use MakeShift, run it locally, and contribute to its 
 
 You need a piano sheet to use and start up the MakeShift application!
 
-1. Open up MakeShift at ``http://makeshift.music``.
+1. Open up MakeShift at [https://make-shift-chi.vercel.app](https://make-shift-chi.vercel.app).
 2. Find the ``Piano Sheet`` button either at the beginning pop-up or on one of the white keys on the right of the screen.
 3. Download and print the piano sheet
 
@@ -14,7 +14,7 @@ You need a piano sheet to use and start up the MakeShift application!
 
 You have to first get through calibration to enable audio.
 
-1. Open up MakeShift at ``http://makeshift.music``.
+1. Open up MakeShift at [https://make-shift-chi.vercel.app](https://make-shift-chi.vercel.app).
 2. Click the calibration button either on the pop-up or on the right side of the screen
 3. Go through the different phases of calibration.
 4. Finally, exit the calibration phase.

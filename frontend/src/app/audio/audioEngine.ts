@@ -4,6 +4,7 @@ import {
   closeTrackedAudioContext,
 } from "../../diagnostics/performanceMetrics";
 import { loadPianoSamples, type PianoSample } from "./pianoSamples";
+import { createPianoOutput, loadVolume, validVolume, volumeGain } from "./volume";
 export type AudioStatus = "idle" | "loading" | "ready" | "suspended" | "error";
 const FOREGROUND_RESUME_TIMEOUT_MS = 1500;
 export type PedalState = { sustain: boolean; sostenuto: boolean; soft: boolean };
@@ -21,6 +22,30 @@ type AudioCommand =
 
 /** Owns one context. Call initialize only from a user gesture. */
 export class BrowserAudio {
+  private outputGain: GainNode | null = null;
+  private compressor: DynamicsCompressorNode | null = null;
+  private releaseOutput: (() => void) | undefined;
+  private volume: number | null = null;
+
+  setVolume(value: number) {
+    if (!validVolume(value)) return;
+    this.volume = value;
+    const param = this.node?.parameters.get("volume");
+    if (param && this.context) {
+      const now = this.context.currentTime;
+      param.cancelAndHoldAtTime(now);
+      param.linearRampToValueAtTime(volumeGain(value), now + 0.03);
+    }
+  }
+
+  private disconnectOutput() {
+    this.outputGain?.disconnect();
+    this.compressor?.disconnect();
+    this.outputGain = null;
+    this.compressor = null;
+    this.releaseOutput?.();
+    this.releaseOutput = undefined;
+  }
   private releaseNode: (() => void) | undefined;
   private context: AudioContext | null = null;
   private node: AudioWorkletNode | null = null;
@@ -158,6 +183,7 @@ export class BrowserAudio {
           numberOfOutputs: 1,
           outputChannelCount: [2],
           processorOptions: { samples },
+          parameterData: { volume: volumeGain(this.volume ?? loadVolume()) },
         });
         this.node = node;
         this.releaseNode = acquireResource("audioNodes");
@@ -202,6 +228,7 @@ export class BrowserAudio {
           this.status = "error";
           this.error = "Audio processing failed. Select Enable audio to retry.";
           node.disconnect();
+          this.disconnectOutput();
           node.port.close();
           this.releaseNode?.();
           if (this.node === node) this.node = null;
@@ -218,7 +245,13 @@ export class BrowserAudio {
         if (generation !== this.generation) return;
         if (context.state !== "running")
           throw new Error("Audio is suspended. Select Enable audio to retry.");
-        node.connect(context.destination);
+        const { gain, compressor } = createPianoOutput(context);
+        this.outputGain = gain;
+        this.compressor = compressor;
+        const releaseGain = acquireResource("audioNodes");
+        const releaseCompressor = acquireResource("audioNodes");
+        this.releaseOutput = () => { releaseGain(); releaseCompressor(); };
+        node.connect(gain);
         context.onstatechange = () => {
           if (context !== this.context || context.state === "running") return;
           this.status = "suspended";
@@ -235,6 +268,7 @@ export class BrowserAudio {
       this.error =
         error instanceof Error ? error.message : "Audio initialization failed.";
       this.node?.disconnect();
+      this.disconnectOutput();
       this.node?.port.close();
       this.releaseNode?.();
       this.node = null;
@@ -318,6 +352,7 @@ export class BrowserAudio {
     this.samples = null;
     this.initializing = null;
     this.node?.disconnect();
+    this.disconnectOutput();
     this.node?.port.close();
     this.releaseNode?.();
     this.node = null;
