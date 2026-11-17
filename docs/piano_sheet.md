@@ -1,7 +1,7 @@
 # Printable piano sheets (#36)
 
-On the MakeShift home screen, select **Piano sheets**, or choose
-**Download piano sheets (ZIP)** in the Tutorial. The ZIP contains both PDFs.
+Select **Download piano sheets (ZIP)** on Home or in the Tutorial. The ZIP
+downloads immediately and contains both PDFs.
 
 - [Starter sheet: four markers](piano-sheet-starter.pdf)
 - [Extension sheet: right markers only](piano-sheet-extension.pdf)

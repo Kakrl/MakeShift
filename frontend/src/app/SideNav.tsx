@@ -76,8 +76,10 @@ export default function SideNav({
           );
         })}
         {showPianoSheetDownload && (
-          <a href="/piano-sheets.zip" download aria-label="Download piano sheets (ZIP)" className={TAB_LINK_CLASS}>
-            <span className={`${TAB_LABEL_CLASS} max-sm:text-sm`}>Piano sheets</span>
+          <a href="/piano-sheets.zip" download className={TAB_LINK_CLASS}>
+            <span className="text-center text-sm leading-none text-black font-sans lg:text-right lg:text-base">
+              Download piano sheets (ZIP)
+            </span>
           </a>
         )}
       </nav>

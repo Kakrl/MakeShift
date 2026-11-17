@@ -97,7 +97,10 @@ async function checkPianoSheetDownloads(context) {
   await page.addInitScript(() => localStorage.setItem("hasVisited", "true"));
   for (const path of ["/", "/tutorial"]) {
     await page.goto(base + path);
-    const link = page.getByRole("link", { name: "Download piano sheets (ZIP)" });
+    const label = "Download piano sheets (ZIP)";
+    const link = page.getByRole("link", { name: label, exact: true });
+    assert.equal(await link.isVisible(), true);
+    assert.match(await link.innerText(), /^Download piano sheets \(ZIP\)$/);
     const bounds = await link.boundingBox();
     assert(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 320);
     const [download] = await Promise.all([

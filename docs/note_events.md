@@ -108,9 +108,12 @@ suspend/reanchor, recording reset and explicit excluded pause time.
 `frontend/src/app/midi/playbackTimeline.ts` exports `createPlaybackTimeline`.
 It snapshots a `Recording` and uses the existing browser audio owner by default.
 Playback needs a user gesture to initialize audio, but no camera, calibration,
-storage, MIDI parser, or React render. The later falling-notes/scoring views
-(#131/#132) can read `getSnapshot()` on their own animation frames. This issue
-provides the transport API; it does not wire the home page's Listen button.
+storage, MIDI parser, or React render. The falling-notes view (#131) reads
+`getSnapshot()` on its own animation frames, and play-along scoring (#132)
+maps live `note-on` timestamps onto the song clock with `positionAt()`, which
+returns `null` for a timestamp when the song was not playing, so a press made
+while paused is dropped even if it arrives after Resume. This issue provides the
+transport API; it does not wire the home page's Listen button.
 
 ```ts
 const timeline = createPlaybackTimeline(recording);
@@ -301,3 +304,20 @@ PedalController dispatches synchronously before React observation and filters
 unchanged effective states. Session reset clears capture and rejects stale control
 messages. See [audio contract](browser_audio.md#live-binary-pedals-176) and the
 [recording follow-up](pedal_recording_followup.md).
+
+## Count-in to recording clock (#225)
+
+The metronome worklet describes its count-in in sample frames. The controller
+uses the output stream position from getOutputTimestamp for progress and its
+paired performanceTime for boundary conversion:
+
+boundaryMs = performanceTime + (endFrame / sampleRate - contextTime) * 1000.
+
+Without a usable output timestamp, currentTime and performance.now form the
+fallback pair, without device-output-latency compensation. Keep frame arithmetic
+until the final conversion to avoid whole-sample errors from early division.
+The recorder accepts an optional explicit Start/Resume timestamp; existing
+callers retain their performance.now default. Pause exclusion ends at the audio
+boundary, not delayed callback receipt. No old count-in contacts are replayed:
+#205 input gating and release/repress rules remain in force. Stop, interruption
+and disposal cancel the animation callback and retire the generation.
