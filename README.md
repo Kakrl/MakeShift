@@ -5,44 +5,26 @@
 - Jadden Picardal
 - Francis Ozua
 
+Play MakeShift at the official address, **<https://make-shift-chi.vercel.app>**.
+Other domains are not run by the team, and HTTPS alone does not prove a site is
+MakeShift. Report lookalike sites in [issues](https://github.com/Kakrl/MakeShift/issues);
+see [the official address and impersonation response](docs/deployment.md#official-address-and-impersonation-response-199).
+
 The browser app plays a sampled Salamander grand piano locally through an
 AudioWorklet, with the selected +6 dB bass balance and velocity-sensitive gain.
 Enable audio once to preload the recordings; live notes need no network.
 See [playback, licensing and limits](docs/browser_audio.md#sampled-production-piano-and-register-balance-210).
 
-## C++ Audio Engine Setup & Build
-The backend includes a high-performance C++ audio engine exposed to Python via nanobind and tested using GoogleTest.
+## Contributinng
 
-### Prerequisites
-- C++ Compiler: MSVC (Windows), GCC/Clang (Linux/macOS) supporting C++23.
-- CMake: Version 3.15 or higher.
-- Python: Version 3.12+ with an active virtual environment (required by `backend/CMakeLists.txt`).
-
-1. Install Python Dependencies
-Activate your virtual environment and install the required build tools (including nanobind):
-
-pip install nanobind
-
-2. Configure and Build (Local)
-Navigate to the backend/ directory, create a build folder, and compile the project:
-
-cd backend
-cmake -B build -S .
-cmake --build build --config Release
-
-3. Run C++ Unit Tests
-To verify the audio engine locally using CTest, run:
-
-cd build
-ctest -C Release --output-on-failure
-
-See [Audio Event Queue](docs/audio_events.md) for hit submission, thread ownership,
-and playback behavior.
+Refer to the [How To Guide](/docs/how-to.md) to get started on contributing to Makeshift!
 
 ## Testing and Documentation
 
 - [System explanation: architecture, design decisions, and tradeoffs](docs/explanation.md)
 - [Tutorial: play and record with MakeShift](docs/tutorial.md)
+- [How-To: how-to guide on contributing to Makeshift](docs/how-to.md)
+- [Reference: APIs, configuration, schemas, and lookup tables](docs/reference.md)
 - [Print and assemble the actual-size piano sheets](docs/piano_sheet.md)
 - [Testing guide, known defects, and RCA log](tests/README.md)
 - [Verification Test Inventory](tests/verification_test_inventory.md)

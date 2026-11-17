@@ -24,7 +24,7 @@ instead, for example without Infisical access.
 
 | Route | Result |
 | :--- | :--- |
-| `GET /api/recordings?cursor=` | `200` visible summaries, newest first, 6 per page; `nextCursor` is an opaque keyset cursor; `400` bad cursor |
+| `GET /api/recordings` | `200` visible summaries, 6 per page. Optional `q` (title contains, case-insensitive, max 100 characters), `sort` (`newest` default, `oldest`, `longest`), `maxOctaves` (songs spanning that many octaves or fewer), `ids` (comma-separated UUIDs, max 100, for favorites) and `cursor`. `nextCursor` is an opaque keyset cursor for that sort; `400` bad query or a cursor from another sort |
 | `GET /api/recordings/:id` | `200` with notes; `404` when missing, hidden or not a UUID |
 | `POST /api/recordings` | `201 {id, deleteToken}`; `400` with `issues`; `413` over 1 MB; `429` with `Retry-After` after 5 uploads from one client in 10 minutes; `503` on any Vercel deployment unless `RECORDING_UPLOADS=1` |
 | `DELETE /api/recordings/:id` | `200 {deleted: true}` when the token's SHA-256 matches; `403` wrong or missing token; `404` already gone |
@@ -176,3 +176,27 @@ project refs before rollout. If both point to the documented hosted project,
 apply the additive meter migration there before deploying either environment.
 Verify `supabase migration list --linked` and a live recordings list/read
 request before merging/deploying. Hosted migration status remains unverified.
+
+## Octaves migration (#281)
+
+`20261109000000_recording_octaves.sql` adds `public.recording_octaves(notes)`
+and `recordings.octaves`: the octaves of the smallest sheet that holds the
+song. Sheets start on a C and run 1-3 octaves to a shared final C, so the
+count is measured from the C at or below the lowest note (B4 to D5 needs two)
+and matches `recordingOctaves` in `frontend/src/lib/recordings.ts`. The
+migration backfills every row with that function, adds visible-row indexes for
+the oldest and longest sorts, and makes `upload_recording` store the `octaves`
+the API sends, or derive it from `notes` when the field is absent. That
+fallback keeps uploads from the API deployed before this migration working
+during the rollout window. Only `service_role` may call the function. Title search is a `ilike` scan, which is fine
+at the current table size; add a trigram index if the list grows large.
+
+On 2026-11-12 the migrations ran in PGlite 0.3.14 (an ad hoc script, not a
+repository test): the backfill gave B4-D5 2, C4-C5 1, C3-D5 3, A3-E5 3 and
+empty or unparseable notes 1, and `upload_recording` derived 2 for a B4-D5
+upload without `octaves` and kept a sent value. Hosted Postgres execution is
+still pending. Apply it to a throwaway
+database first, then `npx supabase db push --linked`, and check
+`supabase migration list --linked` plus a live list request with `sort=longest`
+and `maxOctaves=1` before deploying. Apply it before the deploy that sends
+those parameters.

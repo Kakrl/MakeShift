@@ -42,7 +42,9 @@ Use even lighting and avoid strong shadows across the paper.
 
 ### 3. Open MakeShift
 
-Open the [MakeShift website](https://make-shift-seven.vercel.app).
+Open the [MakeShift website](https://make-shift-chi.vercel.app).
+Check that the address bar shows exactly `make-shift-chi.vercel.app`; other
+addresses are not run by the MakeShift team.
 
 1. Select **Start Calibration** in the welcome window. If you have
    visited before and it does not appear, select **Calibration** instead.

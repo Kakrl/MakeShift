@@ -1,6 +1,6 @@
 /* Selenium UI navigation checks (3.1.1, 3.1.2, 6.2.1). Run against
  * `npm run build && npm start` or a Vercel URL:
- *   MAKE_SHIFT_URL=https://make-shift-seven.vercel.app npm run test:ui-selenium
+ *   MAKE_SHIFT_URL=https://make-shift-chi.vercel.app npm run test:ui-selenium
  * MAKE_SHIFT_URL defaults to http://127.0.0.1:3000. Uses headless Chrome with
  * fake media devices; Selenium Manager finds or downloads Chrome and
  * chromedriver. Desktop viewports only: below lg the tabs move under the

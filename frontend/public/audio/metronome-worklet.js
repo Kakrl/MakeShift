@@ -41,7 +41,7 @@ class MetronomeProcessor extends AudioWorkletProcessor {
       this.beats = m.beats;
       this.denominator = m.denominator ?? 4;
       this.audible = m.audible;
-      if (!this.audible) this.age = Infinity;
+      if (!this.audible && this.count === null) this.age = Infinity;
     } else if (m.type === "playing") {
       this.playing = m.active;
       this.paused = m.paused;
@@ -88,7 +88,7 @@ class MetronomeProcessor extends AudioWorkletProcessor {
             countBeat = this.count;
           }
         }
-        if (this.audible) {
+        if (countBeat !== null || this.audible) {
           this.frequency = this.beat === 0 ? 1050 : 820;
           this.gain = this.beat === 0 ? 0.65 : 0.38;
           this.age = 0;

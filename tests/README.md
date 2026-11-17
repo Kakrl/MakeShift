@@ -1219,7 +1219,7 @@ defect report is filed.
 | D22 | Medium | Calibration | Final depth sheet-check exception removed capture/Next controls. Reset collector/index on exception so all five depth positions can be retried. | `frontend/src/app/calibration/page.tsx` | [#178](https://github.com/Kakrl/MakeShift/issues/178) | Fixed in PR #177; local 6.2.3 regression passed; CI/merge pending |
 | D21 | High | Calibration | (Req 6.2, 1.1, 2.1) #148 replaced the reachable result capture with depth buttons and navigated before validation/save. Final depth capture now creates the primary result; completion retains its model and saves both records before navigation. 6.2.3's expected failures are restored as passing regressions. | `frontend/src/app/calibration/page.tsx` | [#162](https://github.com/Kakrl/MakeShift/issues/162) | Fix verified locally 2026-10-06; review/merge and physical check pending |
 | D24 | Medium | Audio | User camera-device testing of the initial #206 implementation found no live accompaniment and unstable clicks during page actions. | `frontend/src/app/audio/metronome.ts` | [#206](https://github.com/Kakrl/MakeShift/issues/206) | Worklet revision verified automatically; [user-reported behavior retest passed](manual/2026-10-25_MET-04.md), tested device commit 2cf30d0 confirmed |
-| D25 | Medium | MIDI / UI | Confirmed No, delete it plus accepted browser confirmation leaves the take accessible through Recordings; reload persistence not yet separately confirmed. | `frontend/src/app/midi/RecordingsLibraryPanel.tsx`, `frontend/src/app/share/SaveTakeDialog.tsx` | [#224](https://github.com/Kakrl/MakeShift/issues/224) | Open; user-reported manual reproduction, exact follow-up commit pending |
+| D25 | Medium | MIDI / UI | Confirmed No, delete it plus accepted browser confirmation leaves the take accessible through Recordings; reload persistence not yet separately confirmed. | `frontend/src/app/midi/RecordingsLibraryPanel.tsx`, `frontend/src/app/share/SaveTakeDialog.tsx` | [#224](https://github.com/Kakrl/MakeShift/issues/224) | Not reproduced on current main: panel and real-page regression tests ([LIB-05](verification_test_inventory.md)) pass; reporter retest on a current build pending |
 | D26 | Medium | Audio / UI | Visual count-in falls behind audible beats, especially at 300 BPM; offset and recording-start alignment unmeasured. | `frontend/src/app/page.tsx`, `frontend/src/app/audio/metronome.ts` | [#225](https://github.com/Kakrl/MakeShift/issues/225) | Open; [MET-04 observation](manual/2026-10-25_MET-04.md), 300 BPM follow-up reported 2026-10-26 |
 | D27 | Medium | Calibration / UI | Moving the sheet after calibration leaves audio/record controls disabled while the marker overlay appears valid, without clear mismatch/recovery feedback. | `frontend/src/events/liveSession.ts`, `frontend/src/app/MarkerTrackingOverlay.tsx`, `frontend/src/app/page.tsx` | [#226](https://github.com/Kakrl/MakeShift/issues/226) | Open; overlaps broader recovery/alignment work in [#220](https://github.com/Kakrl/MakeShift/issues/220) |
 | D23 | Medium | Audio | (Req 2.4, related 2.2) User reports high-velocity strikes are not loud enough and wants more apparent velocity dynamics. Listening report 2026-10-14; cause and hardware verification pending. | `frontend/src/cv/fingerVelocity.ts`, `frontend/public/audio/synth.js` | [#209](https://github.com/Kakrl/MakeShift/issues/209) | DSP tuning implemented locally; [verification and listening limits](manual/2026-10-14_209-velocity.md); user confirmed audible velocity changes locally 2026-10-14; measured trials/chord distortion checks pending |
@@ -2255,6 +2255,48 @@ Chromium 151.0.7922.34 audio and keyboard-layout browser checks passed.
 Deployment smoke was not repeated after the earlier stalled run documented
 above; physical camera/audio testing and new CI evidence remain pending.
 Recording-clock synchronization remains follow-up issue #225.
+
+## Audible recording count-off (#227)
+
+Local verification 2026-11-01 on feature/227-audible-count-off, based on PR #223
+commit 88f0fa1: Start/Resume count-offs are audible independently of continuous
+accompaniment. The toggle remains unchanged and defaults off. With it off, the
+completion boundary adds no click and recording proceeds silently. Stop cancels
+remaining count-off beats. Existing tempo and meter interpretation are retained.
+
+The production processor cases cover 3/4/6-beat count-offs, silent completion,
+toggle-off during a click, cancellation, pause and enabled accompaniment. Home
+integration covers toggle-off Start/Resume, cancellation of both, unchanged
+toggle, and parsing real exported MIDI to find only one piano note-on/off pair.
+The simulated transport now observes count-off clicks even with accompaniment
+off. All 18 metronome tests passed; recordingControls passed 40 with one existing
+frame-loss skip. Full Vitest: 612 passed, one existing skip across 33 files.
+Lint, TypeScript, all 37 contrast pairs and the production build passed.
+
+Production Chromium 151.0.7922.34 metronome checks passed, including audible
+toggle-off count-off, silent completion/accompaniment, pause, standalone Home
+without camera permission, close/reprepare, and sample spacing through a busy
+UI thread. Production audio and keyboard-layout browser checks also passed.
+These are automated graph/simulated-CV results, not a physical listening pass.
+Deployment smoke again stalled without a result and was stopped; it remains
+unverified. Manual count-off listening and new CI execution remain pending.
+No manual report is claimed. Synchronization work remains issue #225.
+### PR #248 review verification (2026-11-13)
+
+Based on merged revision `8727b749a82d1ac37d1e6e29c844d7da1bc3b3ae`,
+added a 6/8 case with accompaniment off. At 120 BPM and 48 kHz it verifies
+six audible clicks spaced 12000 frames (250 ms) apart, completion at frame
+72000 (1.5 seconds), and silence afterward. All 25 metronome tests and the
+TypeScript check passed locally. This new case has not yet run in Actions.
+
+The unmodified merged revision passed
+[frontend CI](https://github.com/Kakrl/MakeShift/actions/runs/43522599208/job/132220338681):
+853 tests passed, one skipped across 47 files, with lint, types, contrast,
+build and the configured browser checks passing. Its separate local production
+build and `metronome.browser.mjs` rerun passed in Chromium 151.0.7922.34:
+live output, busy-thread spacing within one sample of 500 ms, pause silence,
+resume, audible toggle-off count-off then silence, standalone Home toggle/mute
+with camera denied, and cleanup/reuse. No acoustic listening measurement.
 
 ## PR #238 main merge (2026-11-02)
 
