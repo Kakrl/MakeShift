@@ -261,3 +261,11 @@ cover production-worklet output and sampler safety. PB-1.5 checks endpoint
 delivery through the recording timeline and audio owner. SP-03 covers
 subjective listening on a physical output device. The ten-voice limit,
 printed-keyboard range and physical latency measurement are separate.
+
+## Key-tip contact targets (#278)
+
+| Requirements | Acceptance | Verification |
+| :--- | :--- | :--- |
+| 1.2 | Actual-size white and black key-tip squares match the calibrated overlay for one, two and three octaves, including seam Cs. | TIP-01, SHEET-01, TIP-03 |
+| 2.1, 2.3 | Each onset requires own-target containment and contact evidence. Holds survive edge jitter, exits release, and simultaneous fingers can play chords. | KEY-02, 2.1.8, 2.1.7, TIP-03 |
+| 2.5 | Compare false triggers, misses, wrong notes and observed onset differences with full-key regions under matched conditions. | TIP-02, TIP-03 |

@@ -278,8 +278,12 @@ async function frame() {
 }
 
 async function keys(...xs: number[]) {
+  await placeFingertips(0.777, ...xs);
+}
+
+async function placeFingertips(y: number, ...xs: number[]) {
   const hand = Array.from({ length: 21 }, () => ({ x: -10, y: -10 }));
-  for (let i = 0; i < xs.length; i++) hand[[4, 8, 12, 16, 20][i]] = { x: xs[i] / 1000, y: 0.5 };
+  for (let i = 0; i < xs.length; i++) hand[[4, 8, 12, 16, 20][i]] = { x: xs[i] / 1000, y };
   currentHands = xs.length ? [hand] : [];
   await act(async () => fixtures.landmarks?.(
     currentHands.map((landmarks) => ({ landmarks, handedness: "Right" as const })),
@@ -361,8 +365,8 @@ it("announces temporary tracking pause and explicit audio recovery without calib
 it("dispatches a chord and release/repress before React commits the landmark snapshot", async () => {
   await start();
   const landmarks: NormalizedLandmark[] = Array.from({ length: 21 }, () => ({ x: -10, y: -10 }));
-  landmarks[4] = { x: 0.115, y: 0.5 };
-  landmarks[8] = { x: 0.325, y: 0.5 };
+  landmarks[4] = { x: 0.115, y: 0.777 };
+  landmarks[8] = { x: 0.325, y: 0.777 };
   const chord: HandObservation[] = [{ landmarks, handedness: "Right" }];
   vi.mocked(browserAudio.noteOn).mockClear();
   vi.mocked(browserAudio.noteOff).mockClear();
@@ -391,16 +395,33 @@ it("dispatches a chord and release/repress before React commits the landmark sna
   ]);
 });
 
-it("outputs one key when a single fingertip overlaps adjacent key polygons", async () => {
+it("ignores the gap between target squares and plays one note inside a target", async () => {
   await start();
   vi.mocked(browserAudio.noteOn).mockClear();
   vi.mocked(browserAudio.noteOff).mockClear();
 
-  await keys(170); // Within the 8 px overlap tolerance of the next key.
+  await keys(170); // Between the C and D squares.
+  expect(browserAudio.noteOn).not.toHaveBeenCalled();
+
+  await keys(115);
   expect(browserAudio.noteOn).toHaveBeenCalledTimes(1);
   expect(browserAudio.noteOn).toHaveBeenCalledWith(48, 0.2);
 
   await keys();
+  expect(browserAudio.noteOff).toHaveBeenCalledTimes(1);
+});
+
+it("maps the black target to C sharp and ignores the rest of the black outline", async () => {
+  await start();
+  vi.mocked(browserAudio.noteOn).mockClear();
+  vi.mocked(browserAudio.noteOff).mockClear();
+
+  await placeFingertips(0.45, 160);
+  expect(browserAudio.noteOn).not.toHaveBeenCalled();
+  await placeFingertips(0.534, 160);
+  expect(browserAudio.noteOn).toHaveBeenCalledExactlyOnceWith(49, 0.2);
+  await placeFingertips(0.45, 160);
+  await advance(80);
   expect(browserAudio.noteOff).toHaveBeenCalledTimes(1);
 });
 
@@ -440,8 +461,8 @@ it.each([false, true])("sends estimated velocities to audio/MIDI and retains the
   const landmarks: NormalizedLandmark[] = Array.from({ length: 21 }, () => ({ x: -10, y: -10, z: 0 }));
   landmarks[0] = { x: 0.5, y: 0.8, z: 0 };
   landmarks[9] = { x: 0.5, y: 0.6, z: 0 };
-  landmarks[4] = { x: 0.115, y: 0.5, z: 0 };
-  landmarks[8] = { x: sameKey ? 0.115 : 0.325, y: 0.5, z: 0 };
+  landmarks[4] = { x: 0.115, y: 0.777, z: 0 };
+  landmarks[8] = { x: sameKey ? 0.115 : 0.325, y: 0.777, z: 0 };
   const observe = (slowZ: number, fastZ: number) => {
     const next = [...landmarks];
     next[4] = { ...landmarks[4], z: slowZ };
@@ -834,6 +855,7 @@ it("discards count-in notes and preserves free play before, during pause and aft
   await advance(100);
   await click(button("Pause recording"));
   await keys(115);
+  await advance(80); // Let D exit its edge-jitter grace before pressing it again.
   await keys(115, 225);
   expect(browserAudio.noteOn).toHaveBeenCalledTimes(2);
   await click(button("Stop recording"));

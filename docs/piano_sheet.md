@@ -30,6 +30,14 @@ full-size playing surface, not an exact replica of every piano. For comparison,
 give approximate white/black widths of 23.5/14 mm. Key length and black-key
 positioning vary between instruments; this sheet uses centered black keys.
 
+Tap the outlined squares at the player-facing key tips. The white-key
+targets measure **16 × 16 mm**, and the black-key targets measure **10 ×
+10 mm**. Each is centered across its key and ends **2 mm** before the key
+tip. The PDF generator and browser both use
+[`keyTargets.json`](../frontend/src/cv/keyTargets.json). The overlay projects
+all four corners with the same marker transform as the key outlines. The
+projected squares are also the CV hit regions.
+
 ## Assemble one, two or three octaves
 
 1. Print one starter and zero, one or two copies of the extension.
@@ -42,7 +50,8 @@ positioning vary between instruments; this sheet uses centered black keys.
    cover old markers. Cutting flush to the right key edge clips the markers.
 3. Place an extension **on top** of the preceding sheet. Align its leftmost C
    exactly over the preceding sheet's rightmost C. Match top/bottom key edges.
-   The keyboard overlap is one white key, **23.5 mm**; each extension adds
+   Both C target squares should coincide. The keyboard overlap is one white
+   key, **23.5 mm**. Each extension adds
    **164.5 mm**. The retained right margin makes paper overlap **27.5 mm**.
    Align key edges, not the previous sheet's paper edge.
 4. Ensure the extension's blank upper/lower left strips completely cover the
@@ -77,15 +86,17 @@ identify which physical print or octave count is present.
 Marker centers relative to key edges are unchanged: 8.54545 mm inset from
 each side, with a 170.90909 mm horizontal span and 187.5 mm vertical span.
 Translating the extension artwork by -45.7 mm preserves these distances.
-No application geometry or calibration schema change is needed.
+The targets use the existing marker transform and calibration schema. Download
+the updated sheets to get the printed targets.
 
 In calibration, choose **1, 2 or 3 octaves**, the starting pitch assigned to
 the leftmost printed C, and the number of octaves actually assembled on paper.
-The application exposes 8, 15 or 22 white-key hit regions and maps those same
-keys to audio, MIDI and highlights. Black rectangles are also projected and
-used for contact selection; black-key identities map to chromatic pitches
-through the existing audio/MIDI interface. Automated and physical verification
-remain pending; see the [black-key plan](black_keys_plan.md). Starting C
+The application exposes 8, 15 or 22 white targets and 5, 10 or 15 black targets
+and maps their pitches to audio, MIDI and highlights. Tip containment is
+required to start a note, alongside calibrated knuckle eligibility and shadow
+contact evidence. Brief edge excursions up to 60 ms preserve a held note.
+Moving into another target releases the old note and requires fresh contact
+evidence before the new note can sound. Starting C
 choices are restricted so the highest key never exceeds MIDI 127. If increasing
 the range would exceed the limit, the starting C moves to the highest valid C
 automatically.
@@ -142,3 +153,8 @@ python -m pytest tests/python/test_piano_sheets.py
 Install Poppler (`pdftoppm`) on PATH. Missing optional tools explicitly skip
 the PDF tests; the existing CI has no dedicated PDF tool installation, so
 this coverage is manual automation and no CI execution is claimed.
+
+Issue #278 adds raster checks of all target borders and dimensions on both
+PDFs, the target at every shared C on assembled sheets, and the downloaded ZIP.
+The [paired replay and webcam procedure](cv_video_tests.md#compare-key-tip-squares-with-full-keys)
+covers physical alignment and detection accuracy.

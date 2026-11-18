@@ -8,6 +8,7 @@ import importlib.util
 import shutil
 import subprocess
 from pathlib import Path
+from zipfile import ZipFile
 
 import pytest
 
@@ -98,6 +99,42 @@ def test_actual_size_keys_and_zero_extension_margin(rendered):
     assert sheets.WHITE_PITCH == 23.5
 
 
+def test_download_contains_both_current_pdfs():
+    archive = ROOT / "frontend/public/piano-sheets.zip"
+    with ZipFile(archive) as download:
+        assert download.namelist() == [
+            "piano-sheet-starter.pdf", "piano-sheet-extension.pdf",
+        ]
+        for name in download.namelist():
+            assert download.read(name) == (ROOT / "docs" / name).read_bytes()
+
+
+def assert_target(image, center, key_length, side, *, black=False):
+    """Check four edges and uninterrupted interior at 10 pixels per mm."""
+    left = round((center - side / 2) * 10)
+    right = round((center + side / 2) * 10)
+    bottom = round((sheets.KEY_TOP + key_length - 2) * 10)
+    top = bottom - side * 10
+    patch = np.array(image.crop((left - 2, top - 2, right + 3, bottom + 3)))
+    if black:
+        patch = 255 - patch
+    for strip in (patch[:5, 5:-5], patch[-5:, 5:-5]):
+        assert strip.min(axis=0).max() < 80
+    for strip in (patch[5:-5, :5], patch[5:-5, -5:]):
+        assert strip.min(axis=1).max() < 80
+    assert patch[5:-5, 5:-5].min() > 200
+
+
+@pytest.mark.parametrize("extension", [0, 1])
+def test_key_tip_targets_match_physical_sheet_geometry(rendered, extension):
+    image = rendered[extension]
+    offset = 0 if extension else sheets.KEY_LEFT
+    for index in range(8):
+        assert_target(image, offset + (index + 0.5) * 23.5, 150, 16)
+    for boundary in (1, 2, 4, 5, 6):
+        assert_target(image, offset + boundary * 23.5, 90, 10, black=True)
+
+
 @pytest.mark.parametrize("octaves", [2, 3])
 def test_trimmed_assemblies_cover_interior_markers(rendered, octaves):
     # 10 pixels/mm; starter retains 4 mm each side, extension 4 mm right.
@@ -115,6 +152,8 @@ def test_trimmed_assemblies_cover_interior_markers(rendered, octaves):
     expected = (188 + (octaves - 1) * 164.5 - 2 * 188 / 22) * 10
     assert span == pytest.approx(expected, abs=1)
     for number in range(1, octaves):
+        # The extension's first C covers the preceding sheet's last C.
+        assert_target(assembly, 4 + (number * 7 + 0.5) * 23.5, 150, 16)
         # The old right marker AND its quiet zone lie under blank paper.
         x = sheets.MARKER_RIGHT - sheets.KEY_LEFT + 4 + (number - 1) * 164.5
         for y in (sheets.MARKER_TOP, sheets.MARKER_BOTTOM):

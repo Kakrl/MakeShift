@@ -24,8 +24,8 @@ import {
   MARKER_CHECK_INTERVAL_MS,
   PAGE_CORNERS,
 } from "../../cv/calibration";
-import { computeHomography, projectPoint } from "../../cv/homography";
-import { getWhiteKeyPolygons } from "../../cv/keyboardGeometry";
+import { computeHomography } from "../../cv/homography";
+import { getBlackKeyPolygons, getKeyTargets, getWhiteKeyPolygons, projectKeyRegions } from "../../cv/keyboardGeometry";
 import { DEFAULT_LAYOUT, type KeyboardLayout } from "../../cv/keyboardLayout";
 import type { Point } from "../../cv/types";
 import { WASM_PATH } from "../useHandLandmarker";
@@ -62,6 +62,8 @@ async function seekFrame(video: HTMLVideoElement, timeMs: number) {
 export default function CvVideoReplayPage() {
   const [status, setStatus] = useState("Choose an MP4 and its JSON sidecar.");
   const [result, setResult] = useState<string>("");
+  const [regionMode, setRegionMode] = useState<"targets" | "full-keys">("targets");
+  const [running, setRunning] = useState(false);
 
   async function runReplay() {
     const videoFile = (document.querySelector("#clip") as HTMLInputElement).files?.[0];
@@ -77,6 +79,7 @@ export default function CvVideoReplayPage() {
     let replayTimeMs = 0;
     const keys: ActiveKeyFrame[] = [];
     const timings: TimedFrameResult<null>[] = [];
+    setRunning(true);
     try {
       const metadataLoaded = waitForEvent(video, "loadedmetadata");
       video.src = url;
@@ -110,11 +113,20 @@ export default function CvVideoReplayPage() {
       const depthModels = toPersistedDepthCalibration(
         buildDepthCalibrations(videoCase),
       );
+      const regions = regionMode === "full-keys"
+        ? { white: getWhiteKeyPolygons(layout), black: getBlackKeyPolygons(layout) }
+        : getKeyTargets(layout);
+      let shadowError: Error | null = null;
+      let finishShadowFrame: (() => void) | null = null;
       pipeline = new LiveContactPipeline({
         onContactsChanged: () => undefined,
         onShadowCameraPreview: () => undefined,
         onShadowPreview: () => undefined,
-        onError: (message) => { throw new Error(message); },
+        onShadowFrameProcessed: () => finishShadowFrame?.(),
+        onError: (message) => {
+          shadowError = new Error(message);
+          finishShadowFrame?.();
+        },
       }, undefined, () => replayTimeMs);
       pipeline.start();
       const lastFrame = Math.floor((video.duration - 0.001) * videoCase.framesPerSecond);
@@ -139,7 +151,7 @@ export default function CvVideoReplayPage() {
       let markerAcquired = false;
       let markerDetectionCount = 0;
       let shadowSamplesSubmitted = 0;
-      let cachedWhiteKeys: Point[][] | null = null;
+      let cachedRegions: ReturnType<typeof projectKeyRegions> = null;
       const replayStartedMs = performance.now();
       for (let frame = 0; frame <= lastFrame; frame += 1) {
         const mediaTimeMs = frame * 1000 / videoCase.framesPerSecond;
@@ -166,19 +178,15 @@ export default function CvVideoReplayPage() {
           if (markerCenters.every((point): point is Point => point !== undefined)) {
             const homography = computeHomography(PAGE_CORNERS, markerCenters);
             if (homography) {
-              const candidateKeys = getWhiteKeyPolygons(layout).map((key) =>
-                key.map((point) => projectPoint(homography, point)),
-              );
-              if (candidateKeys.every((key) =>
-                key.every((point): point is Point => point !== null))) {
-                cachedWhiteKeys = candidateKeys as Point[][];
+              const projected = projectKeyRegions(homography, regions);
+              if (projected) {
+                cachedRegions = projected;
                 markerAcquired = true;
               }
             }
           }
           geometryMs = performance.now() - geometryStartedMs;
         }
-        const whiteKeys = cachedWhiteKeys;
         const inferenceStartMs = performance.now();
         const prediction = landmarker.detectForVideo(video, mediaTimeMs);
         const inferenceMs = performance.now() - inferenceStartMs;
@@ -191,9 +199,24 @@ export default function CvVideoReplayPage() {
         const fingertips = getFingertips(hands.map((hand) => hand.landmarks),
           video.videoWidth, video.videoHeight);
         const contactStartedMs = performance.now();
-        if (pipeline.processFrame({ video, hands, fingertips, whiteKeys,
+        if (shadowError) throw shadowError;
+        if (pipeline.processFrame({ video, hands, fingertips,
+          whiteKeys: cachedRegions?.white ?? null,
+          blackKeys: cachedRegions?.black ?? null,
           calibration: depthModels,
-          previewFingerId: null })) shadowSamplesSubmitted += 1;
+          previewFingerId: null })) {
+          shadowSamplesSubmitted += 1;
+          // Keep the media clock at the captured frame until its evidence is applied.
+          await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error("Shadow replay timed out")), 5000);
+            finishShadowFrame = () => {
+              clearTimeout(timeout);
+              resolve();
+            };
+          });
+          finishShadowFrame = null;
+          if (shadowError) throw shadowError;
+        }
         const wallEndMs = performance.now();
         const contactMs = wallEndMs - contactStartedMs;
         timings.push({ frame, mediaTimeMs, wallStartMs, wallEndMs,
@@ -203,8 +226,8 @@ export default function CvVideoReplayPage() {
         const activeKeyIndexes = new Set<number>();
         for (const [id, contact] of pipeline.contacts) {
           if (!contact.active) continue;
-          for (const key of pipeline.gates.get(id)?.keyIndexes ?? [])
-            activeKeyIndexes.add(key);
+          const key = pipeline.fingers.get(id)?.keyIndex;
+          if (key != null) activeKeyIndexes.add(key);
         }
         keys.push({ frame, mediaTimeMs, activeKeyIndexes: [...activeKeyIndexes] });
         if (frame % 10 === 0 || frame === lastFrame)
@@ -241,10 +264,12 @@ export default function CvVideoReplayPage() {
           markerCheckIntervalMs: MARKER_CHECK_INTERVAL_MS,
           frameStages },
         contactTechniques: pipeline.techniques,
+        regionMode,
         replayMode: "ordered-paused-frame-stepping-with-live-marker-cadence" };
       setResult(JSON.stringify(output, null, 2));
       setStatus("Replay complete");
     } finally {
+      setRunning(false);
       pipeline?.dispose();
       markerDetector?.dispose();
       landmarker?.close();
@@ -257,7 +282,12 @@ export default function CvVideoReplayPage() {
     <p>Paused frame stepping; each decoded frame is processed in order by MediaPipe and the live contact pipeline.</p>
     <label>Video <input id="clip" type="file" accept="video/mp4,video/*" /></label>
     <label style={{ marginLeft: 16 }}>Sidecar <input id="sidecar" type="file" accept="application/json,.json" /></label>
-    <button type="button" onClick={() => void runReplay().catch((error: unknown) =>
+    <label>Contact regions <select value={regionMode} disabled={running}
+      onChange={(event) => setRegionMode(event.target.value === "full-keys" ? "full-keys" : "targets")}>
+      <option value="targets">Key-tip squares</option>
+      <option value="full-keys">Full keys</option>
+    </select></label>
+    <button type="button" disabled={running} onClick={() => void runReplay().catch((error: unknown) =>
       setStatus(`Replay failed: ${error instanceof Error ? error.message : String(error)}`))}>
       Run replay
     </button>

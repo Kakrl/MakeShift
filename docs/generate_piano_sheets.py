@@ -4,6 +4,7 @@ Requires reportlab. Output is deterministic and contains vector artwork only.
 Coordinates below are millimeters, measured from the page's top left.
 """
 
+import json
 from pathlib import Path
 from zipfile import ZipFile, ZipInfo
 
@@ -38,6 +39,9 @@ TRIM_MARGIN = 4.0  # Retain enlarged markers and their quiet zones.
 # predefined_dictionaries.hpp (DICT_4X4_1000_BYTES, shared first 50 entries).
 MARKER_BYTES = ((181, 50), (15, 154), (51, 45), (153, 70))
 OUTPUT = Path(__file__).resolve().parent
+TARGETS = json.loads(
+    (OUTPUT.parent / "frontend/src/cv/keyTargets.json").read_text("utf-8")
+)
 
 
 def rectangle(pdf, x, y, width, height, fill=False):
@@ -54,6 +58,13 @@ def line(pdf, x1, y1, x2, y2):
 def label(pdf, x, y, text, size=8):
     pdf.setFont("Helvetica", size)
     pdf.drawCentredString(x * mm, (PAGE_HEIGHT - y) * mm, text)
+
+
+def target(pdf, center, key_length, kind):
+    """Draw the projected region's physical boundary on the sheet."""
+    size = TARGETS[kind]["sizeMm"]
+    bottom = KEY_TOP + key_length - TARGETS[kind]["tipInsetMm"]
+    rectangle(pdf, center - size / 2, bottom - size, size, size)
 
 
 def marker(pdf, marker_id, center_x, center_y):
@@ -96,11 +107,16 @@ def generate(destination, extension=False):
         x = KEY_LEFT + index * WHITE_PITCH
         line(pdf, x, KEY_TOP, x, KEY_TOP + WHITE_LENGTH)
     for boundary in (1, 2, 4, 5, 6):
-        rectangle(pdf, KEY_LEFT + boundary * WHITE_PITCH - BLACK_WIDTH / 2,
-                  KEY_TOP, BLACK_WIDTH, BLACK_LENGTH, fill=True)
+        center = KEY_LEFT + boundary * WHITE_PITCH
+        rectangle(pdf, center - BLACK_WIDTH / 2, KEY_TOP,
+                  BLACK_WIDTH, BLACK_LENGTH, fill=True)
+        pdf.setStrokeColorRGB(1, 1, 1)
+        target(pdf, center, BLACK_LENGTH, "black")
+        pdf.setStrokeColorRGB(0, 0, 0)
     for index, note in enumerate(("C", "D", "E", "F", "G", "A", "B", "C")):
-        label(pdf, KEY_LEFT + (index + 0.5) * WHITE_PITCH,
-              KEY_TOP + WHITE_LENGTH - 6, note, 10)
+        center = KEY_LEFT + (index + 0.5) * WHITE_PITCH
+        target(pdf, center, WHITE_LENGTH, "white")
+        label(pdf, center, KEY_TOP + WHITE_LENGTH - 22, note, 10)
 
     if not extension:
         marker(pdf, 0, MARKER_LEFT, MARKER_TOP)

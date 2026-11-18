@@ -30,7 +30,7 @@ export default function Tutorial() {
     {
       step: "4",
       title: "Play!",
-      body: "Press Enable audio, then tap the paper keys.",
+      body: "Press Enable audio, then tap the squares at the tips of the paper keys.",
     },
     {
       step: "5",

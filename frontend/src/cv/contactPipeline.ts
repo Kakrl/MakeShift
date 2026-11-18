@@ -1,4 +1,4 @@
-import { getPianoKeyCollisions, type Fingertip } from "./collision";
+import { pointInPolygon, type Fingertip } from "./collision";
 import {
   getKnuckleBoundaryY,
   type DepthFinger,
@@ -28,11 +28,13 @@ export function checkKeyOverlap(
   whiteKeys: Point[][] | null,
   blackKeys: Point[][] | null = null,
 ) {
-  return whiteKeys
-    ? getPianoKeyCollisions([fingertip], whiteKeys, blackKeys ?? [], 8).map(
-        ({ keyIndex }) => keyIndex,
-      )
-    : [];
+  if (!whiteKeys || !Number.isFinite(fingertip.point.x) || !Number.isFinite(fingertip.point.y))
+    return [];
+  const containsTip = (key: Point[]) => pointInPolygon(fingertip.point, key);
+  const black = blackKeys?.findIndex(containsTip) ?? -1;
+  if (black >= 0) return [whiteKeys.length + black];
+  const white = whiteKeys.findIndex(containsTip);
+  return white >= 0 ? [white] : [];
 }
 
 export function checkKnuckleEligibility({

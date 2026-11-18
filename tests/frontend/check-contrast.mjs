@@ -51,6 +51,8 @@ const checks = [
   { name: "Focus ring on pressed well", foreground: "focus", background: "well", minimum: 3 },
   { name: "Focus ring on its white gap", foreground: "focus", background: "white", minimum: 3 },
   { name: "Focus ring gap on dark camera", foreground: "white", background: "surface-dark", minimum: 3 },
+  { name: "Key-tip target edges on inactive keys", foreground: "ink", background: "white", minimum: 3 },
+  { name: "Key-tip target edge on active black key", foreground: "white", background: "info", minimum: 3 },
 ];
 
 for (const token of checks.flatMap(({ foreground, background }) => [foreground, background])) {

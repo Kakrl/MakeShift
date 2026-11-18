@@ -1,7 +1,5 @@
 import {
   FINGERTIP_LANDMARK_INDICES,
-  classifyKeyRegion,
-  pointInPolygon,
   type Fingertip,
   type HandObservation,
 } from "./collision";
@@ -48,8 +46,8 @@ export interface ContactTechniques {
 // Change these independently to debug either technique. Key overlap is required.
 // Both false isolates key overlap for debugging, without knuckles or shadows.
 export const CONTACT_TECHNIQUES: Readonly<ContactTechniques> = {
-  knuckles: false,
-  shadows: false,
+  knuckles: true,
+  shadows: true,
   zMotion: false,
 };
 
@@ -57,6 +55,7 @@ export interface ContactPipelineFrame {
   video: HTMLVideoElement | null;
   fingertips: readonly Fingertip[];
   hands: readonly HandObservation[];
+  /** Projected contact targets in pitch order, white keys followed by black. */
   whiteKeys: Point[][] | null;
   blackKeys?: Point[][] | null;
   calibration: PersistedDepthCalibration | null;
@@ -71,6 +70,7 @@ interface PipelineCallbacks {
     contact: ShadowContactEvaluation,
   ) => void;
   onError: (message: string) => void;
+  onShadowFrameProcessed?: () => void;
 }
 
 /** Owns live eligibility, shadow work/history, and press/release timing. */
@@ -242,10 +242,6 @@ export class LiveContactPipeline {
         frame.whiteKeys,
         frame.blackKeys ?? null,
       );
-      
-      const containedKeyIndexes = (frame.whiteKeys ?? []).flatMap((key, keyIndex) =>
-        pointInPolygon(fingertip.point, key) ? [keyIndex] : [],
-      );
       const keyOverlap = keyIndexes.length > 0;
 
       // 2. Do the knuckles place this finger in the playing zone?
@@ -272,13 +268,8 @@ export class LiveContactPipeline {
         keysChanged ||
         previousGate?.available !== available ||
         previousGate?.knuckleEligible !== knuckleEligible;
-      const preserveActiveContact = Boolean(
-        sameSource &&
-          previousGate &&
-          this.contacts.get(fingertip.id)?.active &&
-          previousGate.available === available &&
-          previousGate.knuckleEligible === knuckleEligible,
-      );
+      const preserveActiveContact =
+        sameSource && available && this.contacts.get(fingertip.id)?.active;
 
       let zMotionPredicted = false;
       const fingertipZ = hand.landmarks[fingertip.landmarkIndex]?.z;
@@ -332,7 +323,6 @@ export class LiveContactPipeline {
       const gate: FingerContactGate = {
         available,
         keyIndexes,
-        containedKeyIndexes,
         knuckleEligible,
         sourceIdentity,
         revision: gateChanged ? ++this.revision : previousGate!.revision,
@@ -352,18 +342,6 @@ export class LiveContactPipeline {
 
       this.gates.set(fingertip.id, gate);
       if (gateChanged && !preserveActiveContact) finger.reset();
-      if (
-        preserveActiveContact &&
-        finger.keyIndex !== null &&
-        frame.whiteKeys
-      ) {
-        const nextKeyIndex = frame.whiteKeys.findIndex(
-          (key, keyIndex) =>
-            keyIndex !== finger.keyIndex &&
-            classifyKeyRegion(fingertip.point, key) === "interior",
-        );
-        if (nextKeyIndex >= 0) finger.keyIndex = nextKeyIndex;
-      }
       const contact = finger.checkState(
         gate,
         now,
@@ -527,6 +505,7 @@ export class LiveContactPipeline {
     }
     // Audio/contact callbacks run before preview drawing or diagnostic updates.
     this.callbacks.onContactsChanged(true);
+    this.callbacks.onShadowFrameProcessed?.();
     for (const { id, observation } of accepted) {
       if (id === this.previewFingerId && observation.mask) {
         this.callbacks.onShadowPreview(

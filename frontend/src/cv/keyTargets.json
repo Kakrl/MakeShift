@@ -1,0 +1,4 @@
+{
+  "white": { "sizeMm": 16, "tipInsetMm": 2 },
+  "black": { "sizeMm": 10, "tipInsetMm": 2 }
+}

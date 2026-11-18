@@ -2966,3 +2966,28 @@ passed deployment, keyboard-layout and audio checks on the local production
 server. At 320px, both links displayed the download label before activation,
 served the expected ZIP and left the page open. Both archived PDFs matched
 the checked-in originals by SHA-256. The database was unconfigured.
+
+## Key-tip contact verification (issue #278)
+
+Local Windows checks on 2026-11-17 cover synthetic square dimensions and
+angled projection for every white and black target across one to three
+octaves. Mocked landmarks exercise center hits, gap and black-body rejection,
+edge jitter, sustained exits, fresh evidence on target changes, chords and
+black-key pitch dispatch. State and worker tests also reject predicted or stale
+shadow onsets after a target exit. The recording suite uses simulated contact
+evidence to check the audio and MIDI paths.
+
+Both regenerated Letter PDFs were rendered and visually inspected. Eight
+optional PDF tests passed, including byte-identical generation, ZIP contents,
+actual-size target borders, ArUco orientation and quiet zones, and rasterized
+seam overlap. All 33 Python tests passed. Node 22.20.0 passed lint, TypeScript,
+913 Vitest cases (one existing skip), all 39 contrast pairs and production
+build. Chromium 151.0.7922.34 passed deployment, keyboard layout and audio
+checks. A synthetic marker-only starter clip completed in both replay modes
+with marker acquisition and zero transitions. It contained no hands and
+submitted no shadow samples.
+
+Physical printing, camera alignment,
+paired false/missed/wrong-note counts and onset timing remain pending. The
+[paired verification procedure](../docs/cv_video_tests.md#compare-key-tip-squares-with-full-keys)
+records the required conditions and measurement limits.

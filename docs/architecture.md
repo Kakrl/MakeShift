@@ -92,6 +92,12 @@ priority, and chromatic pitch mapping use the existing browser event path;
 automated and physical verification remain pending (see
 [the black-key plan](black_keys_plan.md)).
 
+In live play (#278), full key outlines orient the player. The overlay and
+contact pipeline share the projected white and black tip targets. Target
+containment gates new presses and rejects stale shadow results when the finger
+leaves or changes targets. The current owner tolerates brief excursions into
+the gap before release. A different target acquires its own contact evidence.
+
 Polygon overlap alone does not prove contact. #34 defines the calibrated model,
 finger/press identity, hover/press/hold/release transitions, velocity estimation,
 occlusion and same-key multi-finger behavior. Relative hand-landmark depth is not
