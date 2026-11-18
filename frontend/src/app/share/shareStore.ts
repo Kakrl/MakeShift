@@ -6,6 +6,7 @@ import type { Recording } from "../midi/midiUtils";
 import {
   RECORDING_LIST_PAGE_SIZE,
   recordingDurationMs,
+  recordingOctaves,
   validateUpload,
   type SharedRecording,
   type UploadRecordingResponse,
@@ -23,7 +24,7 @@ const mock = createMockShareStore();
 const current = () => (mockMode() ? mock : api);
 
 export const shareStore: ShareStore = {
-  list: (cursor) => current().list(cursor),
+  list: (cursor, query) => current().list(cursor, query),
   get: (id) => current().get(id),
   upload: (request) => current().upload(request),
   remove: (id, deleteToken) => current().remove(id, deleteToken),
@@ -89,6 +90,7 @@ export async function uploadTake(
     bpm: take.bpm,
     meter: restoreMeter(take.meter),
     notes: take.notes,
+    ...(take.pedals ? { pedals: take.pedals } : {}),
   });
   if (!checked.ok) throw new Error(checked.issues[0].message);
   const uploaded = await (mocked ? mock : api).upload(checked.value);
@@ -126,10 +128,12 @@ export function asSharedRecording(take: Recording): SharedRecording {
     authorName: "",
     bpm: take.bpm,
     meter: restoreMeter(take.meter),
-    durationMs: recordingDurationMs(take.notes),
+    durationMs: recordingDurationMs(take.notes, take.pedals),
     noteCount: take.notes.length,
+    octaves: recordingOctaves(take.notes),
     createdAt: take.createdAt,
     notes: take.notes,
+    ...(take.pedals ? { pedals: take.pedals } : {}),
   };
 }
 

@@ -109,7 +109,7 @@ describe("name filter feedback in the share forms (#280)", () => {
       error: null,
     };
     render(createElement(SongsDialog, { initialTab: "mine", mine, onClose: () => {} }));
-    fireEvent.click(screen.getByRole("button", { name: /Practice/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Practice/ }));
     fireEvent.click(screen.getByRole("button", { name: "Share" }));
     typeInto("Your name", "b!tch");
     fireEvent.click(screen.getByRole("button", { name: "Share" }));

@@ -19,6 +19,7 @@ vi.mock("../../frontend/src/app/audio/audioEngine", () => {
       noteOn: vi.fn(() => ({ session: 1, press: ++press })),
       noteOff: vi.fn(() => true),
       subscribeInvalidation: vi.fn(() => () => {}),
+      setVolume: vi.fn(),
     },
   };
 });

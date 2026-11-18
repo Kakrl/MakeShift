@@ -73,6 +73,15 @@ export default function Tutorial() {
         </div>
 
         <div className="overflow-y-auto overscroll-contain px-6 sm:px-8 pb-8">
+          <div className="ms-well mb-6 flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+            <p className="text-ink-muted text-[15px]">
+              Print the starter and any extensions at 100% / Actual size.
+            </p>
+            <a href="/piano-sheets.zip" download className="ms-key px-5">
+              Download piano sheets (ZIP)
+            </a>
+          </div>
+
           {/* Video placeholder */}
           <div className="w-full aspect-video bg-surface-dark rounded-[16px] flex items-center justify-center mb-8 shadow-(--ring)">
             <div className="flex flex-col items-center gap-3">
@@ -100,7 +109,7 @@ export default function Tutorial() {
 
           <section className="text-ink mb-6">
             <h2 className="text-xl">Use piano pedals</h2>
-            <p>While playing, toggle Sustain, Sostenuto or Soft, or select No pedals to clear all. Sostenuto holds only notes already pressed. Soft affects new strikes.</p>
+            <p>While playing, toggle Sustain, Sostenuto or Soft, or select No pedals to clear all. Sostenuto holds only notes already pressed. Soft affects new strikes. New recordings and MIDI exports include pedal changes. Pause and seek clear released tails and restart held notes.</p>
             <p>Open Pedal keys and hardware setup to assign an unmodified letter or digit. Program keyboard-style hardware for Hold (keydown on press, keyup on release) or Toggle (one tap per action). Release pedal keys after clear-all. Focus loss clears pedals. Printed key labels may differ by keyboard layout.</p>
             <p>Pedals affect live sound only; recordings and MIDI exports omit them. Hardware compatibility and physical latency require device testing.</p>
           </section>

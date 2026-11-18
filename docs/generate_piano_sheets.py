@@ -5,6 +5,7 @@ Coordinates below are millimeters, measured from the page's top left.
 """
 
 from pathlib import Path
+from zipfile import ZipFile, ZipInfo
 
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
@@ -134,8 +135,15 @@ def generate(destination, extension=False):
 
 def main():
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    generate(OUTPUT / "piano-sheet-starter.pdf")
-    generate(OUTPUT / "piano-sheet-extension.pdf", extension=True)
+    starter = OUTPUT / "piano-sheet-starter.pdf"
+    extension = OUTPUT / "piano-sheet-extension.pdf"
+    generate(starter)
+    generate(extension, extension=True)
+
+    archive = OUTPUT.parent / "frontend/public/piano-sheets.zip"
+    with ZipFile(archive, "w") as download:
+        for sheet in (starter, extension):
+            download.writestr(ZipInfo(sheet.name), sheet.read_bytes())
 
 
 if __name__ == "__main__":
