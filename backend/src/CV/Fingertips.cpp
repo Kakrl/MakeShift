@@ -6,7 +6,8 @@
 
 namespace makeshift::vision {
 FingertipEstimate identifyFingertipsFromMask(int w, int h, std::vector<uint8_t> mask) {
-    if (w < 1 || h < 1 || int64_t(w) * h > constants::maximumPixels || mask.size() != size_t(w) * h ||
+    if (w < 1 || h < 1 || int64_t(w) * h > constants::maximumPixels ||
+        mask.size() != size_t(w) * h ||
         std::any_of(mask.begin(), mask.end(), [](uint8_t value) { return value > 1; }))
         throw std::invalid_argument("Expected bounded binary finger mask");
     FingertipEstimate result{std::move(mask), {}};
@@ -40,7 +41,8 @@ FingertipEstimate identifyFingertipsFromMask(int w, int h, std::vector<uint8_t> 
                     queue[tail++] = j;
                 }
         }
-        if (tail >= constants::minimumComponentArea && bottom - top >= constants::minimumComponentHeight)
+        if (tail >= constants::minimumComponentArea &&
+            bottom - top >= constants::minimumComponentHeight)
             components.push_back({id, left, right, top, bottom});
     }
     std::vector<Fingertip> tips;
@@ -110,7 +112,8 @@ FingertipEstimate identifyFingertipsFromMask(int w, int h, std::vector<uint8_t> 
             while (right < rightValley && labels[row * w + right + 1] == c.id)
                 ++right;
             const int fingerWidth = right - left + 1;
-            if (prominence >= constants::minimumProminence && fingerWidth >= constants::minimumFingerWidth &&
+            if (prominence >= constants::minimumProminence &&
+                fingerWidth >= constants::minimumFingerWidth &&
                 fingerWidth <= constants::maximumFingerWidth)
                 proposals.push_back(
                     {0, center, tipY, c.id, fingerWidth, prominence, leftValley, rightValley});
@@ -120,8 +123,9 @@ FingertipEstimate identifyFingertipsFromMask(int w, int h, std::vector<uint8_t> 
         for (const auto &p : proposals) {
             const bool duplicate = std::any_of(tips.begin(), tips.end(), [&](auto t) {
                 return t.component == p.component &&
-                       std::abs(t.x - p.x) <
-                           std::max(double(constants::minimumTipSeparation), std::min(t.width, p.width) * constants::separationWidthFraction);
+                       std::abs(t.x - p.x) < std::max(double(constants::minimumTipSeparation),
+                                                      std::min(t.width, p.width) *
+                                                          constants::separationWidthFraction);
             });
             if (!duplicate)
                 tips.push_back(p);

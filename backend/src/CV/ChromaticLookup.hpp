@@ -8,5 +8,5 @@ namespace makeshift::vision {
 std::optional<int> chromaticKeyAt(const KeyboardGeometry &geometry, Point nativePoint);
 // Fixed press anchors supply stable pitches; multiple anchors on a key collapse to one.
 std::vector<int> pressedChromaticKeys(const KeyboardGeometry &geometry,
-                                     const std::vector<Point> &anchors);
+                                      const std::vector<Point> &anchors);
 } // namespace makeshift::vision

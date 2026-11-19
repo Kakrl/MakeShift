@@ -8,7 +8,8 @@ namespace {
 using emscripten::val;
 val point(Point p) {
     auto out = val::object();
-    out.set("x", p.x); out.set("y", p.y);
+    out.set("x", p.x);
+    out.set("y", p.y);
     return out;
 }
 val polygon(const std::vector<cv::Point> &vertices) {
@@ -18,16 +19,19 @@ val polygon(const std::vector<cv::Point> &vertices) {
     return out;
 }
 const char *stateName(ContactState state) {
-    return state == ContactState::Pressed ? "pressed" :
-           state == ContactState::Released ? "released" : "unknown";
+    return state == ContactState::Pressed    ? "pressed"
+           : state == ContactState::Released ? "released"
+                                             : "unknown";
 }
 val scanResult(ReferenceScan scan) {
     auto out = val::object();
-    out.set("status", scan == ReferenceScan::Idle ? "idle" :
-                      scan == ReferenceScan::Captured ? "captured" : "blocked");
-    const char *reason = scan == ReferenceScan::BlockedMarkers ? "markers-missing-or-invalid" :
-                         scan == ReferenceScan::BlockedPresses ? "active-presses" :
-                         scan == ReferenceScan::BlockedFingertips ? "fingertips-in-piano" : nullptr;
+    out.set("status", scan == ReferenceScan::Idle       ? "idle"
+                      : scan == ReferenceScan::Captured ? "captured"
+                                                        : "blocked");
+    const char *reason = scan == ReferenceScan::BlockedMarkers      ? "markers-missing-or-invalid"
+                         : scan == ReferenceScan::BlockedPresses    ? "active-presses"
+                         : scan == ReferenceScan::BlockedFingertips ? "fingertips-in-piano"
+                                                                    : nullptr;
     out.set("reason", reason ? val(reason) : val::null());
     return out;
 }
@@ -38,21 +42,27 @@ template <typename T> val copyPlane(const std::vector<T> &plane, const char *typ
 class VisionBinding {
   public:
     void setReference() { model_.setReference(); }
-    void reset() { model_.reset(); last_ = {}; }
+    void reset() {
+        model_.reset();
+        last_ = {};
+    }
     val processFrame(val rgba, int width, int height, int octaves) {
         try {
             // JS validates types/length before this call. Retain capacity across frames.
-            if (width < 1 || height < 1 || width > constants::maximumWasmFrameSide || height > constants::maximumWasmFrameSide ||
-                octaves < 1 || octaves > 3)
+            if (width < 1 || height < 1 || width > constants::maximumWasmFrameSide ||
+                height > constants::maximumWasmFrameSide || octaves < 1 || octaves > 3)
                 throw std::invalid_argument("Invalid frame dimensions or octave count");
             input_.resize(size_t(width) * height * 4);
-            val(emscripten::typed_memory_view(input_.size(), input_.data())).call<void>("set", rgba);
+            val(emscripten::typed_memory_view(input_.size(), input_.data()))
+                .call<void>("set", rgba);
             const cv::Mat frame(height, width, CV_8UC4, input_.data());
             last_ = model_.processFrame(frame, octaves);
             if (last_.detection.referenceRevision > 9007199254740991ULL)
-                throw std::overflow_error("Reference revision exceeds JavaScript safe integer range");
+                throw std::overflow_error(
+                    "Reference revision exceeds JavaScript safe integer range");
             auto out = val::object();
-            out.set("width", width); out.set("height", height);
+            out.set("width", width);
+            out.set("height", height);
             out.set("referenceReady", last_.referenceReady);
             out.set("referenceRevision", double(last_.detection.referenceRevision));
             out.set("homographyReady", last_.homographyReady);
@@ -87,35 +97,47 @@ class VisionBinding {
             if (model_.geometry()) {
                 const auto &g = *model_.geometry();
                 auto geometry = val::object();
-                auto h = val::array(), inverse = val::array(), centers = val::array(), keys = val::array();
+                auto h = val::array(), inverse = val::array(), centers = val::array(),
+                     keys = val::array();
                 const auto inv = *invertHomography(g.frameToSheet);
-                for (size_t i = 0; i < 9; ++i) { h.set(i, g.frameToSheet[i]); inverse.set(i, inv[i]); }
-                for (size_t i = 0; i < 4; ++i) centers.set(i, point(g.markerCenters[i]));
+                for (size_t i = 0; i < 9; ++i) {
+                    h.set(i, g.frameToSheet[i]);
+                    inverse.set(i, inv[i]);
+                }
+                for (size_t i = 0; i < 4; ++i)
+                    centers.set(i, point(g.markerCenters[i]));
                 const auto polygons = g.polygons(1, 1);
-                for (size_t i = 0; i < polygons.size(); ++i) keys.set(i, polygon(polygons[i]));
+                for (size_t i = 0; i < polygons.size(); ++i)
+                    keys.set(i, polygon(polygons[i]));
                 const auto &first = polygons.front(), &last = polygons.back();
-                geometry.set("frameToSheet", h); geometry.set("sheetToFrame", inverse);
-                geometry.set("markerCenters", centers); geometry.set("whiteKeyPolygons", keys);
+                geometry.set("frameToSheet", h);
+                geometry.set("sheetToFrame", inverse);
+                geometry.set("markerCenters", centers);
+                geometry.set("whiteKeyPolygons", keys);
                 geometry.set("keyboardOutline", polygon({first[0], last[1], last[2], first[3]}));
                 out.set("geometry", geometry);
             }
             return out;
         } catch (const std::exception &error) {
-            auto failure = val::object(); failure.set("error", std::string(error.what()));
+            auto failure = val::object();
+            failure.set("error", std::string(error.what()));
             return failure;
         }
     }
     val diagnostics() const {
-        if (!last_.detection.ready) return val::null();
+        if (!last_.detection.ready)
+            return val::null();
         const auto &d = last_.detection.shadows;
         auto out = val::object();
-        out.set("width", d.width); out.set("height", d.height);
+        out.set("width", d.width);
+        out.set("height", d.height);
         out.set("fingerMask", copyPlane(last_.detection.fingerMask, "Uint8Array"));
         out.set("valid", copyPlane(d.valid, "Uint8Array"));
         out.set("rawDrop", copyPlane(d.rawDrop, "Float32Array"));
         out.set("score", copyPlane(d.score, "Float32Array"));
         return out;
     }
+
   private:
     Vision model_;
     VisionFrameResult last_;

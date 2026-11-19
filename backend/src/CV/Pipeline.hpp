@@ -11,7 +11,8 @@ struct FrameResult {
     std::vector<uint8_t> fingerMask;
     ShadowMeasurements shadows;
     std::vector<Contact> contacts;
-    std::vector<Point> pressedAnchors; // Fixed native-camera points, not current fingertip positions.
+    std::vector<Point>
+        pressedAnchors; // Fixed native-camera points, not current fingertip positions.
 };
 // Owns reference, geometry and fixed press anchors. No capture, windows, or audio.
 class Pipeline {
@@ -23,6 +24,7 @@ class Pipeline {
     const std::optional<KeyboardGeometry> &geometry() const { return geometry_; }
     bool ready() const { return !reference_.empty(); }
     uint64_t referenceRevision() const { return revision_; }
+
   private:
     bool alreadyPressed(Point nativePoint);
     std::vector<Point> prevPressed_, nextPressed_;

@@ -39,8 +39,7 @@ std::vector<uint8_t> refineFingerMask(const cv::Mat &current, const FingertipEst
             --left;
         while (right < w - 1 && right - tip.x < tip.width && mask[top * w + right + 1])
             ++right;
-        if (left == 0 || right == w - 1 || mask[top * w + left - 1] ||
-            mask[top * w + right + 1])
+        if (left == 0 || right == w - 1 || mask[top * w + left - 1] || mask[top * w + right + 1])
             continue;
         // Same connected distal lower/side arc geometry as ShadowPaths; no DFS
         // or shadow classification is needed to recover the boundary itself.
@@ -55,8 +54,9 @@ std::vector<uint8_t> refineFingerMask(const cv::Mat &current, const FingertipEst
             for (int dy = -1; dy <= 1; ++dy)
                 for (int dx = -1; dx <= 1; ++dx) {
                     const int nx = x + dx, ny = y + dy, i = ny * w + nx;
-                    if (nx >= left && nx <= right && ny >= top && ny <= tip.y + constants::distalExtension && ny < h &&
-                        mask[i] && interior.insert(i).second)
+                    if (nx >= left && nx <= right && ny >= top &&
+                        ny <= tip.y + constants::distalExtension && ny < h && mask[i] &&
+                        interior.insert(i).second)
                         pending.push_back(i);
                 }
         }
@@ -112,13 +112,13 @@ std::vector<uint8_t> seedFingers(const cv::Mat &current, const cv::Mat &referenc
         for (int x = 0; x < current.cols; ++x) {
             const auto c = current.at<cv::Vec4b>(y, x), r = reference.at<cv::Vec4b>(y, x);
             const int i = y * current.cols + x;
-            mask[i] = rgbDropsAreFinger(std::max(int(r[0]) - c[0], 0),
-                                        std::max(int(r[1]) - c[1], 0),
-                                        std::max(int(r[2]) - c[2], 0));
+            mask[i] =
+                rgbDropsAreFinger(std::max(int(r[0]) - c[0], 0), std::max(int(r[1]) - c[1], 0),
+                                  std::max(int(r[2]) - c[2], 0));
             if (black[i])
-                mask[i] |= rgbDropsAreFinger(std::max(int(c[0]) - r[0], 0),
-                                             std::max(int(c[1]) - r[1], 0),
-                                             std::max(int(c[2]) - r[2], 0));
+                mask[i] |=
+                    rgbDropsAreFinger(std::max(int(c[0]) - r[0], 0), std::max(int(c[1]) - r[1], 0),
+                                      std::max(int(c[2]) - r[2], 0));
         }
     }
     return mask;

@@ -24,6 +24,7 @@ class Vision {
     VisionFrameResult processFrame(const cv::Mat &nativeRgba, int octaves);
     const std::optional<KeyboardGeometry> &geometry() const { return pipeline_.geometry(); }
     bool ready() const { return pipeline_.ready(); }
+
   private:
     Pipeline pipeline_;
     Clock clock_;

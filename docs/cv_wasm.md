@@ -92,6 +92,10 @@ The full reference/retention semantics are in the
 
 ## Verify
 
+Use clang-format 17 for C++ formatting, matching the lint workflow. That workflow
+checks all C++ files under `backend/src/`, including the WASM bindings. Rebuild
+the handoff bundle after formatting CV sources so its source hashes stay current.
+
 Build the native oracle through the existing native viewer build:
 
 ```sh

@@ -11,5 +11,5 @@ struct ShadowMeasurements {
 };
 void validateImages(const cv::Mat &current, const cv::Mat &reference);
 ShadowMeasurements measureShadows(const cv::Mat &current, const cv::Mat &reference,
-                                   const std::vector<uint8_t> &blackRegion);
+                                  const std::vector<uint8_t> &blackRegion);
 } // namespace makeshift::vision

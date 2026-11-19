@@ -7,7 +7,10 @@
 
 namespace makeshift::vision {
 namespace {
-double markerSpan(int octaves) { return (constants::whiteKeysPerOctave * octaves + 1) * constants::whitePitchMm - 2 * (constants::markerInsetMm); }
+double markerSpan(int octaves) {
+    return (constants::whiteKeysPerOctave * octaves + 1) * constants::whitePitchMm -
+           2 * (constants::markerInsetMm);
+}
 double leftEdge(int octaves) { return -(constants::markerInsetMm) / markerSpan(octaves); }
 } // namespace
 bool KeyboardGeometry::withinHomography(Point point) const {
@@ -19,16 +22,19 @@ bool KeyboardGeometry::withinHomography(Point point) const {
 bool KeyboardGeometry::withinPressRange(Point point, Point anchor) const {
     const auto p = projectPoint(frameToSheet, point);
     const auto a = projectPoint(frameToSheet, anchor);
-    if (!p || !a) return false;
+    if (!p || !a)
+        return false;
     const double dx = (p->x - a->x) * markerSpan(octaves);
-    const double dy = (p->y - a->y) * constants::whiteLengthMm /
-                      (constants::keyBottom - constants::keyTop);
+    const double dy =
+        (p->y - a->y) * constants::whiteLengthMm / (constants::keyBottom - constants::keyTop);
     return std::hypot(dx, dy) <= constants::pressMatchRadiusMm;
 }
-std::vector<cv::Point> KeyboardGeometry::pressRangeOutline(Point anchor, double sx, double sy) const {
+std::vector<cv::Point> KeyboardGeometry::pressRangeOutline(Point anchor, double sx,
+                                                           double sy) const {
     const auto center = projectPoint(frameToSheet, anchor);
     const auto inverse = invertHomography(frameToSheet);
-    if (!center || !inverse) return {};
+    if (!center || !inverse)
+        return {};
     std::vector<cv::Point> outline;
     outline.reserve(constants::pressRangeSegments);
     for (int i = 0; i < constants::pressRangeSegments; ++i) {
@@ -36,10 +42,11 @@ std::vector<cv::Point> KeyboardGeometry::pressRangeOutline(Point anchor, double 
         const Point sheet{
             center->x + constants::pressMatchRadiusMm * std::cos(angle) / markerSpan(octaves),
             center->y + constants::pressMatchRadiusMm * std::sin(angle) *
-                        (constants::keyBottom - constants::keyTop) / constants::whiteLengthMm};
+                            (constants::keyBottom - constants::keyTop) / constants::whiteLengthMm};
         const auto p = projectPoint(*inverse, sheet);
         if (!p || !std::isfinite(p->x * sx) || !std::isfinite(p->y * sy) ||
-            std::abs(p->x * sx) > 100000 || std::abs(p->y * sy) > 100000) return {};
+            std::abs(p->x * sx) > 100000 || std::abs(p->y * sy) > 100000)
+            return {};
         outline.emplace_back(cvRound(p->x * sx), cvRound(p->y * sy));
     }
     return outline;
@@ -64,8 +71,10 @@ std::vector<std::vector<cv::Point>> KeyboardGeometry::polygons(double sx, double
         const double left = leftEdge(octaves) + i * constants::whitePitchMm / markerSpan(octaves);
         const double right = left + constants::whitePitchMm / markerSpan(octaves);
         std::vector<cv::Point> polygon;
-        for (const auto point :
-             std::array<Point, 4>{{{left, constants::keyTop}, {right, constants::keyTop}, {right, constants::keyBottom}, {left, constants::keyBottom}}}) {
+        for (const auto point : std::array<Point, 4>{{{left, constants::keyTop},
+                                                      {right, constants::keyTop},
+                                                      {right, constants::keyBottom},
+                                                      {left, constants::keyBottom}}}) {
             const auto projected = projectPoint(*inverse, point);
             if (!projected || std::abs(projected->x * sx) > 100000 ||
                 std::abs(projected->y * sy) > 100000)
@@ -80,7 +89,7 @@ std::vector<std::vector<cv::Point>> KeyboardGeometry::polygons(double sx, double
 
 namespace makeshift::vision {
 std::vector<uint8_t> projectBlackKeys(const KeyboardGeometry &g, cv::Size native,
-                                     cv::Size analysis) {
+                                      cv::Size analysis) {
     if (native.width < 1 || native.height < 1 || analysis.width < 1 || analysis.height < 1 ||
         analysis.width > constants::analysisSide || analysis.height > constants::analysisSide ||
         g.octaves < constants::minimumOctaves || g.octaves > constants::maximumOctaves ||
@@ -90,16 +99,16 @@ std::vector<uint8_t> projectBlackKeys(const KeyboardGeometry &g, cv::Size native
     const double span = markerSpan(g.octaves);
     for (int y = 0; y < analysis.height; ++y) {
         for (int x = 0; x < analysis.width; ++x) {
-            const auto p = projectPoint(g.frameToSheet,
-                {(x + 0.5) * native.width / analysis.width - 0.5,
-                 (y + 0.5) * native.height / analysis.height - 0.5});
+            const auto p =
+                projectPoint(g.frameToSheet, {(x + 0.5) * native.width / analysis.width - 0.5,
+                                              (y + 0.5) * native.height / analysis.height - 0.5});
             if (!p || p->y < constants::keyTop || p->y > constants::blackBottom)
                 continue;
             const double mm = p->x * span + constants::markerInsetMm;
             for (int octave = 0; octave < g.octaves; ++octave)
                 for (int boundary : constants::blackBoundaries)
                     if (std::abs(mm - (constants::whiteKeysPerOctave * octave + boundary) *
-                                     constants::whitePitchMm) <= constants::blackWidthMm / 2)
+                                          constants::whitePitchMm) <= constants::blackWidthMm / 2)
                         black[y * analysis.width + x] = 1;
         }
     }

@@ -2,12 +2,13 @@
 #include "Constants.hpp"
 #include <algorithm>
 #include <cmath>
-#include <stdexcept>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/objdetect/aruco_detector.hpp>
+#include <stdexcept>
 namespace makeshift::vision {
 std::optional<KeyboardGeometry> detectKeyboard(const cv::Mat &image, int octaves) {
-    if (octaves < constants::minimumOctaves || octaves > constants::maximumOctaves || image.empty() || image.type() != CV_8UC3)
+    if (octaves < constants::minimumOctaves || octaves > constants::maximumOctaves ||
+        image.empty() || image.type() != CV_8UC3)
         throw std::invalid_argument("Expected BGR frame and 1..3 paper octaves");
     const auto dictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
     cv::aruco::DetectorParameters parameters;
@@ -37,7 +38,8 @@ std::optional<KeyboardGeometry> detectKeyboard(const cv::Mat &image, int octaves
     std::vector<cv::Point2f> outline;
     for (const auto p : centers)
         outline.emplace_back(p.x, p.y);
-    if (!cv::isContourConvex(outline) || std::abs(cv::contourArea(outline)) < constants::minimumMarkerArea)
+    if (!cv::isContourConvex(outline) ||
+        std::abs(cv::contourArea(outline)) < constants::minimumMarkerArea)
         return std::nullopt;
     const std::array<Point, 4> square{{{0, 0}, {1, 0}, {1, 1}, {0, 1}}};
     const auto transform = computeHomography(centers, square);
@@ -48,4 +50,4 @@ std::optional<KeyboardGeometry> detectKeyboard(const cv::Mat &image, int octaves
         return std::nullopt;
     return keyboard;
 }
-}
+} // namespace makeshift::vision

@@ -10,8 +10,8 @@ void Pipeline::setReference(const cv::Mat &image, cv::Size native,
     validateImages(image, image);
     if (native.width < image.cols || native.height < image.rows)
         throw std::invalid_argument("Native frame cannot be smaller than analysis frame");
-    auto black = geometry ? projectBlackKeys(*geometry, native, image.size()) :
-                            std::vector<uint8_t>(image.total());
+    auto black = geometry ? projectBlackKeys(*geometry, native, image.size())
+                          : std::vector<uint8_t>(image.total());
     auto reference = image.clone();
     reference_ = std::move(reference);
     nativeSize_ = native;
@@ -34,7 +34,7 @@ bool Pipeline::alreadyPressed(Point point) {
     for (auto it = prevPressed_.begin(); it != prevPressed_.end(); ++it) {
         if (geometry_->withinPressRange(point, *it)) {
             nextPressed_.push_back(*it); // Keep the original anchor, never the new tip.
-            prevPressed_.erase(it);     // This anchor can match only once this frame.
+            prevPressed_.erase(it);      // This anchor can match only once this frame.
             return true;
         }
     }
@@ -43,9 +43,11 @@ bool Pipeline::alreadyPressed(Point point) {
 FrameResult Pipeline::processFrame(const cv::Mat &current, cv::Size native) {
     FrameResult result;
     // A changed camera/frame invalidates reference and geometry together.
-    if (ready() && (current.size() != reference_.size() || native != nativeSize_)) reset();
+    if (ready() && (current.size() != reference_.size() || native != nativeSize_))
+        reset();
     result.referenceRevision = revision_;
-    if (!ready()) return result;
+    if (!ready())
+        return result;
     validateImages(current, reference_);
 
     // 1. RGB seeds, including localized brightening recovery over black ink.
@@ -55,14 +57,15 @@ FrameResult Pipeline::processFrame(const cv::Mat &current, cv::Size native) {
     // 2. Refine only tips inside the calibrated keyboard. Keep the full seed mask
     // so outside fingers remain occluders; never crop a finger at the boundary.
     initial.candidates.erase(
-        std::remove_if(initial.candidates.begin(), initial.candidates.end(), [&](const auto &tip) {
-            const Point nativeTip{double(tip.x) * native.width / current.cols,
-                                  double(tip.y) * native.height / current.rows};
-            return !geometry_ || !geometry_->withinHomography(nativeTip);
-        }),
+        std::remove_if(initial.candidates.begin(), initial.candidates.end(),
+                       [&](const auto &tip) {
+                           const Point nativeTip{double(tip.x) * native.width / current.cols,
+                                                 double(tip.y) * native.height / current.rows};
+                           return !geometry_ || !geometry_->withinHomography(nativeTip);
+                       }),
         initial.candidates.end());
-    auto grown = initial.candidates.empty() ? std::move(initial.mask) :
-                                             refineFingerMask(current, initial);
+    auto grown =
+        initial.candidates.empty() ? std::move(initial.mask) : refineFingerMask(current, initial);
     auto fingers = identifyFingertipsFromMask(current.cols, current.rows, std::move(grown));
 
     // 3. Measure raw drops and effective white/black shadow scores.
@@ -77,7 +80,8 @@ FrameResult Pipeline::processFrame(const cv::Mat &current, cv::Size native) {
         result.contacts.push_back({tip, ContactState::Released});
         const Point nativeTip{double(tip.x) * native.width / current.cols,
                               double(tip.y) * native.height / current.rows};
-        if (!geometry_ || !geometry_->withinHomography(nativeTip)) continue;
+        if (!geometry_ || !geometry_->withinHomography(nativeTip))
+            continue;
         if (alreadyPressed(nativeTip)) {
             result.contacts.back().state = ContactState::Pressed;
         } else {

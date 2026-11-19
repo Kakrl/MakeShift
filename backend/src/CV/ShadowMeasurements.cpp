@@ -11,7 +11,7 @@ void validateImages(const cv::Mat &current, const cv::Mat &reference) {
         throw std::invalid_argument("Expected matching RGBA analysis images, at most 640 per side");
 }
 ShadowMeasurements measureShadows(const cv::Mat &current, const cv::Mat &reference,
-                                   const std::vector<uint8_t> &black) {
+                                  const std::vector<uint8_t> &black) {
     validateImages(current, reference);
     if (black.size() != current.total())
         throw std::invalid_argument("Black-key mask size mismatch");
@@ -28,12 +28,13 @@ ShadowMeasurements measureShadows(const cv::Mat &current, const cv::Mat &referen
             const auto luma = [&](const cv::Vec4b &p) {
                 // Preserve the selected native arithmetic: white encoded luma,
                 // integer-weight black luma for exact low-reference equalities.
-                return black[i] ? (2126 * p[0] + 7152 * p[1] + 722 * p[2]) / 10000.0 :
-                                  0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2];
+                return black[i] ? (2126 * p[0] + 7152 * p[1] + 722 * p[2]) / 10000.0
+                                : 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2];
             };
             const double yr = luma(r), raw = yr - luma(c);
             out.rawDrop[i] = float(raw);
-            out.valid[i] = c[3] && r[3] &&
+            out.valid[i] =
+                c[3] && r[3] &&
                 yr >= (black[i] ? constants::blackReferenceFloor : constants::whiteReferenceFloor);
             if (!out.valid[i])
                 continue;

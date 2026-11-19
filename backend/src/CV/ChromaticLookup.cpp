@@ -22,8 +22,8 @@ std::optional<int> chromaticKeyAt(const KeyboardGeometry &geometry, Point native
     if (sheet->y <= constants::blackBottom) {
         for (int octave = 0; octave < octaves; ++octave) {
             for (size_t key = 0; key < constants::blackBoundaries.size(); ++key) {
-                const double center = (7 * octave + constants::blackBoundaries[key]) *
-                                      constants::whitePitchMm;
+                const double center =
+                    (7 * octave + constants::blackBoundaries[key]) * constants::whitePitchMm;
                 if (std::abs(xMm - center) <= constants::blackWidthMm / 2)
                     return 12 * octave + blackOffsets[key];
             }
@@ -36,7 +36,7 @@ std::optional<int> chromaticKeyAt(const KeyboardGeometry &geometry, Point native
 }
 
 std::vector<int> pressedChromaticKeys(const KeyboardGeometry &geometry,
-                                     const std::vector<Point> &anchors) {
+                                      const std::vector<Point> &anchors) {
     std::vector<int> keys;
     keys.reserve(anchors.size());
     for (const auto anchor : anchors) {

@@ -1,15 +1,17 @@
-#include "ContactGeometry.hpp"
 #include "Constants.hpp"
+#include "ContactGeometry.hpp"
 #include <algorithm>
 #include <cmath>
 #include <map>
 namespace makeshift::vision {
 bool lightContact(const ShadowMeasurements &d, const std::vector<uint8_t> &mask,
                   const Fingertip &tip, const ContactGeometry &geometry) {
-    if (!geometry.complete || geometry.arc.empty()) return false;
+    if (!geometry.complete || geometry.arc.empty())
+        return false;
     std::vector<Pixel> front;
-    const int minimumArea = std::max(constants::minimumBlobArea,
-        int(std::ceil(tip.width * tip.width * constants::blobAreaFraction)));
+    const int minimumArea =
+        std::max(constants::minimumBlobArea,
+                 int(std::ceil(tip.width * tip.width * constants::blobAreaFraction)));
     // Lowest point in each column of the existing distal arc. This preserves
     // the baseline's downward-facing fingertip convention and frozen mask.
     std::map<int, int> bottom;
@@ -24,13 +26,15 @@ bool lightContact(const ShadowMeasurements &d, const std::vector<uint8_t> &mask,
     enum class State { Unknown, Clear, Shadow };
     const auto state = [&](int x, int y) {
         if (x < 0 || x >= w || y < 0 || y >= h || mask[y * w + x] || !d.valid[y * w + x] ||
-            !std::isfinite(d.score[y * w + x])) return State::Unknown;
+            !std::isfinite(d.score[y * w + x]))
+            return State::Unknown;
         return d.score[y * w + x] > constants::clearFloor ? State::Shadow : State::Clear;
     };
     const int lowX = std::max(0, bottom.begin()->first - tip.width / 2);
     const int highX = std::min(w - 1, bottom.rbegin()->first + tip.width / 2);
     const int lowY = std::max(0, tip.y - tip.width);
-    const int highY = std::min(h - 1, tip.y + std::max(constants::lightForwardExtent, tip.width / 2));
+    const int highY =
+        std::min(h - 1, tip.y + std::max(constants::lightForwardExtent, tip.width / 2));
     // Local connected components are bounded to this fingertip's neighborhood.
     // Unavailable samples are barriers, never evidence of clear paper.
     std::map<int, int> labels;
@@ -54,7 +58,8 @@ bool lightContact(const ShadowMeasurements &d, const std::vector<uint8_t> &mask,
             blobs.push_back(std::move(blob));
         }
     const auto support = [&](int edgeX, int direction) -> bool {
-        const int reach = std::max(constants::minimumLightReach, int(std::ceil(tip.width * constants::sideReachFraction)));
+        const int reach = std::max(constants::minimumLightReach,
+                                   int(std::ceil(tip.width * constants::sideReachFraction)));
         for (int step = 0; step <= reach; ++step) {
             const int x = edgeX + direction * step;
             const auto column = bottom.find(x);
@@ -97,7 +102,8 @@ bool lightContact(const ShadowMeasurements &d, const std::vector<uint8_t> &mask,
         if (int(end - start) >= constants::minimumFrontStrip) {
             const bool left = support(front[start].x - 1, -1);
             const bool right = support(front[end - 1].x + 1, 1);
-            if (left && right) return true;
+            if (left && right)
+                return true;
         }
         start = end > start ? end : start + 1;
     }

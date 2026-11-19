@@ -12,7 +12,7 @@ struct Contact {
 };
 // One combined decision path. Frame-local candidates do not establish press identity.
 std::vector<Contact> detectContacts(const ShadowMeasurements &shadows,
-                                     const FingertipEstimate &fingers,
-                                     const std::optional<KeyboardGeometry> &geometry,
-                                     cv::Size nativeSize);
+                                    const FingertipEstimate &fingers,
+                                    const std::optional<KeyboardGeometry> &geometry,
+                                    cv::Size nativeSize);
 } // namespace makeshift::vision

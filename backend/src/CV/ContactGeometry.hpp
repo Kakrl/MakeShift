@@ -6,13 +6,15 @@
 #include <vector>
 
 namespace makeshift::vision {
-struct Pixel { int x = 0, y = 0; };
+struct Pixel {
+    int x = 0, y = 0;
+};
 struct ContactGeometry {
     bool complete = false, unavailable = false;
     std::vector<Pixel> arc;
 };
 ContactGeometry distalGeometry(const ShadowMeasurements &measurements,
-                                const std::vector<uint8_t> &mask, const Fingertip &tip);
+                               const std::vector<uint8_t> &mask, const Fingertip &tip);
 std::optional<bool> darkContact(const ShadowMeasurements &measurements,
                                 const std::vector<uint8_t> &mask, const Fingertip &tip,
                                 const ContactGeometry &geometry);
