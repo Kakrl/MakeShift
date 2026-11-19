@@ -30,6 +30,9 @@ inline constexpr int shaftHeight = 8, medianRadius = 2, maximumCandidates = 20;
 inline constexpr double minimumProminence = 2, separationWidthFraction = 0.85;
 inline constexpr double whiteReferenceFloor = 40, blackReferenceFloor = 5;
 inline constexpr double clearFloor = 5, cyanFloor = 20, greenFloor = 40, darkFloor = 60;
+inline constexpr double darkContactFloor = 85;
+// Temporary local experiment: restore true to enable dark-shadow contact acceptance.
+inline constexpr bool darkShadowEnabled = true;
 inline constexpr std::array<double, 7> classCutoffs{5, 20, 40, 60, 70, 85, 95};
 inline constexpr int blackSideInset = 1;
 inline constexpr int crossSectionHeight = 4, supportExtension = 4, forwardVeto = 2;

@@ -23,7 +23,11 @@ sh backend/run_shadow_camera.sh --camera=0 --octaves=1
 ```
 
 The left panel shows the live frame and accepted/released/unknown tip circles;
-the right panel shows the shadow classes from the same pipeline result. Each
+pressed keys have a translucent red fill on the live frame, using the chromatic
+held-key snapshot (including retained presses). White and black keys are filled
+separately with black-key priority, including the final C for 1–3 octaves. The
+fill clears when the key releases or the reference resets. The right panel shows
+the shadow classes from the same pipeline result without key fills. Each
 active press anchor has a magenta cross and a magenta range outline in both
 panels. The outline is a circle on the paper projected through the homography,
 so it can appear elliptical/perspective-distorted on screen. Its **radius** is
@@ -36,6 +40,14 @@ current fingertip. The range setting is `pressMatchKeyFraction` in `Constants.hp
   checks obey automatic occupancy guards. Blocked checks keep the old reference
   and report the reason.
 - **R:** clear reference and geometry together.
+- **S:** save the currently displayed frame's raw full-resolution camera image
+  (`case_<timestamp>_frame.png`) and clean analysis-resolution shadow-class image
+  (`case_<timestamp>_shadows.png`) to `backend/src/CV/cases/`. Both images come
+  from the same processed frame; saved images omit viewer overlays. Capture a
+  reference first. The directory is created on demand, independent of the launch
+  directory, and existing captures are not overwritten. Save status appears in
+  the viewer and successful paths/errors are printed in the terminal. PNG writes
+  run synchronously on S for quick local inspection and may briefly pause capture.
 - **Q / Escape / close window:** exit and release the camera.
 
 Keep the camera, paper, and lighting fixed. Recapture after changes. B does not
@@ -43,7 +55,8 @@ prove that the frame is empty; marker motion is not automatically monitored.
 Camera dimensions or octave changes clear reference/geometry/anchors; request
 capture again after the change. Automatic checks run every 10 seconds after first
 capture. The viewer shows the piano key outlines and last reference-check status.
-The viewer does not play notes or write captures/reports.
+The viewer does not play notes or generate reports. Local case PNGs are ignored
+by Git.
 
 To run the automated checks after building:
 
@@ -120,6 +133,12 @@ browser session identities, starting MIDI pitch and audio remain integration wor
 
 ## Selected behavior
 
+Local experiment: dark-shadow contact acceptance is enabled with
+`darkContactFloor = 85` (strict score >85, red/dark-red bands). Heatmap
+boundaries and light/medium rules are unchanged. Set `darkShadowEnabled` to
+`false` to bypass the dark check. The shipped WASM bundle is unchanged until
+rebuilt.
+
 This implementation follows the preserved native **image-runner band rules**,
 including integrated black-key processing. It deliberately gives the camera the
 same decision rules. The former camera's absolute-luma gates, legacy mask
@@ -151,7 +170,8 @@ methods, trial selectors, report generators, and contour trial are absent.
    be inherited by another tip during this frame. Unmatched old anchors are
    discarded when `nextPressed` replaces `prevPressed`.
 5. For unmatched tips, dark contact uses
-   strict score >60, paired upward support/downward veto, support width at least
+   strict score >85 (`darkContactFloor`, red/dark-red heatmap bands), paired
+   upward support/downward veto, support width at least
    two, and same-seed cancellation. Light fallback requires two clear front
    rows across at least two columns plus substantial shadow on both sides.
    Mid fallback evaluates >40 and >20 side floors with the same thin front,

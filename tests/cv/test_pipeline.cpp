@@ -119,13 +119,13 @@ void contactRules() {
     require(darkContact(f.measure(), f.mask, f.tip, f.geometry) == false &&
             !lightContact(f.measure(), f.mask, f.tip, f.geometry) &&
             !midContact(f.measure(), f.mask, f.tip, f.geometry, 20), "Paper alone is not contact");
-    for (int drop : {60, 61}) {
+    for (int drop : {60, 61, 70, 71, 85, 86, 95, 96}) {
         f.frame = f.reference.clone();
         f.frame(cv::Rect(27, 32, 3, 9)).setTo(cv::Scalar(230 - drop, 230 - drop, 230 - drop, 255));
-        require(darkContact(f.measure(), f.mask, f.tip, f.geometry) == (drop > 60),
-                "Strict dark floor above sixty");
+        require(darkContact(f.measure(), f.mask, f.tip, f.geometry) == (drop > 85),
+                "Strict dark contact floor above eighty-five");
     }
-    f.frame(cv::Rect(27, 41, 3, 2)).setTo(cv::Scalar(160, 160, 160, 255));
+    f.frame(cv::Rect(27, 41, 3, 2)).setTo(cv::Scalar(130, 130, 130, 255));
     require(darkContact(f.measure(), f.mask, f.tip, f.geometry) == false,
             "Same-seed paired support/veto cannot accept");
     f.frame = f.reference.clone();

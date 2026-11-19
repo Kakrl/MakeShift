@@ -95,7 +95,7 @@ std::optional<bool> darkContact(const ShadowMeasurements &d, const std::vector<u
         const int i = y * w + x;
         if (mask[i]) return 0;
         if (!d.valid[i] || !std::isfinite(d.score[i])) return -1;
-        return int(d.score[i] > constants::darkFloor);
+        return int(d.score[i] > constants::darkContactFloor);
     };
     struct Search { bool reached = false, unknown = false; };
     const auto search = [&](int seed, int direction) {

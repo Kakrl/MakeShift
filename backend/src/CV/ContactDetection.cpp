@@ -15,7 +15,9 @@ std::vector<Contact> detectContacts(const ShadowMeasurements &shadows,
                               double(tip.y) * native.height / shadows.height};
         if (geometry && geometry->withinHomography(nativeTip)) {
             const auto distal = distalGeometry(shadows, fingers.mask, tip);
-            const auto dark = darkContact(shadows, fingers.mask, tip, distal);
+            const auto dark = constants::darkShadowEnabled
+                                  ? darkContact(shadows, fingers.mask, tip, distal)
+                                  : std::optional<bool>{false};
             bool accepted = dark == true;
             if (!accepted) accepted = lightContact(shadows, fingers.mask, tip, distal);
             if (!accepted) {
