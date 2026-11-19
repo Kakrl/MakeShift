@@ -21,18 +21,19 @@ Broader recording verification remains #88.
 | starting | initialization rejects | error; show Enable audio retry action |
 | ready | activation requested, audio ready and observations fresh | playing; new UUID, reset sequence and press identities |
 | starting, ready, playing | invalid calibration, detector failure, expired observations, background | interrupted; cancel startup, retire identity, release notes, close recording |
+| interrupted after backgrounding during live play | foreground with fresh compatible markers and hand tracking | starting; try to resume the existing piano graph, then open a new live session |
 | ready, playing | audio suspension, close, processor failure or overload | interrupted; release and offer Enable audio retry |
 | playing | malformed/out-of-order current input or audio rejection | interrupted; shared #86 fail-closed policy |
 | playing | recording Pause / Stop | playing; pause / close MIDI take, keep sound active |
 | starting | Stop recording | stopped; cancel pending startup |
 | any | navigation/unmount or explicit session stop | stopped; cancel startup and release notes |
-| interrupted/error | compatible observations recover | stays interrupted/error; Enable audio or Record required |
+| interrupted/error | compatible observations recover outside the tab-return path | stays interrupted/error; Enable audio or Record required |
 
 Repeated Play while starting/playing and play-before-ready are rejected.
 Stop is idempotent. Readiness loss only interrupts starting, ready or playing
 sessions; idle observations preserve stopped/interrupted/error states. Fresh
-tracking after readiness loss refreshes stopped/interrupted guidance without
-automatic playback. Audio-start errors retain their retry guidance. Pending startup completions cannot revive stopped sessions.
+tracking after ordinary readiness loss refreshes stopped/interrupted guidance.
+Audio-start errors retain their retry guidance. Pending startup completions cannot revive stopped sessions.
 Old-session events are rejected even after restart. Pause preserves live audio
 and the paused MIDI take; Resume uses a MIDI count-in without reinitializing audio.
 Held notes are retired at count-in entry and require release plus a fresh press after completion. Interruption closes the take instead of resuming it automatically.
@@ -69,11 +70,19 @@ latency still need camera/hardware verification.
 
 ## Browser recovery
 
-Visibility loss and pagehide retire the session and invalidate observations.
-Return requires fresh observations and Enable audio or Record. Route unmount releases sound and
-closes the recorder and count-in context. The shared browser synthesizer remains
-reusable for the Audio check route. Audio startup failure offers Enable audio retry;
-audio interruption closes the active take and requires reactivation through Enable audio or Record.
+Visibility loss and pagehide retire the session, release notes and invalidate
+observations. On return, the next usable camera frame triggers a marker scan.
+If piano was playing before backgrounding, compatible markers and fresh hand
+tracking trigger one attempt to resume the existing audio graph. The worklet
+must acknowledge the previous session's reset before the new session can play.
+If the attempt fails or reaches the 1.5-second timeout, recovery requires
+selecting Enable audio, even after more fresh tracking observations.
+Recordings and metronome clicks stay stopped.
+
+Route unmount releases sound and closes the recorder and count-in context. The
+shared browser synthesizer remains reusable for the Audio check route. Audio
+startup failures and audio interruptions during ordinary play offer Enable audio
+or Record for reactivation.
 The UI's single primary status describes the recovery action, with a calibration
 link beside that status only when calibration is relevant. Stop is available
 while audio initialization is pending.

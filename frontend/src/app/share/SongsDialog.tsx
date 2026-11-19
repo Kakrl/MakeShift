@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { favorites } from "../../lib/favorites";
+import VolumeControl from "../VolumeControl";
 import { RECORDING_LIMITS, recordingDurationMs, type RecordingSummary, type SharedRecording } from "../../lib/recordings";
 import { downloadMidi, type Recording } from "../midi/midiUtils";
 import type { LibraryEntry } from "../midi/recordingsLibrary";
@@ -248,6 +249,7 @@ export default function SongsDialog({
           </button>
         </div>
 
+        <VolumeControl />
         {/* Content fades out under the header instead of being cut by a hard edge. */}
         <div
           ref={bodyRef}
@@ -513,7 +515,7 @@ function MineList({
                 )}
               </span>
               <span className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-ink-muted tabular-nums">
-                <span>{formatDuration(recordingDurationMs(recording.notes))}</span>
+                <span>{formatDuration(recordingDurationMs(recording.notes, recording.pedals))}</span>
                 <span>{recording.notes.length} notes</span>
                 <span>{formatDate(recording.createdAt)}</span>
               </span>

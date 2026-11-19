@@ -79,10 +79,38 @@ beforeEach(() => {
 afterEach(() => {
   for (const timeline of timelines) timeline.dispose();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
 describe("recording playback timing", () => {
+  it("cancels pending startup on tab hide and waits for an explicit Play on return", async () => {
+    const visibility = Object.assign(new EventTarget(), { hidden: false });
+    vi.stubGlobal("document", visibility);
+    const { timeline, audio } = setup();
+    let finishInitialization!: () => void;
+    audio.initialize.mockImplementationOnce(
+      () => new Promise<void>((resolve) => { finishInitialization = resolve; }),
+    );
+
+    const pending = timeline.play();
+    expect(timeline.getSnapshot().state).toBe("loading");
+    visibility.hidden = true;
+    visibility.dispatchEvent(new Event("visibilitychange"));
+    expect(timeline.getSnapshot()).toMatchObject({ state: "paused", positionMs: 0 });
+    expect(await timeline.play()).toBe(false);
+
+    visibility.hidden = false;
+    visibility.dispatchEvent(new Event("visibilitychange"));
+    finishInitialization();
+    expect(await pending).toBe(false);
+    expect(audio.noteOn).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+
+    expect(await timeline.play()).toBe(true);
+    expect(audio.noteOn).toHaveBeenCalledTimes(1);
+  });
+
   it.each([0.25, 0.5, 1, 2, 4])(
     "dispatches chords and releases at %sx without React",
     async (rate) => {

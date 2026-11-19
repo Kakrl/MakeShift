@@ -142,16 +142,19 @@ Pitch names use MIDI's C4=60 convention, including sharps/flats; writer velociti
 press tokens. Cleanup releases only this timeline's tokens. Audio invalidation
 or rejected notes pauses the transport and exposes an error. Stop, pause, seek,
 and disposal invalidate pending initialization; obsolete timers cannot restart
-playback. The owner must dispose on navigation/unmount and may explicitly pause
-on backgrounding. A suspended/error audio owner pauses playback automatically.
+playback. The owner must dispose on navigation or unmount. A hidden document
+pauses playing recordings and cancels pending Play requests. An audio suspension
+also pauses active playback and reports the interruption. Returning to the tab
+or resuming the audio context leaves playback paused until the user selects Play.
 
 Scheduling is independent of React, but runs on the main thread. The current
 audio API accepts immediate commands, not future audio-clock timestamps. Delayed
 callbacks skip notes that have already ended and shorten late starts to their
 remaining interval; they do not replay the missed passage or shift later deadlines.
-This does not guarantee sample-accurate or background-tab timing. Existing audio
-voice/queue limits still apply. Fake-timer and mocked-device evidence does not
-establish physical latency, audible quality, or browser timing distributions.
+Existing audio voice and queue limits still apply. The issue #258 browser probe
+measures delivery to the first worklet render quantum after each command.
+See the [test procedure and results](../tests/README.md#recording-playback-under-main-thread-load-issue-258)
+for the foreground timing proposal and measurement limits.
 
 ### Note-list recorder and pause/resume (#115, #108)
 
@@ -299,8 +302,34 @@ and verification limits in the linked document.
 Physical note identities and note-off timing remain unchanged. The browser audio
 transport separately accepts {type: "pedals", version: 1, session, sustain,
 sostenuto, soft}, with exactly boolean states. Commands share ordered bounded
-transport with notes and reset; they do not enter MIDI or deferred note observers.
+transport with notes and reset; they bypass deferred note observers. Issue #222
+records effective transitions through a synchronous callback after audio dispatch.
 PedalController dispatches synchronously before React observation and filters
 unchanged effective states. Session reset clears capture and rejects stale control
 messages. See [audio contract](browser_audio.md#live-binary-pedals-176) and the
-[recording follow-up](pedal_recording_followup.md).
+[ordered recording contract](pedal_recording_followup.md).
+
+## Recorded control ordering (#222)
+
+Physical note records retain their start/duration fields. Optional version-1
+`pedals` stores binary state transitions and a parallel `noteOrder` array.
+Timestamp then performance order governs same-time notes and controls; legacy
+notes retain release-before-onset ties. See the [complete contract](pedal_recording_followup.md)
+for normalization, deferred-note draining, MIDI channels and discontinuities.
+
+## Count-in to recording clock (#225)
+
+The metronome worklet describes its count-in in sample frames. The controller
+uses the output stream position from getOutputTimestamp for progress and its
+paired performanceTime for boundary conversion:
+
+boundaryMs = performanceTime + (endFrame / sampleRate - contextTime) * 1000.
+
+Without a usable output timestamp, currentTime and performance.now form the
+fallback pair, without device-output-latency compensation. Keep frame arithmetic
+until the final conversion to avoid whole-sample errors from early division.
+The recorder accepts an optional explicit Start/Resume timestamp; existing
+callers retain their performance.now default. Pause exclusion ends at the audio
+boundary, not delayed callback receipt. No old count-in contacts are replayed:
+#205 input gating and release/repress rules remain in force. Stop, interruption
+and disposal cancel the animation callback and retire the generation.

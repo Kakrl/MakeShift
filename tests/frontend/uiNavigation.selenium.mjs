@@ -123,29 +123,24 @@ async function checkFirstLoadControls(viewport) {
     for (const label of TABS) {
       await assertVisible(driver, await navTab(driver, label), `${label} tab`);
     }
-    try {
-      // Uncalibrated first visit: Record shows behind its "Calibrate first" cover.
-      await assertVisible(
-        driver,
-        await driver.findElement(By.css('button[aria-label="Start recording"]')),
-        "Record control",
-        "Calibrate first to record",
-      );
+    // Uncalibrated first visit: Record shows behind its "Calibrate first" cover.
+    await assertVisible(
+      driver,
+      await driver.findElement(By.css('button[aria-label="Start recording"]')),
+      "Record control",
+      "Calibrate first to record",
+    );
 
-      // Dev mode counts as calibrated, so Record itself must be on top.
-      await open(driver, "/?dev=1");
-      await assertVisible(
-        driver,
-        await driver.wait(
-          until.elementLocated(By.css('button[aria-label="Start recording"]')),
-          TIMEOUT,
-        ),
-        "Record control (dev mode)",
-      );
-    } catch (error) {
-      if (error instanceof assert.AssertionError) throw new KnownDefect("D25", "#245", error);
-      throw error;
-    }
+    // Dev mode counts as calibrated, so Record itself must be on top.
+    await open(driver, "/?dev=1");
+    await assertVisible(
+      driver,
+      await driver.wait(
+        until.elementLocated(By.css('button[aria-label="Start recording"]')),
+        TIMEOUT,
+      ),
+      "Record control (dev mode)",
+    );
   } finally {
     await driver.quit();
   }
@@ -157,12 +152,8 @@ async function checkStableTabs(viewport) {
     await open(driver, "/");
     await driver.executeScript(() => localStorage.setItem("hasVisited", "true"));
     const positions = {};
-    const scrollbar = {};
     for (const path of NAV_PAGES) {
       await open(driver, path);
-      scrollbar[path] = await driver.executeScript(
-        () => window.innerWidth - document.documentElement.clientWidth,
-      );
       positions[path] = {};
       for (const label of TABS) {
         // Active tabs are plain divs, so only check placement, not cover.
@@ -172,24 +163,14 @@ async function checkStableTabs(viewport) {
       }
     }
     const reference = positions["/"];
-    const moves = [];
     for (const path of NAV_PAGES.slice(1)) {
-      // Expected x offset if only a classic scrollbar's width differs.
-      const gutter = scrollbar["/"] - scrollbar[path];
       for (const label of TABS) {
         const rect = positions[path][label];
-        const near = (value, i, dx = 0) => Math.abs(value - reference[label][i] - dx) <= TOLERANCE_PX;
-        if (rect.every((value, i) => near(value, i))) continue;
-        const scrollbarOnly = gutter !== 0 && rect.every((value, i) => near(value, i, i === 0 ? gutter : 0));
-        moves.push({ scrollbarOnly, message: `${label} tab moved on ${path}: ${rect} vs / ${reference[label]}` });
+        assert(
+          rect.every((value, i) => Math.abs(value - reference[label][i]) <= TOLERANCE_PX),
+          `${label} tab moved on ${path}: ${rect} vs / ${reference[label]}`,
+        );
       }
-    }
-    const real = moves.find((move) => !move.scrollbarOnly);
-    assert(!real, real?.message);
-    if (moves.length > 0) {
-      throw new KnownDefect("D26", "#247", new Error(
-        `${moves[0].message} (scrollbar ${JSON.stringify(scrollbar)})`,
-      ));
     }
     return reference;
   } finally {

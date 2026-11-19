@@ -178,6 +178,11 @@ look-ahead delay. Test clock offsets, delayed messages, resets and pause/resume.
 
 ## Audio decision
 
+The browser audio range is A0–C8 (MIDI 21–108) for accepted live and
+recording-playback events. Audio check exercises this range without camera
+input. The ten-voice pool and 1–3 octave printed layout have independent
+limits. See [range verification](browser_audio.md#standard-piano-range-262).
+
 Use JavaScript sample playback in an AudioWorklet. Issue #210 replaces the
 procedural modal default with 19 locally hosted stereo Salamander recordings
 and the user-selected +6 dB bass curve after RMS normalization. Decode/copy
@@ -316,3 +321,15 @@ See [contract and lifecycle](browser_audio.md#live-binary-pedals-176),
 Carl Xu reported a manual functional pass for all pedals and programmable
 bindings on 2026-10-23. Detailed device compatibility, live-CV profiling and
 physical under-50 ms compliance remain unverified.
+
+## Ordered recorded pedals (#222)
+
+The MIDI owner records separately versioned effective pedal state and physical
+note-edge ordering. Browser replay sends controls directly through the bounded
+audio port; export and shared storage remain outside audio dispatch. Legacy
+notes remain playable. [The control contract](pedal_recording_followup.md) defines
+validation, multi-channel MIDI press identities, ten-voice stealing and deliberate
+retirement of released tails across pause/seek. Local and shared snapshots carry
+controls; deploy the optional-jsonb migration before the API. Automated evidence
+is scoped in the inventory; hardware listening and live database checks remain
+separate verification work.

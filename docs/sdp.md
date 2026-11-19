@@ -49,7 +49,8 @@ detection-accuracy requirement retain their own evidence criteria.
 
 PB-1 adds a browser-local playback timeline over the existing `Recording` model:
 play, pause, seek and 0.25x–4x speed control, with note cleanup on transport changes
-and audio interruption. It supplies the transport for later piano-tiles views
+and audio interruption. Tab hide pauses playback, and returning to the tab
+requires explicit Play. It supplies the transport for later piano-tiles views
 (#131/#132), not the views or scoring themselves. Storage and calibration are
 not prerequisites for playing an in-memory recording. See the
 [RVTM mapping](rvtm_browser_addendum.md#recording-playback-extension-130) and
@@ -72,6 +73,7 @@ the same four IDs cannot measure millimeters or identify page count. An
 undersized declared assembly blocks calibration until an explicit override,
 which preserves key pitch and extends the selected keyboard beyond paper.
 Every settings change clears saved hand/marker calibration and releases notes.
+The home screen and Tutorial offer a ZIP containing both print-ready PDFs (#236).
 See [print/layout instructions](piano_sheet.md) and the
 [verification mapping](rvtm_browser_addendum.md#octave-layouts-36).
 Physical printing, webcam contact quality and audibility remain separate
@@ -147,7 +149,7 @@ PD-1 expands piano requirements 2.2/2.4: independent sustain/sostenuto/soft,
 clear-all preserving physically held notes, bounded voices and finite decay.
 PD-2 adds accessible live switches and versioned Hold/Toggle keyboard bindings,
 safe focus/capture/conflict behavior and nonpersistent activation. PD-3 preserves
-note recording semantics and documents deferred pedal recording/replay. Audio and
+physical note recording semantics; #222 now adds ordered control recording/replay. Audio and
 latency owner: Carl Xu; UI/accessibility: Jadden Picardal; bindings and MIDI: Harry
 Deng. Deterministic verification is implemented. Carl Xu reported a manual
 functional pass for all pedals and programmable bindings on 2026-10-23. Automated
@@ -155,6 +157,16 @@ browser execution, specific device/environment evidence, detailed scenario check
 live-CV stress and physical latency remain pending. See PD inventory
 and the dated report before claiming completion.
 
+## Audible recording count-off (#227)
+
+Audible count-off clarification (#227, user decision 2026-11-01): Start and
+Resume play one audible measure independently of the continuous-metronome
+toggle. The toggle remains default-off and non-persistent, with continuous
+clicks only when enabled. Preserve the selected tempo and meter, with count-off
+clicks following the meter's denominator note. Preserve pause silence,
+cancellation, readiness checks and
+MIDI exclusion. Verification: MET-01, MET-02 and MET-03 in the inventory. Visual
+and recording-clock synchronization remain separate follow-up #225.
 ## Configurable meter scope (#207)
 
 Requirements 3.2, 4.1 and 4.2 now include validated 1-32 numerator and
@@ -187,3 +199,34 @@ monthly lookalike checks and provider reports; Jadden Picardal keeps
 user-facing links consistent. Camera prompt redesign and database changes are
 out of scope. Procedure: [deployment](deployment.md#official-address-and-impersonation-response-199);
 tests SEC-01 and SEC-02.
+
+## Piano output volume (#228)
+
+VOL-1 extends 2.2/2.4: a visible, keyboard-accessible 0–200% piano volume
+preference controls live and recording playback equally, with smooth changes,
+local persistence, exact mute and a substantially louder maximum. Preserve the
+register balance and MIDI event data. Above 100%, adjust velocity-to-amplitude
+math per voice so gentle strikes stay quiet while strong strikes get more boost;
+below 100%, scale toward mute. Post-render compression supplies
+headroom; maximum usability requires listening to chords and pedal-held notes.
+VOL-01–VOL-04 map software and manual verification. Physical listening and
+latency with the added compressor remain pending; see [audio contract](browser_audio.md#piano-volume-228).
+
+## Scope expansion: ordered recorded pedals (#222)
+
+PR-1 preserves physical key durations while separately recording validated v1
+binary control history. PR-2 requires deterministic MIDI CC/channel ordering and
+press identities. PR-3 requires bounded session-scoped replay, emergency silence,
+legacy compatibility and documented discontinuity restoration. These extend
+PD-3 beyond its original live-only disclosure. Scope and limits are specified
+in [the control contract](pedal_recording_followup.md); verification maps PR-01
+through PR-05. Physical latency targets remain unchanged.
+
+## Standard piano pitch range (#262)
+
+Browser audio covers A0–C8 (MIDI 21–108) for accepted live events and recording
+playback, with ten simultaneous voices. The camera-free Audio check supports
+individual keys, endpoints, a chromatic sweep and a chord spanning the range.
+The printed keyboard retains its separate 1–3 octave scope. Full-range audio
+verification covers production graph output and pitch at 44.1, 48 and 96 kHz,
+with listening and physical latency tracked separately.
