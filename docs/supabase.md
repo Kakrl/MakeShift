@@ -29,6 +29,47 @@ instead, for example without Infisical access.
 | `POST /api/recordings` | `201 {id, deleteToken}`; `400` with `issues`; `413` over 1 MB; `429` with `Retry-After` after 5 uploads from one client in 10 minutes; `503` on any Vercel deployment unless `RECORDING_UPLOADS=1` |
 | `DELETE /api/recordings/:id` | `200 {deleted: true}` when the token's SHA-256 matches; `403` wrong or missing token; `404` already gone |
 
+### Name filter
+
+Titles and author names are refused with `400` when they contain a blocked
+word (#280). The check lives in the shared `validateUpload`, so the route,
+the mock store and the share forms apply the same rule; the forms show the
+message under each blocked field before anything is sent, and ask for the
+author name again when the saved sharing name is blocked. The sharing-name
+editor in My recordings refuses blocked names too. Saving a take privately is
+not filtered.
+
+- **List:** [`frontend/src/lib/blockedNameWords.json`](../frontend/src/lib/blockedNameWords.json)
+  is Luis von Ahn's whole
+  [Offensive/Profane Word List](https://www.cs.cmu.edu/~biglou/resources/bad-words.txt)
+  (CMU, fetched 2026-11-11, 1,383 entries, SHA-256
+  `76425270af0ea70e22b6f0145ba670d64bdf4304dac017324c2b3d14ea9b95fe`), with no
+  words removed. Entries are only normalized like input text (lowercase,
+  look-alikes mapped, hyphens and apostrophes dropped, so `brea5t` becomes
+  `breast` and `beat-off` becomes `beatoff`) and deduplicated, leaving 1,367.
+  The source page states no license; it offers the list for anyone who wants
+  to block offensive terms. Nothing is fetched at runtime.
+- **What it blocks:** the list includes ordinary words, nationalities,
+  religions, identities and first names (`god`, `jesus`, `christian`, `church`,
+  `bible`, `muslim`, `african`, `asian`, `chinese`, `mexican`, `black`, `gay`,
+  `girls`, `kid`, `fire`, `killer`, `drunk`, `dead`, `ho`, `uk`, `dick`), so
+  titles such as "Africa", "Killer Queen" or "Jesus Loves Me" and an author
+  named Christian are refused too.
+- **Matching** ([`nameFilter.ts`](../frontend/src/lib/nameFilter.ts)): accents
+  are dropped, case folded and look-alikes mapped (`0`→o, `1`→i, `3`→e, `4`→a,
+  `5`/`$`→s, `7`→t, `8`→b, `@`→a, `!`/`|` between letters→i). Text is split
+  into words and each word is compared whole, also with runs of three or more
+  repeated letters squeezed and a plural `s` removed. Words joined by a hyphen
+  or apostrophe are also checked as one word, and single letters in a row
+  (`f u c k`, `s.h.i.t`) are joined. Only `fuck` is matched inside other
+  words. Whole-word matching is what lets `Scunthorpe`, `class`, `Dickens`,
+  `cumin` and `spices` through.
+- **Limits:** English only; no non-Latin look-alikes (Cyrillic `о`), words
+  split by spaces into pieces longer than one letter, or compounds not on the
+  list. Existing rows are not rechecked; hide them with the `hidden` flag. To
+  refresh the list, normalize the new file the same way and update the entry
+  count in `tests/frontend/nameFilter.test.ts`.
+
 Every route returns `503` when Supabase is unconfigured and `502` when the
 database fails, without echoing database messages. Uploads are refused on
 Vercel (production and preview) unless `RECORDING_UPLOADS=1`; local
