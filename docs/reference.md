@@ -57,7 +57,7 @@ File locations: [repository map in `AGENTS.md`](../AGENTS.md#repository-map).
 | `/documentation` | In-app docs |
 | `/about` | About |
 | `/cv-video-replay` | Runs recorded video through the CV pipeline (testing) |
-| `/play/[id]` | Opens a shared recording |
+| `/play/[id]` | Redirects to `/?song=<id>`, which opens the song in the Songs dialog: title, author, playback, MIDI download; a missing or hidden ID shows "Song not found" |
 
 ### Stack
 
@@ -276,8 +276,8 @@ From `RECORDING_LIMITS`. Lengths count Unicode code points.
 
 | Field | Rule |
 | :--- | :--- |
-| `title` | Trimmed, 1–100 characters |
-| `authorName` | Trimmed, 1–50 characters |
+| `title` | Trimmed, 1–100 characters, no blocked words (#280) |
+| `authorName` | Trimmed, 1–50 characters, no blocked words (#280) |
 | `deviceId` | Trimmed, 1–128 characters |
 | `bpm` | Integer, 20–400 |
 | `notes` | 1–10,000 notes |
@@ -655,6 +655,7 @@ All client data is in `localStorage`. Helpers:
 | Key | Holds | Owner |
 | :--- | :--- | :--- |
 | `makeshift:keyboard-layout:v1` | `KeyboardLayout` | [`lib/keyboardSettings.ts`](../frontend/src/lib/keyboardSettings.ts) |
+| `makeshift:calibration-profiles:v1` | Named step 1 profiles (`CalibrationProfile[]`): `octaves`, `startingNote`, paper fields, optional corners | [`lib/calibrationProfiles.ts`](../frontend/src/lib/calibrationProfiles.ts) |
 | `makeshift:playback-settings:v1` | `{ tempo, metronome }` | [`app/page.tsx`](../frontend/src/app/page.tsx) |
 | `makeshift:pedal-bindings:v1` | Pedal `Bindings` ([Pedals](#pedals)) | [`app/PedalControls.tsx`](../frontend/src/app/PedalControls.tsx) |
 | `makeshift:recordings:v1` | Local recordings library (`Recording[]`) | [`app/midi/recordingsLibrary.ts`](../frontend/src/app/midi/recordingsLibrary.ts) |

@@ -287,7 +287,7 @@ export default function Home() {
   const { stream, cameraReady } = useCamera();
   // Drives the calibration prompt; live readiness stays with the session.
   // null until storage is read, so calibrated users never see the prompt flash.
-  const [isCalibrated, setIsCalibrated] = useState<boolean | null>(null);
+  const [hasCalibration, setHasCalibration] = useState<boolean | null>(null);
   const [devMode, setDevMode] = useState(false);
 
   useEffect(() => {
@@ -307,7 +307,7 @@ export default function Home() {
       setSettingsLoaded(true);
       const dev = isDevMode();
       setDevMode(dev);
-      setIsCalibrated(dev || loadCalibration() !== null);
+      setHasCalibration(dev || loadCalibration() !== null);
       // Show welcome modal only on the very first visit. Arriving from a
       // share link (`/play/<id>` → `?song=<id>`) opens that song instead; the
       // welcome waits for the next visit rather than stacking under it.
@@ -557,7 +557,7 @@ export default function Home() {
   const stopDisabled = !isRecording && countInBeat === null && !audioPreparing && liveStatus.state !== "starting";
   // Metronome settings are usable independently once preferences have loaded.
   const settingsLocked = !settingsLoaded || isRecording || countInBeat !== null || audioPreparing;
-  const needsCalibration = isCalibrated === false;
+  const needsCalibration = hasCalibration === false;
   const openCalibration = () => setShowCalibrationIntro(true);
   // Home CV loops can starve the route transition on slow CPUs (#260).
   const [leavingForCalibration, setLeavingForCalibration] = useState(false);

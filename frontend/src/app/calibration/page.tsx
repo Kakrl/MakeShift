@@ -23,8 +23,19 @@ import {
 import type { DepthCalibrationModel } from "../../cv/depthCalibration";
 import { MarkerDetector } from "../../cv/markerDetector";
 import { getWhiteKeyPolygons, getPianoCorners } from "../../cv/keyboardGeometry";
-import { paperFits, paperOctaves, startingNotes, usableLayout, type KeyboardLayout } from "../../cv/keyboardLayout";
+import { paperFits, paperOctaves, sameLayout, startingNotes, usableLayout, type KeyboardLayout } from "../../cv/keyboardLayout";
 import { saveKeyboardLayout, subscribeKeyboardLayout } from "../../lib/keyboardSettings";
+import {
+  PROFILE_NAME_MAX,
+  cleanName,
+  deleteProfile,
+  listProfiles,
+  profileLayout,
+  renameProfile,
+  saveProfile,
+  type CalibrationProfile,
+  type ProfileResult,
+} from "../../lib/calibrationProfiles";
 import { useKeyboardLayout } from "../useKeyboardLayout";
 import { DEBUG_FLAGS } from "../../debugFlags";
 import { midiToPitch } from "../../cv/noteMap";
@@ -39,7 +50,7 @@ import {
   type LightingReading,
 } from "../lighting";
 
-import { cameraSignature, markerCorners, compatibleCalibration, validateCalibration, saveCalibration, MARKER_ACQUIRE_INTERVAL_MS, MARKER_CHECK_INTERVAL_MS,
+import { cameraSignature, markerCorners, compatibleCalibration, validateCalibration, saveCalibration, loadCalibration, MARKER_ACQUIRE_INTERVAL_MS, MARKER_CHECK_INTERVAL_MS,
   validSamples, SHEET_ID, type CalibrationResult, type CameraSignature } from "../../cv/calibration";
 const TOTAL_STEPS = 5;
 
@@ -84,6 +95,51 @@ function SuccessBadge({ label }: { label: string }) {
 }
 
 const STEP_NAMES = ["Setup", "Lighting", "Paper", "Right", "Left"];
+
+function profileError(result: Exclude<ProfileResult, { ok: true }>): string {
+  switch (result.reason) {
+    case "invalid-name": return "Enter a profile name.";
+    case "invalid-layout": return "These keyboard settings cannot be saved as a profile.";
+    case "duplicate-name": return "Another profile already uses that name.";
+    case "not-found": return "That profile no longer exists.";
+    case "quota": return "Browser storage is full. Free some space and retry.";
+    default: return "Could not save profiles. Enable browser storage and retry.";
+  }
+}
+
+const PAPER_HELP_TIPS = [
+  "Keep the whole sheet in view, with all four corner markers showing.",
+  "Lay it flat, with no folds or curled edges.",
+  "Use even lighting, without glare or shadows on the markers.",
+];
+
+function PaperHelpIllustration() {
+  const markers = [[52, 38], [252, 38], [252, 126], [52, 126]];
+  const bracket = (x: number, y: number, dx: number, dy: number) =>
+    `M${x} ${y + 14 * dy}V${y}H${x + 14 * dx}`;
+  return (
+    <svg role="img" aria-label="Paper sheet flat in the camera view with all four corner markers visible" viewBox="0 0 320 180" className="block w-full bg-surface-dark" style={{ aspectRatio: "16/9" }}>
+      <rect x="40" y="26" width="240" height="128" rx="4" fill="var(--color-white)" />
+      {Array.from({ length: 9 }, (_, i) => (
+        <line key={i} x1={76 + i * 21} y1="62" x2={76 + i * 21} y2="138" stroke="var(--color-divider)" strokeWidth="1.5" />
+      ))}
+      <line x1="76" y1="138" x2="244" y2="138" stroke="var(--color-divider)" strokeWidth="1.5" />
+      {markers.map(([x, y]) => (
+        <g key={`${x}-${y}`}>
+          <rect x={x} y={y} width="16" height="16" fill="var(--color-ink)" />
+          <rect x={x + 4} y={y + 4} width="5" height="5" fill="var(--color-white)" />
+          <rect x={x + 9} y={y + 9} width="3" height="3" fill="var(--color-white)" />
+        </g>
+      ))}
+      <g fill="none" stroke="var(--color-success-soft)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <path d={bracket(28, 14, 1, 1)} />
+        <path d={bracket(292, 14, -1, 1)} />
+        <path d={bracket(292, 166, -1, -1)} />
+        <path d={bracket(28, 166, 1, -1)} />
+      </g>
+    </svg>
+  );
+}
 
 function getCalibrationSettingsError(
   captured: { camera: CameraSignature; layout: KeyboardLayout } | null,
@@ -182,6 +238,12 @@ export default function Calibration() {
 
   // Step 1
   const layout = useKeyboardLayout();
+  const [profiles, setProfiles] = useState<CalibrationProfile[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState("");
+  const [profileDraft, setProfileDraft] = useState<{ mode: "save" | "rename"; name: string } | null>(null);
+  const [profileStatus, setProfileStatus] = useState<string | null>(null);
+  const [profileAlert, setProfileAlert] = useState<string | null>(null);
+  const profileNameRef = useRef<HTMLInputElement>(null);
 
   // Depth calibration step
   const [hasStarted, setHasStarted] = useState(false);
@@ -349,7 +411,18 @@ export default function Calibration() {
     setStep(targetStep);
   }
 
-  function changeLayout(patch: Partial<KeyboardLayout>) {
+  useEffect(() => {
+    const timer = setTimeout(() => setProfiles(listProfiles()), 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const selectedProfile = profiles.find(
+    (p) => p.id === selectedProfileId && sameLayout(profileLayout(p), layout),
+  ) ?? null;
+
+  function changeLayout(patch: Partial<KeyboardLayout>): boolean {
+    setProfileStatus(null);
+    setProfileAlert(null);
     const octaves = patch.octaves ?? layout.octaves;
     const starts = startingNotes(octaves);
     const startingMidi = Math.min(patch.startingMidi ?? layout.startingMidi, starts.at(-1)!);
@@ -363,6 +436,62 @@ export default function Calibration() {
     setSheetDetected(false);
     resetInteractiveStepState();
     if (!result.ok) setCaptureError("Could not save keyboard settings. Enable browser storage and retry.");
+    return result.ok;
+  }
+
+  function applyProfile(id: string) {
+    setProfileDraft(null);
+    setSelectedProfileId(id);
+    const profile = profiles.find((p) => p.id === id);
+    if (!profile) return;
+    const target = profileLayout(profile);
+    const loaded = sameLayout(target, layout) || changeLayout({
+      octaves: target.octaves,
+      startingMidi: target.startingMidi,
+      paperOctaves: paperOctaves(target),
+      paperFitOverride: !!target.paperFitOverride,
+    });
+    if (loaded) setProfileStatus(`Loaded "${profile.name}". Step 3 still checks the paper.`);
+  }
+
+  function finishProfileChange(result: ProfileResult, success: (profile: CalibrationProfile) => string) {
+    setProfiles(listProfiles());
+    if (!result.ok) {
+      setProfileStatus(null);
+      setProfileAlert(profileError(result));
+      return false;
+    }
+    setProfileAlert(null);
+    setProfileStatus(success(result.profile));
+    return true;
+  }
+
+  function submitProfileDraft(name: string) {
+    if (!profileDraft) return;
+    if (profileDraft.mode === "rename") {
+      if (!selectedProfile) return setProfileDraft(null);
+      if (finishProfileChange(renameProfile(selectedProfile.id, name), (p) => `Renamed to "${p.name}".`)) {
+        setProfileDraft(null);
+      }
+      return;
+    }
+    const clash = profiles.find((p) => p.name.toLocaleLowerCase() === cleanName(name).toLocaleLowerCase());
+    if (clash && clash.id !== selectedProfile?.id && !window.confirm(`Replace the "${clash.name}" profile?`)) return;
+    const saved = loadCalibration();
+    const corners = saved && sameLayout(saved.layout, layout) ? saved.corners : null;
+    const result = saveProfile(name, layout, corners);
+    if (finishProfileChange(result, (p) => `Saved "${p.name}".`)) {
+      if (result.ok) setSelectedProfileId(result.profile.id);
+      setProfileDraft(null);
+    }
+  }
+
+  function removeSelectedProfile() {
+    if (!selectedProfile || !window.confirm(`Delete the "${selectedProfile.name}" profile?`)) return;
+    setProfileDraft(null);
+    if (finishProfileChange(deleteProfile(selectedProfile.id), (p) => `Deleted "${p.name}".`)) {
+      setSelectedProfileId("");
+    }
   }
 
   useEffect(() => {
@@ -860,13 +989,24 @@ export default function Calibration() {
   // ── Help modal ────────────────────────────────────────────────────────────
   const renderHelpModal = () => {
     if (!showHelpModal) return null;
+    const paperHelp = step === 3;
+    const title = paperHelp ? "Show the whole paper like this" : "Put your hands like this";
     return (
       <div className="ms-backdrop absolute inset-0 z-50 flex items-center justify-center">
-        <div className="ms-dialog relative w-[88%] max-w-[640px] overflow-hidden rounded-[18px]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/hand-reference.png" alt="Hand positioning reference" className="w-full block" style={{ aspectRatio: "16/9", objectFit: "cover" }} />
-          <div className="px-5 py-3.5 flex items-center justify-between">
-            <p className="text-ink text-[15px] font-medium">Put your hands like this</p>
+        <div role="dialog" aria-modal="true" aria-label={title} className="ms-dialog relative w-[88%] max-w-[640px] overflow-hidden rounded-[18px]">
+          {paperHelp ? (
+            <PaperHelpIllustration />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src="/hand-reference.png" alt="Hand positioning reference" className="w-full block" style={{ aspectRatio: "16/9", objectFit: "cover" }} />
+          )}
+          <div className="px-5 py-3.5">
+            <p className="text-ink text-[15px] font-medium">{title}</p>
+            {paperHelp && (
+              <ul className="mt-1.5 list-disc pl-5 text-[14px] leading-6 text-ink-muted">
+                {PAPER_HELP_TIPS.map((tip) => <li key={tip}>{tip}</li>)}
+              </ul>
+            )}
           </div>
           <button onClick={() => setShowHelpModal(false)} aria-label="Close" className="ms-key ms-key-glass ms-key-icon absolute top-3 right-3 size-9 rounded-full">
             <svg aria-hidden="true" width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" /></svg>
@@ -904,12 +1044,20 @@ export default function Calibration() {
       return {
         title: "Step 1: Pick your keyboard",
         // Lives in the reserved message line, so the warning never pushes the buttons.
-        alert: fits
+        alert: profileAlert ?? (fits
           ? null
-          : `It does not fit ${paperOctaves(layout)} octave${paperOctaves(layout) === 1 ? "" : "s"} of paper. ${layout.paperFitOverride ? "It will go past the edge." : "Add more, or tick the box."}`,
+          : `It does not fit ${paperOctaves(layout)} octave${paperOctaves(layout) === 1 ? "" : "s"} of paper. ${layout.paperFitOverride ? "It will go past the edge." : "Add more, or tick the box."}`),
         controls: (
           <>
             <div className="grid w-full grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1.5">
+              <label htmlFor="calibration-profile" className="text-[15px] text-ink-muted">Profile</label>
+              <div className="relative">
+                <select id="calibration-profile" value={selectedProfile?.id ?? ""} onChange={(e) => applyProfile(e.target.value)} className="ms-input w-full py-1.5">
+                  <option value="">{profiles.length ? "Custom" : "No saved profiles"}</option>
+                  {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-ink-muted"><ChevronDown /></div>
+              </div>
               <label htmlFor="octave-count" className="text-[15px] text-ink-muted">Octaves</label>
               <div className="relative">
                 <select id="octave-count" value={layout.octaves} onChange={(e) => changeLayout({ octaves: Number(e.target.value) })} className="ms-input w-full py-1.5">
@@ -938,9 +1086,43 @@ export default function Calibration() {
                 Allow the full keyboard to extend beyond my paper
               </label>
             )}
+            {profileDraft ? (
+              <form
+                key={profileDraft.mode}
+                className="flex w-full flex-wrap items-center gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submitProfileDraft(profileNameRef.current?.value ?? "");
+                }}
+              >
+                <input
+                  ref={profileNameRef}
+                  aria-label="Profile name"
+                  autoFocus
+                  maxLength={PROFILE_NAME_MAX}
+                  defaultValue={profileDraft.name}
+                  className="ms-input min-w-0 flex-1 py-1.5"
+                />
+                <button type="submit" className="ms-key ms-key-primary px-3 py-1.5 text-[14px]">
+                  {profileDraft.mode === "rename" ? "Save name" : "Save"}
+                </button>
+                <button type="button" onClick={() => { setProfileDraft(null); setProfileAlert(null); }} className="ms-key ms-key-ghost px-3 py-1.5 text-[14px]">Cancel</button>
+              </form>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => setProfileDraft({ mode: "save", name: selectedProfile?.name ?? "" })} className="ms-key px-3 py-1.5 text-[14px]">Save profile</button>
+                {selectedProfile && (
+                  <>
+                    <button type="button" onClick={() => setProfileDraft({ mode: "rename", name: selectedProfile.name })} className="ms-key ms-key-ghost px-3 py-1.5 text-[14px]">Rename</button>
+                    <button type="button" onClick={removeSelectedProfile} className="ms-key ms-key-ghost ms-key-danger px-3 py-1.5 text-[14px]">Delete</button>
+                  </>
+                )}
+              </div>
+            )}
             {usableLayout(layout) && <SuccessBadge label={`${range} ready`} />}
           </>
         ),
+        status: profileStatus,
       };
     }
 

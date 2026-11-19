@@ -87,7 +87,7 @@ MakeShift/
 │   │   │   ├── cv/                  # hand landmark overlay and drawing
 │   │   │   ├── documentation/
 │   │   │   ├── midi/                # MIDI recorder, export and playback timeline
-│   │   │   ├── play/[id]/           # share link; opens the song in the shared songs dialog
+│   │   │   ├── play/[id]/           # share link; opens the song, or "Song not found", in the shared songs dialog
 │   │   │   ├── share/               # share API client and store, mock fixtures, save and songs dialogs, piano roll
 │   │   │   ├── tutorial/
 │   │   │   ├── PipelineDiagnostics.tsx # opt-in metrics and report export
@@ -113,7 +113,11 @@ MakeShift/
 │   │   │   └── shadowWorker.ts       # bounded background shadow segmentation
 │   │   ├── events/                  # shared schema, clocks, session, chromatic snapshot producer and audio adapter
 │   │   ├── lib/                     # shared utilities (versioned storage, recordings API schema)
+│   │   │   ├── calibrationProfiles.ts # named step 1 calibration profiles
 │   │   │   └── keyboardSettings.ts  # persisted layout and synchronous invalidation
+│   │   │   ├── blockedNameWords.json # CMU blocked words for shared names (#280)
+│   │   │   ├── keyboardSettings.ts  # persisted layout and synchronous invalidation
+│   │   │   └── nameFilter.ts        # whole-word blocked-name matching
 │   │   ├── server/                  # server-only Supabase access and recordings handlers
 │   │   └── shims/                   # empty fs shim and type-only MIDI declaration bridge
 │   ├── package.json
@@ -151,6 +155,9 @@ MakeShift/
 │   │   ├── homePage.test.ts
 │   │   ├── supabaseHealth.test.ts    # /api/health database check
 │   │   ├── recordingsApi.test.ts     # recordings routes and client, mocked database
+│   │   ├── nameFilter.test.ts        # blocked-name matching, schema and upload route
+│   │   ├── shareNameFeedback.test.tsx # blocked-name messages in the share forms
+│   │   ├── sharedSongLink.test.tsx   # /play/<id> redirect, playback, MIDI and missing song
 │   │   ├── pianoIntegration.test.ts # deterministic note-to-audio/MIDI/feedback
 │   │   ├── fingerVelocity.test.ts   # motion estimator, lifecycle and DSP response
 │   │   ├── sheetAlignment.test.tsx     # saved/current outline freshness and camera compatibility
@@ -169,6 +176,7 @@ MakeShift/
 │   │   ├── uiNavigation.selenium.mjs # Selenium control visibility, tab position, calibration nav
 │   │   ├── midiUtils.test.ts
 │   │   ├── storage.test.ts           # versioned localStorage module
+│   │   ├── calibrationProfiles.test.ts # profile storage and legacy flag absence
 │   │   └── check-contrast.mjs
 │   ├── python/
 │   │   ├── test_piano_sheets.py    # rendered PDF/ArUco/assembly checks
