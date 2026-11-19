@@ -1,41 +1,25 @@
 "use client";
 
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { DEBUG_FLAGS, isDevMode } from "../debugFlags";
-
-import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import type { ContactFrameHandler } from "./MarkerTrackingOverlay";
 import type { LiveSession } from "../events/liveSession";
-import type { CameraSignature } from "../cv/calibration";
-import type { Point } from "../cv/types";
-import { createKeyEventProducer } from "../events/keyEventProducer";
-import type { KeyPress } from "../events/keyEventProducer";
-import { getFingertips } from "../cv/collision";
-import type { Fingertip, HandObservation } from "../cv/collision";
+import { createChromaticKeyProducer } from "../events/chromaticKeyProducer";
 import {
-  DEPTH_CALIBRATION_STORAGE_KEY,
-  parsePersistedDepthCalibration,
-} from "../cv/depthCalibration";
-import type { PersistedDepthCalibration } from "../cv/depthCalibration";
+  cameraSignature,
+  loadCalibration,
+  type CameraSignature,
+} from "../cv/calibration";
+import {
+  VisionCameraPipeline,
+  type VisionResult,
+} from "../cv/visionCameraPipeline";
+import type { Homography } from "../cv/homography";
+import { midiToPitch } from "../cv/noteMap";
 import { useKeyboardLayout } from "./useKeyboardLayout";
-import { subscribeKeyboardLayout } from "../lib/keyboardSettings";
-
-function readDepthCalibration() {
-  try {
-    return typeof window === "undefined" ? null : parsePersistedDepthCalibration(
-      window.localStorage.getItem(DEPTH_CALIBRATION_STORAGE_KEY));
-  } catch { return null; }
-}
-
-const MarkerTrackingOverlay = dynamic(
-  () => import("./MarkerTrackingOverlay"),
-  { ssr: false },
-);
-
-const HandTrackingOverlay = dynamic(
-  () => import("./cv/HandTrackingOverlay"),
-  { ssr: false },
-);
+import { useCamera } from "./CameraContext";
+import FallingNotesLayer from "./cv/FallingNotesLayer";
+import VisionKeyHighlights from "./cv/VisionKeyHighlights";
+import SheetAlignment, { type AlignmentScan } from "./SheetAlignment";
 
 export default function CVOverlayCoordinator({
   videoRef,
@@ -44,85 +28,224 @@ export default function CVOverlayCoordinator({
   activePitches,
 }: {
   videoRef: RefObject<HTMLVideoElement | null>;
-  enabled?: boolean;
   session: LiveSession;
+  enabled?: boolean;
   activePitches: ReadonlySet<number>;
 }) {
   const layout = useKeyboardLayout();
-  const id = session.sessionId;
-  const producer = useMemo(() => id ? createKeyEventProducer(session, id) : null, [session, id]);
-  const [fingertips, setFingertips] = useState<Fingertip[]>([]);
-  const [hands, setHands] = useState<HandObservation[]>([]);
-  const contactFrameRef = useRef<ContactFrameHandler | null>(null);
-  const [depthCalibration, setDepthCalibration] = useState<PersistedDepthCalibration | null>(readDepthCalibration);
-  useEffect(() => subscribeKeyboardLayout(() => setDepthCalibration(readDepthCalibration())), []);
-
-  const handleLandmarks = useCallback(
-    (observations: readonly HandObservation[]) => {
-      session.observeTracking();
-      const video = videoRef.current;
-      if (!video) return;
-
-      const nextFingertips = getFingertips(
-        observations.map(({ landmarks }) => landmarks),
-        video.videoWidth,
-        video.videoHeight,
-      );
-      // Musical delivery precedes the React snapshot used for drawing.
-      contactFrameRef.current?.(nextFingertips, observations);
-      setHands([...observations]);
-      setFingertips(nextFingertips);
-    },
-    [videoRef, session],
+  const { stream, cameraReady } = useCamera();
+  const pipelineRef = useRef<VisionCameraPipeline | null>(null);
+  const homographyRef = useRef<Homography | null>(null);
+  const [result, setResult] = useState<VisionResult | null>(null);
+  const [message, setMessage] = useState("Loading Vision…");
+  const [failed, setFailed] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [observedCamera, setObservedCamera] = useState<CameraSignature | null>(
+    null,
   );
-
-  const handleKeyTransitions = useCallback(
-    (pressed: readonly KeyPress[], released: readonly number[]) => {
-      if (!enabled || !producer) return;
-      producer(pressed, released, performance.now());
-    },
-    [enabled, producer],
-  );
+  const [scan, setScan] = useState<AlignmentScan | null>(null);
   const [devMode] = useState(isDevMode);
-  const observeCalibration = useCallback((saved: unknown, camera: CameraSignature | null, corners: Point[] | null) => {
-    const valid = devMode
-      ? session.observeUncalibratedSheet(camera, corners)
-      : session.observeCalibration(saved, camera, corners);
-    if (valid) setDepthCalibration(current => {
-      const next = readDepthCalibration();
-      return JSON.stringify(current) === JSON.stringify(next) ? current : next;
-    });
-    return valid;
-  }, [session, devMode]);
-  const trackingFailed = useCallback(() => session.trackingFailed(), [session]);
+  const producer = useMemo(
+    () => createChromaticKeyProducer(session),
+    [session],
+  );
+  const [saved, setSaved] = useState(loadCalibration);
 
+  useEffect(() => {
+    let revision: number | null = null;
+    let animation = 0;
+    let disposed = false;
+    const camera = () =>
+      cameraReady ? cameraSignature(stream, videoRef.current) : null;
+    const unavailable = () => {
+      homographyRef.current = null;
+      revision = null;
+      session.observeCalibration(loadCalibration(), camera(), null);
+      if (!disposed) {
+        setResult(null);
+        setScan(null);
+        setObservedCamera(null);
+      }
+    };
+    const pipeline = new VisionCameraPipeline({
+      video: () => videoRef.current,
+      camera,
+      layout,
+      sessionId: () => session.sessionId,
+      onUnavailable: unavailable,
+      onStatus: (text, error) => {
+        if (disposed) return;
+        setMessage(text);
+        setFailed(error);
+        setReady(!error && !text.startsWith("Loading"));
+        if (error) session.trackingFailed();
+      },
+      onFrame: ({
+        result: next,
+        camera: observedCamera,
+        timestampMs,
+        sessionId,
+      }) => {
+        if (disposed) return;
+        if (revision !== null && next.referenceRevision !== revision)
+          producer([], timestampMs, sessionId);
+        revision = next.referenceRevision;
+        const calibration = loadCalibration();
+        const corners = next.geometry?.markerCenters ?? null;
+        const valid = devMode
+          ? session.observeUncalibratedSheet(observedCamera, corners)
+          : session.observeCalibration(calibration, observedCamera, corners);
+        if (valid && next.referenceReady && next.homographyReady) {
+          session.observeTracking();
+          // Frame observation time and session identity were captured before worker processing.
+          producer(next.pressedKeys, timestampMs, sessionId);
+        }
+        homographyRef.current = next.geometry?.sheetToFrame ?? null;
+        // Musical delivery above never waits for this drawing snapshot.
+        setResult(next);
+        setObservedCamera(observedCamera);
+        setSaved(calibration);
+        if (next.referenceScan.status === "captured") {
+          setMessage("Reference captured. Vision is tracking the keyboard.");
+          setScan(
+            corners
+              ? { camera: observedCamera, corners, at: Date.now() }
+              : null,
+          );
+        } else if (next.referenceScan.status === "blocked") {
+          const reasons = {
+            "markers-missing-or-invalid": "Show all four markers.",
+            "active-presses": "Release all keys.",
+            "fingertips-in-piano": "Clear your hands from the keyboard.",
+          };
+          setMessage(
+            `Reference not captured. ${reasons[next.referenceScan.reason!] ?? "Clear the keyboard."} Select Set reference to retry.`,
+          );
+        }
+      },
+    });
+    pipelineRef.current = pipeline;
+    const initial = setTimeout(() => {
+      setMessage("Loading Vision…");
+      setFailed(false);
+      setReady(false);
+      pipeline.start();
+    }, 0);
+    const tick = () => {
+      pipeline.tick();
+      animation = requestAnimationFrame(tick);
+    };
+    animation = requestAnimationFrame(tick);
+    const visibility = () => {
+      if (document.hidden) {
+        // Preserve playing recovery before reset invalidates live calibration.
+        session.setHidden(true);
+        pipeline.reset();
+      }
+    };
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      disposed = true;
+      clearTimeout(initial);
+      cancelAnimationFrame(animation);
+      document.removeEventListener("visibilitychange", visibility);
+      pipeline.dispose();
+      pipelineRef.current = null;
+    };
+  }, [
+    videoRef,
+    session,
+    stream,
+    cameraReady,
+    layout,
+    producer,
+    devMode,
+    attempt,
+  ]);
+
+  const points = (polygon: readonly { x: number; y: number }[]) =>
+    polygon.map((p) => `${p.x},${p.y}`).join(" ");
   return (
     <>
-      <MarkerTrackingOverlay
-        readinessReason={session.status.reason}
+      {result && (
+        <svg
+          aria-hidden="true"
+          viewBox={`0 0 ${result.width} ${result.height}`}
+          preserveAspectRatio="xMidYMid slice"
+          className="pointer-events-none absolute inset-0 z-10 h-full w-full scale-x-[-1]"
+        >
+          <VisionKeyHighlights
+            result={result}
+            layout={layout}
+            activePitches={activePitches}
+            enabled={enabled}
+          />
+          {result.pressRanges.map((range, i) => (
+            <polygon
+              key={`press-${i}`}
+              points={points(range.outline)}
+              fill="var(--color-accent-light)"
+              fillOpacity="0.3"
+              stroke="var(--color-accent-light)"
+              strokeWidth="2"
+            />
+          ))}
+          {DEBUG_FLAGS.visualDebug &&
+            result.fingertips.map((tip) => (
+              <circle
+                key={tip.id}
+                cx={tip.point.x}
+                cy={tip.point.y}
+                r="5"
+                fill={
+                  tip.pressed
+                    ? "var(--color-accent-light)"
+                    : "var(--color-white)"
+                }
+              />
+            ))}
+        </svg>
+      )}
+      <FallingNotesLayer
+        homographyRef={homographyRef}
+        videoRef={videoRef}
         layout={layout}
-        contactFrameRef={contactFrameRef}
-        videoRef={videoRef}
-        fingertips={fingertips}
-        hands={hands}
-        depthCalibration={depthCalibration}
-        showVisualDebug={DEBUG_FLAGS.visualDebug}
-        debugShowZLines={DEBUG_FLAGS.showZLines}
-        debugShowSheetWithoutCalibration={DEBUG_FLAGS.showSheetWithoutCalibration}
-        activePitches={activePitches}
-        // activePitches supplies accepted-note highlights throughout live play.
-        // Raw overlap would also highlight muted or held-through-count-in keys.
-        soundFeedbackOnly={session.status.state === "playing"}
-        onKeyTransitions={handleKeyTransitions}
-        trackingEnabled={enabled}
-        onCalibrationObservation={observeCalibration}
       />
-      <HandTrackingOverlay
-        videoRef={videoRef}
-        onLandmarks={handleLandmarks}
-        showVisualDebug={DEBUG_FLAGS.visualDebug}
-        onTrackingFailure={trackingFailed}
+      <SheetAlignment
+        saved={saved}
+        camera={observedCamera}
+        scan={scan}
+        reason={session.status.reason}
       />
+      <div
+        className="absolute bottom-3 left-3 right-3 z-30 flex flex-wrap items-center gap-2 rounded-lg bg-surface px-3 py-2 text-xs text-ink"
+        data-vision-state={failed ? "error" : ready ? "ready" : "loading"}
+      >
+        <button
+          type="button"
+          className="ms-key shrink-0"
+          disabled={!ready || !cameraReady || failed}
+          onClick={() => pipelineRef.current?.setReference()}
+        >
+          Set reference
+        </button>
+        {failed && (
+          <button
+            type="button"
+            className="ms-key shrink-0"
+            onClick={() => setAttempt((n) => n + 1)}
+          >
+            Reload tracker
+          </button>
+        )}
+        <p data-vision-status>{message}</p>
+        {enabled && activePitches.size > 0 && (
+          <p aria-label="Sounding notes">
+            {[...activePitches].map(midiToPitch).join(", ")}
+          </p>
+        )}
+      </div>
     </>
   );
 }

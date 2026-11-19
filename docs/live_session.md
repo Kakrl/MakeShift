@@ -46,32 +46,35 @@ Changes to a valid calibration result also retire the old session. Camera,
 sheet or layout incompatibility needs restoration of the original configuration
 or recalibration; see [calibration recovery](calibration.md).
 
-A successful hand inference on a newly decoded frame refreshes tracking. An
-empty successful result means no hands and releases keys through normal
-transitions; it is not a detector failure. Explicit inference failure interrupts
-immediately and offers reload. Successful hand inference must be younger than 500 ms.
-Once a compatible marker observation is received, calibration remains valid
-through any number of missed periodic scans while the last good projection is
-retained. A complete incompatible marker observation or camera/frame loss still
-invalidates it. Hand tracking remains subject to its independent 500 ms
-deadline; if tracking expires, a watchdog interrupts. Receive and observation-
-refresh paths also check that deadline, so a delayed timer cannot keep or
-resurrect a session. Recovery from a tracking timeout during ordinary play
-requires the user to start a new session.
+A fresh Vision worker result with a ready reference and accepted homography
+refreshes tracking. An empty pressed-key snapshot releases missing keys through
+the normal event producer; it is not a detector failure. The frame timestamp is
+captured on the main thread before readback/transfer, and its musical session ID
+is captured before processing. Results older than 500 ms and obsolete camera,
+reset-epoch or session results cannot become new notes. Worker failure offers
+Reload tracker and releases the musical session. Camera loss resets Vision and
+requires another explicit Set reference request.
 
-The 500 ms watchdog is a provisional stale-input safety bound, not contact
-debounce or a measured physical latency claim. Browser scheduling can delay the
-watchdog. Sheet incompatibility interrupts at the existing marker check cadence
-(up to ten seconds plus scheduling). Expensive CV still runs on the main thread
-pending #37. The existing overlap detector remains a prototype; this gate does
-not establish intentional contact (#34), accuracy (#39) or latency (#30).
+The temporary Set reference button captures an empty keyboard with all four
+markers. Saved calibration still gates playback; it does not seed Vision's
+reference image. A blocked reference check preserves accepted geometry and held
+keys. Successful empty reference refreshes clear the old key snapshot without
+restarting live audio or recording. Each result rechecks saved calibration
+against the accepted camera/marker geometry; incompatible data interrupts.
+
+The 500 ms watchdog is a stale-input safety bound, not contact debounce or a
+physical latency claim. Browser scheduling can delay timers. Vision processing
+runs in a worker; camera readback and session dispatch remain on the main thread.
+Physical contact accuracy, delivered frame rate, copy cost and press-to-sound
+latency still need camera/hardware verification.
 
 ## Browser recovery
 
 Visibility loss and pagehide retire the session, release notes and invalidate
-observations. On return, the next usable camera frame triggers a marker scan.
-If piano was playing before backgrounding, compatible markers and fresh hand
-tracking trigger one attempt to resume the existing audio graph. The worklet
+observations. The Vision coordinator marks the session hidden before resetting
+tracking, so calibration invalidation cannot erase whether piano was playing.
+On return, a fresh compatible Vision snapshot triggers one attempt to resume
+the existing audio graph if piano was playing before backgrounding. The worklet
 must acknowledge the previous session's reset before the new session can play.
 If the attempt fails or reaches the 1.5-second timeout, recovery requires
 selecting Enable audio, even after more fresh tracking observations.

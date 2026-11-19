@@ -17,6 +17,8 @@ Testing/
 docs/cv_local_plan.md
 # Generated frontend test evidence
 frontend/test-results/
+backend/test-results/
+backend/src/CV/cases/*.png
 
 .vscode
 

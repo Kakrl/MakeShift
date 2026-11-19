@@ -1,0 +1,3 @@
+1. make the homography policy code - DONE
+2. generate the WASM - DONE
+3. integrate WASM into the frontend. --> Read AGENTS.md, docs/cv_wasm.md, and backend/cv_wasm_interface.md. Vision WASM is built and verified; its bundle is in backend/src/CV/wasm/dist/. Prepare to integrate it into the frontend worker, reusing the frontend’s existing chromatic key lookup. Inspect the current camera, calibration and note-event paths first.

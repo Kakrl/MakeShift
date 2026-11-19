@@ -22,11 +22,16 @@ MakeShift/
 │       ├── sbom.yml                 # Syft CycloneDX generation, validation and artifact upload
 │       └── testing.yml              # pytest, CMake build, CTest
 ├── backend/
+│   ├── cv_wasm_interface.md         # proposed JavaScript input/output and lifecycle contract
 │   ├── CMakeLists.txt               # audio library, nanobind module, GoogleTest
+│   ├── run_shadow_camera.sh         # build/run native side-by-side CV viewer
+│   ├── build_vision_wasm.sh         # pinned SDK/OpenCV cross-build and module artifacts
 │   └── src/
 │       ├── API/
 │       ├── audio/                   # AudioEngine (PortAudio) and SpscQueue
-│       ├── CV/
+│       ├── CV/                     # Vision.cpp reference policy; Pipeline.cpp detector; Constants.hpp settings
+│       │   └── wasm/              # JS bindings/loader/types and compiler/source pins
+│       │       └── dist/          # tracked compiled WASM handoff bundle and hashes
 │       ├── MIDI/
 │       ├── Bindings.cpp             # nanobind Python bindings
 │       └── __init__.py
@@ -36,6 +41,8 @@ MakeShift/
 │   ├── architecture.md              # browser target, tooling, delivery boundaries
 │   ├── explanation.md               # current architecture, decisions and limitations
 │   ├── reference.md                 # developer lookup: APIs, config, schemas, storage
+│   ├── cv_pipeline.md              # native algorithm, live viewer, build and verification
+│   ├── cv_wasm.md                  # WASM build, module usage and parity handoff
 │   ├── cv_automated_testing.md       # working plan for labeled CV recordings and metrics
 │   ├── cv_video_tests.md             # quick guide for preparing and running CV video tests
 │   ├── cv_knuckle_boundary.md        # current knuckle eligibility heuristic and review questions
@@ -65,7 +72,9 @@ MakeShift/
 │   ├── Design Document.pdf
 │   └── Final Verification and Validation Plan.pdf
 ├── frontend/
+│   ├── scripts/prepare-vision.mjs  # verify/copy tracked WASM assets before dev/build
 │   ├── public/
+│   │   ├── vision/                 # module worker and ignored build-copied WASM bundle
 │   │   ├── audio/                   # worklet, sampled-piano.js, procedural synth.js and piano-samples/
 │   │   └── models/                  # MediaPipe hand landmarker model
 │   ├── src/
@@ -93,7 +102,7 @@ MakeShift/
 │   │   │   ├── SideNav.tsx          # shared responsive nav tabs
 │   │   │   ├── useKeyboardLayout.ts # shared layout subscription
 │   │   │   └── useHandLandmarker.ts
-│   │   ├── cv/                      # ArUco detection, homography, key geometry
+│   │   ├── cv/                      # bounded Vision camera worker owner; legacy ArUco/contact helpers
 │   │   │   ├── keyboardLayout.ts    # octave/start/paper dimensions and validation
 │   │   │   ├── contactPipeline.ts    # individual overlap, knuckle, and shadow checks
 │   │   │   ├── liveContactPipeline.ts # controller: eligibility, shadow worker/history, releases
@@ -102,7 +111,7 @@ MakeShift/
 │   │   │   ├── fingerVelocity.ts     # bounded palm-normalized speed and onset velocity
 │   │   │   ├── shadowHeuristics.ts   # prototype RGB k-means dark-region segmentation
 │   │   │   └── shadowWorker.ts       # bounded background shadow segmentation
-│   │   ├── events/                  # shared schema, clocks, session and audio adapter
+│   │   ├── events/                  # shared schema, clocks, session, chromatic snapshot producer and audio adapter
 │   │   ├── lib/                     # shared utilities (versioned storage, recordings API schema)
 │   │   │   ├── calibrationProfiles.ts # named step 1 calibration profiles
 │   │   │   └── keyboardSettings.ts  # persisted layout and synchronous invalidation
@@ -123,6 +132,7 @@ MakeShift/
 ├── tests/
 │   ├── README.md                    # commands, known defects, RCA log
 │   ├── verification_test_inventory.md
+│   ├── cv/                        # standalone native pipeline and camera CLI tests
 │   ├── audio/
 │   │   ├── test_audio.cpp
 │   │   └── test_audio_events.cpp

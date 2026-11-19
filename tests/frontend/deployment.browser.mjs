@@ -27,9 +27,10 @@ const base = (process.env.MAKE_SHIFT_URL || "http://127.0.0.1:3000").replace(
 const INIT_TIMEOUT = 60_000;
 const PAGES = {
   "/": async (page) => {
-    const status = page.getByText(/MediaPipe (ready|unavailable)/);
+    const status = page.locator('[data-vision-state]:not([data-vision-state="loading"])');
     await status.waitFor({ timeout: INIT_TIMEOUT });
-    assert.match(await status.innerText(), /MediaPipe ready/);
+    assert.equal(await status.getAttribute("data-vision-state"), "ready");
+    assert.equal(await page.getByRole("button", { name: "Set reference", exact: true }).count(), 1);
   },
   "/calibration": async (page) => {
     for (const attribute of ["data-hand-detection", "data-sheet-detector"]) {
@@ -38,12 +39,23 @@ const PAGES = {
       assert.equal(await settled.getAttribute(attribute), "ready", attribute);
     }
   },
-  "/audio": null,
-  "/tutorial": null,
-  "/about": null,
+  "/audio": async (page) => {
+    await page.getByRole("heading", { name: "Audio check", exact: true }).waitFor();
+    await page.getByRole("button", { name: "Enable audio", exact: true }).waitFor();
+  },
+  "/tutorial": async (page) => {
+    await page.getByRole("heading", { name: "Tutorial", exact: true }).waitFor();
+  },
+  "/about": async (page) => {
+    await page.getByRole("heading", { name: "About MakeShift", exact: true }).waitFor();
+  },
 };
 const WASM_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${tasksVisionVersion}/wasm`;
 const ASSETS = [
+  [base + "/vision/vision.worker.mjs", /javascript/],
+  [base + "/vision/makeshift-vision.mjs", /javascript/],
+  [base + "/vision/makeshift-vision-core.mjs", /javascript/],
+  [base + "/vision/makeshift-vision-core.wasm", /application\/wasm/],
   [base + "/audio/piano-worklet.js", /javascript/],
   [base + "/audio/synth.js", /javascript/],
   [base + "/audio/sampled-piano.js", /javascript/],
@@ -75,8 +87,9 @@ async function checkPages(context) {
   for (const [path, waitForInit] of Object.entries(PAGES)) {
     const response = await page.goto(base + path);
     assert.equal(response?.status(), 200, `${path} must return 200`);
-    await waitForInit?.(page);
-    await page.waitForLoadState("networkidle");
+    // Model status and page content establish readiness even while background
+    // requests remain active. Network idleness is not an app readiness signal.
+    await waitForInit(page);
     // Next's route announcer is an always-present, empty alert region.
     const alerts = (await page.getByRole("alert").allInnerTexts()).filter(
       (text) => text.trim(),
@@ -177,7 +190,7 @@ async function checkLocalPlaying(context) {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(base + "/audio");
-  await page.waitForLoadState("networkidle");
+  await PAGES["/audio"](page);
   const requests = [];
   // The browser itself may fetch the favicon lazily; that is not app traffic.
   page.on("request", (request) => {

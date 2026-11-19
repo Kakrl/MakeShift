@@ -2,7 +2,7 @@ import { toMainTime } from "../events/noteEvents";
 
 export const METRICS = {
   frameInterval:
-    "ms between changed media-time polls in hand overlay; can repeat decoded frames",
+    "ms between submitted Vision camera frames or legacy hand-overlay media-time polls; excludes frames skipped while busy",
   presentationInterval:
     "ms between diagnostic video presentation callbacks; gaps can span multiple frames",
   frameAge: "ms from browser presentationTime to callback; not exposure age",
@@ -12,7 +12,7 @@ export const METRICS = {
   inference: "ms around synchronous MediaPipe detectForVideo",
   markerDetection: "ms around MarkerDetector.detect; excludes canvas drawImage",
   detection:
-    "ms around synchronous live contact processing and shadow submission; excludes asynchronous worker execution",
+    "ms inside Vision processFrame in the worker; legacy replay measures synchronous contact processing and shadow submission",
   eventDelivery:
     "ms from accepted event observation to NoteSession receipt; excludes audio rendering",
 } as const;
@@ -36,7 +36,7 @@ export type Resources = {
   markerDetectors: number | null;
 };
 const resources: Resources = {
-  workers: null, // Shadow worker ownership is not instrumented.
+  workers: null, // Vision worker is instrumented; legacy shadow workers are not.
   mediaTracks: 0,
   audioContexts: 0,
   audioNodes: 0,
@@ -198,7 +198,7 @@ export class PipelineMetrics {
           ? (intervals.count * 1000) / intervals.sum
           : null,
       processedFpsBoundary:
-        "changed media-time polls in hand overlay; may repeat decoded frames; excludes unmounted gaps",
+        "submitted Vision camera frames or legacy hand-overlay media polls; excludes busy/skipped frames and unmounted gaps",
       presentationCallbacks: this.presentationCallbacks,
       deliveredFps:
         presentationIntervals && presentationIntervals.sum > 0

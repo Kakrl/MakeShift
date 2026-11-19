@@ -25,6 +25,8 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    "test-results/**",
+    "public/vision/makeshift-vision*",
     "out/**",
     "build/**",
     "next-env.d.ts",

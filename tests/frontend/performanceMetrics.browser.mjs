@@ -59,7 +59,7 @@ try {
   await page
     .getByLabel("Configuration / model / delegate")
     .fill(
-      "Production; fake camera; MediaPipe default GPU with CPU fallback; 3 cycles",
+      "Production; fake camera; single-thread Vision WASM worker without reference; 3 cycles",
     );
   await page.getByLabel("Build commit").fill(commit);
   await page
@@ -79,29 +79,15 @@ try {
     await page.waitForFunction(() =>
       window.profileContexts.every((c) => c.state === "closed"),
     );
-    await page.waitForFunction(
-      () => {
-        const text = document.body.innerText;
-        return (
-          text.includes("MediaPipe ready") ||
-          text.includes("MediaPipe unavailable")
-        );
-      },
-      { timeout: 30000 },
-    );
-    const status = await page.locator("body").innerText();
+    await page.locator('[data-vision-state="ready"]').waitFor({ timeout: 30000 });
     await page.waitForTimeout(3000);
     cycles.push({
       cycle: i + 1,
       audioContextsClosed: await page.evaluate(() =>
         window.profileContexts.every((c) => c.state === "closed"),
       ),
-      handModelReady: status.includes("MediaPipe ready"),
-      handDelegate: status.includes("MediaPipe ready (GPU)")
-        ? "GPU"
-        : status.includes("MediaPipe ready (CPU)")
-          ? "CPU"
-          : null,
+      visionReady: await page.locator('[data-vision-state]').getAttribute('data-vision-state') === 'ready',
+
     });
     await page.getByRole("link", { name: "Audio check", exact: true }).click();
     await page
@@ -129,7 +115,7 @@ try {
     1,
     "shared camera persists across client navigation",
   );
-  assert.equal(report.resourceSnapshots.at(-1).resources.workers, null);
+  assert.equal(report.resourceSnapshots.at(-1).resources.workers, 0);
   assert(report.resourceSnapshots.length <= 32);
   assert(cycles.every((c) => c.audioContextsClosed));
   await writeFile(
@@ -142,9 +128,7 @@ try {
   );
   // Same warm scene and external rAF probe in both modes; reverse order on pair two.
   await page.getByRole("link", { name: "MakeShift", exact: true }).click();
-  await page.waitForFunction(() =>
-    document.body.innerText.includes("MediaPipe ready"),
-  );
+  await page.locator('[data-vision-state="ready"]').waitFor();
   await page.waitForTimeout(3000);
   const overheadTrials = [];
   for (const enabled of [false, true, true, false]) {

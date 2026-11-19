@@ -78,6 +78,12 @@ entries only from a completed manual report in `tests/manual/`.
 
 ## Verifying a deployment
 
+The smoke test waits for Home Vision and calibration detector readiness, and for
+the Audio check, Tutorial and About page controls or headings. It checks displayed
+and uncaught errors after those signals instead of waiting for all network traffic
+to stop. Audio checks still require successful initialization before asserting
+that playing notes makes no requests.
+
 ```sh
 cd frontend
 npm run build && npm start                       # or use a Vercel URL

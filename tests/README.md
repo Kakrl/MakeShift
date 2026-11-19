@@ -1,5 +1,342 @@
 # MakeShift Testing
 
+## Deployment readiness wait (2026-11-19)
+
+The deployment smoke test timed out at `checkPages`'s `networkidle` wait
+in Actions and reproduced locally against the production build. The pages
+already had explicit detector readiness checks; requiring all background
+network traffic to stop introduced an unrelated failure condition. Individual
+requests responsible for the non-idle interval were not captured; a separate
+page-only diagnostic run reached idle on all five pages.
+
+`deployment.browser.mjs` now waits for Home Vision/calibration detector status,
+the Audio check heading and Enable audio control, and the Tutorial/About
+headings. It retains status-200, displayed-error, uncaught-error, asset-type,
+ZIP-download, camera-recovery, database and zero-per-note-request assertions.
+The Audio check uses the same explicit readiness helper before its playback
+rounds. No timeout was increased.
+
+Local macOS arm64 / Node 24.2.0 / Chrome 157.0.8103.79: deployment smoke passed
+against the production server at `http://127.0.0.1:3107`: 13 assets, five pages,
+two matching ZIP downloads at 320px, three audio rounds with zero note requests,
+and denial/retry/loss/recovery passed. Supabase was explicitly unconfigured.
+Logs: `/tmp/makeshift-deployment-{baseline,fixed,network}.log`.
+ESLint, TypeScript, all 928 Vitest tests across 51 files and all 37 contrast
+checks passed. Logs: `/tmp/makeshift-deployment-{lint,tsc,vitest,contrast}.log`.
+The test ran against the existing production build; application sources were
+unchanged. New Actions execution and physical camera/audio verification remain
+pending.
+
+
+## Vision merge reconciliation (2026-11-19)
+
+Merge `f945298` retained legacy `fixtures.detect` assertions in the two
+tab-return/page-restoration tests after Home switched to the synthetic Vision
+fixture. The tests now require its active frame callback and retain the
+fresh-snapshot, Playing, note-delivery and closed-recording assertions.
+
+Running the suite also exposed a visibility-listener ordering regression in
+#237 recovery: Vision reset invalidated calibration before Home recorded
+that the session had been playing. The coordinator now marks the session
+hidden before resetting Vision. This preserves live-audio recovery without
+restarting the recording. The regression failed before this ordering fix;
+all 68 recording-controls cases passed after it. ESLint, TypeScript, all 928
+Vitest tests across 51 files, all 37 contrast checks and the production build
+passed locally on macOS arm64 / Node 24.2.0.
+Tests simulate camera/audio/visibility; physical tab-return verification
+and new Actions execution remain pending. Logs:
+`/tmp/makeshift-merge-{recording,lint,tsc,vitest,contrast,build}.log`.
+
+
+
+
+## Vision key highlights (2026-11-15)
+
+White keys now fill red and black keys blue from accepted live MIDI pitches.
+White fills exclude the projected black caps; all drawing uses accepted Vision
+geometry, with no frontend contact/key detection. Release/interruption clears
+highlights, and count-in-suppressed contacts remain unlit. Existing red/blue
+CSS tokens are reused. `recordingControls.test.tsx` now checks red white-key and
+blue black-key fills, no false white fill for a black press, and clearing on
+release/interruption. Inventory 2.1.7 covers these additions.
+
+Local checks passed: lint, TypeScript, 49 Vitest files / 866 tests, contrast and
+production build. Logs: `/tmp/makeshift-key-highlights-{lint,tsc,vitest,contrast,build}.log`.
+The live browser runner has new red-fill/release assertions, but those additions
+have not been run; the user is checking the overlay visually. Existing prior
+Vision browser integration results do not establish these new visual assertions.
+
+
+## Frontend Vision integration (2026-11-15)
+
+Home now uses the shipped native Vision WASM in a plain module worker instead
+of the MediaPipe/marker/LiveContactPipeline path. Calibration and replay retain
+their existing helpers. A Set reference button requests the next submitted
+frame; clear the piano and show all four markers. Compatible saved calibration
+is still required in normal mode. Local/preview `?dev=1` still bypasses saved
+calibration. Vision currently requires matching paper/playable octave counts.
+
+The camera owner transfers one full-frame RGBA buffer at a time, echoes main
+observation times and captured musical session IDs, drops obsolete epoch/camera
+replies and fails closed at 500 ms. Worker errors/camera loss release notes and
+require recovery. Fixed velocity is 0.2 (MIDI 20). Complete chromatic snapshots
+feed the existing audio-first sessions, recorder and accepted-pitch feedback.
+Empty reference refreshes preserve live playing and recording.
+
+Local macOS arm64 / Node 24.2.0 verification:
+
+- `npm run lint`, `npx tsc --noEmit`, contrast audit and production build passed.
+- `npx vitest run --maxWorkers=4`: 49 files / 866 tests passed. The default
+  unrestricted worker count hit a 5-second timeout in a CPU-heavy sampled-piano
+  test on this machine; bounded-worker runs avoid that contention. The recording
+  UI fixture allows 20 seconds of wall time for its long simulated video runs;
+  its simulated session/contact deadlines are unchanged. Page integration now has
+  58 tests using the documented synthetic Vision fixture, replacing the old
+  overlap-only contact fixture. Legacy velocity tests remain in their own suite;
+  Home tests assert fixed velocity. The former frame-loss skip is enabled.
+- New transport/producer suites: 20 tests for single-in-flight capture, reset,
+  source/session/time identities, stale/failure cleanup, reference request,
+  chromatic mapping, real recorder/feedback, held snapshots and count-in gating.
+- `MAKE_SHIFT_URL=http://127.0.0.1:3107 npm run test:vision-browser` passed with
+  Chrome 157.0.8103.51: generated RGBA camera images reached the actual production
+  worker and AudioWorklet (MIDI pitch 53), including manual/blocked reference,
+  hold/release/recapture and camera-loss reset; no old detector or note requests.
+  Fixtures: `/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-vision-live-1BhjNm`.
+- Deployment passed in Chrome: 12 assets with expected types, Home Vision and
+  unchanged calibration startup, five pages, three audio rounds with no note
+  requests, denial/retry/track-loss recovery. Database was explicitly unconfigured.
+- Keyboard-layout browser checks passed: 1–3 octaves/start/paper, reload,
+  warning/override, invalidation and MIDI bounds. Audio browser checks passed:
+  production sample bank, stereo/velocity/register checks, suspension recovery
+  and navigation cleanup. Installed Chrome was used; Playwright Chromium is absent.
+- Selenium navigation could not run: the declared `selenium-webdriver` package
+  is missing from local `node_modules`. Optional diagnostics-enabled profiling
+  was updated for Vision readiness/resources but has not been rerun.
+
+Logs: `/tmp/makeshift-vision-{lint,tsc,vitest,contrast,build,browser,deployment,layout-browser,audio-browser,selenium}.log`.
+No physical camera contact accuracy, audible hardware or physical latency claim.
+No GitHub issue/PR/Actions operation was performed; GitHub is user-owned here.
+Frontend CI now also triggers on tracked WASM bundle changes. The new unit suites
+are discovered by existing Vitest CI; the live synthetic browser runner requires
+the native fixture exporter and is explicitly invoked locally, not added to CI.
+
+
+## Vision WASM export
+
+Local 2026-11-15 / macOS arm64: OpenCV 4.12.0 source revision
+`49486f61fb25722cbcf586b7f4320921d46fb38e`, Emscripten 4.0.20 SDK revision
+`e4fe26ef59168ff44f4c23c466e497bf60b3411e`, Release single-threaded/no SIMD,
+exceptions enabled. Build/use commands: [WASM handoff](../docs/cv_wasm.md).
+Artifact directory: `backend/src/CV/wasm/dist/` (tracked handoff bundle). The public module wraps
+native Vision including chromatic lookup; application integration remains pending.
+
+Native CV CTest passed 8/8; WASM CTest passed 2/2 (same pipeline and controlled-
+clock reference-policy suites). The native fixture exporter
+`tests/cv/wasm_parity.cpp` supplies 23 generated RGBA frames/33 actions, including
+actual ArUco images, manual/timed capture, missing markers, inside/outside tips,
+press creation/retention, blocked forced capture, release, reset, octave changes
+and native resizing across 1–3 octaves. Clock control is a test-runtime shim;
+production frames have no timestamp/clock-control field.
+
+`node tests/cv/wasm_parity.mjs` passed with Node 24.2.0: all 23 result snapshots
+and 15,974,400 diagnostic plane samples compared with the native oracle. Exact
+mask/validity, floating planes within absolute 0.001; geometry/matrices within
+0.001, drawing vertices within one pixel for rounding, remaining numbers within
+0.000001. Input type/length/dimension/octave rejection, offset/clamped arrays,
+instance independence, output/diagnostic snapshot lifetime and destruction checks
+passed. Default Node loader asset resolution also passed separately.
+
+`node tests/cv/wasm_browser.mjs` passed the same 23-frame/15,974,400-sample checks
+in a real module worker under headless Chrome 157.0.8103.51. A temporary localhost
+server served the compiled loader/WASM and fixtures; no camera, audio graph,
+Next.js route, application worker scheduling, MIDI or end-to-end physical latency
+was exercised. No COOP/COEP headers, threads or shared memory were required by
+this single-thread build. Fixture processing-time output is not a physical
+press-to-sound measurement or a performance acceptance result.
+
+Execution logs: `/tmp/makeshift-wasm-full-build.log`,
+`/tmp/makeshift-wasm-native-ctest.log`, `/tmp/makeshift-wasm-ctest.log`,
+`/tmp/makeshift-wasm-node-parity.log`. Browser execution returned PASS with
+fixtures preserved at
+`/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-wasm-browser-u8auXO`;
+Node fixtures at the same temp root under `makeshift-wasm-parity-eAzOb1`.
+Type declarations passed standalone TypeScript checking. Backend configure/build/
+CTest passed 12 tests with two hardware audio checks explicitly skipped;
+logs use `/tmp/makeshift-wasm-backend-{configure,build,ctest}.log`.
+Clang-format 17 is unavailable locally. No new Actions run;
+WASM checks are explicitly invoked and not integrated into CI.
+
+Tracked-bundle follow-up: `backend/build_vision_wasm.sh` now publishes the six-file
+bundle into `backend/src/CV/wasm/dist/`; intermediates/SDK remain ignored in
+`build/`. Git visibility and artifact hashes were checked, and staged versus
+published runtime files are byte-identical. The updated Node and Chrome worker
+runners both passed all 23 frames/15,974,400 plane samples from the new location.
+Node log: `/tmp/makeshift-wasm-tracked-node-parity.log`; browser fixture evidence:
+`/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-wasm-browser-KtRKA3`.
+
+
+
+## Vision chromatic lookup (2026-11-15)
+
+`ChromaticLookup.cpp` uses the frontend's physical white/black regions and
+black-key priority. Vision returns sorted unique semitone offsets in
+`pressedKeys` from fixed anchors. The frontend and calibration flow are unchanged.
+
+Local macOS arm64 Release checks passed:
+
+- Native CV CTest: 9/9, including the new `cv_chromatic_lookup` suite.
+- WASM CTest: 3/3, running the same lookup, pipeline and reference-policy suites.
+- Backend CMake configure/build and CTest: 12 passed, 2 hardware audio tests
+  explicitly skipped. Logs: `/tmp/makeshift-chromatic-backend-{configure,build,ctest}.log`.
+- Node 24.2.0 public-loader parity: 24 frames, 4 nonempty pressed-key frames,
+  17,203,200 diagnostic plane samples. Fixtures:
+  `/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-wasm-parity-CqLGnH`.
+- Chrome 157.0.8103.51 module-worker parity: the same 24 frames/17,203,200 samples.
+  Fixtures:
+  `/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-wasm-browser-wrSzfy`.
+- Standalone TypeScript declaration check passed using `tsc --noEmit
+  --skipLibCheck --module nodenext --moduleResolution nodenext` on the published
+  `.d.mts` file. The bundle was rebuilt with `bash backend/build_vision_wasm.sh`.
+
+Lookup tests cover all white/black pitches and final C across 1–3 octaves,
+perspective, black-cap dimensions and precedence, inclusive/shared boundaries,
+outside/nonfinite inputs, singular transforms, unsupported layouts, and
+sorted/deduplicated/empty snapshots. Reference tests additionally cross a
+chromatic boundary during retention, preserve the pitch through a blocked refresh,
+and release on missing anchors. The native exporter and shared Node/browser
+assertions compare complete key snapshots, ordering, bounds and capture/unready
+emptiness. No physical contact/latency, app integration or CI pass is claimed.
+Clang-format 17 is unavailable locally. Build/CTest logs:
+`/tmp/makeshift-chromatic-{native-build,wasm-build,wasm-ctest}.log`.
+
+
+## Vision-owned reference policy (2026-11-15)
+
+Native Vision owns analysis resizing and ArUco acquisition. First capture requires
+`setReference()` (viewer B), confirming empty paper and requesting one attempt on
+the next frame. Thereafter a monotonic 10-second or forced check requires four
+valid markers, no current/retained presses and no detected fingertip inside the
+newly scanned piano homography. The revised guard uses `withinHomography`,
+ignoring outside/clothing/margin detections; the earlier full-paper guard is
+superseded. Blocked checks keep accepted reference/geometry; success commits
+both from one frame and clears old detections/anchors. Layout/size/reset clears
+reference/timer and requires manual capture. The viewer shows scan status and
+the piano key outlines. No physical camera was opened for verification.
+
+`tests/cv/test_reference_policy.cpp` uses real generated ArUco markers and an
+injected clock: manual startup, one-shot missing-marker failures, 9999/10000 ms
+boundary, late frames without backlog, each blocker, retained presses despite
+rejected shadows, inside-piano blockers versus outside/margin tips, forced
+success/failure cadence, atomic moved-reference acceptance with an outside
+old-margin detection, size/layout invalidation, reset, invalid input preservation,
+1280x960-to-640x480 resizing/native marker coordinates and nonzero analysis
+sizes for very thin frames. Current inner-pipeline tests remain unchanged.
+
+Local Release viewer build/CTest passed 8/8 on macOS arm64 / AppleClang 15 /
+OpenCV 4.12. Camera-free configure/build/CTest passed 2/2; backend
+configure/build/CTest passed 12 tests with 2 hardware audio checks skipped.
+The camera wrapper's build/help command passed. Logs:
+`/tmp/makeshift-reference-policy-{build,ctest,core-build,core-ctest,backend-configure,backend-build,backend-ctest,camera-help}.log`.
+Clang-format 17 remains unavailable locally. No held-out empty-paper/contact accuracy, physical latency, WASM or CI
+result. Versions unchanged; objdetect is now required even without the viewer.
+
+
+Piano-only guard follow-up: local Release CTest 8/8 passed, including detected
+outside/margin tips allowing refresh and an inside-piano tip preserving the old
+reference when blocked. Logs: `/tmp/makeshift-piano-reference-guard-build.log`;
+camera-free CTest passed 2/2 and backend checks passed 12 tests with 2 hardware
+audio skips. Further logs use the same prefix with `core-build`, `core-ctest`,
+`backend-configure`, `backend-build`, `backend-ctest` suffixes. No camera was opened.
+
+## Fixed press anchors and visible matching radius (2026-11-15)
+
+The native pipeline keeps a previous/next array of fixed native-coordinate press
+anchors. Eligible tips match the first old anchor within 25% of white-key width
+(5.875 mm paper distance); an anchor is consumed at most once per frame. Matches
+skip contact detection and keep the original point. Unmatched tips use normal
+shadow detection; only accepted new presses enter the next array. Output contacts
+retain current candidate order/coordinates. Missing tips drop unmatched anchors;
+reset, recapture, geometry replacement and frame-size invalidation clear state.
+
+The viewer draws magenta anchor crosses/range outlines in both panels, using the
+same sheet-space radius and projecting it through the inverse homography.
+Expanded `tests/cv/test_pipeline.cpp` covers fixed anchors with rejected-shadow
+motion, no cumulative drift, expiration/no resurrection, one-to-one consumption,
+new-press isolation within a frame, mixed retained/new output ordering, reset,
+recapture, native-size invalidation and missing-geometry replacement. Geometry
+checks exercise horizontal/vertical/diagonal inside/outside distances under
+perspective, both sheet locations, 1–3 octaves, scaled display outline vertices,
+and invalid projections. Live camera visual review remains pending.
+
+Release build and CTest passed 7/7 on macOS arm64 / AppleClang 15 / OpenCV 4.12.
+The core-only build and CTest passed 1/1; backend configure/build/CTest passed
+12 tests with 2 hardware audio checks explicitly skipped. Logs:
+`/tmp/makeshift-press-anchors-{build,ctest,core-build,core-ctest,backend-configure,backend-build,backend-ctest}.log`.
+No physical accuracy, latency or CI claim; clang-format 17 remains unavailable
+locally. No staging or commits were performed.
+
+
+## Homography eligibility gates (2026-11-15)
+
+`KeyboardGeometry::withinHomography(Point nativePoint)` checks the playable
+keyboard footprint through the homography, including the edge-key regions beyond
+the marker centers. Both the initial refinement inputs and the final per-tip
+contact flow use this helper; no geometry admits no tips. Initial outside masks
+remain available for occlusion; full-frame shadow measurements still drive the
+class view. A refined tip moving outside is checked again before shadow searches.
+The viewer now states that refinement/contact detection are inactive when markers
+are missing. This intentionally tightens the previous no-geometry fallback;
+the earlier ungated reference-comparison record below is historical evidence.
+
+Expanded `tests/cv/test_pipeline.cpp` covers perspective footprint edges/corners
+for 1–3 octaves, inclusive vertical edges, invalid points/transforms, scaled
+native/analysis coordinates, ineligible/missing-geometry growth suppression,
+inside growth, a refined tip crossing the boundary, mixed inside/outside fingers
+with preserved occlusion masks, and identical light contacts accepted inside and
+released outside/without geometry. Local macOS arm64 Release viewer build and
+CTest passed 7/7; the camera-free core build and CTest passed 1/1. Backend
+configure/build/CTest also passed (12 passed, 2 hardware audio checks skipped).
+Logs: `/tmp/makeshift-homography-{build,ctest,core-build,core-ctest,backend-configure,backend-build,backend-ctest}.log`.
+Clang-format 17 remains unavailable locally. No camera, physical accuracy/latency
+or Actions claim.
+
+## Clean native CV pipeline (2026-11-15)
+
+Branch `feature/184-finger-shadow-impl`, based on `4a8d2b4`. Standalone native
+implementation and live-viewer instructions: [CV pipeline](../docs/cv_pipeline.md).
+Run `sh backend/run_shadow_camera.sh --help` to build without opening a camera,
+then `ctest --test-dir build/vision --output-on-failure`. Use `--camera=0` (or the
+appropriate device) for manual review; B captures reference, R resets, Q exits.
+
+Local macOS arm64 / AppleClang 15 / C++17 / OpenCV 4.12.0 / Release: all seven
+CTest checks passed (one synthetic pipeline suite, help and five invalid CLI
+arguments). The suite covers reference ownership/reset/native and analysis size
+invalidation, failed replacement, invalid inputs, RGB threshold boundaries,
+frozen one-ring growth, localized reverse seeds, 1–3 octave black rectangles,
+raw/percent score separation/inset/floors/alpha, dark threshold and paired-seed
+cancellation, two-sided light fallback, distinct strict mid floors/front veto,
+combined pipeline repeatability and shadow-class boundaries/precedence. A fresh
+core-only configure/build (`MAKESHIFT_LIVE_CAMERA=OFF`) and its CTest suite passed.
+The pinned Conan recipe resolved entirely from installed cache; no versions
+changed. The viewer build/help passed; camera hardware was not opened.
+
+A temporary comparison harness compiled the preserved native reference sources
+and the new library together. All 100 seeded synthetic frames plus saved 000
+analysis RGBA with black-key geometry enabled and disabled passed: 126 total
+candidates with equal masks, tip geometry, validity, shadow scores (tolerance
+0.0001), dark/light/both mid decisions and combined states. The ordinary-white
+floating-luma arithmetic was retained to preserve reference-floor behavior.
+This is development parity, not held-out contact accuracy. Harness/source and
+logs: `/tmp/makeshift-clean-parity/`; saved input buffers/transform:
+`/tmp/cv000-homography-black-ds0yylg7/`. These are temporary local evidence and
+not CI fixtures. Existing captures and reports were not regenerated.
+
+The repository backend configure/build/CTest passed (12 passed, 2 hardware audio
+checks explicitly skipped). Clang-format 17 and Ruff are unavailable locally.
+Physical camera review, accuracy, latency, native/WASM parity, browser integration
+and new GitHub Actions results remain pending. The standalone CV suite is not
+invoked by CI.
+
 ## Recording playback under main-thread load (issue #258)
 
 From the repository root after installing frontend dependencies and Playwright
@@ -1182,6 +1519,7 @@ No test implementation requires an exception to this layout.
 | Latency estimate | `python tests/python/latency_estimate.py profile.json config.json estimate.json` | #38 JSON export and explicit assumptions; [procedure](../docs/latency_estimation.md); no physical equipment required |
 | Frontend unit (Vitest) | `cd frontend && npx vitest run` | `npm ci` in `frontend/` |
 | Browser audio smoke | `cd frontend && npm run test:audio-browser` | Production server on `MAKE_SHIFT_URL` (default `http://127.0.0.1:3000`); `AUDIO_BROWSER_CHANNEL=chromium` for Playwright Chromium (default `msedge`) |
+| Vision live integration | `cd frontend && npm run test:vision-browser` | Running production server, installed Chrome (or `BROWSER_CHANNEL`), native fixture exporter (`sh backend/run_shadow_camera.sh --help`); synthetic camera pixels, no physical hardware claim |
 | Deployment smoke | `cd frontend && npm run test:deployment` | Production server or Vercel URL in `MAKE_SHIFT_URL`; `npx playwright install chromium`; network for jsDelivr WASM; `EXPECT_DATABASE=ok` requires Supabase secrets (`infisical run`) |
 | CV video replay | `cd frontend && npm run test:cv-video:auto` (all checked-in clips, sequentially) | Builds/starts production app once; Playwright Chromium installed once where supported (Apple Silicon Mac uses installed Chrome); optional `-- --clip N` or `-- --browser chrome`; per-clip and combined reports saved under `frontend/test-results/cv-video/` |
 | Contrast audit | `cd frontend && npm run test:contrast` | Node 20. Writes `frontend/test-results/contrast-report.json` |
@@ -1651,6 +1989,8 @@ defect report is filed.
 | D25 | Medium | Audio / UI | (Req 3.2, #207) Immediate per-beat clicks depended on React/main-thread timer delivery, allowing uneven intervals and accumulated drift under CV/render work. | `frontend/src/app/page.tsx`, `frontend/src/app/audio/countIn.ts` | [#232](https://github.com/Kakrl/MakeShift/issues/232) | Fix implemented; digital audio/timer regressions pass locally; physical listening, review/merge and Actions pending |
 
 | D25 | Medium | Calibration / UI | (Req 3.2, 6.2) A moved sheet can have all four markers and a visible debug keyboard while saved calibration is incompatible, leaving Enable audio/Record disabled without a clear recovery explanation. | `frontend/src/events/liveSession.ts`, `frontend/src/app/page.tsx`, `frontend/src/app/SheetAlignment.tsx` | [#226](https://github.com/Kakrl/MakeShift/issues/226) | Addressed with #220 in [PR #238](https://github.com/Kakrl/MakeShift/pull/238); 2.1.5/REC-03 automated recovery checks passed; physical recovery, including knuckles enabled, remains pending in REC-04; review/merge pending |
+
+| D29 | Medium | Audio / UI | Vision reset on tab hide interrupts live play before background recovery remembers it was playing; returning requires Enable audio instead of automatic live-audio recovery. | `frontend/src/app/CVOverlayCoordinator.tsx` | [#237](https://github.com/Kakrl/MakeShift/issues/237) | Merge regression fixed locally; both tab-switch/page-restoration cases pass; physical verification and review/merge pending. [Verification](#vision-merge-reconciliation-2026-11-19) |
 
 ## Root Cause Analysis Log
 
