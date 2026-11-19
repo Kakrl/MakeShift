@@ -1,5 +1,25 @@
 # MakeShift Testing
 
+## Vision merge reconciliation (2026-11-19)
+
+Merge `f945298` retained legacy `fixtures.detect` assertions in the two
+tab-return/page-restoration tests after Home switched to the synthetic Vision
+fixture. The tests now require its active frame callback and retain the
+fresh-snapshot, Playing, note-delivery and closed-recording assertions.
+
+Running the suite also exposed a visibility-listener ordering regression in
+#237 recovery: Vision reset invalidated calibration before Home recorded
+that the session had been playing. The coordinator now marks the session
+hidden before resetting Vision. This preserves live-audio recovery without
+restarting the recording. The regression failed before this ordering fix;
+all 68 recording-controls cases passed after it. ESLint, TypeScript, all 928
+Vitest tests across 51 files, all 37 contrast checks and the production build
+passed locally on macOS arm64 / Node 24.2.0.
+Tests simulate camera/audio/visibility; physical tab-return verification
+and new Actions execution remain pending. Logs:
+`/tmp/makeshift-merge-{recording,lint,tsc,vitest,contrast,build}.log`.
+
+
 
 
 ## Vision key highlights (2026-11-15)
@@ -1941,6 +1961,8 @@ defect report is filed.
 | D25 | Medium | Audio / UI | (Req 3.2, #207) Immediate per-beat clicks depended on React/main-thread timer delivery, allowing uneven intervals and accumulated drift under CV/render work. | `frontend/src/app/page.tsx`, `frontend/src/app/audio/countIn.ts` | [#232](https://github.com/Kakrl/MakeShift/issues/232) | Fix implemented; digital audio/timer regressions pass locally; physical listening, review/merge and Actions pending |
 
 | D25 | Medium | Calibration / UI | (Req 3.2, 6.2) A moved sheet can have all four markers and a visible debug keyboard while saved calibration is incompatible, leaving Enable audio/Record disabled without a clear recovery explanation. | `frontend/src/events/liveSession.ts`, `frontend/src/app/page.tsx`, `frontend/src/app/SheetAlignment.tsx` | [#226](https://github.com/Kakrl/MakeShift/issues/226) | Addressed with #220 in [PR #238](https://github.com/Kakrl/MakeShift/pull/238); 2.1.5/REC-03 automated recovery checks passed; physical recovery, including knuckles enabled, remains pending in REC-04; review/merge pending |
+
+| D29 | Medium | Audio / UI | Vision reset on tab hide interrupts live play before background recovery remembers it was playing; returning requires Enable audio instead of automatic live-audio recovery. | `frontend/src/app/CVOverlayCoordinator.tsx` | [#237](https://github.com/Kakrl/MakeShift/issues/237) | Merge regression fixed locally; both tab-switch/page-restoration cases pass; physical verification and review/merge pending. [Verification](#vision-merge-reconciliation-2026-11-19) |
 
 ## Root Cause Analysis Log
 

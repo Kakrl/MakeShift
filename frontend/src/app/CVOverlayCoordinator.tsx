@@ -138,7 +138,11 @@ export default function CVOverlayCoordinator({
     };
     animation = requestAnimationFrame(tick);
     const visibility = () => {
-      if (document.hidden) pipeline.reset();
+      if (document.hidden) {
+        // Preserve playing recovery before reset invalidates live calibration.
+        session.setHidden(true);
+        pipeline.reset();
+      }
     };
     document.addEventListener("visibilitychange", visibility);
     return () => {

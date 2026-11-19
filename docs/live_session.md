@@ -71,9 +71,10 @@ latency still need camera/hardware verification.
 ## Browser recovery
 
 Visibility loss and pagehide retire the session, release notes and invalidate
-observations. On return, the next usable camera frame triggers a marker scan.
-If piano was playing before backgrounding, compatible markers and fresh hand
-tracking trigger one attempt to resume the existing audio graph. The worklet
+observations. The Vision coordinator marks the session hidden before resetting
+tracking, so calibration invalidation cannot erase whether piano was playing.
+On return, a fresh compatible Vision snapshot triggers one attempt to resume
+the existing audio graph if piano was playing before backgrounding. The worklet
 must acknowledge the previous session's reset before the new session can play.
 If the attempt fails or reaches the 1.5-second timeout, recovery requires
 selecting Enable audio, even after more fresh tracking observations.
