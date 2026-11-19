@@ -4,6 +4,7 @@ import { formatMeter, restoreMeter } from "../../lib/meter";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { SharedRecording } from "../../lib/recordings";
+import { replayThresholdMs } from "../../lib/recordings";
 import { downloadMidi, type Recording } from "../midi/midiUtils";
 import {
   createPlaybackTimeline,
@@ -48,6 +49,7 @@ export default function SharedPlayer({
   shareActions = true,
   actions,
   onPlayAlong,
+  onReplay,
 }: {
   recording: SharedRecording | null;
   /** Fill a flex column: the roll takes the free space, keys sit at the bottom. */
@@ -58,6 +60,8 @@ export default function SharedPlayer({
   actions?: ReactNode;
   /** Shows a Play along key that drops the song onto the keyboard (#131). Resolves to an error message, or null once it started. */
   onPlayAlong?: (recording: Recording) => Promise<string | null>;
+  /** Shared songs only; submit once per qualifying playback attempt, without retries. */
+  onReplay?: (listenedMs: number) => Promise<unknown>;
 }) {
   const [timeline, setTimeline] = useState<PlaybackTimeline | null>(null);
   const [state, setState] = useState<PlaybackState>("stopped");
@@ -67,10 +71,12 @@ export default function SharedPlayer({
 
   const rollRef = useRef<PianoRollHandle>(null);
   const frame = useRef(0);
+  const replaySubmitted = useRef(false);
 
   useEffect(() => {
     if (!recording) return;
     const created = createPlaybackTimeline(asRecording(recording));
+    replaySubmitted.current = false;
     // The timeline is an external object owned by this effect's lifetime.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTimeline(created);
@@ -87,6 +93,13 @@ export default function SharedPlayer({
     if (!timeline) return;
     const step = () => {
       const snapshot = timeline.getSnapshot();
+      if (onReplay && snapshot.durationMs > 0 && !replaySubmitted.current &&
+          snapshot.listenedMs >= replayThresholdMs(snapshot.durationMs)) {
+        replaySubmitted.current = true;
+        void onReplay(Math.floor(snapshot.listenedMs)).catch(() => {
+          // Best-effort metric: a failure neither retries nor interrupts audio.
+        });
+      }
       setState(snapshot.state);
       setError(snapshot.error);
       rollRef.current?.draw();
@@ -95,7 +108,7 @@ export default function SharedPlayer({
     };
     cancelAnimationFrame(frame.current);
     step();
-  }, [timeline]);
+  }, [timeline, onReplay]);
 
   const playing = state === "playing" || state === "loading";
   const secondary = "ms-key px-4 py-2.5 text-[15px]";
@@ -130,7 +143,12 @@ export default function SharedPlayer({
           onClick={() => {
             if (!timeline) return;
             if (playing) timeline.pause();
-            else void timeline.play().then(sync);
+            else {
+              const snapshot = timeline.getSnapshot();
+              if (snapshot.state === "stopped" || snapshot.positionMs >= snapshot.durationMs)
+                replaySubmitted.current = false;
+              void timeline.play().then(sync);
+            }
             sync();
           }}
         >

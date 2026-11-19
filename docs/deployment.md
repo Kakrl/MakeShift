@@ -192,3 +192,13 @@ separate domain, and searches will miss sites that are unindexed or short-lived.
 HTTPS only proves the connection is encrypted to whoever controls that domain;
 a padlock does not prove the site is MakeShift. Users should check the exact
 address.
+
+## Replay schema rollout (#290)
+
+Before deploying the replay API, apply
+`supabase/migrations/20261119000000_recording_replays.sql` to the database
+used by that deployment. The API reads the new columns and recommendation
+view, so an unmigrated database will fail shared list/read requests. Existing
+notes stay intact; counters start at zero. Follow [migration and rollout
+verification](supabase.md#qualifying-replays-and-recommendations-290).
+Local SQL and intercepted-browser tests do not verify hosted migration status.

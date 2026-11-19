@@ -25,6 +25,7 @@ export type ShareStore = {
   list(cursor?: string | null, query?: RecordingListQuery): Promise<RecordingListResponse>;
   /** Null when the recording is missing or hidden. */
   get(id: string): Promise<SharedRecording | null>;
+  replay(id: string, listenedMs: number): Promise<{ counted: boolean }>;
   upload(request: UploadRecordingRequest): Promise<UploadRecordingResponse>;
   remove(id: string, deleteToken: string): Promise<DeleteRecordingResponse>;
 };
@@ -74,6 +75,12 @@ export function createShareApi(fetchImpl: typeof fetch = (...args) => fetch(...a
       const recording = (await response.json()) as SharedRecording;
       if (recording.pedals !== undefined && (!Array.isArray(recording.notes) || !validRecordedPedals(recording.pedals, recording.notes))) throw new Error("Invalid recorded pedal controls");
       return { ...recording, meter: restoreMeter(recording.meter) };
+    },
+
+    replay(id, listenedMs) {
+      return call<{ counted: boolean }>(
+        `/${encodeURIComponent(id)}/replays`, sendJson("POST", { listenedMs }),
+      );
     },
 
     upload(request) {

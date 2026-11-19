@@ -34,13 +34,19 @@ export type RecordingSummary = {
   /** Octaves of keyboard the song spans, at least 1: see `recordingOctaves`. */
   octaves: number;
   createdAt: string;
+  replayCount: number;
 };
 
 /** `GET /api/recordings/:id`. */
 export type SharedRecording = RecordingSummary & { notes: RecordedNote[]; pedals?: RecordedPedals };
 
-export const RECORDING_SORTS = ["newest", "oldest", "longest"] as const;
+export const RECORDING_SORTS = ["most-replays", "newest", "oldest", "longest"] as const;
 export type RecordingSort = (typeof RECORDING_SORTS)[number];
+
+/** Wall-clock playing time required for a replay; zero-duration songs never qualify. */
+export function replayThresholdMs(durationMs: number): number {
+  return durationMs >= 30000 ? 30000 : Math.ceil(durationMs / 2);
+}
 /** Sheets come in one, two and three octaves. */
 export const OCTAVE_CHOICES = [1, 2, 3] as const;
 export const MAX_QUERY_IDS = 100;

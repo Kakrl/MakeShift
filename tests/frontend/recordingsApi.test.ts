@@ -4,6 +4,7 @@ import {
   deleteRecording,
   getRecording,
   listRecordings,
+  recordReplay,
   MAX_UPLOAD_BYTES,
   UPLOAD_RATE_LIMIT,
   uploadClientKey,
@@ -44,6 +45,7 @@ const row = (index: number) => ({
   note_count: 2,
   octaves: 1,
   created_at: `2026-10-${String(20 - index).padStart(2, "0")}T12:00:00.123456+00:00`,
+  replay_count: 0,
 });
 
 const upload = {
@@ -89,6 +91,75 @@ it("stores and reads ordered pedal controls and includes their final boundary in
   await expect(client.get(ID)).rejects.toThrow("Invalid recorded pedal controls");
 });
 
+describe("replays and recommendation pages (#290)", () => {
+  it.each([true, false])("passes listening to the atomic RPC and returns counted=%s", async counted => {
+    const { calls, deps } = database(counted);
+    expect(await (await recordReplay(ID, post({ listenedMs: 30000 }), deps)).json()).toEqual({ counted });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url.pathname).toBe("/rest/v1/rpc/record_recording_replay");
+    expect(JSON.parse(calls[0].init.body as string)).toEqual({ p_recording_id: ID, p_listened_ms: 30000 });
+    expect(calls[0].init.method).toBe("POST");
+  });
+
+  it.each([null, {}, [], { listenedMs: "30000" }, { listenedMs: -1 },
+    { listenedMs: 0.5 }, { listenedMs: 1800001 }])("rejects invalid replay input %j before database access", async body => {
+    const { calls, deps } = database();
+    expect((await recordReplay(ID, post(body), deps)).status).toBe(400);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("handles malformed JSON, invalid IDs, missing configuration and database failures", async () => {
+    expect((await recordReplay(ID, post("{"), { env })).status).toBe(400);
+    expect((await recordReplay("bad-id", post({ listenedMs: 1 }), { env })).status).toBe(404);
+    expect((await recordReplay(ID, post({ listenedMs: 1 }), { env: {} })).status).toBe(503);
+    const { deps } = database(new Response("secret database error", { status: 500 }));
+    const failed = await recordReplay(ID, post({ listenedMs: 1 }), deps);
+    expect(failed.status).toBe(502);
+    expect(await failed.text()).not.toContain("secret");
+  });
+
+  it("sends one client request, including on failure", async () => {
+    const fetcher = vi.fn(async () => Response.json({ counted: true }));
+    const api = createShareApi(fetcher as unknown as typeof fetch);
+    expect(await api.replay(ID, 30000)).toEqual({ counted: true });
+    expect(fetcher).toHaveBeenCalledWith(`/api/recordings/${ID}/replays`, expect.objectContaining({
+      method: "POST", body: JSON.stringify({ listenedMs: 30000 }),
+    }));
+    fetcher.mockRejectedValueOnce(new Error("offline"));
+    await expect(api.replay(ID, 30000)).rejects.toThrow("offline");
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses the ranked view, seven-row lookahead and offset marker with existing filters", async () => {
+    const { calls, deps } = database(Array.from({ length: 7 }, (_, i) => ({ ...row(i), replay_count: 9 })), [row(8)]);
+    const first = await listRecordings(new Request(`http://localhost/api/recordings?sort=most-replays&q=Song&maxOctaves=2&ids=${ID}`), deps);
+    const page = await first.json();
+    expect(page.recordings).toHaveLength(6);
+    expect(page.recordings[0].replayCount).toBe(9);
+    expect(page.nextCursor).toBe("replays:6");
+    expect(calls[0].url.pathname).toBe("/rest/v1/recording_recommendations");
+    const params = calls[0].url.searchParams;
+    expect(params.get("order")).toBe("recommendation_eligible.desc,recommendation_rank.desc,created_at.desc,id.desc");
+    expect(params.get("offset")).toBe("0");
+    expect(params.get("limit")).toBe("7");
+    expect(params.get("title")).toBe("ilike.*Song*");
+    expect(params.get("octaves")).toBe("lte.2");
+    expect(params.get("id")).toBe(`in.(${ID})`);
+    expect(params.get("select")).not.toContain("notes");
+    const second = await listRecordings(new Request(`http://localhost/api/recordings?sort=most-replays&cursor=${page.nextCursor}`), deps);
+    expect((await second.json()).nextCursor).toBeNull();
+    expect(calls[1].url.searchParams.get("offset")).toBe("6");
+  });
+
+  it.each(["6", "replays:-1", "replays:1.5", "replays:01", "replays:9007199254740991", "wrong"])(
+    "rejects invalid recommendation cursor %s", async cursor => {
+      const { calls, deps } = database();
+      expect((await listRecordings(new Request(`http://localhost/api/recordings?sort=most-replays&cursor=${cursor}`), deps)).status).toBe(400);
+      expect(calls).toHaveLength(0);
+    },
+  );
+});
+
 describe("GET /api/recordings", () => {
   it("lists visible summaries newest first and pages with a keyset cursor", async () => {
     const rows = Array.from({ length: RECORDING_LIST_PAGE_SIZE + 1 }, (_, i) => row(i));
@@ -108,6 +179,7 @@ describe("GET /api/recordings", () => {
       noteCount: 2,
       octaves: 1,
       createdAt: rows[0].created_at,
+      replayCount: 0,
     });
     expect(page.recordings[0]).not.toHaveProperty("notes");
     const query = calls[0].url.searchParams;

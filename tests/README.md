@@ -2966,3 +2966,51 @@ passed deployment, keyboard-layout and audio checks on the local production
 server. At 320px, both links displayed the download label before activation,
 served the expected ZIP and left the page open. Both archived PDFs matched
 the checked-in originals by SHA-256. The database was unconfigured.
+
+## Qualifying replays verification (issue #290)
+
+Added `replayPlayer.test.tsx`, `replays.browser.mjs` and the disposable
+`database/recording_replays.sql` regression. Extended `playbackTimeline`,
+`recordingsApi`, `shareQuery` and `songsDialogFind` suites. Inventory
+REPLAY-01 through REPLAY-05 distinguish simulated, embedded SQL and production
+browser coverage. Existing PB, API and SF rows retain historical evidence and
+record this regression rerun.
+
+Local execution on Windows, Node 22.17.0, 2026-11-19:
+
+- `cd frontend && npx vitest run`: 943 passed, one existing skipped test,
+  50 files passed. The five affected Vitest suites alone passed 132 cases.
+- `npm run lint`, `npx tsc --noEmit` and `npm run test:contrast`: passed
+  (37 contrast pairs). A first lint run found unused arguments in new mocks;
+  those were corrected before the passing run.
+- `npm run build`: passed with network access. The first restricted run
+  could not fetch the application's existing Google Fonts.
+- Production server: `npm start -- -p 3290`. With
+  `MAKE_SHIFT_URL=http://127.0.0.1:3290`, run
+  `node ../tests/frontend/replays.browser.mjs`: passed in Chromium
+  151.0.7922.34. It checks real playback and client HTTP requests with
+  intercepted API responses, not the hosted database. No calibration or
+  physical camera is required. The replay browser test is not added to CI.
+- `npm run test:keyboard-layout-browser`, `npm run test:ui-selenium` and
+  `AUDIO_BROWSER_CHANNEL=chromium npm run test:audio-browser`: passed.
+  Selenium required network access to obtain its driver. Audio smoke checks
+  rendered output and lifecycle; it is not a physical listening test.
+- `npm run test:deployment`: the first restricted run failed to reach its
+  existing MediaPipe CDN URL. The network-enabled rerun did not finish and
+  was stopped; no pass is claimed for the general deployment smoke runner.
+- SQL regression passed in temporary PGlite 0.5.17, installed outside the
+  repository (not a product dependency). A local Node harness created the
+  Supabase roles (service_role with BYPASSRLS), expanded the script's psql
+  relative includes and executed the complete transaction. It exercises real
+  PostgreSQL SQL, thresholds, legacy note preservation, counts/timestamps,
+  role grants and view ranking. Run the committed script with psql against
+  a disposable empty PostgreSQL database containing Supabase roles:
+
+  ```sh
+  psql -v ON_ERROR_STOP=1 "$TEST_DATABASE_URL" -f tests/database/recording_replays.sql
+  ```
+
+Hosted migration, PostgREST access, deployment round trip, concurrent-request
+stress and physical listening remain unverified. GitHub Actions evidence for
+this change remains pending. The metric intentionally has no retries or
+server-enforced deduplication; see [the contract](../docs/supabase.md#qualifying-replays-and-recommendations-290).

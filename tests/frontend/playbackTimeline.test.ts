@@ -83,6 +83,67 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe("active listening time (#290)", () => {
+  it("accumulates pause/resume time, excludes seeks and resets on stop/replay", async () => {
+    const { timeline } = setup(recording(note("C4", 0, 60000)));
+    await timeline.play();
+    await vi.advanceTimersByTimeAsync(8000);
+    timeline.pause();
+    expect(timeline.getSnapshot().listenedMs).toBe(8000);
+    await vi.advanceTimersByTimeAsync(10000);
+    timeline.seek(30000);
+    expect(timeline.getSnapshot().listenedMs).toBe(8000);
+    await timeline.play();
+    await vi.advanceTimersByTimeAsync(7000);
+    timeline.seek(1000);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(timeline.getSnapshot().listenedMs).toBe(16000);
+    timeline.stop();
+    expect(timeline.getSnapshot().listenedMs).toBe(0);
+    timeline.seek(59000);
+    await timeline.play();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(timeline.getSnapshot()).toMatchObject({ state: "ended", listenedMs: 1000 });
+    await timeline.play();
+    expect(timeline.getSnapshot().listenedMs).toBe(0);
+  });
+
+  it("counts real playing time across speed changes and caps a late ending", async () => {
+    const { timeline } = setup(recording(note("C4", 0, 10000)));
+    await timeline.play();
+    await vi.advanceTimersByTimeAsync(1000);
+    timeline.setPlaybackRate(2);
+    await vi.advanceTimersByTimeAsync(1000);
+    timeline.setPlaybackRate(0.5);
+    await vi.advanceTimersByTimeAsync(14000);
+    expect(timeline.getSnapshot()).toMatchObject({ state: "ended", listenedMs: 16000 });
+    await timeline.play();
+    vi.setSystemTime(100000); // The monotonic performance clock remains independent.
+    vi.spyOn(performance, "now").mockReturnValue(performance.now() + 30000);
+    expect(timeline.getSnapshot().listenedMs).toBe(20000);
+    timeline.pause();
+    expect(timeline.getSnapshot().listenedMs).toBe(20000);
+  });
+
+  it("does not count loading, failed or interrupted time", async () => {
+    const { timeline, audio, interrupt } = setup(recording(note("C4", 0, 60000)));
+    let finish!: () => void;
+    audio.initialize.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    const pending = timeline.play();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(timeline.getSnapshot().listenedMs).toBe(0);
+    finish(); await pending;
+    await vi.advanceTimersByTimeAsync(1000);
+    interrupt();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(timeline.getSnapshot().listenedMs).toBe(1000);
+    audio.initialize.mockRejectedValueOnce(new Error("unavailable"));
+    expect(await timeline.play()).toBe(false);
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(timeline.getSnapshot().listenedMs).toBe(1000);
+  });
+});
+
 describe("recording playback timing", () => {
   it("cancels pending startup on tab hide and waits for an explicit Play on return", async () => {
     const visibility = Object.assign(new EventTarget(), { hidden: false });

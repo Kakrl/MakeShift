@@ -230,3 +230,15 @@ individual keys, endpoints, a chromatic sweep and a chord spanning the range.
 The printed keyboard retains its separate 1–3 octave scope. Full-range audio
 verification covers production graph output and pitch at 44.1, 48 and 96 kHz,
 with listening and physical latency tracked separately.
+
+## Shared replay recommendations (#290)
+
+Shared-song playback records a best-effort popularity count after 30 seconds
+of active listening, or half the duration for a shorter song. The Shared tab
+recommends songs at least 10 seconds long by this count, then fills remaining
+positions with shorter songs ordered newest first. Private recordings and
+live note dispatch do not use this network path. Six-summary server pages,
+simple recommendation offsets and one submission per playback attempt keep
+the implementation bounded. No automatic retries or per-attempt database rows
+are in scope. See [database behavior and limitations](supabase.md#qualifying-replays-and-recommendations-290)
+and REPLAY-01 through REPLAY-05 in the verification inventory.

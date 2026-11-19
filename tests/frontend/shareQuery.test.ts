@@ -7,6 +7,51 @@ import type { LibraryEntry } from "../../frontend/src/app/midi/recordingsLibrary
 import { MAX_SEARCH_LENGTH, type RecordingListQuery, type RecordingSummary } from "../../frontend/src/lib/recordings";
 import type { StorageArea } from "../../frontend/src/lib/storage";
 
+describe("replay ranking and counting (#290)", () => {
+  const seeded = () => {
+    const storage = memory();
+    const rows = [
+      ["a", 10000, 4, "2026-01-01"], ["b", 30000, 10, "2026-01-01"],
+      ["c", 10000, 4, "2026-01-02"], ["d", 10000, 4, "2026-01-02"],
+      ["e", 10000, 0, "2026-01-01"], ["f", 9999, 999, "2026-01-01"],
+      ["g", 9999, 0, "2026-01-02"], ["h", 1, 500, "2026-01-03"],
+    ].map(([id, duration, replayCount, date]) => ({
+      id: String(id), title: `Replay ${id}`, authorName: "Fixture", bpm: 120,
+      durationMs: Number(duration), replayCount: Number(replayCount), noteCount: 1,
+      octaves: 1, createdAt: `${date}T00:00:00Z`, deleteToken: "token",
+      notes: [{ pitch: "C4", velocity: 80, startMs: 0, durationMs: Number(duration) }],
+    }));
+    storage().setItem("makeshift:mock-shared-recordings:v1", JSON.stringify(rows));
+    return { storage, shared: createMockShareStore(storage, 0, () => "normal") };
+  };
+
+  it("pages eligible songs by replays, ties by date/ID and short fillers by date only", async () => {
+    const { shared } = seeded();
+    const first = await shared.list(null, { sort: "most-replays", q: "Replay" });
+    expect(first.recordings.map(r => r.id)).toEqual(["b", "d", "c", "a", "e", "h"]);
+    expect(first.nextCursor).toBe("replays:6");
+    const second = await shared.list(first.nextCursor, { sort: "most-replays", q: "Replay" });
+    expect(second.recordings.map(r => r.id)).toEqual(["g", "f"]);
+    expect(second.nextCursor).toBeNull();
+    const filtered = await shared.list(null, { sort: "most-replays", q: "Replay", ids: ["f", "g"], maxOctaves: 1 });
+    expect(filtered.recordings.map(r => r.id)).toEqual(["g", "f"]);
+  });
+
+  it("counts qualifying requests without persistent attempt rows, and resets totals on reload", async () => {
+    const { storage, shared } = seeded();
+    expect(await shared.replay("a", 4999)).toEqual({ counted: false });
+    expect(await shared.replay("a", 5000)).toEqual({ counted: true });
+    expect(await shared.replay("b", 29999)).toEqual({ counted: false });
+    expect(await shared.replay("b", 30000)).toEqual({ counted: true });
+    expect(await shared.replay("a", 5000)).toEqual({ counted: true });
+    expect((await shared.get("a"))!.replayCount).toBe(6);
+    expect((await createMockShareStore(storage, 0, () => "normal").get("a"))!.replayCount).toBe(4);
+    expect(await shared.replay("missing", 5000)).toEqual({ counted: false });
+    expect(await shared.replay("a", NaN)).toEqual({ counted: false });
+    expect(await shared.replay("a", 1800001)).toEqual({ counted: false });
+  });
+});
+
 const memory = (): (() => StorageArea) => {
   const items = new Map<string, string>();
   const area: StorageArea = {

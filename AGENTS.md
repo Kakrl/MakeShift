@@ -51,12 +51,13 @@ it separates existing behavior from planned work and links implementation issues
 | `frontend/src/events/` | Shared browser note schema, clocks, session dispatch and audio adapter |
 | `frontend/src/cv/` | ArUco marker detection, homography, keyboard geometry, falling-notes geometry, prototype shadow worker and combined per-finger contact state |
 | `frontend/src/lib/` | Shared utilities: versioned `localStorage` access, the recordings API types/validation used by client and server, and the latest GitHub release lookup for `/about` |
-| `frontend/src/app/api/` | Server routes; `/api/health` checks the recordings database, `/api/recordings` lists, reads, uploads and deletes shared recordings |
+| `frontend/src/app/api/` | Server routes; `/api/health` checks the recordings database, `/api/recordings` lists, reads, uploads and deletes shared recordings, and records qualifying replays |
 | `frontend/src/server/` | Server-only Supabase access and recordings route handlers (never import from client code) |
 | `supabase/` | Supabase CLI config and SQL migrations for shared recordings |
 | `backend/` | C++ audio engine (PortAudio) and its nanobind Python module |
 | `tests/` | Test inventory, testing guide, and suite subdirectories |
 | `tests/audio/` | C++ GoogleTest audio and queue suites |
+| `tests/database/` | Disposable PostgreSQL migration and replay-ranking regressions |
 | `tests/frontend/` | Vitest MIDI tests and contrast audit |
 | `tests/python/` | Python tests (currently a placeholder) |
 | `tests/automation/` | Repository-process RCA tests |

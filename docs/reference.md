@@ -705,3 +705,27 @@ how to run every suite (including C++ and Python) is in
 cd frontend
 npm run lint && npx tsc --noEmit && npx vitest run && npm run test:contrast && npm run build
 ```
+
+### Shared playback recommendations (#290)
+
+Shared summaries also return `replayCount: number`.
+Shared song cards show this count beside their other details; it refreshes when the list reloads.
+`POST /api/recordings/:id/replays` accepts `{listenedMs: number}` and returns
+`{counted: boolean}`; elapsed time must be a non-negative safe integer no
+greater than 1,800,000 ms. The server checks qualification against the stored
+duration. A normal Shared player submits once after 30 seconds of active
+playback, or half of a shorter song, rounded up. Pausing/loading adds no time;
+seeking adds no skipped time. Play again permits another replay. Local takes,
+unsaved previews and Play along do not submit this metric.
+
+The Shared tab defaults to `most-replays`: songs at least 10 seconds long
+rank by replay count, creation time and ID descending; shorter songs follow
+by creation time and ID descending only. My recordings defaults to newest.
+The API retains newest as its omitted-sort default. Existing search, octave,
+favorites and alternate sorts still work.
+
+Recommendation pages contain up to six summaries and an opaque offset cursor,
+whereas other sorts retain keyset cursors. Pass the cursor back with the same
+query. Live ranking changes can skip entries between pages; duplicate cards
+are suppressed and refresh starts again. See [the full API, rollout and
+best-effort metric limitations](supabase.md#qualifying-replays-and-recommendations-290).
