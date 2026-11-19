@@ -1052,7 +1052,7 @@ export default function Calibration() {
 
         {/* Step panel lives beside the camera, so calibration never needs a
             scroll. Below lg it moves above the nav keys, right under the feed. */}
-        <SideNav active="calibration">
+        <SideNav active="calibration" showPianoSheetDownload>
           {(() => {
             const { title, controls, status, alert } = stepContent();
             return (
