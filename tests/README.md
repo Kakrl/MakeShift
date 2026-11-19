@@ -1,5 +1,33 @@
 # MakeShift Testing
 
+## Deployment readiness wait (2026-11-19)
+
+The deployment smoke test timed out at `checkPages`'s `networkidle` wait
+in Actions and reproduced locally against the production build. The pages
+already had explicit detector readiness checks; requiring all background
+network traffic to stop introduced an unrelated failure condition. Individual
+requests responsible for the non-idle interval were not captured; a separate
+page-only diagnostic run reached idle on all five pages.
+
+`deployment.browser.mjs` now waits for Home Vision/calibration detector status,
+the Audio check heading and Enable audio control, and the Tutorial/About
+headings. It retains status-200, displayed-error, uncaught-error, asset-type,
+ZIP-download, camera-recovery, database and zero-per-note-request assertions.
+The Audio check uses the same explicit readiness helper before its playback
+rounds. No timeout was increased.
+
+Local macOS arm64 / Node 24.2.0 / Chrome 157.0.8103.79: deployment smoke passed
+against the production server at `http://127.0.0.1:3107`: 13 assets, five pages,
+two matching ZIP downloads at 320px, three audio rounds with zero note requests,
+and denial/retry/loss/recovery passed. Supabase was explicitly unconfigured.
+Logs: `/tmp/makeshift-deployment-{baseline,fixed,network}.log`.
+ESLint, TypeScript, all 928 Vitest tests across 51 files and all 37 contrast
+checks passed. Logs: `/tmp/makeshift-deployment-{lint,tsc,vitest,contrast}.log`.
+The test ran against the existing production build; application sources were
+unchanged. New Actions execution and physical camera/audio verification remain
+pending.
+
+
 ## Vision merge reconciliation (2026-11-19)
 
 Merge `f945298` retained legacy `fixtures.detect` assertions in the two
