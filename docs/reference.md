@@ -655,6 +655,7 @@ All client data is in `localStorage`. Helpers:
 | Key | Holds | Owner |
 | :--- | :--- | :--- |
 | `makeshift:keyboard-layout:v1` | `KeyboardLayout` | [`lib/keyboardSettings.ts`](../frontend/src/lib/keyboardSettings.ts) |
+| `makeshift:calibration-profiles:v1` | Named step 1 profiles (`CalibrationProfile[]`): `octaves`, `startingNote`, paper fields, optional corners | [`lib/calibrationProfiles.ts`](../frontend/src/lib/calibrationProfiles.ts) |
 | `makeshift:playback-settings:v1` | `{ tempo, metronome }` | [`app/page.tsx`](../frontend/src/app/page.tsx) |
 | `makeshift:pedal-bindings:v1` | Pedal `Bindings` ([Pedals](#pedals)) | [`app/PedalControls.tsx`](../frontend/src/app/PedalControls.tsx) |
 | `makeshift:recordings:v1` | Local recordings library (`Recording[]`) | [`app/midi/recordingsLibrary.ts`](../frontend/src/app/midi/recordingsLibrary.ts) |
