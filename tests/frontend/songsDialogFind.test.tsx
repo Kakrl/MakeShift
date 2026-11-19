@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SongsDialog, { type MyRecordings } from "../../frontend/src/app/share/SongsDialog";
 import { favorites } from "../../frontend/src/lib/favorites";
+import { shareStore } from "../../frontend/src/app/share/shareStore";
 
 const mine: MyRecordings = {
   entries: [
@@ -30,19 +31,55 @@ const open = (tab: "shared" | "mine" = "shared") =>
   render(createElement(SongsDialog, { initialTab: tab, mine, onClose: () => {} }));
 const titles = () => screen.queryAllByRole("button", { name: /^Favorite / }).map((b) => b.getAttribute("aria-label")!.slice(9));
 const search = (value: string) => fireEvent.change(screen.getByRole("searchbox", { name: "Search songs by title" }), { target: { value } });
+let observeMore: IntersectionObserverCallback | null;
 
 describe("finding songs in the dialog (#281, #282)", () => {
   beforeEach(() => {
     window.history.pushState({}, "", "/?mock=1");
     vi.stubGlobal("IntersectionObserver", class {
+      constructor(callback: IntersectionObserverCallback) { observeMore = callback; }
       observe() {}
       disconnect() {}
     });
   });
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
     for (const id of favorites.getSnapshot()) favorites.toggle(id);
+  });
+
+  it("defaults Shared to Most replays and preserves each tab's sort choices", async () => {
+    open(); await screen.findByText("Mary's little lamb");
+    const sort = () => screen.getByRole<HTMLSelectElement>("combobox", { name: "Sort songs" });
+    expect(sort().value).toBe("most-replays");
+    fireEvent.change(sort(), { target: { value: "oldest" } });
+    fireEvent.click(screen.getByRole("tab", { name: "My recordings" }));
+    expect(sort().value).toBe("newest");
+    expect(within(sort()).queryByRole("option", { name: "Most replays" })).toBeNull();
+    fireEvent.change(sort(), { target: { value: "longest" } });
+    fireEvent.click(screen.getByRole("tab", { name: "Shared" }));
+    expect(sort().value).toBe("oldest");
+    search("zzzz"); await screen.findByText(/No songs match/, {}, { timeout: 2000 });
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(sort().value).toBe("most-replays");
+    fireEvent.click(screen.getByRole("tab", { name: "My recordings" }));
+    expect(sort().value).toBe("longest");
+  });
+
+  it("does not render a recording twice when rankings change between pages", async () => {
+    const row = (id: string) => ({
+      id, title: `Ranked ${id}`, authorName: "Fixture", bpm: 120, durationMs: 10000,
+      noteCount: 1, octaves: 1, createdAt: "2026-11-19T00:00:00Z", replayCount: 0,
+    });
+    const listing = vi.spyOn(shareStore, "list")
+      .mockResolvedValueOnce({ recordings: [row("a"), row("b")], nextCursor: "replays:6" })
+      .mockResolvedValueOnce({ recordings: [row("b"), row("c")], nextCursor: null });
+    open(); await screen.findByText("Ranked a");
+    await act(async () => observeMore!([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver));
+    await screen.findByText("Ranked c");
+    expect(screen.getAllByText("Ranked b")).toHaveLength(1);
+    expect(listing).toHaveBeenLastCalledWith("replays:6", expect.objectContaining({ sort: "most-replays" }));
   });
 
   it("narrows the shared list by title after a pause in typing", async () => {

@@ -26,6 +26,7 @@ const current = () => (mockMode() ? mock : api);
 export const shareStore: ShareStore = {
   list: (cursor, query) => current().list(cursor, query),
   get: (id) => current().get(id),
+  replay: (id, listenedMs) => current().replay(id, listenedMs),
   upload: (request) => current().upload(request),
   remove: (id, deleteToken) => current().remove(id, deleteToken),
 };
@@ -132,6 +133,7 @@ export function asSharedRecording(take: Recording): SharedRecording {
     noteCount: take.notes.length,
     octaves: recordingOctaves(take.notes),
     createdAt: take.createdAt,
+    replayCount: 0,
     notes: take.notes,
     ...(take.pedals ? { pedals: take.pedals } : {}),
   };

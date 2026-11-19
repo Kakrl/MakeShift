@@ -8,6 +8,8 @@ import { isMeter, restoreMeter } from "../../lib/meter";
 import type { RecordedNote, Recording } from "../midi/midiUtils";
 import {
   RECORDING_LIST_PAGE_SIZE,
+  RECORDING_LIMITS,
+  replayThresholdMs,
   recordingDurationMs,
   recordingOctaves,
   validateUpload,
@@ -110,6 +112,7 @@ const FIXTURE_RECORDINGS: SharedRecording[] = FIXTURES.map((fixture, index) => {
     noteCount: notes.length,
     octaves: recordingOctaves(notes),
     createdAt: new Date(Date.UTC(2026, 9, 12 - index, 18 - index, 15)).toISOString(),
+    replayCount: 0,
     notes,
   };
 });
@@ -134,12 +137,13 @@ function isStoredShares(value: unknown): value is StoredShare[] {
 function withoutToken(share: StoredShare): SharedRecording {
   const recording: SharedRecording & { deleteToken?: string } = { ...share };
   delete recording.deleteToken;
-  return { ...recording, meter: restoreMeter(recording.meter), octaves: recordingOctaves(recording.notes) };
+  return { ...recording, replayCount: recording.replayCount ?? 0,
+    meter: restoreMeter(recording.meter), octaves: recordingOctaves(recording.notes) };
 }
 
 function summarize(recording: SharedRecording): RecordingSummary {
-  const { id, title, authorName, bpm, durationMs, noteCount, octaves, createdAt } = recording;
-  return { id, title, authorName, bpm, meter: restoreMeter(recording.meter), durationMs, noteCount, octaves, createdAt };
+  const { id, title, authorName, bpm, durationMs, noteCount, octaves, createdAt, replayCount } = recording;
+  return { id, title, authorName, bpm, meter: restoreMeter(recording.meter), durationMs, noteCount, octaves, createdAt, replayCount };
 }
 
 /** The route's filters and sorts, with ties broken by id so paging is stable. */
@@ -149,6 +153,14 @@ function matching(recordings: SharedRecording[], query: RecordingListQuery): Sha
     .filter((r) => !q || r.title.toLowerCase().includes(q))
     .filter((r) => !query.maxOctaves || r.octaves <= query.maxOctaves)
     .filter((r) => !query.ids || query.ids.includes(r.id));
+  if (query.sort === "most-replays") {
+    return rows.sort((a, b) => {
+      const aEligible = a.durationMs >= 10000, bEligible = b.durationMs >= 10000;
+      return Number(bEligible) - Number(aEligible) ||
+        (aEligible && bEligible ? b.replayCount - a.replayCount : 0) ||
+        b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id);
+    });
+  }
   const order = (a: SharedRecording, b: SharedRecording) =>
     query.sort === "longest"
       ? b.durationMs - a.durationMs
@@ -163,6 +175,7 @@ export function createMockShareStore(
   latencyMs = LATENCY_MS,
   mode: () => MockMode = () => mockMode() ?? "normal",
 ): ShareStore {
+  const replayCounts = new Map<string, number>();
   const loadShares = () =>
     readStored<StoredShare[]>(STORAGE_NAME, STORAGE_VERSION, [], isStoredShares, storage);
 
@@ -175,7 +188,9 @@ export function createMockShareStore(
   function all(): SharedRecording[] {
     if (mode() === "empty") return [];
     const shares = loadShares().map(withoutToken);
-    return [...shares, ...FIXTURE_RECORDINGS].sort((a, b) =>
+    return [...shares, ...FIXTURE_RECORDINGS].map(recording => ({
+      ...recording, replayCount: replayCounts.get(recording.id) ?? recording.replayCount ?? 0,
+    })).sort((a, b) =>
       b.createdAt.localeCompare(a.createdAt),
     );
   }
@@ -185,12 +200,16 @@ export function createMockShareStore(
     list(cursor: string | null = null, query: RecordingListQuery = {}): Promise<RecordingListResponse> {
       return respond(() => {
         const recordings = matching(all(), query);
-        const start = cursor ? Number(cursor) : 0;
+        const recommended = query.sort === "most-replays";
+        const offset = recommended ? cursor?.match(/^replays:(0|[1-9]\d*)$/)?.[1] : cursor;
+        const start = cursor ? Number(offset) : 0;
+        if (!Number.isSafeInteger(start) || start < 0 || start > Number.MAX_SAFE_INTEGER - RECORDING_LIST_PAGE_SIZE)
+          throw new Error("Invalid cursor.");
         const end = start + RECORDING_LIST_PAGE_SIZE;
         const page = recordings.slice(start, end).map(summarize);
         return {
           recordings: page,
-          nextCursor: end < recordings.length ? String(end) : null,
+          nextCursor: end < recordings.length ? `${recommended ? "replays:" : ""}${end}` : null,
         };
       });
     },
@@ -198,6 +217,17 @@ export function createMockShareStore(
     /** `GET /api/recordings/:id`; null stands in for a 404. */
     get(id: string): Promise<SharedRecording | null> {
       return respond(() => all().find((recording) => recording.id === id) ?? null);
+    },
+
+    replay(id, listenedMs) {
+      return respond(() => {
+        const recording = all().find(recording => recording.id === id);
+        if (!recording || recording.durationMs <= 0 || !Number.isSafeInteger(listenedMs) ||
+            listenedMs < replayThresholdMs(recording.durationMs) ||
+            listenedMs > RECORDING_LIMITS.maxDurationMs) return { counted: false };
+        replayCounts.set(id, recording.replayCount + 1);
+        return { counted: true };
+      });
     },
 
     /** `POST /api/recordings`. */
@@ -218,6 +248,7 @@ export function createMockShareStore(
           noteCount: upload.notes.length,
           octaves: recordingOctaves(upload.notes),
           createdAt: new Date().toISOString(),
+          replayCount: 0,
           deleteToken: crypto.randomUUID(),
         };
         const saved = writeStored(

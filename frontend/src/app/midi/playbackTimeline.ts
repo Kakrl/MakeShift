@@ -70,6 +70,12 @@ export function createPlaybackTimeline(
   let error: string | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const spans: Span[] = [];
+  let listenedMs = 0;
+
+  function spanListeningMs(span: Span, clockMs: number) {
+    return Math.max(0, Math.min(clockMs - span.clock,
+      (durationMs - span.position) / span.rate));
+  }
 
   function positionMs() {
     return state === "playing"
@@ -87,7 +93,10 @@ export function createPlaybackTimeline(
 
   function closeSpan(clockMs: number) {
     const last = spans[spans.length - 1];
-    if (last && last.until === Infinity) last.until = clockMs;
+    if (last && last.until === Infinity) {
+      listenedMs += spanListeningMs(last, clockMs);
+      last.until = clockMs;
+    }
   }
 
   function positionAtMs(clockMs: number): number | null {
@@ -272,6 +281,7 @@ export function createPlaybackTimeline(
 
   return {
     getSnapshot() {
+      const last = spans[spans.length - 1];
       return {
         state,
         positionMs: positionMs(),
@@ -279,6 +289,8 @@ export function createPlaybackTimeline(
         playbackRate: rate,
         bpm: bpm * rate,
         error,
+        listenedMs: listenedMs + (state === "playing" && last
+          ? spanListeningMs(last, performance.now()) : 0),
       };
     },
 
@@ -298,7 +310,10 @@ export function createPlaybackTimeline(
         if (ticket !== generation || pauseWhenHidden()) return false;
         if (audio.claimPlayback && !audio.claimPlayback()) { fail("Audio playback ownership unavailable"); return false; }
         if (ticket !== generation) return false;
-        if (position >= durationMs) position = 0;
+        if (position >= durationMs) {
+          position = 0;
+          listenedMs = 0;
+        }
         begin();
         return error === null;
       } catch (cause) {
@@ -318,6 +333,7 @@ export function createPlaybackTimeline(
       if (state === "disposed") return;
       pause();
       position = 0;
+      listenedMs = 0;
       state = "stopped";
     },
 

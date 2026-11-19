@@ -126,6 +126,7 @@ MakeShift/
 │   │   ├── rca.test.cjs             # RCA parser, validation, publication tests
 │   │   ├── sbom.test.cjs            # SBOM validation regressions
 │   │   └── validate-sbom.cjs        # CycloneDX structural smoke check
+│   ├── database/                   # disposable PostgreSQL migration regressions
 │   ├── frontend/
 │   │   ├── performanceMetrics.test.ts # bounded aggregation, clocks and resource counts
 │   │   ├── performanceResources.test.tsx # camera provider lifecycle accounting

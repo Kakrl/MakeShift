@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { createPortal } from "react-dom";
 import { favorites } from "../../lib/favorites";
 import VolumeControl from "../VolumeControl";
-import { RECORDING_LIMITS, recordingDurationMs, type RecordingSummary, type SharedRecording } from "../../lib/recordings";
+import { RECORDING_LIMITS, recordingDurationMs, type RecordingSort, type RecordingSummary, type SharedRecording } from "../../lib/recordings";
 import { downloadMidi, type Recording } from "../midi/midiUtils";
 import type { LibraryEntry } from "../midi/recordingsLibrary";
 import type { WriteResult } from "../../lib/storage";
@@ -97,7 +97,10 @@ export default function SongsDialog({
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [status, setStatus] = useState<ListStatus>("loading");
   const [loadingMore, setLoadingMore] = useState(false);
-  const [filters, setFilters] = useState<SongFilters>(DEFAULT_FILTERS);
+  const sorts = useRef<Record<SongsTab, RecordingSort>>({ shared: "most-replays", mine: "newest" });
+  const [filters, setFilters] = useState<SongFilters>(() => ({
+    ...DEFAULT_FILTERS, sort: sorts.current[initialTab],
+  }));
   const [favoriteError, setFavoriteError] = useState(false);
   const favoriteIds = useSyncExternalStore(favorites.subscribe, favorites.getSnapshot, () => NO_FAVORITES);
   const query = useMemo(() => toListQuery(filters, favoriteIds), [filters, favoriteIds]);
@@ -128,7 +131,11 @@ export default function SongsDialog({
     try {
       const page = await shareStore.list(cursor, query);
       if (ticket !== latestList.current) return;
-      setRecordings((current) => (cursor ? [...current, ...page.recordings] : page.recordings));
+      setRecordings(current => {
+        if (!cursor) return page.recordings;
+        const ids = new Set(current.map(recording => recording.id));
+        return [...current, ...page.recordings.filter(recording => !ids.has(recording.id))];
+      });
       setNextCursor(page.nextCursor);
       setStatus("ready");
     } catch {
@@ -200,12 +207,14 @@ export default function SongsDialog({
   const filtered = isFiltered(filters);
   const [controlsKey, setControlsKey] = useState(0);
   const clearFilters = () => {
-    setFilters(DEFAULT_FILTERS);
+    setFilters({ ...DEFAULT_FILTERS, sort: tab === "shared" ? "most-replays" : "newest" });
     setControlsKey((key) => key + 1);
   };
 
   function switchTab(next: SongsTab) {
     if (next === tab) return;
+    sorts.current[tab] = filters.sort;
+    setFilters(current => ({ ...current, sort: sorts.current[next] }));
     setTab(next);
     listScroll.current = 0;
     if (bodyRef.current) bodyRef.current.scrollTop = 0;
@@ -261,7 +270,7 @@ export default function SongsDialog({
               <>
                 <h3 ref={headingRef} tabIndex={-1} className="sr-only">Song list</h3>
                 <Tabs tab={tab} onChange={switchTab} />
-                <SongControls key={controlsKey} filters={filters} onChange={setFilters} />
+                <SongControls key={controlsKey} filters={filters} onChange={setFilters} shared={tab === "shared"} />
                 {favoriteError && (
                   <p role="status" className="mt-2 text-[13px] text-ink-muted">
                     This browser can&apos;t save favorites, so they last until you close the page.
@@ -436,6 +445,9 @@ function SharedList({
                 <span className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-ink-muted tabular-nums">
                   <span>{formatDuration(recording.durationMs)}</span>
                   <span>{recording.noteCount} notes</span>
+                  <span>
+                    {recording.replayCount} {recording.replayCount === 1 ? "replay" : "replays"}
+                  </span>
                   <span>{formatDate(recording.createdAt)}</span>
                 </span>
               </span>
@@ -611,7 +623,8 @@ function SharedSongView({
           </button>
         </div>
       ) : (
-        <SharedPlayer recording={song === "loading" ? null : song} fill onPlayAlong={onPlayAlong} />
+        <SharedPlayer recording={song === "loading" ? null : song} fill onPlayAlong={onPlayAlong}
+          onReplay={song === "loading" ? undefined : listenedMs => shareStore.replay(song.id, listenedMs)} />
       )}
     </div>
   );

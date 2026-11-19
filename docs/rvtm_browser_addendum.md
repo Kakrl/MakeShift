@@ -261,3 +261,19 @@ cover production-worklet output and sampler safety. PB-1.5 checks endpoint
 delivery through the recording timeline and audio owner. SP-03 covers
 subjective listening on a physical output device. The ten-voice limit,
 printed-keyboard range and physical latency measurement are separate.
+
+## Shared replay recommendations (#290)
+
+REPLAY-1: count shared playback once per normal attempt after 30 seconds of
+active wall-clock listening, or half the duration for songs shorter than 30
+seconds; round fractional thresholds up. Exclude paused/loading/interrupted
+time and skipped positions, preserve accumulation across pause and seek, and
+reset on another playback attempt. Zero-duration songs do not qualify.
+REPLAY-2: default Shared to Most replays, rank songs of at least 10 seconds by
+count with newest/ID ties, then shorter songs by newest/ID without replay rank.
+Keep existing filters and alternate sorts, My recordings defaults, six-item
+server paging and private playback. Existing rows begin at zero; stored notes
+are preserved. Counts are best effort with no automatic retries or claim of
+fraud resistance. See [the contract](supabase.md#qualifying-replays-and-recommendations-290)
+and inventory REPLAY-01 through REPLAY-05 for simulated, SQL and browser
+coverage; hosted database execution remains separate from local verification.

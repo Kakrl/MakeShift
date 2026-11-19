@@ -107,10 +107,16 @@ export function StarButton({
   );
 }
 
-const SORT_LABELS: Record<RecordingSort, string> = { newest: "Newest", oldest: "Oldest", longest: "Longest" };
+const SORT_LABELS: Record<RecordingSort, string> = {
+  "most-replays": "Most replays", newest: "Newest", oldest: "Oldest", longest: "Longest",
+};
 
 /** Search, sort, octave size and favorites-only for either song list. */
-export function SongControls({ filters, onChange }: { filters: SongFilters; onChange: (filters: SongFilters) => void }) {
+export function SongControls({ filters, onChange, shared = false }: {
+  filters: SongFilters;
+  onChange: (filters: SongFilters) => void;
+  shared?: boolean;
+}) {
   const [text, setText] = useState(filters.search);
 
   useEffect(() => {
@@ -138,7 +144,7 @@ export function SongControls({ filters, onChange }: { filters: SongFilters; onCh
         onChange={(event) => onChange({ ...filters, sort: event.target.value as RecordingSort })}
         className="ms-input"
       >
-        {RECORDING_SORTS.map((sort) => (
+        {RECORDING_SORTS.filter(sort => shared || sort !== "most-replays").map((sort) => (
           <option key={sort} value={sort}>{SORT_LABELS[sort]}</option>
         ))}
       </select>

@@ -11,6 +11,7 @@ import {
   MAX_QUERY_IDS,
   MAX_SEARCH_LENGTH,
   RECORDING_ID,
+  RECORDING_LIMITS,
   RECORDING_LIST_PAGE_SIZE,
   RECORDING_SORTS,
   recordingDurationMs,
@@ -55,7 +56,7 @@ export const MAX_UPLOAD_BYTES = 1_000_000;
 /** Accepted uploads per client network in a sliding window (#129). */
 export const UPLOAD_RATE_LIMIT = { uploads: 5, windowSeconds: 600 } as const;
 
-const SUMMARY_COLUMNS = "id,title,author_name,bpm,meter,duration_ms,note_count,octaves,created_at";
+const SUMMARY_COLUMNS = "id,title,author_name,bpm,meter,duration_ms,note_count,octaves,created_at,replay_count";
 // A Postgres timestamptz as PostgREST returns it. Kept as text, because a JS
 // Date would drop the microseconds the keyset compares against.
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/;
@@ -70,6 +71,7 @@ type SummaryRow = {
   note_count: number;
   octaves: number;
   created_at: string;
+  replay_count: number;
 };
 
 const json = <T>(body: T, status = 200, headers: Record<string, string> = {}) =>
@@ -136,12 +138,14 @@ function summary(row: SummaryRow): RecordingSummary {
     noteCount: row.note_count,
     octaves: row.octaves,
     createdAt: row.created_at,
+    replayCount: row.replay_count,
   };
 }
 
-// Each sort orders by one key, then id, so pages stay stable while new
+// These keyset sorts order by one key, then id, so pages stay stable while new
 // recordings arrive (an offset would repeat rows).
-const SORTS: Record<RecordingSort, { column: "created_at" | "duration_ms"; descending: boolean }> = {
+type KeysetSort = Exclude<RecordingSort, "most-replays">;
+const SORTS: Record<KeysetSort, { column: "created_at" | "duration_ms"; descending: boolean }> = {
   newest: { column: "created_at", descending: true },
   oldest: { column: "created_at", descending: false },
   longest: { column: "duration_ms", descending: true },
@@ -149,12 +153,12 @@ const SORTS: Record<RecordingSort, { column: "created_at" | "duration_ms"; desce
 
 type Cursor = [string | number, string];
 
-function encodeCursor(sort: RecordingSort, row: SummaryRow): string {
+function encodeCursor(sort: KeysetSort, row: SummaryRow): string {
   const cursor: Cursor = [row[SORTS[sort].column], row.id];
   return Buffer.from(JSON.stringify(cursor)).toString("base64url");
 }
 
-function decodeCursor(cursor: string, sort: RecordingSort): Cursor | null {
+function decodeCursor(cursor: string, sort: KeysetSort): Cursor | null {
   try {
     const value: unknown = JSON.parse(Buffer.from(cursor, "base64url").toString());
     if (!Array.isArray(value) || value.length !== 2 || typeof value[1] !== "string" || !RECORDING_ID.test(value[1]))
@@ -202,13 +206,38 @@ function parseListQuery(url: URL): ListQuery | string {
 
 /**
  * `GET /api/recordings`: visible recordings. Optional `q` (title contains),
- * `sort` (newest, oldest, longest), `maxOctaves`, `ids` (comma-separated)
+ * `sort` (newest, oldest, longest, most-replays), `maxOctaves`, `ids` (comma-separated)
  * and `cursor` from the previous page.
  */
 export function listRecordings(request: Request, deps: RecordingsDeps) {
   const query = parseListQuery(new URL(request.url));
   if (typeof query === "string") return Promise.resolve(fail(400, query));
   const { sort, search, maxOctaves, ids, cursor } = query;
+  if (sort === "most-replays") {
+    const match = cursor?.match(/^replays:(0|[1-9]\d*)$/);
+    const offset = cursor ? Number(match?.[1]) : 0;
+    if (!Number.isSafeInteger(offset) || offset < 0 || offset > Number.MAX_SAFE_INTEGER - RECORDING_LIST_PAGE_SIZE)
+      return Promise.resolve(fail(400, "Invalid cursor."));
+    if (ids?.length === 0)
+      return Promise.resolve(json<RecordingListResponse>({ recordings: [], nextCursor: null }));
+    return withDatabase(deps, async rest => {
+      const pageSize = RECORDING_LIST_PAGE_SIZE;
+      const params = new URLSearchParams({
+        select: SUMMARY_COLUMNS,
+        order: "recommendation_eligible.desc,recommendation_rank.desc,created_at.desc,id.desc",
+        offset: String(offset),
+        limit: String(pageSize + 1),
+      });
+      if (search) params.set("title", `ilike.${likePattern(search)}`);
+      if (maxOctaves !== null) params.set("octaves", `lte.${maxOctaves}`);
+      if (ids) params.set("id", `in.(${ids.join(",")})`);
+      const rows = await rest<SummaryRow[]>(params.toString(), { resource: "recording_recommendations" });
+      return json<RecordingListResponse>({
+        recordings: rows.slice(0, pageSize).map(summary),
+        nextCursor: rows.length > pageSize ? `replays:${offset + pageSize}` : null,
+      });
+    });
+  }
   const after = cursor ? decodeCursor(cursor, sort) : null;
   if (cursor && !after) return Promise.resolve(fail(400, "Invalid cursor."));
   if (ids?.length === 0) return Promise.resolve(json<RecordingListResponse>({ recordings: [], nextCursor: null }));
@@ -306,6 +335,25 @@ async function readJson(request: Request): Promise<{ ok: true; body: unknown } |
   } catch {
     return { ok: false, response: fail(400, "Body must be JSON.") };
   }
+}
+
+/** Best-effort replay metric; repeated independent requests may count again. */
+export async function recordReplay(id: string, request: Request, deps: RecordingsDeps) {
+  if (!RECORDING_ID.test(id)) return fail(404, "Recording not found.");
+  const read = await readJson(request);
+  if (!read.ok) return read.response;
+  const listenedMs = (read.body as { listenedMs?: unknown } | null)?.listenedMs;
+  if (typeof listenedMs !== "number" || !Number.isSafeInteger(listenedMs) ||
+      listenedMs < 0 || listenedMs > RECORDING_LIMITS.maxDurationMs)
+    return fail(400, "Invalid listening duration.");
+  return withDatabase(deps, async rest => {
+    const counted = await rest<boolean>("", {
+      method: "POST", resource: "rpc/record_recording_replay",
+      body: { p_recording_id: id, p_listened_ms: listenedMs },
+    });
+    if (typeof counted !== "boolean") throw new DatabaseError("Invalid replay response");
+    return json({ counted });
+  });
 }
 
 /** `POST /api/recordings`: stores a validated upload and returns its delete token once. */

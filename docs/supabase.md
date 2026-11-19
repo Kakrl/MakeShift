@@ -24,8 +24,9 @@ instead, for example without Infisical access.
 
 | Route | Result |
 | :--- | :--- |
-| `GET /api/recordings` | `200` visible summaries, 6 per page. Optional `q` (title contains, case-insensitive, max 100 characters), `sort` (`newest` default, `oldest`, `longest`), `maxOctaves` (songs spanning that many octaves or fewer), `ids` (comma-separated UUIDs, max 100, for favorites) and `cursor`. `nextCursor` is an opaque keyset cursor for that sort; `400` bad query or a cursor from another sort |
+| `GET /api/recordings` | `200` visible summaries including `replayCount`, 6 per page. Optional `q` (title contains, case-insensitive, max 100 characters), `sort` (`newest` API default, `oldest`, `longest`, `most-replays`), `maxOctaves` (songs spanning that many octaves or fewer), `ids` (comma-separated UUIDs, max 100, for favorites) and `cursor`. Pass the opaque `nextCursor` back with the same filters and sort; `400` bad query/cursor. Recommendation paging uses offsets; other sorts retain keyset paging. |
 | `GET /api/recordings/:id` | `200` with notes; `404` when missing, hidden or not a UUID |
+| `POST /api/recordings/:id/replays` | Body `{listenedMs: integer}` in 0-1,800,000; `200 {counted: boolean}`. False for insufficient listening, zero duration, hidden or missing recordings; `400` invalid body, `413` oversized body, `404` invalid UUID. |
 | `POST /api/recordings` | `201 {id, deleteToken}`; `400` with `issues`; `413` over 1 MB; `429` with `Retry-After` after 5 uploads from one client in 10 minutes; `503` on any Vercel deployment unless `RECORDING_UPLOADS=1` |
 | `DELETE /api/recordings/:id` | `200 {deleted: true}` when the token's SHA-256 matches; `403` wrong or missing token; `404` already gone |
 
@@ -73,6 +74,8 @@ in the mock store, and their links keep `?mock=1`.
 | `delete_token_hash` | `text` | SHA-256 hex of the delete token, never the token |
 | `hidden` | `boolean` | Moderation flag, default `false` |
 | `created_at` | `timestamptz` | Default `now()` |
+| `replay_count` | `integer` | Non-negative qualifying replay count, default 0 |
+| `last_replayed_at` | `timestamptz` | Latest qualifying increment, initially null |
 
 `upload_rate_limits` holds one row per accepted upload still inside the
 window: `key_hash` (SHA-256 hex of the client key) and `created_at`.
@@ -211,3 +214,60 @@ and compute duration through the last control boundary. The shared validator
 rejects malformed/unsupported control data before any database request.
 Migration execution and live round trips remain pending until the linked
 Supabase CLI/environment is available.
+
+## Qualifying replays and recommendations (#290)
+
+Apply `20261119000000_recording_replays.sql` before deploying this API or UI.
+It adds counters to existing recordings without changing notes: old rows start
+at zero with no last-replay timestamp; historical playback is not backfilled.
+The migration supplies the service-role-only `record_recording_replay` SQL
+function and the summary-only `recording_recommendations` view, with an index
+matching its ordering. The view uses invoker security; browsers have no direct
+grants. Only the server calls the database, and the increment and timestamp
+update occur together in one UPDATE.
+
+For songs at least 30 seconds long, qualification requires 30 seconds of active
+wall-clock playback. Shorter songs require half their duration, rounded up to
+whole milliseconds. Zero-duration songs never qualify. Pause, initialization,
+audio failure and skipped positions do not add listening time. Backward seeks
+allow further actual listening; speed changes do not multiply elapsed time.
+Pause/resume stays in one attempt; Play again starts another. Private players
+and Play along do not submit replay counts.
+
+The Shared tab initially requests `sort=most-replays`; My recordings retains
+newest first. Songs at least 10 seconds long rank first by replay count, then
+creation time and ID, all descending. Shorter songs fill later positions by
+creation time and ID only, regardless of their replay count. Search, favorites
+and octave filters apply before paging. Each request returns at most six
+summaries, using a seventh database row only to determine whether another page
+exists; it does not download every recording or any notes for sorting.
+
+Recommendation cursors are opaque offset markers (`replays:6`, etc.). Moving
+ranks can cause repeats or skipped songs between page requests. The dialog
+removes repeated IDs when appending pages; refreshing starts a new ranking.
+Other sorts keep their existing keyset cursors. This is deliberately a simple,
+best-effort recommendation list rather than a snapshot of the database.
+
+A player marks an attempt submitted before making its one HTTP request. There
+are no automatic retries or per-attempt database rows. A failed/lost request can
+miss a replay; independently duplicated requests can increment again. The
+server validates the body and duration threshold but trusts client-reported
+listening time: this is a popularity hint, not an abuse-resistant measurement.
+Metric failure does not stop audio or show a playback error. Mock mode uses
+the same thresholds and ordering but keeps increments only in its store
+instance until reload.
+
+Regression SQL: [recording_replays.sql](../tests/database/recording_replays.sql).
+Run only against a disposable empty PostgreSQL database with Supabase roles:
+
+```sh
+psql -v ON_ERROR_STOP=1 "$TEST_DATABASE_URL" -f tests/database/recording_replays.sql
+```
+
+The script includes all migrations in order and rolls its schema/data changes
+back. Local embedded PostgreSQL verification is recorded in
+[the testing guide](../tests/README.md#qualifying-replays-verification-issue-290).
+Hosted Supabase migration, PostgREST access and deployment round trips remain
+unverified. After approval, apply pending migrations using the commands above,
+confirm the migration list, and verify list/read and a qualifying replay against
+a disposable shared recording before rollout.
