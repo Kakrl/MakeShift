@@ -2,10 +2,10 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { RECORDING_LIMITS } from "../../lib/recordings";
+import { blockedNameIssues, blockedNameMessage, RECORDING_LIMITS, type NameIssues } from "../../lib/recordings";
 import type { Recording } from "../midi/midiUtils";
 import { useDialogFocus } from "../useDialogFocus";
-import { AuthorNameField, BackIcon, CloseIcon, SharedConfirmation, SharingAs } from "./ShareParts";
+import { AuthorNameField, BackIcon, CloseIcon, NameIssue, SharedConfirmation, SharingAs } from "./ShareParts";
 import SharedPlayer from "./SharedPlayer";
 import {
   asSharedRecording,
@@ -51,10 +51,11 @@ export default function SaveTakeDialog({
   const [name, setName] = useState(take.name === "Untitled recording" ? "" : take.name);
   const [audience, setAudience] = useState<Audience>("private");
   const [authorName, setAuthorName] = useState(() => loadShareName());
-  // The sharing name is asked for once; after that it lives in My recordings.
-  const [askName] = useState(() => authorName === "");
+  // Asked once, or again when the saved name is blocked.
+  const [askName] = useState(() => authorName === "" || blockedNameMessage("authorName", authorName) !== null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nameIssues, setNameIssues] = useState<NameIssues>({});
   const [shared, setShared] = useState<TakeShare | null>(null);
   const [preview] = useState(() => asSharedRecording(take));
   // The recordings API needs at least one note, so an empty take stays private.
@@ -77,6 +78,9 @@ export default function SaveTakeDialog({
       onClose();
       return;
     }
+    const issues = blockedNameIssues(title, authorName);
+    setNameIssues(issues);
+    if (issues.title || issues.authorName) return;
     setPending(true);
     setError(null);
     try {
@@ -91,6 +95,7 @@ export default function SaveTakeDialog({
     }
   }
 
+  const titleIssue = audience === "public" ? nameIssues.title : undefined;
   const ready = name.trim().length > 0 && (audience === "private" || authorName.trim().length > 0);
   const motion = direction === "push" ? "ms-push" : direction === "pop" ? "ms-pop" : "";
   const heading = "font-display text-[24px] sm:text-[28px] font-bold leading-tight tracking-tight focus:outline-none";
@@ -165,10 +170,16 @@ export default function SaveTakeDialog({
                 value={name}
                 maxLength={RECORDING_LIMITS.titleLength.max}
                 placeholder="My first song"
-                onChange={(event) => setName(event.target.value)}
+                onChange={(event) => {
+                  setName(event.target.value);
+                  setNameIssues((issues) => ({ ...issues, title: undefined }));
+                }}
+                aria-invalid={titleIssue !== undefined}
+                aria-describedby={titleIssue ? "save-take-name-issue" : undefined}
                 className="ms-input mt-1.5 w-full"
                 autoFocus
               />
+              {titleIssue && <NameIssue id="save-take-name-issue" message={titleIssue} />}
 
               <fieldset className="mt-5">
                 <legend className="ms-label">Who can hear it?</legend>
@@ -203,10 +214,18 @@ export default function SaveTakeDialog({
               {audience === "public" && (
                 <div className="ms-rise mt-5">
                   {askName ? (
-                    <AuthorNameField id="save-take-author" value={authorName} onChange={setAuthorName} />
+                    <AuthorNameField
+                      id="save-take-author"
+                      value={authorName}
+                      onChange={(value) => {
+                        setAuthorName(value);
+                        setNameIssues((issues) => ({ ...issues, authorName: undefined }));
+                      }}
+                    />
                   ) : (
                     <SharingAs name={authorName} />
                   )}
+                  {nameIssues.authorName && <NameIssue message={nameIssues.authorName} />}
                 </div>
               )}
 

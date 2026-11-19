@@ -24,10 +24,51 @@ instead, for example without Infisical access.
 
 | Route | Result |
 | :--- | :--- |
-| `GET /api/recordings?cursor=` | `200` visible summaries, newest first, 6 per page; `nextCursor` is an opaque keyset cursor; `400` bad cursor |
+| `GET /api/recordings` | `200` visible summaries, 6 per page. Optional `q` (title contains, case-insensitive, max 100 characters), `sort` (`newest` default, `oldest`, `longest`), `maxOctaves` (songs spanning that many octaves or fewer), `ids` (comma-separated UUIDs, max 100, for favorites) and `cursor`. `nextCursor` is an opaque keyset cursor for that sort; `400` bad query or a cursor from another sort |
 | `GET /api/recordings/:id` | `200` with notes; `404` when missing, hidden or not a UUID |
 | `POST /api/recordings` | `201 {id, deleteToken}`; `400` with `issues`; `413` over 1 MB; `429` with `Retry-After` after 5 uploads from one client in 10 minutes; `503` on any Vercel deployment unless `RECORDING_UPLOADS=1` |
 | `DELETE /api/recordings/:id` | `200 {deleted: true}` when the token's SHA-256 matches; `403` wrong or missing token; `404` already gone |
+
+### Name filter
+
+Titles and author names are refused with `400` when they contain a blocked
+word (#280). The check lives in the shared `validateUpload`, so the route,
+the mock store and the share forms apply the same rule; the forms show the
+message under each blocked field before anything is sent, and ask for the
+author name again when the saved sharing name is blocked. The sharing-name
+editor in My recordings refuses blocked names too. Saving a take privately is
+not filtered.
+
+- **List:** [`frontend/src/lib/blockedNameWords.json`](../frontend/src/lib/blockedNameWords.json)
+  is Luis von Ahn's whole
+  [Offensive/Profane Word List](https://www.cs.cmu.edu/~biglou/resources/bad-words.txt)
+  (CMU, fetched 2026-11-11, 1,383 entries, SHA-256
+  `76425270af0ea70e22b6f0145ba670d64bdf4304dac017324c2b3d14ea9b95fe`), with no
+  words removed. Entries are only normalized like input text (lowercase,
+  look-alikes mapped, hyphens and apostrophes dropped, so `brea5t` becomes
+  `breast` and `beat-off` becomes `beatoff`) and deduplicated, leaving 1,367.
+  The source page states no license; it offers the list for anyone who wants
+  to block offensive terms. Nothing is fetched at runtime.
+- **What it blocks:** the list includes ordinary words, nationalities,
+  religions, identities and first names (`god`, `jesus`, `christian`, `church`,
+  `bible`, `muslim`, `african`, `asian`, `chinese`, `mexican`, `black`, `gay`,
+  `girls`, `kid`, `fire`, `killer`, `drunk`, `dead`, `ho`, `uk`, `dick`), so
+  titles such as "Africa", "Killer Queen" or "Jesus Loves Me" and an author
+  named Christian are refused too.
+- **Matching** ([`nameFilter.ts`](../frontend/src/lib/nameFilter.ts)): accents
+  are dropped, case folded and look-alikes mapped (`0`→o, `1`→i, `3`→e, `4`→a,
+  `5`/`$`→s, `7`→t, `8`→b, `@`→a, `!`/`|` between letters→i). Text is split
+  into words and each word is compared whole, also with runs of three or more
+  repeated letters squeezed and a plural `s` removed. Words joined by a hyphen
+  or apostrophe are also checked as one word, and single letters in a row
+  (`f u c k`, `s.h.i.t`) are joined. Only `fuck` is matched inside other
+  words. Whole-word matching is what lets `Scunthorpe`, `class`, `Dickens`,
+  `cumin` and `spices` through.
+- **Limits:** English only; no non-Latin look-alikes (Cyrillic `о`), words
+  split by spaces into pieces longer than one letter, or compounds not on the
+  list. Existing rows are not rechecked; hide them with the `hidden` flag. To
+  refresh the list, normalize the new file the same way and update the entry
+  count in `tests/frontend/nameFilter.test.ts`.
 
 Every route returns `503` when Supabase is unconfigured and `502` when the
 database fails, without echoing database messages. Uploads are refused on
@@ -176,3 +217,38 @@ project refs before rollout. If both point to the documented hosted project,
 apply the additive meter migration there before deploying either environment.
 Verify `supabase migration list --linked` and a live recordings list/read
 request before merging/deploying. Hosted migration status remains unverified.
+
+## Octaves migration (#281)
+
+`20261109000000_recording_octaves.sql` adds `public.recording_octaves(notes)`
+and `recordings.octaves`: the octaves of the smallest sheet that holds the
+song. Sheets start on a C and run 1-3 octaves to a shared final C, so the
+count is measured from the C at or below the lowest note (B4 to D5 needs two)
+and matches `recordingOctaves` in `frontend/src/lib/recordings.ts`. The
+migration backfills every row with that function, adds visible-row indexes for
+the oldest and longest sorts, and makes `upload_recording` store the `octaves`
+the API sends, or derive it from `notes` when the field is absent. That
+fallback keeps uploads from the API deployed before this migration working
+during the rollout window. Only `service_role` may call the function. Title search is a `ilike` scan, which is fine
+at the current table size; add a trigram index if the list grows large.
+
+On 2026-11-12 the migrations ran in PGlite 0.3.14 (an ad hoc script, not a
+repository test): the backfill gave B4-D5 2, C4-C5 1, C3-D5 3, A3-E5 3 and
+empty or unparseable notes 1, and `upload_recording` derived 2 for a B4-D5
+upload without `octaves` and kept a sent value. Hosted Postgres execution is
+still pending. Apply it to a throwaway
+database first, then `npx supabase db push --linked`, and check
+`supabase migration list --linked` plus a live list request with `sort=longest`
+and `maxOctaves=1` before deploying. Apply it before the deploy that sends
+those parameters.
+
+## Pedal migration (#222)
+
+Apply `20261113000000_recording_pedals.sql` before the new API. It adds nullable
+`pedals` JSONB; old rows remain note-only. The migration also updates the rate-limited
+`upload_recording` function to store pedals alongside notes and octaves.
+Read/upload routes preserve controls
+and compute duration through the last control boundary. The shared validator
+rejects malformed/unsupported control data before any database request.
+Migration execution and live round trips remain pending until the linked
+Supabase CLI/environment is available.

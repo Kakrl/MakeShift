@@ -4,7 +4,9 @@ import {
   closeTrackedAudioContext,
 } from "../../diagnostics/performanceMetrics";
 import { loadPianoSamples, type PianoSample } from "./pianoSamples";
+import { createPianoOutput, loadVolume, validVolume, volumeGain } from "./volume";
 export type AudioStatus = "idle" | "loading" | "ready" | "suspended" | "error";
+const FOREGROUND_RESUME_TIMEOUT_MS = 1500;
 export type PedalState = { sustain: boolean; sostenuto: boolean; soft: boolean };
 type AudioCommand =
   | ({ type: "pedals"; version: 1; session: number } & PedalState)
@@ -20,6 +22,30 @@ type AudioCommand =
 
 /** Owns one context. Call initialize only from a user gesture. */
 export class BrowserAudio {
+  private outputGain: GainNode | null = null;
+  private compressor: DynamicsCompressorNode | null = null;
+  private releaseOutput: (() => void) | undefined;
+  private volume: number | null = null;
+
+  setVolume(value: number) {
+    if (!validVolume(value)) return;
+    this.volume = value;
+    const param = this.node?.parameters.get("volume");
+    if (param && this.context) {
+      const now = this.context.currentTime;
+      param.cancelAndHoldAtTime(now);
+      param.linearRampToValueAtTime(volumeGain(value), now + 0.03);
+    }
+  }
+
+  private disconnectOutput() {
+    this.outputGain?.disconnect();
+    this.compressor?.disconnect();
+    this.outputGain = null;
+    this.compressor = null;
+    this.releaseOutput?.();
+    this.releaseOutput = undefined;
+  }
   private releaseNode: (() => void) | undefined;
   private context: AudioContext | null = null;
   private node: AudioWorkletNode | null = null;
@@ -30,6 +56,7 @@ export class BrowserAudio {
   private press = 0;
   private outstanding = 0;
   private recovering = false;
+  private onDrained: (() => void) | null = null;
   private inputPaused = false;
   private generation = 0;
   private invalidationListeners = new Set<() => void>();
@@ -79,6 +106,48 @@ export class BrowserAudio {
     return task;
   }
 
+  /** Reuse a graph previously initialized by a gesture. */
+  async resumeAfterBackground(): Promise<boolean> {
+    const { context, node } = this;
+    if (!context || !node || context.state === "closed" || this.initializing)
+      return false;
+
+    const generation = this.generation;
+    let finished = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    let drained: (() => void) | undefined;
+    const resume = async () => {
+      if (context.state !== "running") await context.resume();
+      if (finished || generation !== this.generation || node !== this.node ||
+          context.state !== "running")
+        return false;
+      // The suspended worklet may still owe an acknowledgement for the reset.
+      if (this.recovering) await new Promise<void>(resolve => {
+        drained = resolve;
+        this.onDrained = resolve;
+      });
+      return true;
+    };
+    try {
+      const ready = await Promise.race([
+        resume(),
+        new Promise<false>(resolve => {
+          timeout = setTimeout(() => resolve(false), FOREGROUND_RESUME_TIMEOUT_MS);
+        }),
+      ]);
+      if (!ready || generation !== this.generation || node !== this.node ||
+          context.state !== "running" || this.recovering) return false;
+      this.status = "ready";
+      return true;
+    } catch {
+      return false;
+    } finally {
+      finished = true;
+      clearTimeout(timeout);
+      if (this.onDrained === drained) this.onDrained = null;
+    }
+  }
+
   private async start(generation: number) {
     this.status = "loading";
     this.error = "";
@@ -114,6 +183,7 @@ export class BrowserAudio {
           numberOfOutputs: 1,
           outputChannelCount: [2],
           processorOptions: { samples },
+          parameterData: { volume: volumeGain(this.volume ?? loadVolume()) },
         });
         this.node = node;
         this.releaseNode = acquireResource("audioNodes");
@@ -145,7 +215,10 @@ export class BrowserAudio {
           }
           if (!Number.isSafeInteger(data) || data < 1) return;
           this.outstanding = Math.max(0, this.outstanding - data);
-          if (this.outstanding === 0) this.recovering = false;
+          if (this.outstanding === 0) {
+            this.recovering = false;
+            this.onDrained?.();
+          }
         };
         node.onprocessorerror = () => {
           if (this.node !== node) return;
@@ -155,6 +228,7 @@ export class BrowserAudio {
           this.status = "error";
           this.error = "Audio processing failed. Select Enable audio to retry.";
           node.disconnect();
+          this.disconnectOutput();
           node.port.close();
           this.releaseNode?.();
           if (this.node === node) this.node = null;
@@ -171,7 +245,13 @@ export class BrowserAudio {
         if (generation !== this.generation) return;
         if (context.state !== "running")
           throw new Error("Audio is suspended. Select Enable audio to retry.");
-        node.connect(context.destination);
+        const { gain, compressor } = createPianoOutput(context);
+        this.outputGain = gain;
+        this.compressor = compressor;
+        const releaseGain = acquireResource("audioNodes");
+        const releaseCompressor = acquireResource("audioNodes");
+        this.releaseOutput = () => { releaseGain(); releaseCompressor(); };
+        node.connect(gain);
         context.onstatechange = () => {
           if (context !== this.context || context.state === "running") return;
           this.status = "suspended";
@@ -188,6 +268,7 @@ export class BrowserAudio {
       this.error =
         error instanceof Error ? error.message : "Audio initialization failed.";
       this.node?.disconnect();
+      this.disconnectOutput();
       this.node?.port.close();
       this.releaseNode?.();
       this.node = null;
@@ -221,9 +302,23 @@ export class BrowserAudio {
   }
 
   setPedals(state: PedalState) {
+    if (!state || [state.sustain, state.sostenuto, state.soft].some(value => typeof value !== "boolean")) return false;
     if (this.inputPaused && (state.sustain || state.sostenuto || state.soft)) return false;
-    return this.send({ type: "pedals", version: 1, session: this.session, ...state });
+    return this.send({ type: "pedals", version: 1, session: this.session, sustain: state.sustain, sostenuto: state.sostenuto, soft: state.soft });
   }
+
+  /** Retire live/other-player identities while preserving the loaded audio graph. */
+  claimPlayback() {
+    if (this.status !== "ready" || this.recovering) return false;
+    if (this.outstanding >= 64) { this.releaseAll(); return false; }
+    this.recovering = true;
+    this.reset(); // Reentrant live-session releaseAll is suppressed by recovering.
+    this.inputPaused = false;
+    this.recovering = false;
+    return true;
+  }
+
+  silencePlayback() { return this.send({ type: "release-all", session: this.session }); }
 
   /** Ordered voice/pedal clear without transport invalidation or context restart. */
   pauseInput() {
@@ -254,6 +349,7 @@ export class BrowserAudio {
   }
 
   noteOff(token: { session: number; press: number }) {
+    if (token.session !== this.session) return false;
     return this.send({ type: "note-off", ...token });
   }
 
@@ -271,6 +367,7 @@ export class BrowserAudio {
     this.samples = null;
     this.initializing = null;
     this.node?.disconnect();
+    this.disconnectOutput();
     this.node?.port.close();
     this.releaseNode?.();
     this.node = null;

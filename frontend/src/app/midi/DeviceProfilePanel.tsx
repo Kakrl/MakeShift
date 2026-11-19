@@ -7,7 +7,7 @@ import {
   PROFILE_CHANGE_EVENT,
   type DeviceProfile,
 } from "../../lib/deviceProfile";
-import { RECORDING_LIMITS } from "../../lib/recordings";
+import { blockedNameMessage, RECORDING_LIMITS } from "../../lib/recordings";
 
 /**
  * The name shown on songs you share, at the top of My recordings. It reads
@@ -39,6 +39,12 @@ export default function DeviceProfilePanel() {
 
   function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const blocked = blockedNameMessage("authorName", name);
+    if (blocked) {
+      setError(true);
+      setMessage(blocked);
+      return;
+    }
     const next = { ...profile, displayName: name.trim() };
     const result = saveProfile(next);
     setError(!result.ok);

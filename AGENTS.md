@@ -46,11 +46,11 @@ it separates existing behavior from planned work and links implementation issues
 | `frontend/` | Next.js web client: camera, calibration, CV overlays, MIDI utils and local library operations |
 | `frontend/public/audio/` | Static AudioWorklet and shared fixed-voice DSP |
 | `frontend/src/app/audio/` | Browser audio owner and user-triggered sound check |
-| `frontend/src/app/share/` | Shared recordings UI: API client, store (mock fixtures with `?mock=`), post-recording save dialog, songs dialog (Shared and My recordings tabs), piano roll; `play/[id]/` share links open the shared-songs dialog |
+| `frontend/src/app/share/` | Shared recordings UI: API client, store (mock fixtures with `?mock=`), post-recording save dialog, songs dialog (Shared and My recordings tabs), piano roll; `play/[id]/` share links open the song (or a not-found message) in the shared-songs dialog |
 | `frontend/src/diagnostics/` | Shared bounded metrics and explicit camera-video registry |
 | `frontend/src/events/` | Shared browser note schema, clocks, session dispatch and audio adapter |
 | `frontend/src/cv/` | ArUco marker detection, homography, keyboard geometry, falling-notes geometry, prototype shadow worker and combined per-finger contact state |
-| `frontend/src/lib/` | Shared utilities: versioned `localStorage` access, calibration profiles, and the recordings API types/validation used by client and server |
+| `frontend/src/lib/` | Shared utilities: versioned `localStorage` access, the recordings API types/validation used by client and server, the shared-name word filter, and the latest GitHub release lookup for `/about` |
 | `frontend/src/app/api/` | Server routes; `/api/health` checks the recordings database, `/api/recordings` lists, reads, uploads and deletes shared recordings |
 | `frontend/src/server/` | Server-only Supabase access and recordings route handlers (never import from client code) |
 | `supabase/` | Supabase CLI config and SQL migrations for shared recordings |
@@ -93,6 +93,7 @@ it separates existing behavior from planned work and links implementation issues
 | C++ formatting | `clang-format --dry-run --Werror` on changed files (`.clang-format`, clang-format 17) |
 | RCA automation | `node --test tests/automation/rca.test.cjs` (Node 22); CI: `rca-tests.yml` |
 | SBOM workflow | `actionlint .github/workflows/sbom.yml`; `node --test tests/automation/sbom.test.cjs`; generate with Syft v1.55.0 and run `node tests/automation/validate-sbom.cjs <SBOM.cdx.json>`; CI: `sbom.yml` |
+| Dependency review workflow | `actionlint .github/workflows/dependency-review.yml`; verify clean and known-vulnerable dependency changes through GitHub Actions; record run/job evidence in the inventory |
 
 The C++ build requires Python 3.12 and nanobind (`pip install -r requirements.txt`).
 If a check cannot run locally (for example, no audio device or no CMake),

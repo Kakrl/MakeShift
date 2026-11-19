@@ -57,7 +57,7 @@ File locations: [repository map in `AGENTS.md`](../AGENTS.md#repository-map).
 | `/documentation` | In-app docs |
 | `/about` | About |
 | `/cv-video-replay` | Runs recorded video through the CV pipeline (testing) |
-| `/play/[id]` | Opens a shared recording |
+| `/play/[id]` | Redirects to `/?song=<id>`, which opens the song in the Songs dialog: title, author, playback, MIDI download; a missing or hidden ID shows "Song not found" |
 
 ### Stack
 
@@ -276,8 +276,8 @@ From `RECORDING_LIMITS`. Lengths count Unicode code points.
 
 | Field | Rule |
 | :--- | :--- |
-| `title` | Trimmed, 1–100 characters |
-| `authorName` | Trimmed, 1–50 characters |
+| `title` | Trimmed, 1–100 characters, no blocked words (#280) |
+| `authorName` | Trimmed, 1–50 characters, no blocked words (#280) |
 | `deviceId` | Trimmed, 1–128 characters |
 | `bpm` | Integer, 20–400 |
 | `notes` | 1–10,000 notes |

@@ -16,8 +16,11 @@ async function module(path, imports = {}) {
 }
 const events = await module("events/noteEvents.ts");
 const metrics = await module("diagnostics/performanceMetrics.ts", { "../events/noteEvents": events });
+const storage = await module("lib/storage.ts");
+const volume = await module("app/audio/volume.ts", { "../../lib/storage": storage });
 const audio = await module("app/audio/audioEngine.ts", {
   "../../diagnostics/performanceMetrics": metrics,
+  "./volume": volume,
   "./pianoSamples": data("export async function loadPianoSamples(){return window.gateBank;}"),
 });
 const notes = await module("events/noteSession.ts", { "../diagnostics/performanceMetrics": metrics, "./noteEvents": events });

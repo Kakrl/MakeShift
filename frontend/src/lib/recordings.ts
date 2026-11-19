@@ -1,3 +1,4 @@
+import { validRecordedPedals, copyPedals, type RecordedPedals } from "../app/midi/recordedPedals";
 import { isMeter, restoreMeter, type Meter } from "./meter";
 // Shared recordings API contract (#117). Server routes and client code both
 // import these types and `validateUpload`, so an upload the client accepts is
@@ -5,6 +6,7 @@ import { isMeter, restoreMeter, type Meter } from "./meter";
 // in supabase/migrations; note and duration caps are API-only.
 import type { RecordedNote } from "../app/midi/midiUtils";
 import { pitchToMidi } from "../cv/noteMap";
+import { hasBlockedWord } from "./nameFilter";
 
 export const RECORDING_LIMITS = {
   titleLength: { min: 1, max: 100 },
@@ -14,6 +16,7 @@ export const RECORDING_LIMITS = {
   // Recorder velocities are 1-100 (see pianoConsumers.ts).
   velocity: { min: 1, max: 100 },
   maxNotes: 10_000,
+  maxPedalEvents: 10_000,
   maxDurationMs: 30 * 60 * 1000,
 } as const;
 
@@ -29,13 +32,49 @@ export type RecordingSummary = {
   meter?: Meter;
   durationMs: number;
   noteCount: number;
+  /** Octaves of keyboard the song spans, at least 1: see `recordingOctaves`. */
+  octaves: number;
   createdAt: string;
 };
 
 /** `GET /api/recordings/:id`. */
-export type SharedRecording = RecordingSummary & { notes: RecordedNote[] };
+export type SharedRecording = RecordingSummary & { notes: RecordedNote[]; pedals?: RecordedPedals };
 
-/** `GET /api/recordings`, newest first. Pass `nextCursor` back to get the next page; null on the last page. */
+export const RECORDING_SORTS = ["newest", "oldest", "longest"] as const;
+export type RecordingSort = (typeof RECORDING_SORTS)[number];
+/** Sheets come in one, two and three octaves. */
+export const OCTAVE_CHOICES = [1, 2, 3] as const;
+export const MAX_QUERY_IDS = 100;
+/** Shared recording ids; mock and local ids are not UUIDs. */
+export const RECORDING_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const MAX_SEARCH_LENGTH = 100;
+
+/** Query of `GET /api/recordings`; every field is optional. */
+export type RecordingListQuery = {
+  /** Case-insensitive title match. */
+  q?: string;
+  /** Defaults to newest. */
+  sort?: RecordingSort;
+  /** Only songs that fit a sheet of this many octaves or fewer. */
+  maxOctaves?: number;
+  /** Only these recordings (favorites), at most MAX_QUERY_IDS. */
+  ids?: string[];
+};
+
+/** Octaves of the smallest sheet holding the notes: sheets run C to C, so B4 and D5 need two. */
+export function recordingOctaves(notes: readonly RecordedNote[]): number {
+  let low = Infinity;
+  let high = -Infinity;
+  for (const { pitch } of notes) {
+    const midi = pitchToMidi(pitch);
+    if (midi === null) continue;
+    low = Math.min(low, midi);
+    high = Math.max(high, midi);
+  }
+  return high < low ? 1 : Math.max(1, Math.ceil((high - Math.floor(low / 12) * 12) / 12));
+}
+
+/** `GET /api/recordings`, newest first unless `sort` says otherwise. Pass `nextCursor` back to get the next page; null on the last page. */
 export type RecordingListResponse = {
   recordings: RecordingSummary[];
   nextCursor: string | null;
@@ -49,6 +88,7 @@ export type UploadRecordingRequest = {
   bpm: number;
   meter?: Meter;
   notes: RecordedNote[];
+  pedals?: RecordedPedals;
 };
 
 /** Returned once on upload; only a hash of `deleteToken` is stored. */
@@ -68,11 +108,29 @@ export type UploadValidation =
   | { ok: false; issues: ValidationIssue[] };
 
 /** End of the last note, in recording milliseconds. */
-export function recordingDurationMs(notes: readonly RecordedNote[]): number {
+export function recordingDurationMs(notes: readonly RecordedNote[], pedals?: RecordedPedals): number {
   return notes.reduce(
     (end, note) => Math.max(end, note.startMs + note.durationMs),
-    0,
+    pedals?.events.reduce((end, e) => Math.max(end, e.timeMs), 0) ?? 0,
   );
+}
+
+export type NameIssues = { title?: string; authorName?: string };
+
+export function blockedNameMessage(field: "title" | "authorName", value: string): string | null {
+  if (!hasBlockedWord(value)) return null;
+  return field === "title"
+    ? "That song name has a word we don't allow. Try another name."
+    : "That name has a word we don't allow. Try another name.";
+}
+
+export function blockedNameIssues(title: string, authorName: string): NameIssues {
+  const issues: NameIssues = {};
+  const titleMessage = blockedNameMessage("title", title);
+  const authorMessage = blockedNameMessage("authorName", authorName);
+  if (titleMessage) issues.title = titleMessage;
+  if (authorMessage) issues.authorName = authorMessage;
+  return issues;
 }
 
 // Counts code points, as Postgres char_length does, not UTF-16 units.
@@ -102,6 +160,10 @@ function text(
       field,
       message: `${field} must be ${limits.min}-${limits.max} characters`,
     });
+  else if (field !== "deviceId") {
+    const message = blockedNameMessage(field, trimmed);
+    if (message) issues.push({ field, message });
+  }
   return trimmed;
 }
 
@@ -168,10 +230,18 @@ export function validateUpload(body: unknown): UploadValidation {
     }
   }
 
+  if (Array.isArray(notes) && !validRecordedPedals(body.pedals, notes)) issues.push({ field: "pedals", message: "Invalid or unsupported pedal controls" });
+
+  if (body.pedals && validRecordedPedals(body.pedals, Array.isArray(notes) ? notes : [])) {
+    const pedals = body.pedals as RecordedPedals;
+    if (pedals.events.length > RECORDING_LIMITS.maxPedalEvents || pedals.events.some(e => e.timeMs > RECORDING_LIMITS.maxDurationMs)) issues.push({ field: "pedals", message: "Pedal controls exceed sharing limits" });
+  }
+
   if (issues.length > 0) return { ok: false, issues };
   return {
     ok: true,
     value: {
+      ...(body.pedals ? { pedals: copyPedals(body.pedals as RecordedPedals) } : {}),
       title,
       authorName,
       deviceId,
