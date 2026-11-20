@@ -2,8 +2,8 @@
  * Frame brightness sampling for the lighting calibration step.
  *
  * A webcam cannot report lux, so we score the frame itself: mean relative
- * luminance over a downscaled copy. Too dark and the hand landmarker loses
- * fingertips; too bright and the paper blows out and its edges disappear.
+ * luminance over a downscaled copy. Too dark and finger/shadow contrast
+ * degrades; too bright and the paper blows out and its edges disappear.
  */
 
 /** Sample grid. Small enough to be cheap, large enough to survive noise. */

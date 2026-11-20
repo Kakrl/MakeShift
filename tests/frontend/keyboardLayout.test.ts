@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_LAYOUT, keyboardWidthMm, MARKER_INSET_MM, paperFits, startingNotes, usableLayout, validLayout } from "../../frontend/src/cv/keyboardLayout";
-import { getBlackKeyPolygons, getPianoCorners, getWhiteKeyPolygons } from "../../frontend/src/cv/keyboardGeometry";
+import { getPianoCorners, getWhiteKeyPolygons } from "../../frontend/src/cv/keyboardGeometry";
 import { blackKeyIndexToMidi, keyIndexToMidi, pianoKeyIndexToMidi } from "../../frontend/src/cv/noteMap";
-import { getKeyCollisions, getPianoKeyCollisions } from "../../frontend/src/cv/collision";
 
 describe("actual-size octave layouts", () => {
   it.each([1, 2, 3])("matches %i assembled octaves to millimeters and hit regions", (octaves) => {
@@ -12,10 +11,8 @@ describe("actual-size octave layouts", () => {
     expect(polygons).toHaveLength(7 * octaves + 1);
     const corners = getPianoCorners(layout);
     expect((corners[1].x - corners[0].x) * markerSpan).toBeCloseTo(keyboardWidthMm(octaves));
-    polygons.forEach((polygon, keyIndex) => {
+    polygons.forEach((polygon) => {
       expect((polygon[1].x - polygon[0].x) * markerSpan).toBeCloseTo(23.5);
-      const center = { x: (polygon[0].x + polygon[1].x) / 2, y: 0.7 };
-      expect(getKeyCollisions([{ id: "finger", handIndex: 0, landmarkIndex: 8, point: center }], polygons).map(c => c.keyIndex)).toEqual([keyIndex]);
     });
     expect(keyIndexToMidi(layout.whiteKeys - 1, layout)).toBe(48 + 12 * octaves);
   });
@@ -40,23 +37,6 @@ describe("actual-size octave layouts", () => {
       }
       expect(pianoKeyIndexToMidi(layout.whiteKeys + octaves * 5, layout)).toBeNull();
     }
-  });
-
-  it("prefers black-key collisions over the white keys beneath them", () => {
-    const layout = { octaves: 1, startingMidi: 48, whiteKeys: 8 };
-    const blackKey = getBlackKeyPolygons(layout)[0];
-    const whiteKeys = getWhiteKeyPolygons(layout);
-    const center = {
-      x: (blackKey[0].x + blackKey[1].x) / 2,
-      y: (blackKey[0].y + blackKey[2].y) / 2,
-    };
-    const collisions = getPianoKeyCollisions(
-      [{ id: "finger", handIndex: 0, landmarkIndex: 8, point: center }],
-      whiteKeys,
-      getBlackKeyPolygons(layout),
-    );
-
-    expect(collisions.map(({ keyIndex }) => keyIndex)).toEqual([layout.whiteKeys]);
   });
 
   it.each([null, {}, { ...DEFAULT_LAYOUT, octaves: 4 },

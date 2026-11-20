@@ -1,12 +1,11 @@
 // Shared live marker cadence.
 export const MARKER_CHECK_INTERVAL_MS = 10_000;
-export const MARKER_ACQUIRE_INTERVAL_MS = 250;
 
 import { computeHomography, projectPoint } from "./homography";
-import type { MarkerDetectionResult, Point } from "./types";
+import type { Point } from "./types";
 import { DEFAULT_LAYOUT, usableLayout, sameLayout, type KeyboardLayout } from "./keyboardLayout";
 
-export const CALIBRATION_KEY = "makeshift.calibration.v1";
+export const CALIBRATION_KEY = "makeshift.calibration.v2";
 export const SHEET_ID = "aruco-0-3-white-keys-v1";
 // Backward-compatible name for callers using the default configuration.
 export const CURRENT_LAYOUT = DEFAULT_LAYOUT;
@@ -22,24 +21,14 @@ export interface CameraSignature {
   height: number;
   facingMode: string;
 }
-export interface LandmarkSample {
-  x: number;
-  y: number;
-  z: number;
-}
 export interface CalibrationResult {
-  version: 1;
+  version: 2;
   coordinates: "unmirrored-frame-pixels/marker-unit-square";
   sheet: typeof SHEET_ID;
   camera: CameraSignature;
   layout: KeyboardLayout;
   corners: Point[];
-  contact: {
-    model: "landmark-reference-v1";
-    /** Legacy optional sample; runtime contact logic does not consume it. */
-    hover?: LandmarkSample[][];
-    rest: LandmarkSample[][];
-  };
+  detector: "vision-reference-v1";
 }
 
 const finite = (n: unknown): n is number =>
@@ -121,58 +110,23 @@ export function validCorners(
     })
   );
 }
-export function markerCorners(
-  detection: MarkerDetectionResult,
-  camera: CameraSignature,
-): Point[] | null {
-  if (detection.missingIds.length || detection.observations.length !== 4)
-    return null;
-  const corners = [0, 1, 2, 3].map(
-    (id) => detection.observations.find((p) => p.id === id)?.center,
-  );
-  return validCorners(corners, camera) ? corners.map((p) => ({ ...p })) : null;
-}
-export function validSamples(value: unknown): value is LandmarkSample[][] {
-  return (
-    Array.isArray(value) &&
-    value.length >= 1 &&
-    value.length <= 2 &&
-    value.every(
-      (hand) =>
-        Array.isArray(hand) &&
-        hand.length === 21 &&
-        hand.every(
-          (p) =>
-            object(p) &&
-            finite(p.x) &&
-            finite(p.y) &&
-            finite(p.z) &&
-            p.x >= 0 &&
-            p.x <= 1 &&
-            p.y >= 0 &&
-            p.y <= 1 &&
-            Math.abs(p.z) <= 2,
-        ),
-    )
-  );
-}
 export function validateCalibration(value: unknown): CalibrationResult | null {
   if (
     !object(value) ||
-    value.version !== 1 ||
+    value.version !== 2 ||
     value.coordinates !== "unmirrored-frame-pixels/marker-unit-square" ||
     value.sheet !== SHEET_ID ||
     !validCamera(value.camera) ||
     !validCorners(value.corners, value.camera) ||
     !usableLayout(value.layout as KeyboardLayout) ||
-    !object(value.contact) ||
-    value.contact.model !== "landmark-reference-v1" ||
-    (value.contact.hover !== undefined &&
-      !validSamples(value.contact.hover)) ||
-    !validSamples(value.contact.rest)
+    value.detector !== "vision-reference-v1"
   )
     return null;
-  return structuredClone(value) as unknown as CalibrationResult;
+  return structuredClone({
+    version: 2, coordinates: value.coordinates, sheet: value.sheet,
+    camera: value.camera, layout: value.layout, corners: value.corners,
+    detector: value.detector,
+  }) as CalibrationResult;
 }
 export function compatibleCalibration(
   result: CalibrationResult,

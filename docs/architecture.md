@@ -33,8 +33,8 @@ flowchart TD
 | Area | Existing implementation | Planned delivery |
 | :--- | :--- | :--- |
 | UI/camera | Next.js/React camera and calibration UI | Validated session lifecycle (#24, #87) |
-| CV | Home: native Vision WASM module worker, manual empty reference, chromatic pressed-key snapshots; calibration/replay retain MediaPipe/OpenCV.js helpers | Physical contact accuracy and latency verification (#34/#39/#30), velocity estimation; bounded worker transport implemented |
-| Calibration | Prototype flow/completion flag; known defect D6 | Versioned validated result (#87) |
+| CV | Home, calibration and replay: native Vision WASM module worker, manual empty reference, chromatic pressed-key snapshots | Physical contact accuracy and latency verification (#34/#39/#30), velocity estimation; bounded worker transport implemented |
+| Calibration | Three-step Vision setup flow and validated version 2 record; Home captures a separate live reference | Versioned validated result (#87) |
 | Native audio | C++ PortAudio, nanobind, SPSC queue; ten 100 ms decaying sine hits at 44.1 kHz | Remains a native reference |
 | Browser audio | JavaScript AudioWorklet, ten stereo sampled voices, 19 preloaded Salamander recordings, +6 dB bass balance, press/session identities, velocity and Audio check page ([details](browser_audio.md)); native engine preserved | Shared event adapter (#86) implemented; ADSR (#27) implemented with user-reported listening pass; live readiness/wiring (#24, #28) |
 | MIDI | Instance-owned note-list recorder with pause/resume and on-demand midi-writer-js export (#108, #115); recording playback transport API (#130), with pause/seek/rate control independent of React ([contract](note_events.md#recording-playback-timeline-130)) | Complete lifecycle verification (#88), export verification (#107), persistence, playback UI (#131/#132), and real-browser playback timing verification |
@@ -95,8 +95,7 @@ The [JavaScript contract](../backend/cv_wasm_interface.md) now returns compact
 fingertip/press/geometry snapshots with an optional diagnostic getter. Chromatic
 lookup now lives in a separate native `ChromaticLookup.cpp` and Vision returns
 sorted unique `pressedKeys` semitone offsets from fixed press anchors. Frontend
-application integration uses these snapshots; its existing calibration UI remains
-unchanged. The frontend owns starting MIDI pitch, session/event identities, worker scheduling
+application integration and calibration use these snapshots. The frontend owns starting MIDI pitch, session/event identities, worker scheduling
 and audio dispatch.
 
 ## Calibration, geometry and contact
@@ -133,9 +132,10 @@ A main-thread canvas reads unmirrored RGBA only when the worker is ready and no
 frame is pending; its buffer is transferred to the module worker. New camera
 frames are sampled after completion, with no queued backlog. Vision owns marker
 scanning, reference/geometry, contact retention and chromatic lookup. A temporary
-Set reference button requests capture on the next submitted frame. The old
-`LiveContactPipeline`, hand overlay and shadow worker remain available for legacy
-replay/testing; the home page does not instantiate them. Calibration is unchanged.
+Set reference button requests capture on the next submitted frame. Calibration uses the same worker for explicit setup capture and saves version 2
+camera/layout/geometry metadata. Home captures its own live reference after navigation.
+Replay uses the same worker protocol with explicit reference-frame sidecars.
+The legacy browser hand/depth/contact/shadow pipeline and packages are removed.
 
 Frames carry the main observation timestamp and captured musical session ID.
 Replies older than 500 ms, worker errors and camera/source changes fail closed;
@@ -224,7 +224,7 @@ a MIDI file. Audio cannot await file generation.
 | Area | Existing tools / planned additions |
 | :--- | :--- |
 | Application | Next.js, React, TypeScript, npm lockfile |
-| CV | Home: Vision/OpenCV WASM worker; calibration/replay: MediaPipe Tasks Vision and OpenCV.js/ArUco |
+| CV | Home/calibration/replay: native Vision/OpenCV WASM module worker |
 | Audio | Native PortAudio reference; browser count-in and AudioWorklet synthesis implemented (#35), ADSR implemented (#27), user-reported listening pass |
 | MIDI | midi-writer-js; complete UI integration planned |
 | Native reference | C++23, CMake, PortAudio, nanobind, Python 3.12 |
@@ -234,8 +234,7 @@ a MIDI file. Audio cannot await file generation.
 | Delivery | GitHub Actions exists; Vercel runtime verification tracked by #89 |
 
 Versions belong in manifests/lockfiles. Keep JS/WASM/model assets compatible and
-avoid CDN `latest`. Verify production asset loading. Emscripten is optional
-future tooling, not an existing dependency.
+avoid CDN `latest`. Verify production asset loading. Emscripten is pinned for native Vision WASM builds; frontend builds copy the verified tracked bundle.
 
 Use [AGENTS.md checks](../AGENTS.md#checks-to-run) and
 [test commands/layout](../tests/README.md#running-the-tests). Frontend tests,

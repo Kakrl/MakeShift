@@ -2,17 +2,17 @@ import { toMainTime } from "../events/noteEvents";
 
 export const METRICS = {
   frameInterval:
-    "ms between submitted Vision camera frames or legacy hand-overlay media-time polls; excludes frames skipped while busy",
+    "ms between submitted Vision camera frames; excludes frames skipped while busy",
   presentationInterval:
     "ms between diagnostic video presentation callbacks; gaps can span multiple frames",
   frameAge: "ms from browser presentationTime to callback; not exposure age",
   // Reserved for future worker send/receive instrumentation; currently unavailable.
   transfer:
     "ms from sender post start to receiver entry after origin conversion; includes queueing",
-  inference: "ms around synchronous MediaPipe detectForVideo",
-  markerDetection: "ms around MarkerDetector.detect; excludes canvas drawImage",
+  inference: "Reserved historical stage; Vision reports combined processing in detection",
+  markerDetection: "Reserved historical stage; marker detection is included in Vision detection",
   detection:
-    "ms inside Vision processFrame in the worker; legacy replay measures synchronous contact processing and shadow submission",
+    "ms inside Vision processFrame in the worker",
   eventDelivery:
     "ms from accepted event observation to NoteSession receipt; excludes audio rendering",
 } as const;
@@ -32,16 +32,12 @@ export type Resources = {
   mediaTracks: number | null;
   audioContexts: number | null;
   audioNodes: number | null;
-  handModels: number | null;
-  markerDetectors: number | null;
 };
 const resources: Resources = {
-  workers: null, // Vision worker is instrumented; legacy shadow workers are not.
+  workers: 0,
   mediaTracks: 0,
   audioContexts: 0,
   audioNodes: 0,
-  handModels: 0,
-  markerDetectors: 0,
 };
 
 /** Constant-size lifecycle counters run before profiling starts. No resource references. */
@@ -198,7 +194,7 @@ export class PipelineMetrics {
           ? (intervals.count * 1000) / intervals.sum
           : null,
       processedFpsBoundary:
-        "submitted Vision camera frames or legacy hand-overlay media polls; excludes busy/skipped frames and unmounted gaps",
+        "submitted Vision camera frames; excludes busy/skipped frames and unmounted gaps",
       presentationCallbacks: this.presentationCallbacks,
       deliveredFps:
         presentationIntervals && presentationIntervals.sum > 0
@@ -238,8 +234,8 @@ export class PipelineMetrics {
         "sensor exposure age",
         "physical press-to-sound",
         "audio render latency",
-        "shadow-worker transfer timing is not instrumented",
-        "asynchronous shadow execution and physical contact accuracy",
+        "worker transfer timing is not instrumented",
+        "physical contact accuracy",
       ],
     };
   }
@@ -247,12 +243,6 @@ export class PipelineMetrics {
 export const pipelineMetrics = new PipelineMetrics();
 export function recordCameraFrame(now: number) {
   pipelineMetrics.frame(now);
-}
-export function recordHandInference(ms: number) {
-  pipelineMetrics.record("inference", ms);
-}
-export function recordMarkerDetection(ms: number) {
-  pipelineMetrics.record("markerDetection", ms);
 }
 export function snapshotResources(label: string) {
   const memory = (

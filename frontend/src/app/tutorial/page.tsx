@@ -15,7 +15,7 @@ export default function Tutorial() {
     {
       step: "1",
       title: "Run Calibration",
-      body: "Click Calibration and follow the 5 steps.",
+      body: "Click Calibration and follow the three steps: setup, lighting, and empty-keyboard reference capture.",
     },
     {
       step: "2",
@@ -24,8 +24,8 @@ export default function Tutorial() {
     },
     {
       step: "3",
-      title: "Hover your hands",
-      body: "Hold them just above the paper.",
+      title: "Set your playing reference",
+      body: "On Home, remove your hands, show all four markers, then select Set reference. Repeat after a camera change or reload.",
     },
     {
       step: "4",

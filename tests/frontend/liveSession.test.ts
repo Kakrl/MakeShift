@@ -9,10 +9,10 @@ import {
   MARKER_CHECK_INTERVAL_MS,
   SHEET_ID,
 } from "../../frontend/src/cv/calibration";
-import { createKeyEventProducer } from "../../frontend/src/events/keyEventProducer";
+import { createChromaticKeyProducer } from "../../frontend/src/events/chromaticKeyProducer";
 
 const calibration = () => ({
-  version: 1,
+  version: 2,
   coordinates: "unmirrored-frame-pixels/marker-unit-square",
   sheet: SHEET_ID,
   camera: { deviceId: "camera", width: 1000, height: 1000, facingMode: "" },
@@ -23,11 +23,7 @@ const calibration = () => ({
     { x: 900, y: 900 },
     { x: 100, y: 900 },
   ],
-  contact: {
-    model: "landmark-reference-v1",
-    hover: [Array(21).fill({ x: 0.5, y: 0.4, z: 0 })],
-    rest: [Array(21).fill({ x: 0.5, y: 0.5, z: 0 })],
-  },
+  detector: "vision-reference-v1",
 });
 let now: number;
 let gate: LiveSession;
@@ -188,7 +184,7 @@ it("refreshes interrupted recovery guidance without resuming or repeating interr
   expect(audio.releaseAll).toHaveBeenCalledTimes(1);
 });
 
-it.each([null, true, {}, { ...calibration(), version: 2 }])(
+it.each([null, true, {}, { ...calibration(), version: 1 }])(
   "rejects invalid calibration %j",
   async (value) => {
     const saved = calibration();
@@ -220,8 +216,8 @@ it.each([
   { octaves: 1, startingMidi: 48, whiteKeys: 8, paperOctaves: 2 },
 ])("releases held notes and rejects stale configuration on change to %j", async (layout) => {
   const id = await play();
-  const oldProducer = createKeyEventProducer(gate, id);
-  oldProducer([{ keyIndex: 0, velocity: 0.8 }], [], now);
+  const oldProducer = createChromaticKeyProducer(gate);
+  oldProducer([0], now, id);
   gate.setLayout(layout);
   expect(gate.status).toMatchObject({ state: "interrupted", canStart: false });
   expect(audio.releaseAll).toHaveBeenCalledTimes(1);
@@ -233,11 +229,11 @@ it.each([
   expect(gate.observeCalibration(saved, saved.camera, saved.corners)).toBe(true);
   expect(await gate.prepare()).toBe(true);
   const next = gate.play()!;
-  oldProducer([{ keyIndex: 1, velocity: 1 }], [0], now);
+  oldProducer([1], now, id);
   expect(audio.noteOn).toHaveBeenCalledTimes(1);
-  const producer = createKeyEventProducer(gate, next);
-  producer([{ keyIndex: layout.whiteKeys - 1, velocity: 0.8 }], [], now);
-  expect(audio.noteOn).toHaveBeenLastCalledWith(layout.startingMidi + layout.octaves * 12, 0.8);
+  const producer = createChromaticKeyProducer(gate);
+  producer([layout.octaves * 12], now, next);
+  expect(audio.noteOn).toHaveBeenLastCalledWith(layout.startingMidi + layout.octaves * 12, 0.2);
 });
 
 it("cancels pending audio startup when the layout changes", async () => {
@@ -358,7 +354,7 @@ it("requires another gesture if the saved calibration changes while hidden", asy
   gate.setHidden(true);
   gate.setHidden(false);
   const saved = calibration();
-  saved.contact.rest[0][0] = { x: 0.5, y: 0.6, z: 0 };
+  saved.corners[0].x += 1;
   gate.observeCalibration(saved, saved.camera, saved.corners);
   gate.observeTracking();
   expect(audio.resumeAfterBackground).not.toHaveBeenCalled();
@@ -409,7 +405,7 @@ it("offers retry after startup failure", async () => {
 it("changed calibration retires a live session even when the new result is valid", async () => {
   await play();
   const saved = calibration();
-  saved.contact.rest[0][0] = { x: 0.5, y: 0.6, z: 0 };
+  saved.corners[0].x += 1;
   gate.observeCalibration(saved, saved.camera, saved.corners);
   expect(gate.status.state).toBe("interrupted");
   expect(gate.sessionId).toBeNull();

@@ -72,7 +72,7 @@ The actual-size starter/extension PDFs preserve marker IDs 0–3 and use a
 the same four IDs cannot measure millimeters or identify page count. An
 undersized declared assembly blocks calibration until an explicit override,
 which preserves key pitch and extends the selected keyboard beyond paper.
-Every settings change clears saved hand/marker calibration and releases notes.
+Every settings change clears saved Vision setup calibration and releases notes.
 The home screen and Tutorial offer a ZIP containing both print-ready PDFs (#236).
 See [print/layout instructions](piano_sheet.md) and the
 [verification mapping](rvtm_browser_addendum.md#octave-layouts-36).
@@ -91,11 +91,13 @@ sympathetic resonance are separate scope. See [tuning and compatibility](browser
 Audio/latency owner is Carl Xu. Offline/modal coverage maps to PT-01;
 paired synchronous profiling to PT-02; listening to PT-03. Physical latency
 2.3.1 and ten-trial dynamics 2.4.2 retain their original requirements.
-The guided calibration flow uses four steps: setup, lighting, paper alignment
-and five-position depth capture. It omits the former hover countdown because
-runtime contact logic does not consume a hover sample. Each depth capture still
-requires complete detected hand landmarks; older calibration records may retain
-an optional legacy hover field.
+The guided calibration flow uses three steps: setup, lighting and explicit
+empty-keyboard reference capture through the Vision worker (#297). A validated
+version 2 record stores camera/layout/sheet geometry without hand landmarks or
+depth models. Home owns a separate worker and requires a fresh reference after
+navigation or reset. Initial empty-scene capture relies on user confirmation.
+Old landmark records require recapture; named profiles and recordings persist.
+See [calibration](calibration.md) for readiness and recovery behavior.
 
 **Previous SDP Work**
 

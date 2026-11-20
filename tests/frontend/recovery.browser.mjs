@@ -19,13 +19,13 @@ try {
     const video = document.querySelector("video");
     const settings = video.srcObject.getVideoTracks()[0].getSettings();
     const width = video.videoWidth, height = video.videoHeight;
-    localStorage.setItem("makeshift.calibration.v1", JSON.stringify({
-      version: 1, coordinates: "unmirrored-frame-pixels/marker-unit-square", sheet: "aruco-0-3-white-keys-v1",
+    localStorage.setItem("makeshift.calibration.v2", JSON.stringify({
+      version: 2, coordinates: "unmirrored-frame-pixels/marker-unit-square", sheet: "aruco-0-3-white-keys-v1",
       camera: { deviceId: settings.deviceId, width, height, facingMode: settings.facingMode ?? "" },
       layout: { octaves: 1, startingMidi: 48, whiteKeys: 8 },
       corners: [{ x: width * .1, y: height * .1 }, { x: width * .9, y: height * .1 },
         { x: width * .9, y: height * .9 }, { x: width * .1, y: height * .9 }],
-      contact: { model: "landmark-reference-v1", rest: [Array(21).fill({ x: .5, y: .5, z: 0 })] },
+      detector: "vision-reference-v1",
     }));
   });
   await page.reload();
@@ -49,9 +49,9 @@ try {
   }
   // A camera resolution mismatch offers one keyboard-accessible calibration action.
   await page.evaluate(() => {
-    const saved = JSON.parse(localStorage.getItem("makeshift.calibration.v1"));
+    const saved = JSON.parse(localStorage.getItem("makeshift.calibration.v2"));
     saved.camera.width += 100;
-    localStorage.setItem("makeshift.calibration.v1", JSON.stringify(saved));
+    localStorage.setItem("makeshift.calibration.v2", JSON.stringify(saved));
   });
   await page.reload();
   const calibrate = page.getByRole("link", { name: "Calibrate", exact: true });

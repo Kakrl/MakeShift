@@ -35,6 +35,7 @@ for (const sidecarName of selectedSidecars) {
   const id = sidecarName.match(/\d+/)?.[0];
   const sidecarPath = path.join(videoDir, sidecarName);
   const sidecar = JSON.parse(await readFile(sidecarPath, "utf8"));
+  assert(sidecar.schemaVersion === 2, `${sidecarName}: migrate to schemaVersion 2 with a verified empty referenceFrame and chromatic key labels; legacy reports remain historical`);
   assert(typeof sidecar.video === "string", `${sidecarName} must name its video`);
   assert(videoNames.includes(sidecar.video), `Video file not found: ${path.join(videoDir, sidecar.video)}`);
   cases.push({ id, sidecarPath, videoPath: path.join(videoDir, sidecar.video), video: sidecar.video });
@@ -147,7 +148,6 @@ try {
       return {
         clip: report.clip,
         processedFrames: report.processedFrames,
-        contactTechniques: report.contactTechniques,
         runtime: report.runtime,
         scores: {
           press: summarizeScore(report.scores?.press),
@@ -157,9 +157,7 @@ try {
           replayFps: perf.replayFps,
           steadyStateReplayFps: perf.steadyStateReplayFps,
           replayElapsedMs: perf.replayElapsedMs,
-          inferenceMs: perf.inferenceMs,
-          markerDetectionCount: perf.markerDetectionCount,
-          shadowSamplesSubmitted: perf.shadowSamplesSubmitted,
+          processMs: perf.processMs,
         },
       };
     }),

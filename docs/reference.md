@@ -37,8 +37,8 @@ Only things related to sharing songs touch the internet.
 
 | Stage | Runs in |
 | :--- | :--- |
-| Camera capture, hand tracking, marker detection | Main thread |
-| Shadow segmentation | Web Worker ([`shadowWorker.ts`](../frontend/src/cv/shadowWorker.ts)) |
+| Camera capture | Main thread, bounded frame submission |
+| Finger/shadow contact, marker detection and key lookup | Vision WASM module worker |
 | Note session dispatch | Main thread |
 | Sound | AudioWorklet ([`frontend/public/audio/`](../frontend/public/audio)) |
 | MIDI recording and export | Main thread, after audio |
@@ -51,7 +51,7 @@ File locations: [repository map in `AGENTS.md`](../AGENTS.md#repository-map).
 | Route | Page |
 | :--- | :--- |
 | `/` | Main play screen: camera, overlays, recording, pedals |
-| `/calibration` | Sheet and hand calibration |
+| `/calibration` | Keyboard setup, lighting and empty-reference calibration |
 | `/audio` | Sound check |
 | `/tutorial` | Tutorial |
 | `/documentation` | In-app docs |
@@ -67,8 +67,7 @@ Major versions only. Exact versions are in
 | Area | Tool |
 | :--- | :--- |
 | App | Next.js 16, React 19 |
-| Hand tracking | `@mediapipe/tasks-vision` 0.10 |
-| Marker detection | `@techstark/opencv-js` 5 |
+| CV | Native Vision/OpenCV WASM module worker; verified tracked bundle |
 | MIDI files | `midi-writer-js` 3 |
 | Tests | Vitest 4, Playwright, `selenium-webdriver` 4 |
 | Database | Supabase Postgres 17 |
@@ -177,22 +176,19 @@ Tracking older than 500 ms (`TRACKING_TIMEOUT_MS`) counts as stale.
 | `interrupt` | `(message: string)` | Ends session → `interrupted` |
 | `observeCalibration`, `observeUncalibratedSheet`, `observeTracking`, `trackingFailed` | | CV inputs that move it in and out of `ready` |
 
-#### Key event producer
+#### Chromatic key producer
 
-This turns each frame's pressed and released keys into `noteOn`/`noteOff` calls.
-
-Source: [`events/keyEventProducer.ts`](../frontend/src/events/keyEventProducer.ts).
+Source: [`events/chromaticKeyProducer.ts`](../frontend/src/events/chromaticKeyProducer.ts).
 
 ```ts
-type KeyPress = { keyIndex: number; velocity: number };
-const produce = createKeyEventProducer(session: LiveSession, sessionId: string);
-produce(pressed: KeyPress[], released: number[], timestampMs: number);
+const produce = createChromaticKeyProducer(session);
+produce(pressedKeys, timestampMs, capturedSessionId);
 ```
 
-- `keyIndex` counts white keys first, then black keys
-  ([mapping](#key-index--midi)).
-- Releases run before presses.
-- Calls are ignored once its `sessionId` isn't current.
+`pressedKeys` is a complete sorted snapshot of semitone offsets from starting C.
+Releases precede new presses; held keys do not retrigger. Fixed onset velocity is
+0.2. Submission captures the session ID so delayed results cannot adopt a new
+session. Pitch conversion adds the configured starting MIDI note.
 
 ---
 
@@ -392,10 +388,7 @@ rebuild.
 | Flag | Default | Effect |
 | :--- | :--- | :--- |
 | `pipelineDiagnostics` | from `NEXT_PUBLIC_PIPELINE_DIAGNOSTICS` | Performance panel |
-| `visualDebug` | `false` | CV debug overlays |
-| `showZLines` | `true` | Depth calibration lines |
-| `showSheetWithoutCalibration` | `true` | Draws the sheet before calibration |
-| `landmarkersTestGather` | `false` | Logs calibration hand landmarks to the console |
+| `visualDebug` | `true` | Vision fingertip markers |
 
 ---
 
@@ -525,8 +518,8 @@ Black keys:
 
 ## Calibration
 
-As of now, calibration maps the printed sheet into camera pixels and records a resting
-hand reference for contact detection.
+Calibration validates camera/layout/sheet geometry through an explicit empty-keyboard
+Vision capture. Home owns a separate worker and captures its own playing reference.
 
 Source: [`cv/calibration.ts`](../frontend/src/cv/calibration.ts).
 Details: [`docs/calibration.md`](calibration.md).
@@ -535,23 +528,19 @@ Details: [`docs/calibration.md`](calibration.md).
 
 ```ts
 interface CalibrationResult {
-  version: 1;
+  version: 2;
   coordinates: "unmirrored-frame-pixels/marker-unit-square";
-  sheet: "aruco-0-3-white-keys-v1";    // which printed sheet
+  sheet: "aruco-0-3-white-keys-v1";
   camera: { deviceId: string; width: number; height: number; facingMode: string };
-  layout: KeyboardLayout;              // layout at calibration time
-  corners: { x: number; y: number }[]; // the 4 sheet corners, in frame pixels
-  contact: {
-    model: "landmark-reference-v1";
-    hover?: { x: number; y: number; z: number }[][]; // legacy, unused
-    rest: { x: number; y: number; z: number }[][];   // resting hand landmarks
-  };
+  layout: KeyboardLayout;
+  corners: { x: number; y: number }[];
+  detector: "vision-reference-v1";
 }
 ```
 
-Saved under `makeshift.calibration.v1`. Depth calibration lines are saved
-separately under `depthCalibrationLines`
-([`cv/depthCalibration.ts`](../frontend/src/cv/depthCalibration.ts)).
+Saved under `makeshift.calibration.v2`. Reference-image bytes and press anchors
+remain inside one worker instance and cannot be restored from this record.
+Version 1 landmark records require recapture; profiles and recordings persist.
 
 ### Reuse checks
 
@@ -662,8 +651,8 @@ All client data is in `localStorage`. Helpers:
 | `makeshift:take-shares:v1` | Take ID → `{ id, deleteToken, mock? }`. Clearing it loses delete access | [`app/share/shareStore.ts`](../frontend/src/app/share/shareStore.ts) |
 | `makeshift:profile:v1` | Device profile | [`lib/deviceProfile.ts`](../frontend/src/lib/deviceProfile.ts) |
 | `makeshift:mock-shared-recordings:v1` | `?mock=` fixtures | [`app/share/mockShareStore.ts`](../frontend/src/app/share/mockShareStore.ts) |
-| `makeshift.calibration.v1` (legacy) | `CalibrationResult` ([Calibration](#calibration)); dotted key, skips the helpers | [`cv/calibration.ts`](../frontend/src/cv/calibration.ts) |
-| `depthCalibrationLines` (legacy) | Depth calibration lines; unversioned | [`cv/depthCalibration.ts`](../frontend/src/cv/depthCalibration.ts) |
+| `makeshift.calibration.v2` | Vision setup `CalibrationResult` ([Calibration](#calibration)) | [`cv/calibration.ts`](../frontend/src/cv/calibration.ts) |
+| `makeshift.calibration.v1`, `depthCalibrationLines` (obsolete) | Ignored for readiness; removed on keyboard configuration changes | [`lib/keyboardSettings.ts`](../frontend/src/lib/keyboardSettings.ts) |
 
 ---
 

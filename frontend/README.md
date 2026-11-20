@@ -40,52 +40,27 @@ full, the controls still work for the current visit. Restoring preferences
 does not start audio or recording. The metronome always starts off; its toggle
 is not saved. Older saved toggle values are ignored while retaining valid tempo.
 
-## CV visual debugging
+## Vision CV and calibration
 
-Visual debugging defaults to off. Set `SHOW_VISUAL_DEBUG` to `true` in
-`src/app/CVOverlayCoordinator.tsx` to enable the finger panel, shadow previews,
-sampling guides, knuckle boundaries, marker diagnostics, and hand landmarks/FPS.
-Set it back to `false` to hide diagnostics and skip preview masks, contour
-outlines, debug drawing, and per-frame debug state updates. Contact detection,
-note dispatch, and pressed-key highlighting continue with debugging off.
+Home and calibration use `src/cv/visionCameraPipeline.ts` to send fresh camera
+pixels to `public/vision/vision.worker.mjs`. Native Vision owns marker scanning,
+reference geometry, finger/shadow contact detection and chromatic key lookup.
+`prepare-vision.mjs` verifies and copies the tracked native WASM bundle before
+build/dev. No MediaPipe model, external CV CDN or OpenCV.js package is required.
 
-The live sequence starts at `pipeline.processFrame(...)` in
-`src/app/MarkerTrackingOverlay.tsx`. Follow `src/cv/liveContactPipeline.ts` to
-read key overlap, knuckle eligibility, and the asynchronous shadow check in
-order. That controller owns the worker, histories, stale-result checks, and
-release timer; the overlay handles note dispatch and drawing. Individual checks
-live in `src/cv/contactPipeline.ts`. The weighted `contactScore.ts` experiment
-does not control live notes.
+Calibration has setup, lighting and empty-keyboard reference steps. It saves a
+version 2 setup record; Home owns a separate worker and needs a new **Set
+reference** capture before **Enable audio**. See [calibration](../docs/calibration.md).
+The **Capture reference** / **Set reference** actions require users to remove
+their hands first; initial empty-scene detection is not independently verified.
 
-To isolate a technique, edit `CONTACT_TECHNIQUES` near the top of
-`src/cv/liveContactPipeline.ts`, then reload the page:
+`DEBUG_FLAGS.visualDebug` in `src/debugFlags.ts` controls Vision fingertip
+markers. Key feedback and falling notes use shared geometry helpers; contact
+logic stays in Vision. Pressed-key snapshots feed `chromaticKeyProducer.ts`
+with fixed onset velocity 0.2. Variable physical velocity remains future work.
 
-```ts
-export const CONTACT_TECHNIQUES: Readonly<ContactTechniques> = {
-  knuckles: true,
-  shadows: true,
-  zMotion: false,
-};
-```
-
-| Knuckles | Shadows | Contact decision |
-| --- | --- | --- |
-| `true` | `true` | Key overlap, calibrated knuckle eligibility, fresh shadow confirmation (default) |
-| `false` | `true` | Key overlap and fresh shadow confirmation; no knuckle calibration needed |
-| `true` | `false` | Key overlap and calibrated knuckle eligibility; no shadow worker or pixel capture |
-| `false` | `false` | Key-overlap-only debugging; no knuckle calibration or shadow processing |
-
-Set `zMotion: true` to predict note-on from the calibrated z boundary and
-downward z movement. Z motion requires both `knuckles` and `shadows` enabled;
-shadows confirm the predicted press. The default keeps z motion disabled.
-
-Knuckle-only mode releases when eligibility is lost. Overlap-only mode releases
-when key overlap is lost. Both release when landmark frames are over 150 ms old.
-`SHOW_VISUAL_DEBUG` controls display independently; enable it
-to see technique status. These switches are development settings, not UI controls.
-
-Virtual keyboard highlights follow detected contact even before recording or
-while paused. Audio/MIDI note dispatch still requires recording to be active.
+`/cv-video-replay` uses the same worker for labeled footage. See the [replay
+guide](../docs/cv_video_tests.md) for version 2 sidecars and measurement limits.
 
 ## Scripts
 
@@ -97,7 +72,7 @@ These are commands you'll run regularly. They're defined in `package.json` under
 | `npm run build`      | Creates a production-ready build. Run this to check the app builds cleanly.  |
 | `npm run lint`       | Checks your code for style and quality issues using ESLint (see below).      |
 | `npm run test:contrast` | Checks WCAG text and UI color contrast and writes JSON evidence.          |
-| `npx vitest run`     | Runs `tests/frontend/` Vitest unit tests (MIDI utils). Not yet run in CI.                  |
+| `npx vitest run`     | Runs `tests/frontend/` Vitest unit/integration tests; also run in frontend CI.                  |
 | `npx tsc --noEmit`   | Checks your TypeScript types without producing any output files.             |
 
 > ^ the latter 3 are pretty much run every time the workflow runs so make sure they pass every PR

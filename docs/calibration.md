@@ -1,166 +1,87 @@
-# Calibration result and recovery (#87)
+# Vision setup calibration (#87, #297)
 
-Calibration saves `makeshift.calibration.v1` only after detecting all four sheet
-markers and capturing complete hand landmarks in both guided phases. A timer
-schedules a capture; it cannot complete a phase. Failed detection offers retry.
-No code reads or writes the legacy `isCalibrated` flag; readiness comes only
-from the validated result. Unloading preserves valid data.
+Calibration has three guided steps: keyboard setup, lighting, and an explicit
+empty-keyboard reference capture. The page uses `VisionCameraPipeline` and the
+same module worker as Home. MediaPipe, OpenCV.js, hand poses and hand-depth
+calibration are no longer part of the frontend.
 
-Use the [actual-size starter PDF](piano_sheet.md) for the current one-octave
-layout; add extension copies for two or three octaves. Recalibrate when replacing
-the print. Select the playable octave count, starting C and actual assembled
-paper count in step 1. See the [layout contract](piano_sheet.md#marker-and-application-compatibility).
+## Guided flow
 
-Step 3 automatically detects and validates all four sheet markers. There is no
-manual paper-check action: wait for **Sheet geometry validated**, then select
-**Next Step**. Missing markers or invalid geometry block advancement until a
-usable observation arrives. Returning to step 3 reacquires the paper and camera/
-keyboard settings before continuing. The initialized marker detector is reused
-for these scans and disposed when leaving calibration.
+1. Select 1–3 playable octaves, the starting C, and assembled paper coverage.
+   Named profiles can save, load, rename and delete these settings. Profile
+   corners are reference information and never bypass a new capture.
+2. Check lighting against the existing mean-luminance guidance. This is image
+   brightness, not a lux measurement or a guarantee of detector accuracy.
+3. Show all four markers, remove hands and other objects, and select **Capture
+   reference**. Advance only after Vision accepts the capture and the frontend
+   validates its camera, layout and ordered marker geometry. A blocked request
+   offers retry; a worker failure offers **Reload tracker**.
 
-## Profiles and step help (#118, #185)
+The first reference relies on the user's empty-keyboard confirmation. Vision
+cannot independently prove that its first reference contains no fingers.
+Capture, reference updates and processing follow the [WASM contract](../backend/cv_wasm_interface.md).
+Vision currently accepts one octave parameter, so paper and playable octave
+counts must match. An overridden paper mismatch can still be represented in
+layout preferences, but Vision rejects capture for that configuration.
 
-Step 1 can save, load, rename and delete named profiles through
-`frontend/src/lib/calibrationProfiles.ts`, stored at
-`makeshift:calibration-profiles:v1`. A profile holds `octaves`,
-`startingNote` (MIDI), the declared paper octaves and override, and optional
-marker corners copied from a saved calibration with the same layout. Saving
-under another profile's name (case-insensitive) asks before replacing it;
-renaming onto another profile's name is rejected. Corrupt entries are dropped on read.
+Select **Next Step** to review, then **Start Playing** to save and return Home.
+The review screen says setup is validated, not that it has already been saved.
 
-Loading a profile only fills in the step 1 fields through the normal layout
-save, so it invalidates any calibration for a different layout and never skips
-marker detection: step 3 still needs a live, complete scan. Stored corners are
-not used to bypass that check.
+## Saved setup versus live reference
 
-The **?** button shows step-specific help. Step 3 shows a sheet illustration
-and tips: the whole sheet with all four corner markers in view, kept flat,
-under even lighting. The hand steps keep the hand positioning photo.
+`frontend/src/cv/calibration.ts` validates `CalibrationResult` version 2, stored
+under `makeshift.calibration.v2`:
 
-## Version 1 contract
+- Coordinate convention: `unmirrored-frame-pixels/marker-unit-square`.
+- Sheet revision `aruco-0-3-white-keys-v1` and marker centers ordered 0/1/2/3
+  (top-left, top-right, bottom-right, bottom-left).
+- Camera device ID, decoded frame dimensions and facing mode.
+- Keyboard layout, starting MIDI note and paper configuration.
+- Detector revision `vision-reference-v1`.
 
-`frontend/src/cv/calibration.ts` owns validation, storage and compatibility.
-The result contains:
+The record contains no hand landmarks, depth models or reference-image bytes.
+Validation checks finite in-frame corners, positive convex winding, minimum
+area, a usable transform, camera identity and supported layout. Only recognized
+fields are retained. Storage and parse failures return an unavailable result.
 
-- Version and coordinate convention: unmirrored decoded-frame pixels, origin at
-  top left, x right, y down. Canonical sheet coordinates are the unit square at
-  marker centers 0, 1, 2, 3 (top left, top right, bottom right, bottom left).
-- Sheet revision `aruco-0-3-white-keys-v1` and four ordered marker centers.
-  Homographies are derived from validated corners rather than trusting a stored
-  matrix. Quadrilaterals must be convex, positively wound, in frame and exceed
-  the minimum cross-product threshold of 0.001 times frame area at each corner.
-- Camera device ID, decoded width/height and facing mode. Missing device identity
-  fails closed; a camera/browser that does not expose it cannot reuse calibration.
-- Layout: 1–3 octaves, leftmost C MIDI integer, and 7 * octaves + 1 white keys.
-  C roots are multiples of 12 with the final C at or below MIDI 127: C-1–C8
-  for one octave, C-1–C7 for two, C-1–C6 for three. Optional `paperOctaves`
-  (1–3) and `paperFitOverride` record paper coverage and explicit override.
-  Legacy records without paper fields imply paper matching the selected range.
-  The shared `keyboardLayout.ts` contract drives validation, geometry and mapping;
-  `makeshift:keyboard-layout:v1` stores the selected configuration. A range
-  exceeding declared paper is usable only with an explicit override, which
-  extends geometry beyond the paper at the same physical key pitch.
-- Contact input revision `landmark-reference-v1`, with one or two complete
-  21-landmark rest samples. x/y are normalized frame coordinates; z is
-  MediaPipe relative depth, not millimeters or distance from the paper.
-  Finite/in-range validation is required. Older records may include an optional
-  hover sample, which is retained for compatibility but not used at runtime.
-  These are captured reference inputs, not a trained contact classifier.
-  Identical poses are possible and are not proof of contact; intentional-contact
-  inference and thresholds remain #34.
+A reference image and press anchors belong to one Vision instance. Leaving
+calibration destroys that worker. **Home must capture its own reference:** clear
+the keyboard, select **Set reference**, then **Enable audio**. Reload, camera
+loss/change, reset and layout changes also require a new live reference.
+Persisted setup alone never makes tracking or audio ready.
 
-Calibration has five guided steps: setup, lighting, paper alignment, right-hand
-depth, and left-hand depth. The separate hover countdown is omitted because
-live contact logic does not consume its sample. Each hand's five depth captures
-require that hand to be detected; the final left-hand capture supplies the
-required rest landmarks.
+## Compatibility and recovery
 
-## Compatibility and interruption
+Home compares the saved camera/layout and marker geometry against the accepted
+Vision geometry. The existing 1% frame-diagonal corner tolerance remains a
+provisional jitter allowance, not a physical accuracy claim. Vision retains
+its old reference/geometry on a blocked periodic refresh; returned geometry is
+the accepted reference geometry, not a fresh independent marker observation.
+Automatic checks run on Vision's monotonic clock every ten seconds. Sheet
+movement may therefore remain undetected between successful checks.
 
-At the start of a camera session, marker detection searches every 250 ms until it
-produces a complete, usable geometry. After that first geometry, checks run every
-ten seconds, including after a missed check. A miss retains the last good
-projection and retries at the next ten-second interval. A later complete,
-usable result replaces the cached projection. Camera/source changes or frame
-loss reset the cache and begin fast acquisition again. Sheet movement or
-removal can remain undetected until a periodic check (up to ten seconds).
+A successful reference revision clears the producer's old key snapshot.
+Camera/source loss, stale results, worker errors and configuration invalidation
+release held notes and reject old-session input. Audio activation remains a
+separate user action. MIDI and feedback consume the accepted events after audio.
 
-Missing or failed marker observations do not invalidate the last compatible
-calibration, regardless of how many periodic scans miss. The saved projection
-remains usable until a complete observation shows incompatible marker positions,
-or the camera/frame session is lost. Each corner may move by at most 1% of the
-frame diagonal to allow marker jitter. This is a provisional geometric
-tolerance, not an accuracy claim. Geometry rendering and collision use the
-same retained live projection; session readiness still gates note dispatch.
+Returning to an earlier calibration step drops the captured setup. Camera and
+layout are revalidated before saving; backgrounding clears the pending result.
+Keyboard-setting notifications discard pending captures and restart setup.
+Storage failure keeps the review screen open with retry and restart actions.
 
-Invalidation releases active keys, stops the recording and cancels pending
-count-in/audio initialization. Restoring compatible observations permits a new
-user-started recording; it never resumes the old one. Changing device, decoded
-resolution, facing mode, sheet revision or layout requires new calibration.
-Moving the camera or sheet beyond tolerance requires restoring the original
-pose or recalibrating. A physically different but visually identical sheet with
-the same marker IDs cannot be distinguished by this camera-only contract.
+## Older browser data
 
-Issue #220 adds ordered compatibility diagnostics via `calibrationReason` without
-changing the compatibility predicate. Readiness distinguishes absent/invalid
-saved data, unavailable camera, changed device/resolution/direction, changed
-layout, unavailable markers and complete-scan geometry disagreement. Only the
-last case suggests restoring alignment; camera changes name the changed setting.
-Missing scans are not evidence of movement.
+Version 1 landmark records and `depthCalibrationLines` cannot seed Vision and
+are not migrated into a ready state. Users calibrate again. Layout changes
+remove both old keys and the current setup record; no global storage clear is
+performed. Named profiles and recordings retain their existing formats.
 
-`SheetAlignment` draws saved (solid) and current (dashed) sheet-reference
-quadrilaterals through marker centers. It uses the same mirrored cover crop as
-the camera, keeps the saved corners immutable and hides incomparable camera
-spaces. Current corners are labelled as the last complete scan and disappear
-after a miss or ten seconds; this display expiry does not expire calibration
-or change retained contact geometry. A static, token-based legend provides
-non-color cues without announcing each scan. See [recovery behavior](live_session.md#recovery-explanations-and-alignment-220).
+## Verification
 
-## Playing and recording
-
-After live calibration validation, select **Enable audio** to unlock browser
-sound without starting a MIDI recording. Live notes continue during recording
-pauses and after Stop. Start/resume count-ins silence piano voices and pedals,
-while tracking and optional countdown clicks continue. Held keys require release
-and a fresh press after the countdown; no held notes are captured at its boundary.
-Calibration invalidation and leaving the page still release live sound.
-
-## Persistence failures
-
-Reads, parsing and storage acquisition can fail without crashing the page.
-Invalid/unsupported data is never migrated from a boolean or used as readiness.
-The home page links to calibration for recovery. A successful new capture
-replaces corrupt data. Write failure keeps the completion page open, reports
-that browser storage must be enabled, and offers retry through Start Playing.
-The completion action revalidates the current camera and keyboard settings
-against the paper-step snapshot before saving, using the saved sheet corners.
-Calibration has separate right- and left-hand depth steps, each collecting the
-five positions. No separate hover capture is required. The left-hand step's
-final capture creates the primary calibration result using its complete
-rest-hand landmarks. Start Playing saves both fitted depth models and the
-validated primary record before navigating.
-Each hand's final capture checks camera and keyboard settings against the
-snapshot taken during paper alignment, then reuses the saved sheet corners
-without running another marker scan. A settings mismatch keeps the captured
-positions and allows a retry at the center. Other capture errors leave the
-completed positions intact so the current position can be retried. Start Playing
-revalidates the camera and keyboard settings against the paper-step snapshot
-without running another marker scan. The flow retains both fitted depth models
-through the completion screen, with depth rollback if the primary write fails.
-It does not write a legacy completion flag.
-Local/other-tab configuration changes cancel pending captures, clear both saved
-records and retire playing sessions synchronously; old producers cannot adopt a
-new layout or session. A missed marker scan may retain geometry only while its
-saved configuration still matches.
-No silent in-memory fallback claims that a result was saved.
-
-## Verification limits
-
-See the [inventory](../tests/verification_test_inventory.md) and
-[execution record](../tests/README.md#calibration-verification-issue-87).
-Simulated DOM/camera tests cover workflow and lifecycle. Carl Xu reported successful completion of the manual webcam/printed-sheet
-checklist on 2026-09-28; see the [manual report](../tests/manual/2026-09-27_6.2.2.md)
-for the tested scenarios and evidence limits. Browser/device details and the
-exact tested commit were not supplied.
-The existing marker detector still runs on the main thread; worker migration
-belongs to #37. The ten-second marker cadence is not a physical note-latency result.
+The workflow tests cover explicit capture/retry, invalid geometry, persistence
+failure, camera/configuration changes, stale callbacks, background invalidation,
+worker reload and profiles. Geometry/storage and live-session tests retain
+compatibility and note-release coverage. See the [inventory](../tests/verification_test_inventory.md)
+and [current execution record](../tests/README.md#frontend-cv-cleanup-297).
+Synthetic tests do not establish physical contact accuracy or acoustic latency.

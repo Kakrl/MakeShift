@@ -28,13 +28,13 @@ try {
   await page.reload();
   assert.equal(await page.getByRole("checkbox").isChecked(), true);
   await page.evaluate(() => {
-    localStorage.setItem("makeshift.calibration.v1", "legacy fixture");
+    localStorage.setItem("makeshift.calibration.v2", "legacy fixture");
     localStorage.setItem("depthCalibrationLines", "legacy fixture");
   });
   await page.locator("#starting-note").selectOption("72");
   assert.equal(await page.getByRole("checkbox").isChecked(), false);
   assert.equal(await page.getByRole("button", { name: "Next Step", exact: true }).count(), 0);
-  assert.deepEqual(await page.evaluate(() => [localStorage.getItem("makeshift.calibration.v1"),
+  assert.deepEqual(await page.evaluate(() => [localStorage.getItem("makeshift.calibration.v2"),
     localStorage.getItem("depthCalibrationLines")]), [null, null]);
   const options = await page.locator("#starting-note option").evaluateAll(options => options.map(option => Number(option.value)));
   assert.deepEqual(options, [0, 12, 24, 36, 48, 60, 72, 84]);

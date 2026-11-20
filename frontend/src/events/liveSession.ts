@@ -29,7 +29,7 @@ export const RECOVERY_COPY: Record<ReadinessReason, string> = {
   "camera-dimensions": "Camera resolution changed. Restore the calibrated resolution or calibrate again.",
   "camera-facing": "Camera direction changed. Restore the calibrated direction or calibrate again.",
   "layout-changed": "Keyboard layout changed. Calibrate the selected layout before playing.",
-  "markers-unavailable": "Show all four sheet markers so alignment can be checked.",
+  "markers-unavailable": "Clear the keyboard, show all four markers, then select Set reference.",
   "geometry-mismatch": "The last complete scan did not match the calibrated position. The sheet or camera may have moved. Align the sheet-reference outlines, or calibrate the new position.",
   "backgrounded": "Playing stopped in the background. Return and wait for tracking to reconnect.",
   "tracking-paused": "Tracking paused. Keep the camera view clear while tracking reconnects.",

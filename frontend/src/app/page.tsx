@@ -668,9 +668,7 @@ export default function Home() {
               {[
                 "Pick your keyboard",
                 "Check the lighting",
-                "Show the whole paper",
-                "Hover your hands",
-                "Touch the corners and middle",
+                "Capture the empty keyboard",
               ].map((text, i) => (
                 <li key={i} className="flex items-start gap-3">
                   <span className={`ms-step size-6 text-[12px] ${rainbow(i).fill}`}>{i + 1}</span>
@@ -807,7 +805,7 @@ export default function Home() {
               </div>
             )}
 
-            {!canPlay && devMode && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Dev mode: show all four sheet markers and your hands to play.</span></p>}
+            {!canPlay && devMode && <p role="status" className="ms-pill absolute bottom-3 left-3 right-3 z-20 justify-center rounded-[14px] text-center text-[14px]"><span>Dev mode: clear the keyboard, show all four markers, and select Set reference.</span></p>}
           </div>
         </div>
 

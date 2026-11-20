@@ -3,37 +3,22 @@
  * does not import this module; the Playwright replay page and Vitest suite do.
  * See docs/cv_video_tests.md for the workflow.
  */
-import {
-  DEPTH_CALIBRATION_POSITIONS,
-  DEPTH_FINGERS,
-  DepthCalibrationCollector,
-  makeDepthObservation,
-  type DepthCalibrationPosition,
-  type DepthCalibrationModel,
-  type DepthLandmark,
-} from "./depthCalibration";
-
+const FINGERS = ["thumb", "index", "middle", "ring", "pinky"] as const;
 export type TransitionKind = "press" | "release";
 export type CalibrationHand = "Right" | "Left";
 
 export interface VideoEventAnnotation {
   id: string;
   hand: CalibrationHand;
-  finger: (typeof DEPTH_FINGERS)[number];
+  finger: (typeof FINGERS)[number];
   keyIndex: number;
   midiNote: number;
   press: { frame: number; earliestFrame: number; latestFrame: number };
   release: { frame: number; earliestFrame: number; latestFrame: number };
 }
 
-export interface RawDepthCapture {
-  position: DepthCalibrationPosition;
-  hand: CalibrationHand;
-  landmarks: readonly DepthLandmark[];
-}
-
 export interface CvVideoCase {
-  schemaVersion: 1;
+  schemaVersion: 2;
   video: string;
   framesPerSecond: number;
   timebase: "video-frame";
@@ -43,8 +28,9 @@ export interface CvVideoCase {
     fullyLabeledRange: { startFrame: number; endFrame: number };
   };
   calibration: {
-    keyboard: { layoutId: string; startingMidiNote: number };
-    depthCaptures: readonly RawDepthCapture[];
+    keyboard: { octaves: number; startingMidiNote: number };
+    /** User-verified empty keyboard, strictly before the labeled interval. */
+    referenceFrame: number;
   };
   events: readonly VideoEventAnnotation[];
 }
@@ -128,18 +114,18 @@ function requireFrameLabel(value: unknown, description: string) {
   };
 }
 
-/** Validate one sidecar JSON object while allowing blank template captures. */
+/** Version 2 labels use chromatic offsets, matching Vision pressedKeys. */
 export function parseCvVideoCase(value: unknown): CvVideoCase {
-  if (!isRecord(value) || value.schemaVersion !== 1 ||
+  if (!isRecord(value) || value.schemaVersion !== 2 ||
       typeof value.video !== "string" || !value.video ||
       !finite(value.framesPerSecond) || value.framesPerSecond <= 0 ||
       value.timebase !== "video-frame" || !isRecord(value.annotation) ||
       !isRecord(value.annotation.fullyLabeledRange) ||
       !isRecord(value.calibration) ||
       !isRecord(value.calibration.keyboard) ||
-      !Array.isArray(value.calibration.depthCaptures) ||
+      !nonNegativeInteger(value.calibration.referenceFrame) ||
       !Array.isArray(value.events)) {
-    throw new Error("Invalid CV video sidecar: missing required sections");
+    throw new Error("CV replay requires schemaVersion 2, chromatic key labels, and an explicit empty-keyboard referenceFrame");
   }
 
   const { fullyLabeledRange } = value.annotation;
@@ -154,38 +140,22 @@ export function parseCvVideoCase(value: unknown): CvVideoCase {
   const labeledEnd = fullyLabeledRange.endFrame as number;
 
   const keyboard = value.calibration.keyboard;
-  if (typeof keyboard.layoutId !== "string" ||
-      !nonNegativeInteger(keyboard.startingMidiNote)) {
+  if (!Number.isInteger(keyboard.octaves) || Number(keyboard.octaves) < 1 || Number(keyboard.octaves) > 3 ||
+      !nonNegativeInteger(keyboard.startingMidiNote) || keyboard.startingMidiNote % 12 !== 0 ||
+      keyboard.startingMidiNote + Number(keyboard.octaves) * 12 > 127) {
     throw new Error("Invalid keyboard layout annotation");
   }
-
-  const depthCaptures = value.calibration.depthCaptures.map((capture, index) => {
-    if (!isRecord(capture) ||
-        !DEPTH_CALIBRATION_POSITIONS.includes(capture.position as DepthCalibrationPosition) ||
-        (capture.hand !== "Right" && capture.hand !== "Left") ||
-        !Array.isArray(capture.landmarks)) {
-      throw new Error(`Invalid depth calibration capture ${index}`);
-    }
-    const landmarks = capture.landmarks;
-    if (landmarks.length !== 0 &&
-        (landmarks.length !== 21 || landmarks.some((point) =>
-          !isRecord(point) || !finite(point.x) || !finite(point.y) ||
-          !finite(point.z)))) {
-      throw new Error(`Capture ${index} must have zero or 21 finite XYZ landmarks`);
-    }
-    return {
-      position: capture.position as DepthCalibrationPosition,
-      hand: capture.hand as CalibrationHand,
-      landmarks: landmarks as DepthLandmark[],
-    };
-  });
+  const referenceFrame = value.calibration.referenceFrame as number;
+  if (referenceFrame >= labeledStart) throw new Error("Empty reference frame must precede the fully labeled range");
 
   const events = value.events.map((event, index) => {
     if (!isRecord(event) || typeof event.id !== "string" || !event.id ||
         (event.hand !== "Right" && event.hand !== "Left") ||
-        !DEPTH_FINGERS.includes(event.finger as (typeof DEPTH_FINGERS)[number]) ||
+        !FINGERS.includes(event.finger as (typeof FINGERS)[number]) ||
         !nonNegativeInteger(event.keyIndex) ||
-        !nonNegativeInteger(event.midiNote)) {
+        !nonNegativeInteger(event.midiNote) ||
+        event.keyIndex > Number(keyboard.octaves) * 12 ||
+        event.midiNote !== Number(keyboard.startingMidiNote) + event.keyIndex) {
       throw new Error(`Invalid annotated event ${index}`);
     }
     const press = requireFrameLabel(event.press, `Event ${event.id} press`);
@@ -203,7 +173,7 @@ export function parseCvVideoCase(value: unknown): CvVideoCase {
   });
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     video: value.video,
     framesPerSecond: value.framesPerSecond,
     timebase: "video-frame",
@@ -217,61 +187,13 @@ export function parseCvVideoCase(value: unknown): CvVideoCase {
     },
     calibration: {
       keyboard: {
-        layoutId: keyboard.layoutId,
+        octaves: Number(keyboard.octaves),
         startingMidiNote: keyboard.startingMidiNote,
       },
-      depthCaptures,
+      referenceFrame,
     },
     events,
   };
-}
-
-/** Build one production calibration model for each hand with complete samples. */
-export function buildDepthCalibrations(
-  videoCase: CvVideoCase,
-): Readonly<Record<"Right" | "Left", DepthCalibrationModel | null>> {
-  const models: Record<"Right" | "Left", DepthCalibrationModel | null> = {
-    Right: null,
-    Left: null,
-  };
-  for (const hand of ["Right", "Left"] as const) {
-    const captures = videoCase.calibration.depthCaptures.filter(
-      (capture) => capture.hand === hand,
-    );
-    if (captures.length === 0) continue;
-    const collector = new DepthCalibrationCollector(hand);
-    const positions = new Set<DepthCalibrationPosition>();
-    for (const capture of captures) {
-      if (capture.landmarks.length !== 21) {
-        throw new Error(`${hand} ${capture.position} capture needs 21 landmarks`);
-      }
-      const fingertipSheetYs = [4, 8, 12, 16, 20].map(
-        (index) => capture.landmarks[index].y,
-      );
-      const sheetY = fingertipSheetYs.reduce((sum, y) => sum + y, 0) /
-        fingertipSheetYs.length;
-      const observation = makeDepthObservation(
-        capture.landmarks,
-        hand,
-        sheetY,
-        fingertipSheetYs,
-        hand,
-      );
-      if (!observation || !collector.capture(capture.position, observation).accepted) {
-        throw new Error(`${hand} ${capture.position} capture has invalid landmarks`);
-      }
-      positions.add(capture.position);
-    }
-    if (DEPTH_CALIBRATION_POSITIONS.some((position) => !positions.has(position))) {
-      throw new Error(`${hand} calibration needs all five positions`);
-    }
-    const model = collector.buildModel();
-    if (!model) {
-      throw new Error(`${hand} calibration does not span enough knuckle and Z values`);
-    }
-    models[hand] = model;
-  }
-  return models;
 }
 
 export function annotationsToTransitions(

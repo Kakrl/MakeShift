@@ -24,8 +24,6 @@ const resources = {
   mediaTracks: 1,
   audioContexts: 0,
   audioNodes: 0,
-  handModels: 0,
-  markerDetectors: 0,
 };
 
 describe("bounded pipeline diagnostics", () => {
@@ -184,8 +182,6 @@ describe("bounded pipeline diagnostics", () => {
           "mediaTracks",
           "audioContexts",
           "audioNodes",
-          "handModels",
-          "markerDetectors",
         ] as const
       ).map(acquireResource);
       releases.forEach((release) => {

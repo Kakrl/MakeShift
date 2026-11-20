@@ -86,7 +86,7 @@ key IDs. `pressedKeys` uses chromatic offsets 0..12*octaves (C=0, C#=1),
 including the final C. It maps fixed press anchors, so retained movement does not
 change pitch, and merges multiple anchors on one key. Capture/unready/released
 frames have an empty key snapshot. Starting pitch, velocity and musical events
-remain caller responsibilities. The existing calibration UI remains unchanged.
+remain caller responsibilities. Calibration now uses an explicit Vision setup capture (see #297 below).
 The full reference/retention semantics are in the
 [interface contract](../backend/cv_wasm_interface.md).
 
@@ -158,6 +158,16 @@ octaves are required; unsupported mixed settings show a recovery message.
 `createChromaticKeyProducer` differences complete snapshots into note-on/off,
 adds starting MIDI pitch and uses fixed velocity 0.2. It reuses LiveSession,
 NoteSession, AudioWorklet, MIDI recording, count-in and accepted-pitch feedback.
-No frontend landmark model is loaded on Home. Legacy modules remain for the
-unchanged calibration and video-replay paths. This is software integration,
+No frontend landmark model is loaded. Calibration and video replay now use
+the same worker; legacy modules were removed in #297. This is software integration,
 not physical accuracy or latency verification.
+
+## Frontend cleanup (#297)
+
+Calibration uses the production camera worker for an explicit empty-keyboard
+capture and saves version 2 setup metadata without landmarks. Home owns a new
+worker after navigation and still needs Set reference. Offline replay sends
+ordered frames through `visionReplay.ts` to the same worker and requires version
+2 chromatic sidecars with an explicit referenceFrame. The old MediaPipe,
+OpenCV.js and TypeScript contact/shadow stack has been removed. See
+[calibration](calibration.md) and [replay](cv_video_tests.md).

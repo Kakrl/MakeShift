@@ -5,10 +5,8 @@ import {
   SHEET_ID,
   compatibleCalibration,
   loadCalibration,
-  markerCorners,
   saveCalibration,
   validateCalibration,
-  validSamples,
   type CalibrationResult,
 } from "../../frontend/src/cv/calibration";
 import {
@@ -19,7 +17,7 @@ import { getWhiteKeyPolygons } from "../../frontend/src/cv/keyboardGeometry";
 
 export function calibrationFixture(): CalibrationResult {
   return {
-    version: 1,
+    version: 2,
     coordinates: "unmirrored-frame-pixels/marker-unit-square",
     sheet: SHEET_ID,
     camera: { deviceId: "camera-1", width: 1000, height: 1000, facingMode: "" },
@@ -30,11 +28,7 @@ export function calibrationFixture(): CalibrationResult {
       { x: 900, y: 900 },
       { x: 100, y: 900 },
     ],
-    contact: {
-      model: "landmark-reference-v1",
-      hover: [Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.4, z: -0.1 }))],
-      rest: [Array.from({ length: 21 }, () => ({ x: 0.5, y: 0.5, z: 0 }))],
-    },
+    detector: "vision-reference-v1",
   };
 }
 
@@ -48,7 +42,7 @@ describe("versioned calibration", () => {
       true,
       null,
       {},
-      { ...result, version: 2 },
+      { ...result, version: 1 },
       { ...result, coordinates: "mirrored" },
     ])
       expect(validateCalibration(value)).toBeNull();
@@ -77,45 +71,13 @@ describe("versioned calibration", () => {
       expect(validateCalibration(value)).toBeNull();
     },
   );
-  it("rejects incomplete, duplicate or wrong marker IDs", () => {
+  it("requires the Vision detector revision and rejects legacy records", () => {
     const value = calibrationFixture();
-    const observations = value.corners.map((center, id) => ({
-      id,
-      center,
-      corners: [center, center, center, center] as [
-        typeof center,
-        typeof center,
-        typeof center,
-        typeof center,
-      ],
-    }));
-    expect(
-      markerCorners({ observations, missingIds: [] }, value.camera),
-    ).toEqual(value.corners);
-    observations[3].id = 2;
-    expect(
-      markerCorners({ observations, missingIds: [] }, value.camera),
-    ).toBeNull();
-  });
-  it("requires finite rest samples and accepts optional legacy hover", () => {
-    for (const samples of [
-      [],
-      [[{ x: 0, y: 0, z: 0 }]],
-      [Array(21).fill({ x: 0.5, y: 0.5, z: NaN })],
-    ])
-      expect(validSamples(samples)).toBe(false);
-    const value = calibrationFixture();
-    const rest = value.contact.rest;
-    value.contact.rest = [];
-    expect(validateCalibration(value)).toBeNull();
-    value.contact.rest = rest;
-    delete value.contact.hover;
-    expect(validateCalibration(value)).not.toBeNull();
-    value.contact.hover = [];
-    expect(validateCalibration(value)).toBeNull();
-    delete value.contact.hover;
-    value.layout.startingMidi = 120;
-    expect(validateCalibration(value)).toBeNull();
+    expect(validateCalibration({ ...value, detector: "landmark-reference-v1" })).toBeNull();
+    expect(validateCalibration({ ...value, version: 1, contact: { rest: [] } })).toBeNull();
+    expect(validateCalibration({ ...value, detector: undefined })).toBeNull();
+    expect(validateCalibration({ ...value, layout: { ...value.layout, startingMidi: 120 } })).toBeNull();
+    expect(validateCalibration({ ...value, contact: { rest: [] } })).not.toHaveProperty("contact");
   });
   it("maps perspective observations to canonical keyboard positions", () => {
     const page = [
@@ -167,6 +129,11 @@ describe("versioned calibration", () => {
     expect(loadCalibration(denied)).toBeNull();
     expect(saveCalibration(calibrationFixture(), denied)).toBe(false);
     expect(saveCalibration(true, storage)).toBe(false);
+    data.clear();
+    data.set("makeshift.calibration.v1", JSON.stringify({ ...calibrationFixture(), version: 1 }));
+    data.set("depthCalibrationLines", "old model");
+    expect(loadCalibration(storage)).toBeNull();
+    expect(data.get("depthCalibrationLines")).toBe("old model");
   });
   it("checks camera, sheet, layout and movement before reuse", () => {
     const v = calibrationFixture();

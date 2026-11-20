@@ -16,9 +16,9 @@ You have to first get through calibration to enable audio.
 
 1. Open up MakeShift at [https://make-shift-chi.vercel.app](https://make-shift-chi.vercel.app).
 2. Click the calibration button either on the pop-up or on the right side of the screen
-3. Go through the different phases of calibration.
-4. Finally, exit the calibration phase.
-5. Get the camera to detect your MakeShift piano sheet.
+3. Complete setup, lighting and empty-keyboard reference capture.
+4. Select Next Step, then Start Playing to save and return to Home.
+5. Clear the keyboard, show all four markers, and select Set reference on Home.
 6. Click on ``Enable Audio``.
 
 If you switch tabs while playing, return to MakeShift and keep the sheet and

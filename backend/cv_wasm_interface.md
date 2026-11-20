@@ -118,8 +118,8 @@ frontend work. Lookup uses exact physical regions (23.5 mm white pitch, 13.7 mm
 black width, 90/150 black length), with black priority and left-white selection
 at shared edges. It does not carry over the old frontend 8-pixel collision
 tolerance or landmark contact/velocity logic. Fingertip IDs are unnecessary for
-key consumers. Calibration UI is unchanged; saved landmarks cannot seed Vision
-and an explicit empty-piano reference is still required.
+key consumers. Calibration now captures through the same worker and saves version 2 setup metadata.
+Saved setup cannot seed a new Vision instance; Home requires its own empty-piano reference.
 
 ## Optional diagnostic output
 

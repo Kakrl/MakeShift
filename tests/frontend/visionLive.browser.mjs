@@ -1,8 +1,9 @@
 // Actual production home page + camera canvas + shipped Vision worker + AudioWorklet.
 // Requires the native fixture exporter, and a running production frontend.
 import assert from "node:assert/strict";
+import { visionReplayVideo } from "./visionReplayVideo.mjs";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -55,9 +56,21 @@ try {
   await page.addInitScript(
     ({ width, height, emptyFile }) => {
       window.visionFrames = [];
+      window.visionReferencePixels = [];
       window.audioCommands = [];
       const NativeWorker = window.Worker;
       window.Worker = class extends NativeWorker {
+        postMessage(message, ...rest) {
+          if (message.type === "frame" && message.setReference) {
+            let opaque = 0, nonzero = 0;
+            for (let i = 0; i < message.rgba.length; i += 4) {
+              if (message.rgba[i + 3] === 255) opaque++;
+              if (message.rgba[i] || message.rgba[i + 1] || message.rgba[i + 2]) nonzero++;
+            }
+            window.visionReferencePixels.push({ opaque, nonzero });
+          }
+          return super.postMessage(message, ...rest);
+        }
         constructor(...args) {
           super(...args);
           this.addEventListener("message", ({ data }) => {
@@ -91,6 +104,7 @@ try {
       };
       navigator.mediaDevices.getUserMedia = async () => {
         canvas = document.createElement("canvas");
+        window.visionCameraCanvas = canvas;
         canvas.width = width;
         canvas.height = height;
         await window.showVisionFrame(emptyFile);
@@ -114,7 +128,31 @@ try {
     },
     { width: empty.width, height: empty.height, emptyFile: empty.file },
   );
-  await page.goto(`${base}/?dev=1`);
+  await page.goto(`${base}/calibration`);
+  await page.getByRole("button", { name: "Next Step", exact: true }).click();
+  await page.waitForFunction(() => window.visionCameraCanvas);
+  await page.evaluate(() => {
+    const canvas = window.visionCameraCanvas;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "rgb(128, 128, 128)";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  });
+  await page.getByRole("button", { name: "Next Step", exact: true }).click();
+  await page.evaluate(name => window.showVisionFrame(name), empty.file);
+  await page.locator('[data-vision-calibration="ready"]').waitFor();
+  assert.equal(await page.getByRole("button", { name: "Next Step", exact: true }).count(), 0);
+  await page.getByRole("button", { name: "Capture reference", exact: true }).click();
+  await page.getByText("Sheet geometry validated", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Next Step", exact: true }).click();
+  assert.equal(await page.evaluate(() => localStorage.getItem("makeshift.calibration.v2")), null);
+  await page.screenshot({ path: "/tmp/makeshift-vision-calibration-review.png" });
+  await page.getByRole("button", { name: "Start Playing", exact: true }).click();
+  await page.waitForURL(`${base}/`);
+  const calibration = await page.evaluate(() => JSON.parse(localStorage.getItem("makeshift.calibration.v2")));
+  assert.equal(calibration.version, 2);
+  assert.equal(calibration.detector, "vision-reference-v1");
+  assert.equal(calibration.contact, undefined);
+
   await page.locator('[data-vision-state="ready"]').waitFor();
   await page
     .getByRole("button", { name: "Set reference", exact: true })
@@ -207,26 +245,63 @@ try {
   assert.deepEqual(errors, []);
   assert(
     !requests.some((url) => /hand_landmarker|jsdelivr|opencv/.test(url)),
-    "Home must not load the old detector",
+    "Calibration and Home must not load the old detector",
   );
   assert(
     requests.slice(before).every((url) => /vision-fixtures|favicon/.test(url)),
     "Playing must not fetch per-note resources",
   );
+  await page.goto(`${base}/cv-video-replay`);
+  const video = await visionReplayVideo(page, { emptyFile: empty.file, pressFile: press.file,
+    width: empty.width, height: empty.height });
+  await writeFile(path.join(directory, "replay.webm"), video);
+  await page.locator("#clip").setInputFiles({ name: "vision.webm", mimeType: "video/webm", buffer: video });
+  const sidecar = { schemaVersion: 2, video: "vision.webm", framesPerSecond: 12, timebase: "video-frame",
+    annotation: { pressDefinition: "synthetic press fixture begins", releaseDefinition: "synthetic empty fixture returns",
+      fullyLabeledRange: { startFrame: 1, endFrame: 16 } },
+    calibration: { keyboard: { octaves: 1, startingMidiNote: 48 }, referenceFrame: 0 },
+    events: press.expected.pressedKeys.map((keyIndex, i) => ({ id: `synthetic-${i}`, hand: "Right", finger: "index",
+      keyIndex, midiNote: 48 + keyIndex, press: { frame: 6, earliestFrame: 4, latestFrame: 8 },
+      release: { frame: 12, earliestFrame: 10, latestFrame: 14 } })) };
+  const upload = async value => page.locator("#sidecar").setInputFiles({ name: "vision.json", mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(value)) });
+  await upload({ ...sidecar, schemaVersion: 1 });
+  await page.getByRole("button", { name: "Run replay", exact: true }).click();
+  await page.getByRole("status").filter({ hasText: "schemaVersion 2" }).waitFor();
+  await upload(sidecar);
+  await page.getByRole("button", { name: "Run replay", exact: true }).click();
+  await page.waitForFunction(() => /Replay complete|Replay failed/.test(document.querySelector('[role="status"]').textContent), null, { timeout: 60_000 });
+  assert.equal(await page.getByRole("status").textContent(), "Replay complete");
+  const [referencePixels] = await page.evaluate(() => window.visionReferencePixels);
+  // VP9/canvas conversion can leave a small number of edge alpha values below
+  // 255. The regression was an entirely transparent (all-zero) initial read.
+  assert(referencePixels.opaque > empty.width * empty.height * 0.99, "Initial decoded reference is drawable");
+  assert(referencePixels.nonzero > 0, "Initial reference contains decoded pixels");
+  const replayReport = JSON.parse(await page.locator("pre").textContent());
+  await writeFile(path.join(directory, "replay-report.json"), JSON.stringify(replayReport, null, 2));
+  assert.equal(replayReport.processedFrames, 17);
+  assert(replayReport.transitions.some(t => t.kind === "press"), "Encoded fixture produces a press");
+  assert(replayReport.transitions.some(t => t.kind === "release"), "Encoded fixture produces a release");
+  assert(replayReport.scores.press.truePositive > 0 && replayReport.scores.release.truePositive > 0,
+    "Chromatic annotations match encoded fixture transitions");
+  assert.deepEqual(errors, []);
+  assert(!requests.some(url => /hand_landmarker|jsdelivr|opencv/.test(url)), "All CV routes avoid old assets");
   console.info(
     JSON.stringify({
       status: "PASS",
       browser: browser.version(),
       note,
       checks:
-        "real camera pixels → Vision worker → audio worklet; manual/blocked reference, hold, release, recapture, restart and camera loss",
+        "three-step calibration and version 2 save → separate Home reference → real Vision worker/audio worklet; blocked reference, hold, release, recapture, camera loss; encoded video replay and legacy-sidecar rejection",
       fixtures: directory,
     }),
   );
 } catch (error) {
+  if (page) await page.screenshot({ path: "/tmp/makeshift-vision-browser-failure.png" });
+  console.error(`Fixtures: ${directory}`);
   if (page)
     console.error(
-      await page.evaluate(() => ({
+      JSON.stringify(await page.evaluate(() => ({
         status: document.querySelector("[data-vision-status]")?.textContent,
         frames: window.visionFrames?.slice(-3),
         video: {
@@ -236,7 +311,7 @@ try {
         messages: [...document.querySelectorAll('[role=\"status\"]')].map(
           (e) => e.textContent,
         ),
-      })),
+      })), null, 2),
     );
   throw error;
 } finally {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { LiveSession } from "../../frontend/src/events/liveSession";
-import { createKeyEventProducer } from "../../frontend/src/events/keyEventProducer";
+import { createChromaticKeyProducer } from "../../frontend/src/events/chromaticKeyProducer";
 import { connectPianoConsumers } from "../../frontend/src/events/pianoConsumers";
 import { createRecorder } from "../../frontend/src/app/midi/midiUtils";
 import type { BrowserAudio } from "../../frontend/src/app/audio/audioEngine";
@@ -12,7 +12,8 @@ import { midiToPitch } from "../../frontend/src/cv/noteMap";
 let now: number;
 let gate: LiveSession;
 let recorder: ReturnType<typeof createRecorder>;
-let producer: ReturnType<typeof createKeyEventProducer>;
+let snapshot: ReturnType<typeof createChromaticKeyProducer>;
+let snapshotId: string;
 let pitches: ReadonlySet<number>;
 let synth: Synth;
 let audio: { noteOn: ReturnType<typeof vi.fn>; noteOff: ReturnType<typeof vi.fn> };
@@ -23,11 +24,9 @@ function observe(layout: KeyboardLayout = CURRENT_LAYOUT) {
   const camera = { deviceId: "fixture", width: 1000, height: 1000, facingMode: "" };
   const corners = [{ x: 100, y: 100 }, { x: 900, y: 100 }, { x: 900, y: 900 }, { x: 100, y: 900 }];
   gate.observeCalibration({
-    version: 1, coordinates: "unmirrored-frame-pixels/marker-unit-square",
+    version: 2, coordinates: "unmirrored-frame-pixels/marker-unit-square",
     sheet: SHEET_ID, camera, corners, layout,
-    contact: { model: "landmark-reference-v1",
-      hover: [Array(21).fill({ x: 0.5, y: 0.4, z: 0 })],
-      rest: [Array(21).fill({ x: 0.5, y: 0.5, z: 0 })] },
+    detector: "vision-reference-v1",
   }, camera, corners);
   gate.observeTracking();
 }
@@ -39,12 +38,13 @@ it.each([1, 2, 3].flatMap(octaves => startingNotes(octaves).map(startingMidi => 
   gate.setLayout(layout);
   observe(layout);
   expect(await gate.prepare()).toBe(true);
-  producer = createKeyEventProducer(gate, gate.play()!);
+  snapshotId = gate.play()!;
+  snapshot = createChromaticKeyProducer(gate);
   for (let keyIndex = 0; keyIndex < layout.whiteKeys; keyIndex++) {
     gate.observeTracking();
     const expected = layout.startingMidi + Math.floor(keyIndex / 7) * 12 + [0, 2, 4, 5, 7, 9, 11][keyIndex % 7];
-    producer([{ keyIndex, velocity: 0.4 }], [], now);
-    expect(audio.noteOn).toHaveBeenLastCalledWith(expected, 0.4);
+    snapshot([expected - layout.startingMidi], now, snapshotId);
+    expect(audio.noteOn).toHaveBeenLastCalledWith(expected, 0.2);
     gate.flushNotes();
     expect([...pitches]).toEqual([expected]);
     const output = new Float32Array(96000);
@@ -54,7 +54,7 @@ it.each([1, 2, 3].flatMap(octaves => startingNotes(octaves).map(startingMidi => 
       if (output[index] <= 0 && output[index + 1] > 0) crossings++;
     expect(Math.abs(crossings - 440 * 2 ** ((expected - 69) / 12))).toBeLessThan(1.1);
     now += 10;
-    producer([], [keyIndex], now);
+    snapshot([], now, snapshotId);
     gate.flushNotes();
     expect(pitches.size).toBe(0);
     synth.render(new Float32Array(4800));
@@ -67,7 +67,8 @@ async function start() {
   observe();
   expect(await gate.prepare()).toBe(true);
   const id = gate.play()!;
-  producer = createKeyEventProducer(gate, id);
+  snapshotId = id;
+  snapshot = createChromaticKeyProducer(gate);
 }
 beforeEach(async () => {
   vi.useFakeTimers();
@@ -139,9 +140,9 @@ it.each([{ velocity: 0.004, expected: 1 }, { velocity: 0.256, expected: 26 },
 );
 
 it.each([48, 50, 52, 53, 55, 57, 59, 60].map((pitch, keyIndex) => ({ pitch, keyIndex })))(
-  "maps key $keyIndex to MIDI $pitch in audio, recording and feedback", ({ pitch, keyIndex }) => {
-    producer([{ keyIndex, velocity: 0.4 }], [], now);
-    expect(audio.noteOn).toHaveBeenCalledWith(pitch, 0.4);
+  "maps key $keyIndex to MIDI $pitch in audio, recording and feedback", ({ pitch }) => {
+    snapshot([pitch - gate.layout.startingMidi], now, snapshotId);
+    expect(audio.noteOn).toHaveBeenCalledWith(pitch, 0.2);
     expect(pitches.size).toBe(0); // Observers cannot delay audio.
     const output = render();
     let crossings = 0;
@@ -152,43 +153,35 @@ it.each([48, 50, 52, 53, 55, 57, 59, 60].map((pitch, keyIndex) => ({ pitch, keyI
     expect([...pitches]).toEqual([pitch]);
     now += 100;
     const take = finish();
-    expect(take.notes[0]).toMatchObject({ velocity: 40, startMs: 0, durationMs: 100 });
+    expect(take.notes[0]).toMatchObject({ velocity: 20, startMs: 0, durationMs: 100 });
     expect(pitches.size).toBe(0);
     expect(render().every((value) => value === 0)).toBe(true);
   },
 );
 
-it("preserves observation times and variable chord velocities despite deferred consumption", async () => {
-  producer([{ keyIndex: 0, velocity: 0.25 }, { keyIndex: 2, velocity: 0.75 }], [], now);
-  now += 80;
-  producer([], [0, 2], now);
-  now += 120;
-  await vi.advanceTimersByTimeAsync(0);
+it("preserves chord observation times despite deferred consumption", async () => {
+  snapshot([0, 4], now, snapshotId);
+  now += 80; snapshot([], now, snapshotId);
+  now += 120; await vi.advanceTimersByTimeAsync(0);
   expect(finish().notes).toEqual([
-    { pitch: "C3", velocity: 25, startMs: 0, durationMs: 80 },
-    { pitch: "E3", velocity: 75, startMs: 0, durationMs: 80 },
+    { pitch: "C3", velocity: 20, startMs: 0, durationMs: 80 },
+    { pitch: "E3", velocity: 20, startMs: 0, durationMs: 80 },
   ]);
 });
-
-it("does not retrigger held keys and assigns a fresh press on release/repress", () => {
-  const chord = [{ keyIndex: 0, velocity: 0.8 }, { keyIndex: 7, velocity: 1 }];
-  producer(chord, [], now);
-  now += 50;
-  producer(chord, [], now);
-  producer([chord[0]], [0], now);
+it("does not retrigger held snapshots and assigns a fresh press after release", () => {
+  snapshot([0, 12], now, snapshotId);
+  now += 50; snapshot([0, 12], now, snapshotId);
+  snapshot([12], now, snapshotId); snapshot([0, 12], now, snapshotId);
   expect(audio.noteOn).toHaveBeenCalledTimes(3);
   now += 50;
-  expect(finish().notes.map((note) => note.durationMs)).toEqual([50, 100, 50]);
+  expect(finish().notes.map(note => note.durationMs)).toEqual([50, 100, 50]);
 });
-
 it("flushes a press and terminal event before an immediate Stop snapshot", () => {
-  producer([{ keyIndex: 0, velocity: 0.8 }], [], now);
-  now += 20;
+  snapshot([0], now, snapshotId); now += 20;
   const take = finish();
-  expect(take.notes).toEqual([{ pitch: "C3", velocity: 80, startMs: 0, durationMs: 20 }]);
+  expect(take.notes).toEqual([{ pitch: "C3", velocity: 20, startMs: 0, durationMs: 20 }]);
   expect(pitches.size).toBe(0);
-  gate.flushNotes();
-  expect(recorder.stopRecording()).toEqual(take);
+  gate.flushNotes(); expect(recorder.stopRecording()).toEqual(take);
 });
 
 it("retains separate same-pitch press identities and keeps feedback until both release", () => {
@@ -205,8 +198,9 @@ it("retains separate same-pitch press identities and keeps feedback until both r
 });
 
 it("tracking interruption clears every consumer and rejects an old producer after restart", async () => {
-  producer([{ keyIndex: 0, velocity: 0.8 }], [], now);
-  const stale = producer;
+  snapshot([0], now, snapshotId);
+  const staleId = snapshotId;
+  const stale = snapshot;
   now += 20;
   gate.trackingFailed();
   gate.flushNotes();
@@ -214,29 +208,28 @@ it("tracking interruption clears every consumer and rejects an old producer afte
   expect(recorder.stopRecording()!.notes[0].durationMs).toBe(20);
   await start();
   recorder.startRecording(120);
-  stale([{ keyIndex: 1, velocity: 1 }], [], now);
-  producer([{ keyIndex: 7, velocity: 0.5 }], [], now);
+  stale([1], now, staleId);
+  snapshot([12], now, snapshotId);
   expect(audio.noteOn.mock.calls.map(([pitch]) => pitch)).toEqual([48, 60]);
   expect(finish().notes.map((note) => note.pitch)).toEqual(["C4"]);
 });
 
 it("rejected audio creates neither a recorded note nor a highlighted key", () => {
   audio.noteOn.mockReturnValueOnce(null);
-  producer([{ keyIndex: 0, velocity: 0.8 }], [], now);
+  snapshot([0], now, snapshotId);
   expect(finish().notes).toEqual([]);
   expect(pitches.size).toBe(0);
 });
 
 it("routes black-key pitches through audio, recorder, and active-pitch feedback", () => {
   const blackPitches = [49, 51, 54, 56, 58];
-  for (const [blackIndex, pitch] of blackPitches.entries()) {
-    const keyIndex = CURRENT_LAYOUT.whiteKeys + blackIndex;
-    producer([{ keyIndex, velocity: 0.7 }], [], now);
-    expect(audio.noteOn).toHaveBeenLastCalledWith(pitch, 0.7);
+  for (const pitch of blackPitches) {
+    snapshot([pitch - gate.layout.startingMidi], now, snapshotId);
+    expect(audio.noteOn).toHaveBeenLastCalledWith(pitch, 0.2);
     gate.flushNotes();
     expect(pitches.has(pitch)).toBe(true);
     now += 20;
-    producer([], [keyIndex], now);
+    snapshot([], now, snapshotId);
     gate.flushNotes();
     expect(pitches.has(pitch)).toBe(false);
   }
@@ -246,15 +239,11 @@ it("routes black-key pitches through audio, recorder, and active-pitch feedback"
   );
 });
 
-it("ignores unsupported key indexes and fails closed on invalid velocity", () => {
-  producer([-1, 13, 0.5, NaN].map((keyIndex) => ({ keyIndex, velocity: 1 })), [], now);
-  expect(audio.noteOn).not.toHaveBeenCalled();
-  producer([{ keyIndex: 0, velocity: 0.5 }], [], now);
-  producer([{ keyIndex: 1, velocity: NaN }], [], now);
-  gate.flushNotes();
-  expect(gate.sessionId).toBeNull();
-  expect(pitches.size).toBe(0);
-  expect(render().every((value) => value === 0)).toBe(true);
+it("fails closed on an unsupported Vision key offset", () => {
+  snapshot([0], now, snapshotId);
+  snapshot([13], now, snapshotId);
+  gate.flushNotes(); expect(gate.sessionId).toBeNull(); expect(pitches.size).toBe(0);
+  expect(render().every(value => value === 0)).toBe(true);
 });
 
 it("captures held identities at recording boundaries without replaying pre-boundary history or audio", () => {
