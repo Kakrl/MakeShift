@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { LiveContactPipeline } from "../../frontend/src/cv/liveContactPipeline";
 import {
   annotationsToTransitions,
-  buildDepthCalibrations,
   parseCvVideoCase,
   runOrderedFrameReplay,
   scoreTransitions,
@@ -20,39 +18,18 @@ function event(id: string, keyIndex: number, frame: number): VideoEventAnnotatio
   };
 }
 
-function landmarks(positionIndex: number) {
-  const scale = 1 + positionIndex * 0.1;
-  return Array.from({ length: 21 }, (_, index) => ({
-    x: index * 0.01 * scale + positionIndex * 0.001,
-    y: index * 0.008 * scale + positionIndex * 0.002,
-    z: index * 0.003 + positionIndex * 0.004,
-  }));
-}
-
 describe("CV video evaluation core", () => {
-  it("validates sidecars and builds per-hand production depth calibrations", () => {
-    const positions = ["top-left", "top-right", "bottom-left", "bottom-right", "center"];
-    const sidecar = parseCvVideoCase({
-      schemaVersion: 1, video: "clip.mp4", framesPerSecond: 30,
-      timebase: "video-frame",
-      annotation: { pressDefinition: "contact", releaseDefinition: "lift",
-        fullyLabeledRange: { startFrame: 0, endFrame: 20 } },
-      calibration: { keyboard: { layoutId: "starter-one-octave", startingMidiNote: 60 },
-        depthCaptures: ["Right", "Left"].flatMap((hand) => positions.map(
-          (position, index) => ({ position, hand, landmarks: landmarks(index) }),
-        )) },
-      events: [event("a", 0, 5)],
-    });
-    const models = buildDepthCalibrations(sidecar);
-    expect(models.Right?.hand).toBe("Right");
-    expect(models.Left?.hand).toBe("Left");
-    expect(models.Right?.zLines.index.slope).toBeTypeOf("number");
-    expect(() => parseCvVideoCase({ ...sidecar, schemaVersion: 2 })).toThrow();
-    expect(() => buildDepthCalibrations({ ...sidecar,
-      calibration: { ...sidecar.calibration, depthCaptures: [
-        { ...sidecar.calibration.depthCaptures[0], landmarks: [] },
-      ] },
-    })).toThrow("needs 21 landmarks");
+  it("requires an explicit empty reference and chromatic labels for Vision replay", () => {
+    const input = { schemaVersion: 2, video: "clip.mp4", framesPerSecond: 30,
+      timebase: "video-frame", annotation: { pressDefinition: "contact", releaseDefinition: "lift",
+        fullyLabeledRange: { startFrame: 1, endFrame: 20 } },
+      calibration: { keyboard: { octaves: 1, startingMidiNote: 60 }, referenceFrame: 0 },
+      events: [event("a", 1, 5)] };
+    expect(parseCvVideoCase(input).calibration.referenceFrame).toBe(0);
+    expect(() => parseCvVideoCase({ ...input, schemaVersion: 1 })).toThrow("schemaVersion 2");
+    expect(() => parseCvVideoCase({ ...input, calibration: { ...input.calibration, referenceFrame: 1 } })).toThrow("precede");
+    expect(() => parseCvVideoCase({ ...input, events: [{ ...event("a", 1, 5), midiNote: 62 }] })).toThrow("event");
+    expect(() => parseCvVideoCase({ ...input, calibration: { ...input.calibration, keyboard: { octaves: 4, startingMidiNote: 60 } } })).toThrow("layout");
   });
 
   it("converts active key snapshots into independent press and release events", () => {
@@ -107,33 +84,4 @@ describe("CV video evaluation core", () => {
     }), () => 0)).resolves.toHaveLength(2);
   });
 
-  it("uses replay media time for production contact state timestamps", () => {
-    let mediaTimeMs = 333;
-    const pipeline = new LiveContactPipeline({
-      onContactsChanged: () => undefined,
-      onShadowCameraPreview: () => undefined,
-      onShadowPreview: () => undefined,
-      onError: () => undefined,
-    }, { knuckles: false, shadows: false }, () => mediaTimeMs);
-    const hand = { handedness: "Right" as const,
-      landmarks: Array.from({ length: 21 }, (_, index) => ({
-        x: 0.1 + index * 0.001, y: 0.1 + index * 0.001, z: 0,
-      })) };
-    const video = { videoWidth: 100, videoHeight: 100,
-      readyState: 2 } as HTMLVideoElement;
-    const frame = {
-      video, hands: [hand],
-      fingertips: [{ id: "0-8", handIndex: 0, landmarkIndex: 8,
-        point: { x: 10, y: 10 } }],
-      whiteKeys: [[{ x: 0, y: 0 }, { x: 20, y: 0 },
-        { x: 20, y: 20 }, { x: 0, y: 20 }]],
-      calibration: null, previewFingerId: null,
-    };
-    pipeline.processFrame(frame);
-    expect(pipeline.gates.get("0-8")?.frameAtMs).toBe(333);
-    mediaTimeMs = 367;
-    pipeline.processFrame(frame);
-    expect(pipeline.gates.get("0-8")?.frameAtMs).toBe(367);
-    pipeline.dispose();
-  });
 });

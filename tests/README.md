@@ -1,5 +1,74 @@
 # MakeShift Testing
 
+## Frontend CV cleanup (#297)
+
+Home, calibration and labeled replay now use the production Vision WASM module
+worker. Calibration has setup, lighting and explicit empty-reference steps;
+version 2 setup records contain camera/layout/geometry rather than landmarks.
+Home owns a separate worker and still needs Set reference. Old calibration
+records require recapture; saved profiles and recordings retain their formats.
+
+Removed the MediaPipe/OpenCV.js packages, hand model/photo, unused hand/marker
+overlays, legacy TypeScript contact/shadow/depth/velocity stack and its obsolete
+tests. Shared keyboard/homography/falling-note geometry remains. Consumer tests
+now inject chromatic snapshots, not a second frontend collision detector.
+The unused OpenCV.js fs alias/shim and obsolete debug flags were also removed.
+
+Replay requires version 2 sidecars with manually verified empty referenceFrame
+and chromatic key offsets. Old footage/labels/results remain historical and are
+rejected with migration guidance; no reference frame was guessed. See
+[replay instructions](../docs/cv_video_tests.md). The synthetic encoded-video
+helper is `tests/frontend/visionReplayVideo.mjs`, exercised by `test:vision-browser`.
+
+Local macOS arm64 / Node 24.2.0 verification on 2026-11-20:
+
+- Lint and TypeScript passed. Vitest: **50 files / 905 tests passed**, including
+  nine replay-worker cases; `/tmp/makeshift-cv-vitest.log`. The final isolated
+  rerun passed; an earlier run concurrent with build/lint hit the existing
+  sampled-piano pitch test's 5-second timeout (904 passed, one timeout).
+- Contrast: **37 token pairs passed**; production build passed with the verified
+  tracked Vision bundle; `/tmp/makeshift-cv-build.log`. Fonts required network
+  access outside the sandbox; no source or runtime font behavior changed.
+- Deployment passed in Chrome 158.0.8127.36: ten assets, five pages, matching
+  sheet ZIP downloads, three audio rounds with no note requests, denial/retry/
+  loss/recovery. Database was explicitly unconfigured;
+  `/tmp/makeshift-cv-deployment.log`.
+- Keyboard-layout browser checks passed: matching 1–3 octave settings/reload,
+  warning/override, invalidation and MIDI bounds; `/tmp/makeshift-cv-layout.log`.
+- Selenium navigation passed at 1024x768, 1440x900 and 1920x1080, including
+  calibration intro/About navigation; `/tmp/makeshift-cv-selenium.log`.
+- Audio browser checks passed in installed Chrome: sampled piano, range,
+  suspension recovery and navigation cleanup; `/tmp/makeshift-cv-audio.log`.
+  Bundled Playwright Chromium was unavailable, so no Chromium-channel pass is
+  claimed. No speaker/headphone or physical latency measurements were made.
+- Real-worker calibration/Home passed with native-generated synthetic camera
+  pixels: explicit capture, version 2 save, separate Home reference, sound
+  dispatch, hold/release/recapture and camera loss. One concurrent-browser run
+  timed out waiting for audio readiness; the isolated rerun passed.
+- Expanded `test:vision-browser` passed in Chrome 158.0.8127.36, including red
+  press highlights/cleared releases and legacy-sidecar rejection. Its encoded
+  640×480 VP9 clip completed all 17 ordered frames, matched chromatic key 5
+  press/release at frames 7/13 within synthetic windows, and reported one true
+  positive and zero false positives/negatives for each edge type.
+  `/tmp/makeshift-cv-vision-browser.log`; fixture/report directory:
+  `/var/folders/kq/8n8k7x6x4c160nx6p6f9hp0c0000gn/T/makeshift-vision-live-rSZagX/`.
+  These generated timings are software integration evidence, not physical labels.
+- `test:cv-video` also passed with referenceFrame 1: 16 processed frames and
+  the same matched press/release, with no extra/missed transitions. CLI evidence:
+  `/tmp/makeshift-cv-replay-cli.log`, `/tmp/makeshift-cv-replay-nonzero.json`.
+
+The replay blocker was initial canvas readback: Chrome reported readyState 4 at
+currentTime 0, but all 307,200 submitted pixels were transparent/all-zero. The
+same video displayed later. Replay now explicitly seeks and awaits `seeked` even
+at time zero before readback; the browser regression checks decoded reference
+pixels as well as successful worker capture and scored transitions. No arbitrary
+sleep or skipped reference frame was added.
+
+No new GitHub Actions evidence, deployed-site pass, real-camera accuracy, MIDI
+importer or physical press-to-sound latency result is claimed. The historical
+records below describe their original implementations and do not validate the
+removed detector. Manual calibration workflow 6.2.2 needs a fresh user run.
+
 ## Deployment readiness wait (2026-11-19)
 
 The deployment smoke test timed out at `checkPages`'s `networkidle` wait

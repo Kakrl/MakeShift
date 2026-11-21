@@ -6,11 +6,11 @@ import SheetAlignment from "../../frontend/src/app/SheetAlignment";
 import { CURRENT_LAYOUT, MARKER_CHECK_INTERVAL_MS, SHEET_ID, type CalibrationResult } from "../../frontend/src/cv/calibration";
 
 const saved: CalibrationResult = {
-  version: 1, coordinates: "unmirrored-frame-pixels/marker-unit-square", sheet: SHEET_ID,
+  version: 2, coordinates: "unmirrored-frame-pixels/marker-unit-square", sheet: SHEET_ID,
   camera: { deviceId: "camera", width: 1000, height: 1000, facingMode: "" },
   layout: CURRENT_LAYOUT,
   corners: [{ x: 100, y: 100 }, { x: 900, y: 100 }, { x: 900, y: 900 }, { x: 100, y: 900 }],
-  contact: { model: "landmark-reference-v1", rest: [Array(21).fill({ x: 0.5, y: 0.5, z: 0 })] },
+  detector: "vision-reference-v1",
 };
 const scan = () => ({ camera: saved.camera, corners: saved.corners.map(p => ({ ...p, x: p.x + 20 })), at: Date.now() });
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(10000); });

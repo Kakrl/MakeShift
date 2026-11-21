@@ -5,7 +5,7 @@
 MakeShift lets people play a printed piano keyboard using a webcam and a
 browser. It tracks their hands, maps finger positions to keys, and sends note
 events to audio, recording, and visual feedback. Players can use one to three
-octaves, control loudness through finger movement, use pedals, and save,
+octaves, adjust volume, use pedals, and save,
 replay, export, or share recordings.
 
 The original goal still guides the project: make piano playing accessible
@@ -17,9 +17,9 @@ assets; Supabase stores recordings that users choose to share. Neither handles
 individual notes, so a database outage does not stop local playing once the
 application has loaded.
 
-Some parts are still prototypes. Hand inference and marker detection run on
-the main thread, and the default uses finger overlap to trigger keys. Reliable
-touch detection and moving the full CV pipeline into a worker remain unfinished.
+Some parts are still prototypes. Native Vision runs marker, finger and shadow
+processing in a browser WASM worker. Camera readback remains on the main thread.
+Physical touch accuracy and press-to-sound latency remain unverified.
 See the [browser architecture](architecture.md) for the broader plan.
 
 ## Architecture Diagrams
@@ -32,15 +32,13 @@ optional paths.
 ```mermaid
 flowchart TB
     Host["Vercel: Next.js pages and static assets"] --> UI
-    Runtime["Pinned MediaPipe WASM runtime CDN"] --> CV
+    Host --> CV
     subgraph Browser["Player's browser"]
         UI["React UI and session controls"]
-        Camera["Webcam capture"] --> CV["Main thread: MediaPipe hands and OpenCV markers"]
-        Calibration["Validated calibration and keyboard layout"] --> Contact
-        CV --> Contact["Projected keys and per-finger state"]
-        Contact -. "when enabled" .-> Worker["Shadow segmentation worker"]
-        Worker -. "fresh results" .-> Contact
-        Contact --> Events["Validated musical event session"]
+        Camera["Bounded webcam frame capture"] --> CV["Vision WASM worker: reference, markers, contact and key lookup"]
+        Calibration["Validated setup and keyboard layout"] --> CV
+        CV --> Producer["Chromatic snapshot producer"]
+        Producer --> Events["Validated musical event session"]
         UI --> Events
         Events --> Audio["AudioWorklet: sampled piano"]
         Audio --> Speakers["Audio device"]
@@ -57,19 +55,18 @@ flowchart TB
 ```
 
 Detection has two jobs: identify the key under a finger and determine whether
-the finger touched it. The first is implemented; the second still needs work.
+the finger touched it. Vision implements both; physical verification is pending.
 
 ```mermaid
 flowchart LR
     Markers["Four ArUco markers"] --> Transform["Homography"]
     Layout["Canonical keyboard layout"] --> Geometry["Projected key polygons"]
     Transform --> Geometry
-    Hands["Hand landmarks"] --> Overlap["Key overlap and boundary rules"]
-    Geometry --> Overlap
-    Overlap --> State["Per-finger state and key ownership"]
-    Extra["Optional knuckle, shadow and Z-motion evidence"] -.-> State
-    State --> Transitions["Key press and release transitions"]
-    Transitions --> Pitch["Configured MIDI pitch and onset velocity"]
+    Frame["Camera pixels and empty reference"] --> Contact["Finger segmentation and reference-relative shadow rules"]
+    Geometry --> Contact
+    Contact --> Anchors["Retained press anchors and chromatic lookup"]
+    Anchors --> Transitions["Snapshot differences: press and release"]
+    Transitions --> Pitch["Configured MIDI pitch and fixed onset velocity"]
 ```
 
 Accepted notes go to audio first. Recording and feedback follow without
@@ -91,40 +88,35 @@ flowchart LR
 
 ### Camera, calibration, and geometry
 
-MediaPipe tracks up to two hands, while OpenCV.js detects four ArUco markers
-on the sheet. The markers define a homography that projects the keyboard into
+Vision segments fingers and detects four ArUco markers in its WASM worker.
+The markers define a homography that projects the keyboard into
 the camera image. Detection and drawing use the same projected keys, keeping
 the overlay aligned with the regions that trigger notes.
 
 The layout defines octave count, starting C, paper coverage, and pitch mapping.
 It stays separate from camera projection so the same layout works across camera
-angles. Boundary rules help fingers retain their current key near an edge.
+angles. Fixed press anchors retain accepted pitches during nearby movement.
 Printable extensions preserve key spacing as the range grows; playing beyond
 the declared paper coverage requires an explicit override. See the
 [sheet and layout contract](piano_sheet.md).
 
 [Calibration](calibration.md) saves a versioned record of the camera, frame
-dimensions, markers, layout, and hand references. Guided captures also produce
-per-hand depth models. Camera or layout changes can invalidate these records,
-so compatibility checks release active notes and require recovery. Failed
-storage writes are reported to the player.
+dimensions, markers and layout. The three steps cover setup, lighting and an
+explicit empty-keyboard capture. Version 2 metadata cannot restore the reference
+image; Home requires a separate Set reference capture. Camera or layout changes
+can invalidate these records, so compatibility checks release active notes and
+require recovery. Failed storage writes are reported to the player.
 
 ### Contact detection and velocity
 
-The contact controller tracks each finger's key, recent movement, and press
-state. It includes three optional checks: knuckle position limits the playing
-zone, shadow analysis looks for contact evidence, and Z-motion prediction can
-start a note while waiting for shadow confirmation.
+Vision uses finger segmentation, geometric eligibility and reference-relative
+dark/light/mid rules, retaining accepted presses with spatial anchors. See the
+[native pipeline](cv_pipeline.md). Polygon overlap alone does not establish contact.
+The old landmark contact, depth and velocity modules were removed in #297;
+their historical documents do not describe current defaults.
 
-All three are disabled in the default
-[configuration](../frontend/src/cv/liveContactPipeline.ts). Overlap can therefore
-trigger a note while a finger hovers. The
-[contact state machine](contact_state_machine.md) describes the experimental
-combined path, but its descriptions of enabled defaults are outdated.
-
-Velocity comes from recent finger speed relative to the wrist and palm size.
-It is fixed when a note starts and passed to audio and recording. This gives
-players some loudness control, but measures motion rather than pressure.
+The browser assigns fixed onset velocity 0.2 to Vision presses. Physical dynamics
+measurement remains pending; volume and pedals provide separate controls.
 
 ### Events and sessions
 
@@ -213,7 +205,7 @@ moved into the browser.
 | Original choice or proposal | Current approach |
 | :--- | :--- |
 | Next.js, React, TypeScript, Tailwind, and MediaStream | Retained for the interface, styling, and camera capture. |
-| MediaPipe with a possible PyTorch fallback | MediaPipe and OpenCV.js; no trained PyTorch fallback. |
+| MediaPipe with a possible PyTorch fallback | Native Vision/OpenCV WASM worker; no frontend hand model or trained PyTorch fallback. |
 | Python backend on Render with WebRTC | Local CV/audio, with Vercel hosting and recording APIs. Python remains in native bindings and tools. |
 | Web Audio, Tone.js, and `@tonejs/midi` | Web Audio with a custom AudioWorklet and `midi-writer-js`. |
 | SPSC queue for MIDI | Validated browser events; an SPSC queue exists separately in native audio. |
@@ -251,10 +243,10 @@ require more than flat paper, while custom training would add substantial data
 and validation work. The study preferred DA-2 among the alternatives but left
 its accuracy untested.
 
-The current approach keeps a single camera and pretrained hand tracker.
-Markers handle perspective; contact detection remains a separate problem.
+The current approach keeps a single camera and uses native finger/shadow rules.
+Markers handle perspective; physical contact verification remains separate.
 Camera placement still needs evaluation. The proposed folded sheet edges were
-not adopted, and MediaPipe Z does not establish fingertip distance from paper.
+not adopted; no landmark Z value is used to infer distance from paper.
 
 ### Audio preparation and rendering
 

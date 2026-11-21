@@ -39,57 +39,23 @@ Count-in suppression still requires release and a fresh press after completion.
 Home now uses the native Vision WASM worker, with complete chromatic key
 snapshots feeding the existing sessions. Pitch is starting MIDI plus key offset.
 Velocity is fixed at 0.2 (MIDI 20); Vision has no motion/force estimate yet.
-Matching paper/playable octave counts are required. Calibration UI and saved
-calibration validation remain in place; a fresh empty-keyboard reference is
-also required. See [worker integration](cv_wasm.md#frontend-worker-integration).
+Matching paper/playable octave counts are required. Version 2 setup calibration is validated separately; Home also requires a
+fresh empty-keyboard reference. See [worker integration](cv_wasm.md#frontend-worker-integration).
 Physical contact accuracy and end-to-end latency remain unverified.
 
-## Finger-speed velocity
+## Velocity
 
-This describes the legacy landmark detector used by replay/tests. Home no longer
-loads this estimator; its Vision producer currently uses fixed velocity 0.2.
-
-`FingerVelocity` measures fingertip displacement relative to the wrist using
-landmark x/y and optional z. It converts y to the image-width scale, then
-normalizes displacement by the projected wrist-to-middle-knuckle distance.
-This makes speed independent of image resolution, uniform hand translation
-and hand scale. Units are palm lengths per second; timestamps are monotonic
-inference-observation times, not measured sensor exposure times. MediaPipe's
-relative z is a motion cue, not calibrated paper distance or physical force
-([landmark coordinates](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker/ios)).
-
-At contact onset the pipeline consumes the largest speed observed in the past
-100 ms. Speeds up to 0.5 palm lengths/s map to soft velocity 0.2; speed increases
-linearly to velocity 1 at 4 palm lengths/s, with saturation beyond that. This
-lowers the former 8 palm lengths/s endpoint to make loud notes easier to reach.
-At 2 palm lengths/s velocity is now about 0.543 (previously 0.36); velocity 0.75
-is reached at about 2.91 rather than 5.66 palm lengths/s. The stationary/noise
-floor and soft 0.2 fallback are retained. Full-velocity output gain is unchanged.
-The history has 24 fixed slots; samples less than 5 ms apart are ignored. Missing
-or invalid landmarks, degenerate palm scale, backward time, a gap over 150 ms,
-source changes, finger disappearance and session reset discard old history.
-Missing usable speed gives a soft 0.2 note rather than a spurious loud attack.
-Without z, estimation uses x/y; depth appearing/disappearing starts fresh history.
-
-Velocity is latched for the accepted press, including asynchronous shadow
-confirmation, and stays constant through holds and release grace. Each finger
-has independent history. For simultaneous contacts on the same key, the onset
-uses the strongest contacting finger. A second finger joining a held key does
-not retrigger it or change its velocity. Audio receives the normalized value;
-MIDI retains the existing integer 1–100 conversion and held-note capture policy.
-
-The mapping is a tunable motion heuristic. Hand rotation, landmark noise,
-perspective and lateral movement can affect it. It neither changes contact
-classification nor adds a waiting period before audio. Physical dynamics tuning
-and a user master-volume control remain separate work.
+Vision currently has no physical motion/force estimate. The chromatic producer
+uses fixed onset velocity 0.2 (MIDI 20). The former landmark-motion estimator
+and its frontend contact pipeline were removed in #297. Shared note events,
+recording playback and audio still support variable velocities independently.
 
 ## Shared lifecycle
 
-`createKeyEventProducer` calls the named `LiveSession.noteOn`/`noteOff` methods
-with observation timestamps; LiveSession owns envelopes and sequencing. It preserves
-input velocity, maps supported key indexes, suppresses held duplicates and allocates fresh press identities
-on repress. Each producer captures its session ID and layout so an old callback cannot
-adopt a restarted session. Invalid velocity fails closed through the contract.
+`createChromaticKeyProducer` compares complete `pressedKeys` snapshots and calls
+`LiveSession.noteOn`/`noteOff`. Releases precede new presses; held keys do not
+retrigger. Pitch is starting MIDI plus chromatic offset. Submission captures the
+session ID and timestamp so old worker results cannot adopt a new session.
 
 `LiveSession.receive` gates and validates events, then sends audio synchronously.
 `connectPianoConsumers` subscribes to accepted history on a deferred task:
@@ -104,18 +70,10 @@ adopt a restarted session. Invalid velocity fails closed through the contract.
   unmount drain bounded accepted history before recorder snapshots/state changes,
   so a same-turn press is not lost. Draining never resends audio.
 
-Hand inference calls the contact-frame handler synchronously before updating
-React's landmark snapshot. Contact transitions reach the captured session
-producer and audio without waiting for a render; repeated observations within
-one React batch retain release/repress transitions. React consumes snapshots
-for drawing. The handler is detached on overlay cleanup, and the session still
-rejects stale producer identities. Standalone overlays without the handler ref
-retain their prop-driven contact effect.
-
-No React render or MIDI observer runs inside audio dispatch. CV remains on the
-main thread except for shadow segmentation; worker ownership and fresh-frame
-scheduling remain #37. There is no new network
-dependency in note delivery: the existing local AudioWorklet renders sound.
+Vision results reach the producer and synchronous audio dispatch before React
+updates the drawing snapshot. CV runs in the worker; main-thread frame capture
+submits only when no frame is pending. No MIDI observer or React render runs
+inside audio dispatch. Playing has no per-note network dependency.
 
 ## Verification and remaining acceptance criteria
 

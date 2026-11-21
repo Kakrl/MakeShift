@@ -629,7 +629,7 @@ it("live gate survives startup reset, retires on real audio suspension and requi
   const gate = new LiveSession(audio, () => 100);
   const detach = gate.attach();
   const saved = {
-    version: 1,
+    version: 2,
     coordinates: "unmirrored-frame-pixels/marker-unit-square",
     sheet: "aruco-0-3-white-keys-v1",
     camera: { deviceId: "camera", width: 1000, height: 1000, facingMode: "" },
@@ -640,11 +640,7 @@ it("live gate survives startup reset, retires on real audio suspension and requi
       { x: 900, y: 900 },
       { x: 100, y: 900 },
     ],
-    contact: {
-      model: "landmark-reference-v1",
-      hover: [Array(21).fill({ x: 0.5, y: 0.4, z: 0 })],
-      rest: [Array(21).fill({ x: 0.5, y: 0.5, z: 0 })],
-    },
+    detector: "vision-reference-v1",
   };
   try {
     gate.observeCalibration(saved, saved.camera, saved.corners);

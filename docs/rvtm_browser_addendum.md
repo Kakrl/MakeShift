@@ -103,7 +103,7 @@ Geometry fixtures check actual-size assembly proportions and matching hit region
 The physical 1.2.2 workflow remains partially verified: jsdom and production
 Chromium checks cover warning/override, persistence and invalidation, while
 printer/camera/audible checks remain pending in the manual report. Calibration
-6.2.3 follows the five-step wizard with five-position depth capture for each hand and validates
+6.2.3 follows the three-step Vision setup wizard with explicit empty reference capture and validates
 save-before-navigation, replacing #162's expected failures. Software results establish
 neither physical contact accuracy nor sensor-to-sound latency.
 
@@ -261,3 +261,15 @@ cover production-worklet output and sampler safety. PB-1.5 checks endpoint
 delivery through the recording timeline and audio owner. SP-03 covers
 subjective listening on a physical output device. The ten-voice limit,
 printed-keyboard range and physical latency measurement are separate.
+
+## Vision-only frontend calibration and replay (#297)
+
+Requirements 1.1/6.2 retain validated calibration and recovery, now using a
+three-step Vision setup flow and version 2 camera/layout/geometry record.
+Hand-depth capture is removed; saved setup never restores a worker reference.
+Requirements 2.1/2.4 retain intentional contact and dynamics targets; fixed Vision
+velocity 0.2 does not satisfy physical velocity measurement. Replay uses explicit
+empty reference frames and chromatic labels, and rejects old sidecars until
+reviewed/migrated. Coverage maps to existing 1.1.2, 1.1.4, 1.1.6, 6.2.1,
+6.2.2, CV-VIDEO-01 and VISION-REPLAY-01 rows. Historical legacy tests are retired
+in the inventory; physical accuracy and latency verification remain pending.

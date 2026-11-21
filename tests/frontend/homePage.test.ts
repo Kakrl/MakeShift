@@ -16,7 +16,7 @@ import {
 
 function validCalibration() {
   return {
-    version: 1,
+    version: 2,
     coordinates: "unmirrored-frame-pixels/marker-unit-square",
     sheet: SHEET_ID,
     camera: { deviceId: "camera", width: 1000, height: 1000, facingMode: "" },
@@ -27,11 +27,7 @@ function validCalibration() {
       { x: 900, y: 900 },
       { x: 100, y: 900 },
     ],
-    contact: {
-      model: "landmark-reference-v1",
-      hover: [Array(21).fill({ x: 0.5, y: 0.4, z: 0 })],
-      rest: [Array(21).fill({ x: 0.5, y: 0.5, z: 0 })],
-    },
+    detector: "vision-reference-v1",
   };
 }
 

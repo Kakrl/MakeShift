@@ -1,12 +1,8 @@
 /** Shared developer switches. Diagnostics are hidden unless explicitly enabled at build time. */
 export const DEBUG_FLAGS = {
   pipelineDiagnostics: process.env.NEXT_PUBLIC_PIPELINE_DIAGNOSTICS === "1",
-  // Preserve main's current CV debugging behavior until its owner changes it.
+  // Display Vision fingertips alongside key feedback.
   visualDebug: true,
-  showZLines: true,
-  showSheetWithoutCalibration: true,
-  // Set true to print calibration hand landmarks in the browser console.
-  landmarkersTestGather: false,
 } as const;
 
 /**

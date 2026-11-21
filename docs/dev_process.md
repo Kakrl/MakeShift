@@ -75,8 +75,7 @@ MakeShift/
 │   ├── scripts/prepare-vision.mjs  # verify/copy tracked WASM assets before dev/build
 │   ├── public/
 │   │   ├── vision/                 # module worker and ignored build-copied WASM bundle
-│   │   ├── audio/                   # worklet, sampled-piano.js, procedural synth.js and piano-samples/
-│   │   └── models/                  # MediaPipe hand landmarker model
+│   │   └── audio/                   # worklet, sampled-piano.js, procedural synth.js and piano-samples/
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── api/health/          # recordings database health route
@@ -84,7 +83,7 @@ MakeShift/
 │   │   │   ├── audio/               # browser owner, countIn.ts scheduler, pianoSamples.ts loader and Audio check page
 │   │   │   ├── about/
 │   │   │   ├── calibration/
-│   │   │   ├── cv/                  # hand landmark overlay and drawing
+│   │   │   ├── cv/                  # Vision key highlights and falling-note drawing
 │   │   │   ├── documentation/
 │   │   │   ├── midi/                # MIDI recorder, export and playback timeline
 │   │   │   ├── play/[id]/           # share link; opens the song, or "Song not found", in the shared songs dialog
@@ -94,23 +93,19 @@ MakeShift/
 │   │   │   ├── CameraContext.tsx
 │   │   │   ├── CameraStatusOverlay.tsx
 │   │   │   ├── SheetAlignment.tsx        # saved/current sheet-reference comparison and legend
-│   │   │   ├── MarkerTrackingOverlay.tsx
+│   │   │   ├── CVOverlayCoordinator.tsx # Vision snapshot/session coordinator
 │   │   │   ├── globals.css          # --color-* theme tokens
 │   │   │   ├── layout.tsx
 │   │   │   ├── lighting.ts
 │   │   │   ├── page.tsx
 │   │   │   ├── SideNav.tsx          # shared responsive nav tabs
-│   │   │   ├── useKeyboardLayout.ts # shared layout subscription
-│   │   │   └── useHandLandmarker.ts
-│   │   ├── cv/                      # bounded Vision camera worker owner; legacy ArUco/contact helpers
+│   │   │   └── useKeyboardLayout.ts # shared layout subscription
+│   │   ├── cv/                      # Vision workers and shared geometry
+│   │   │   ├── calibration.ts       # version 2 setup validation/storage
 │   │   │   ├── keyboardLayout.ts    # octave/start/paper dimensions and validation
-│   │   │   ├── contactPipeline.ts    # individual overlap, knuckle, and shadow checks
-│   │   │   ├── liveContactPipeline.ts # controller: eligibility, shadow worker/history, releases
-│   │   │   ├── combinedContact.ts    # contact state/gate types and timing constants
-│   │   │   ├── finger.ts             # per-finger state owner and checkState entry point
-│   │   │   ├── fingerVelocity.ts     # bounded palm-normalized speed and onset velocity
-│   │   │   ├── shadowHeuristics.ts   # prototype RGB k-means dark-region segmentation
-│   │   │   └── shadowWorker.ts       # bounded background shadow segmentation
+│   │   │   ├── visionCameraPipeline.ts # bounded fresh-camera scheduler
+│   │   │   ├── visionReplay.ts      # ordered offline production-worker client
+│   │   │   └── videoEvaluation.ts   # version 2 sidecar validation and scoring
 │   │   ├── events/                  # shared schema, clocks, session, chromatic snapshot producer and audio adapter
 │   │   ├── lib/                     # shared utilities (versioned storage, recordings API schema)
 │   │   │   ├── calibrationProfiles.ts # named step 1 calibration profiles
@@ -119,7 +114,7 @@ MakeShift/
 │   │   │   ├── keyboardSettings.ts  # persisted layout and synchronous invalidation
 │   │   │   └── nameFilter.ts        # whole-word blocked-name matching
 │   │   ├── server/                  # server-only Supabase access and recordings handlers
-│   │   └── shims/                   # empty fs shim and type-only MIDI declaration bridge
+│   │   └── shims/                   # type-only MIDI declaration bridge
 │   ├── package.json
 │   ├── package-lock.json
 │   ├── vitest.config.mts            # discovers tests/frontend/
@@ -260,8 +255,8 @@ future exception must be reviewed in a PR identifying the advisory, affected
 package/version, exposure rationale and follow-up/review date.
 
 This is a changed-dependency check, not an audit of every existing dependency.
-It does not reliably detect previously unknown malicious releases. The exact
-MediaPipe pin and committed lockfile remain unchanged. Alerts and human review
+It does not reliably detect previously unknown malicious releases. The committed lockfile records the remaining dependencies; #297 removes the
+MediaPipe and OpenCV.js frontend packages. Alerts and human review
 complement this check as described below.
 
 A failed check means do not merge under the team's CI policy. Branch

@@ -3,7 +3,6 @@ import { act, createElement, StrictMode, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Recorder, Recording } from "../../frontend/src/app/midi/midiUtils";
-import type { HandObservation, NormalizedLandmark } from "../../frontend/src/cv/collision";
 
 // These cases advance tens of seconds of simulated video/React updates. Allow
 // enough wall time on busy machines without changing any simulated deadlines.
@@ -11,7 +10,7 @@ vi.setConfig({ testTimeout: 20_000 });
 
 const fixtures = vi.hoisted(() => ({
   invalidate: null as null | (() => void),
-  landmarks: null as null | ((hands: HandObservation[]) => void),
+  keys: null as null | ((keys: number[]) => void),
   initializeAudio: vi.fn(async () => {}),
   prepareClicks: vi.fn(async () => true),
   deferredClickMessages: null as null | (() => void)[],
@@ -117,7 +116,6 @@ import { browserAudio } from "../../frontend/src/app/audio/audioEngine";
 import Home from "../../frontend/src/app/page";
 import Coordinator from "../../frontend/src/app/CVOverlayCoordinator";
 import { saveKeyboardLayout } from "../../frontend/src/lib/keyboardSettings";
-import { getWhiteKeyPolygons } from "../../frontend/src/cv/keyboardGeometry";
 import { getPlayAlong } from "../../frontend/src/app/midi/playAlong";
 
 let root: Root;
@@ -125,7 +123,7 @@ let host: HTMLDivElement;
 let now: number;
 let animationFrame: FrameRequestCallback | undefined;
 let dom: JSDOM;
-let currentHands: NormalizedLandmark[][] = [];
+let currentKeys: number[] = [];
 
 beforeEach(async () => {
   dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost", pretendToBeVisual: true });
@@ -138,7 +136,7 @@ beforeEach(async () => {
   fixtures.deferredClickMessages = null;
   fixtures.deferredClickFrames = null;
   fixtures.recorder = null;
-  currentHands = [];
+  currentKeys = [];
   fixtures.takes.length = 0;
   fixtures.missNextDetection = false;
   fixtures.markerShift = 0;
@@ -168,12 +166,12 @@ beforeEach(async () => {
     vi.spyOn(HTMLVideoElement.prototype, name as "readyState", "get").mockReturnValue(value);
   }
   vi.spyOn(console, "log").mockImplementation(() => {});
-  localStorage.setItem("makeshift.calibration.v1", JSON.stringify({
-    version: 1, coordinates: "unmirrored-frame-pixels/marker-unit-square", sheet: "aruco-0-3-white-keys-v1",
+  localStorage.setItem("makeshift.calibration.v2", JSON.stringify({
+    version: 2, coordinates: "unmirrored-frame-pixels/marker-unit-square", sheet: "aruco-0-3-white-keys-v1",
     camera: { deviceId: "camera-1", width: 1000, height: 1000, facingMode: "" },
     layout: { octaves: 1, startingMidi: 48, whiteKeys: 8 },
     corners: [{ x: 100, y: 100 }, { x: 900, y: 100 }, { x: 900, y: 900 }, { x: 100, y: 900 }],
-    contact: { model: "landmark-reference-v1", hover: [Array(21).fill({ x: 0.5, y: 0.4, z: 0 })], rest: [Array(21).fill({ x: 0.5, y: 0.5, z: 0 })] },
+    detector: "vision-reference-v1",
   }));
   // Explicit tempo keeps lifecycle timing independent of the user default.
   localStorage.setItem("makeshift:playback-settings:v1", JSON.stringify({ tempo: 120, metronome: true }));
@@ -215,9 +213,7 @@ async function advance(ms: number) {
   for (let elapsed = 0; elapsed < ms; elapsed += 100) {
     const step = Math.min(100, ms - elapsed);
     now += step;
-    await act(async () => fixtures.landmarks?.(
-    currentHands.map((landmarks) => ({ landmarks, handedness: "Right" as const })),
-  ));
+    await act(async () => fixtures.keys?.(currentKeys));
     await frame();
     await act(async () => { await vi.advanceTimersByTimeAsync(step); });
   }
@@ -233,17 +229,11 @@ async function frame() {
 }
 
 async function keys(...xs: number[]) {
-  const hand = Array.from({ length: 21 }, () => ({ x: -10, y: -10 }));
-  for (let i = 0; i < xs.length; i++) hand[[4, 8, 12, 16, 20][i]] = { x: xs[i] / 1000, y: 0.5 };
-  currentHands = xs.length ? [hand] : [];
-  await act(async () => fixtures.landmarks?.(
-    currentHands.map((landmarks) => ({ landmarks, handedness: "Right" as const })),
-  ));
+  currentKeys = xs;
+  await act(async () => fixtures.keys?.(currentKeys));
   await frame();
   // Repeated identical snapshots must hold keys without retriggering.
-  await act(async () => fixtures.landmarks?.(
-    currentHands.map((landmarks) => ({ landmarks, handedness: "Right" as const })),
-  ));
+  await act(async () => fixtures.keys?.(currentKeys));
   await frame();
 }
 
@@ -256,8 +246,8 @@ async function start() {
 it("uses one recovery announcement and preserves calibrated/current alignment through displacement, misses and restoration", async () => {
   const enable = [...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!;
   await click(enable);
-  await keys(115);
-  const saved = localStorage.getItem("makeshift.calibration.v1");
+  await keys(0);
+  const saved = localStorage.getItem("makeshift.calibration.v2");
   fixtures.markerShift = 20;
   await advance(10_000);
   const status = host.querySelector('[role="status"]')!;
@@ -268,7 +258,7 @@ it("uses one recovery announcement and preserves calibrated/current alignment th
   expect(host.textContent).toContain("Calibrated position (solid)");
   expect(host.textContent).toContain("Current position unavailable");
   expect(browserAudio.releaseAll).toHaveBeenCalled();
-  expect(localStorage.getItem("makeshift.calibration.v1")).toBe(saved);
+  expect(localStorage.getItem("makeshift.calibration.v2")).toBe(saved);
   fixtures.missNextDetection = true;
   await advance(10_000);
   expect(host.textContent).toContain("Current position unavailable");
@@ -298,13 +288,13 @@ it("offers audio recovery without recalibration and names camera changes without
 it("announces temporary tracking pause and explicit audio recovery without calibration advice", async () => {
   const enable = [...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!;
   await click(enable);
-  await keys(115);
+  await keys(0);
   await act(async () => { now += 600; await vi.advanceTimersByTimeAsync(600); });
   expect(host.querySelector('[role="status"]')?.textContent).toContain("Tracking paused");
   expect(host.querySelector('a[href="/calibration"]')).toBeNull();
   expect(enable.disabled).toBe(true);
   const calls = vi.mocked(browserAudio.noteOn).mock.calls.length;
-  await keys(115);
+  await keys(0);
   expect(host.querySelector('[role="status"]')?.textContent).toContain("Select Enable audio");
   expect(host.querySelector('a[href="/calibration"]')).toBeNull();
   expect(enable.disabled).toBe(false);
@@ -313,25 +303,22 @@ it("announces temporary tracking pause and explicit audio recovery without calib
 
 it("dispatches a chord and release/repress before React commits the Vision snapshot", async () => {
   await start();
-  const landmarks: NormalizedLandmark[] = Array.from({ length: 21 }, () => ({ x: -10, y: -10 }));
-  landmarks[4] = { x: 0.115, y: 0.5 };
-  landmarks[8] = { x: 0.325, y: 0.5 };
-  const chord: HandObservation[] = [{ landmarks, handedness: "Right" }];
+  const chord = [0, 4];
   vi.mocked(browserAudio.noteOn).mockClear();
   vi.mocked(browserAudio.noteOff).mockClear();
   await act(async () => {
-    fixtures.landmarks?.(chord);
-    fixtures.landmarks?.(chord);
+    fixtures.keys?.(chord);
+    fixtures.keys?.(chord);
     expect(browserAudio.noteOn).toHaveBeenCalledTimes(2);
     expect(browserAudio.noteOn).toHaveBeenNthCalledWith(1, 48, 0.2);
     expect(browserAudio.noteOn).toHaveBeenNthCalledWith(2, 52, 0.2);
-    fixtures.landmarks?.(chord);
+    fixtures.keys?.(chord);
     expect(browserAudio.noteOn).toHaveBeenCalledTimes(2);
     now += 40;
-    fixtures.landmarks?.([]);
+    fixtures.keys?.([]);
     expect(browserAudio.noteOff).toHaveBeenCalledTimes(2);
-    fixtures.landmarks?.(chord);
-    fixtures.landmarks?.(chord);
+    fixtures.keys?.(chord);
+    fixtures.keys?.(chord);
     expect(browserAudio.noteOn).toHaveBeenCalledTimes(4);
   });
   await advance(60);
@@ -349,7 +336,7 @@ it("accepts a black-key offset from the Vision snapshot", async () => {
   vi.mocked(browserAudio.noteOn).mockClear();
   vi.mocked(browserAudio.noteOff).mockClear();
 
-  await keys(170); // Synthetic C# region.
+  await keys(1); // Synthetic C# offset.
   expect(browserAudio.noteOn).toHaveBeenCalledTimes(1);
   expect(browserAudio.noteOn).toHaveBeenCalledWith(49, 0.2);
   await advance(0);
@@ -362,31 +349,31 @@ it("accepts a black-key offset from the Vision snapshot", async () => {
   expect(host.querySelector('[data-key-active="true"]')).toBeNull();
 });
 
-it("switches the output key when one finger moves to another key", async () => {
+it("switches the output when the Vision key snapshot changes", async () => {
   await start();
   vi.mocked(browserAudio.noteOn).mockClear();
   vi.mocked(browserAudio.noteOff).mockClear();
 
-  await keys(115);
+  await keys(0);
   expect(browserAudio.noteOn).toHaveBeenCalledWith(48, 0.2);
   now += 20;
-  await keys(325);
+  await keys(4);
 
   expect(browserAudio.noteOff).toHaveBeenCalledTimes(1);
   expect(browserAudio.noteOn).toHaveBeenCalledTimes(2);
   expect(vi.mocked(browserAudio.noteOn).mock.calls[1][0]).toBe(52);
 });
 
-it("keeps a shared key active until its last finger releases", async () => {
+it("deduplicates a Vision key snapshot and holds until the key disappears", async () => {
   await start();
   vi.mocked(browserAudio.noteOn).mockClear();
   vi.mocked(browserAudio.noteOff).mockClear();
 
-  await keys(115, 115);
+  await keys(0, 0);
   expect(browserAudio.noteOn).toHaveBeenCalledTimes(1);
   expect(browserAudio.noteOn).toHaveBeenCalledWith(48, 0.2);
 
-  await keys(115);
+  await keys(0);
   expect(browserAudio.noteOff).not.toHaveBeenCalled();
 
   await keys();
@@ -395,7 +382,7 @@ it("keeps a shared key active until its last finger releases", async () => {
 
 it("uses the fixed Vision onset velocity for audio and MIDI", async () => {
   await start();
-  await keys(115, 325);
+  await keys(0, 4);
   expect(browserAudio.noteOn).toHaveBeenCalledWith(48, 0.2);
   expect(browserAudio.noteOn).toHaveBeenCalledWith(52, 0.2);
   await advance(40); await keys(); await click(button("Stop recording"));
@@ -404,9 +391,9 @@ it("uses the fixed Vision onset velocity for audio and MIDI", async () => {
 
 it.each([2, 3])("uses %i-octave live geometry, shifted notes and feedback after recalibration", async (octaves) => {
   await start();
-  await keys(115);
+  await keys(0);
   await advance(100);
-  const oldCalibration = JSON.parse(localStorage.getItem("makeshift.calibration.v1")!);
+  const oldCalibration = JSON.parse(localStorage.getItem("makeshift.calibration.v2")!);
   const layout = { octaves, startingMidi: 60, whiteKeys: octaves * 7 + 1, paperOctaves: octaves };
   await act(async () => {
     expect(saveKeyboardLayout(layout).ok).toBe(true);
@@ -416,12 +403,10 @@ it.each([2, 3])("uses %i-octave live geometry, shifted notes and feedback after 
   expect(fixtures.takes.at(-1)?.notes[0]).toMatchObject({ pitch: "C3", durationMs: 100 });
   const enable = [...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!;
   expect(enable.disabled).toBe(true);
-  localStorage.setItem("makeshift.calibration.v1", JSON.stringify({ ...oldCalibration, layout }));
+  localStorage.setItem("makeshift.calibration.v2", JSON.stringify({ ...oldCalibration, layout }));
   await advance(10_000);
   await click(enable);
-  const last = getWhiteKeyPolygons(layout).at(-1)!;
-  const x = 100 + (last[0].x + last[1].x) / 2 * 800;
-  await keys(x);
+  await keys(12 * octaves);
   expect(browserAudio.noteOn).toHaveBeenLastCalledWith(60 + 12 * octaves, 0.2);
   await advance(0);
   expect(host.querySelector('[aria-label="Sounding notes"]')?.textContent).toContain(`C${4 + octaves}`);
@@ -456,18 +441,18 @@ it("announces capture state through pause, resume count-in and completion", asyn
 
 it("requires release and a fresh press for keys held across resume", async () => {
   await start();
-  await keys(115); // First key, via real geometry and transitions.
+  await keys(0); // First chromatic offset.
   await advance(500);
   await click(button("Pause recording"));
   expect(button("Resume recording").disabled).toBe(false);
-  await keys(115, 225); // Second key first pressed during pause.
+  await keys(0, 2); // Second key first pressed during pause.
   await advance(1000);
   await click(button("Resume recording"));
   expect(button("Resume recording").disabled).toBe(true);
   await countIn();
   await advance(250);
   await keys();
-  await keys(115, 225);
+  await keys(0, 2);
   await advance(100);
   await click(button("Stop recording"));
   const notes = fixtures.takes.at(-1)!.notes;
@@ -482,16 +467,16 @@ it("requires release and a fresh press for keys held across resume", async () =>
 
 it("omits keys released during pause and preserves timing across repeated resumes", async () => {
   await start();
-  await keys(115);
+  await keys(0);
   await advance(200);
   await click(button("Pause recording"));
-  await keys(225);
+  await keys(2);
   await advance(1000);
   await keys();
   await click(button("Resume recording"));
   await countIn();
   await advance(300);
-  await keys(115);
+  await keys(0);
   await advance(100);
   await click(button("Pause recording"));
   await click(button("Resume recording"));
@@ -507,7 +492,7 @@ it("omits keys released during pause and preserves timing across repeated resume
 
 it("Stop during resume count-in preserves the take and cancels the pending resume", async () => {
   await start();
-  await keys(115);
+  await keys(0);
   await advance(500);
   await click(button("Pause recording"));
   await click(button("Resume recording"));
@@ -527,7 +512,7 @@ it("No, delete it removes the stopped take from the library and storage after bo
   const stored = () => JSON.parse(localStorage.getItem("makeshift:recordings:v1") ?? "[]") as Recording[];
   const discard = () => [...document.querySelectorAll("button")].find(item => item.textContent?.trim() === "No, delete it")!;
   await start();
-  await keys(115);
+  await keys(0);
   await advance(200);
   await click(button("Stop recording"));
   await countIn();
@@ -553,7 +538,7 @@ it("cancels an initial count-in without making a take", async () => {
 
 it("resume keeps the live audio session without reinitializing it", async () => {
   await start();
-  await keys(115);
+  await keys(0);
   await advance(500);
   await click(button("Pause recording"));
   fixtures.initializeAudio.mockClear();
@@ -568,26 +553,26 @@ it("resume keeps the live audio session without reinitializing it", async () => 
 
 it("rejects a legacy boolean and interrupts recording when persisted calibration changes", async () => {
   await start();
-  await keys(150);
-  localStorage.removeItem("makeshift.calibration.v1");
+  await keys(0);
+  localStorage.removeItem("makeshift.calibration.v2");
   localStorage.setItem("isCalibrated", "true");
   await advance(10_000);
   await frame();
   expect(button("Start recording").disabled).toBe(true);
   expect(fixtures.takes).toHaveLength(1);
-  await keys(250);
+  await keys(2);
   expect(fixtures.takes).toHaveLength(1);
 });
 
 
 it("audio interruption closes the take and recovery needs another Play", async () => {
   await start();
-  await keys(115);
+  await keys(0);
   await advance(100);
   await act(async () => fixtures.invalidate?.());
   expect(fixtures.takes).toHaveLength(1);
   expect(host.textContent).toContain("Audio interrupted");
-  await keys(225);
+  await keys(2);
   expect(fixtures.takes[0].notes).toHaveLength(1);
   await start();
   await click(button("Stop recording"));
@@ -607,7 +592,7 @@ it("Stop cancels initial audio startup and offers a clean retry", async () => {
 
 it.each(["tab switch", "page restoration"])("resumes live piano after %s but keeps the recording closed", async (method) => {
   await start();
-  await keys(115);
+  await keys(0);
   const hidden = vi.spyOn(document, "hidden", "get");
   if (method === "tab switch") {
     hidden.mockReturnValue(true);
@@ -628,13 +613,13 @@ it.each(["tab switch", "page restoration"])("resumes live piano after %s but kee
     await act(async () => window.dispatchEvent(new window.Event("pageshow")));
   }
   expect(button("Start recording").disabled).toBe(true);
-  expect(fixtures.landmarks).toBeTypeOf("function");
+  expect(fixtures.keys).toBeTypeOf("function");
   await keys();
   expect(host.querySelector('[role="status"]')?.textContent).toContain("Playing");
   expect(button("Start recording").disabled).toBe(false);
   expect(fixtures.initializeAudio).toHaveBeenCalledTimes(1);
   const notes = vi.mocked(browserAudio.noteOn).mock.calls.length;
-  await keys(115);
+  await keys(0);
   expect(browserAudio.noteOn).toHaveBeenCalledTimes(notes + 1);
   expect(fixtures.takes).toHaveLength(1);
 });
@@ -653,11 +638,11 @@ it("ignores repeated Play while audio is starting", async () => {
 });
 
 it("shows accepted sounding notes and clears them on interruption", async () => {
-  await start(); await keys(115); await advance(0);
+  await start(); await keys(0); await advance(0);
   expect(host.querySelector('[aria-label="Sounding notes"]')?.textContent).toContain("C3");
   expect(host.querySelector('[data-key-midi="48"][data-key-active="true"]')?.getAttribute("fill"))
     .toBe("var(--color-red)");
-  await click(button("Stop recording")); await keys(115, 225); await advance(100);
+  await click(button("Stop recording")); await keys(0, 2); await advance(100);
   expect(host.querySelector('[aria-label="Sounding notes"]')?.textContent).toContain("D3");
   await act(async () => window.dispatchEvent(new window.Event("pagehide"))); await advance(0);
   expect(host.querySelector('[aria-label="Sounding notes"]')).toBeNull();
@@ -665,33 +650,33 @@ it("shows accepted sounding notes and clears them on interruption", async () => 
 });
 
 it("keeps recording through an accepted empty reference refresh", async () => {
-  await start(); await keys(115); await advance(20); await keys();
+  await start(); await keys(0); await advance(20); await keys();
   await click(button("Set reference")); await frame();
   expect(button("Pause recording").disabled).toBe(false);
   expect(fixtures.takes).toHaveLength(0);
-  await keys(325); await advance(20); await keys(); await click(button("Stop recording"));
+  await keys(4); await advance(20); await keys(); await click(button("Stop recording"));
   expect(fixtures.takes.at(-1)!.notes.map(note => note.pitch)).toEqual(["C3", "E3"]);
 });
 
 it("records a same-turn press before Stop drains deferred consumers", async () => {
   await start();
-  await keys(115);
+  await keys(0);
   await click(button("Stop recording"));
   expect(fixtures.takes.at(-1)!.notes).toMatchObject([{ pitch: "C3", velocity: 20, durationMs: 0 }]);
 });
 
 it("requests a reference using the temporary control without changing saved calibration", async () => {
-  const saved = localStorage.getItem("makeshift.calibration.v1");
+  const saved = localStorage.getItem("makeshift.calibration.v2");
   await click(button("Set reference")); await frame();
   expect(host.querySelector('[data-vision-status]')?.textContent).toContain("Reference captured");
-  expect(localStorage.getItem("makeshift.calibration.v1")).toBe(saved);
+  expect(localStorage.getItem("makeshift.calibration.v2")).toBe(saved);
 });
 
 it.each([0, 500, 1000, 1500, 1999])("cancels start/resume at %i ms without replaying gated contacts", async elapsed => {
   for (const resume of [false, true]) {
-    if (resume) { await keys(); await start(); await keys(115); await advance(100); await click(button("Pause recording")); }
+    if (resume) { await keys(); await start(); await keys(0); await advance(100); await click(button("Pause recording")); }
     await click(button(resume ? "Resume recording" : "Start recording"));
-    await keys(225);
+    await keys(2);
     await advance(elapsed);
     const calls = vi.mocked(browserAudio.noteOn).mock.calls.length;
     await click(button("Stop recording"));
@@ -700,7 +685,7 @@ it.each([0, 500, 1000, 1500, 1999])("cancels start/resume at %i ms without repla
     expect(browserAudio.noteOn).toHaveBeenCalledTimes(calls);
     if (!resume) expect(fixtures.takes).toHaveLength(0);
     else expect(fixtures.takes.at(-1)!.notes).toHaveLength(1);
-    await keys(); await keys(225);
+    await keys(); await keys(2);
     expect(browserAudio.noteOn).toHaveBeenCalledTimes(calls + 1);
     await keys();
   }
@@ -712,45 +697,45 @@ it("discards count-in notes and preserves free play before, during pause and aft
   expect(fixtures.initializeAudio).toHaveBeenCalled();
   vi.mocked(browserAudio.noteOn).mockClear();
   vi.mocked(browserAudio.releaseAll).mockClear();
-  await keys(115);
+  await keys(0);
   expect(browserAudio.noteOn).toHaveBeenCalledTimes(1);
   expect(fixtures.takes).toEqual([]);
   await click(button("Start recording"));
-  await keys(115, 225);
+  await keys(0, 2);
   expect(browserAudio.pauseInput).toHaveBeenCalledTimes(1);
   expect(browserAudio.noteOn).toHaveBeenCalledTimes(1);
   await countIn();
   expect(browserAudio.noteOn).toHaveBeenCalledTimes(1);
   await advance(100);
   await click(button("Pause recording"));
-  await keys(115);
-  await keys(115, 225);
+  await keys(0);
+  await keys(0, 2);
   expect(browserAudio.noteOn).toHaveBeenCalledTimes(2);
   await click(button("Stop recording"));
   expect(browserAudio.releaseAll).not.toHaveBeenCalled();
   expect(fixtures.takes.at(-1)!.notes).toHaveLength(0);
   await keys();
-  await keys(115);
+  await keys(0);
   expect(browserAudio.noteOn).toHaveBeenCalledTimes(3);
 });
 
 it("releases free-play notes when calibration becomes invalid", async () => {
   await click([...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!);
-  await keys(115);
+  await keys(0);
   vi.mocked(browserAudio.releaseAll).mockClear();
-  localStorage.removeItem("makeshift.calibration.v1");
+  localStorage.removeItem("makeshift.calibration.v2");
   await advance(10_000);
   await frame();
   expect(browserAudio.releaseAll).toHaveBeenCalled();
   vi.mocked(browserAudio.noteOn).mockClear();
-  await keys(225);
+  await keys(2);
   expect(browserAudio.noteOn).not.toHaveBeenCalled();
 });
 
 
 it("invalidates free play on frame loss without waiting for the marker interval", async () => {
   await click([...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!);
-  await keys(115);
+  await keys(0);
   vi.mocked(browserAudio.releaseAll).mockClear();
   vi.spyOn(HTMLVideoElement.prototype, "readyState", "get").mockReturnValue(0);
   await advance(100);
@@ -766,12 +751,12 @@ it("ignores pending free-play audio initialization after calibration loss", asyn
   let resolveAudio!: () => void;
   fixtures.initializeAudio.mockImplementation(() => new Promise<void>(resolve => { resolveAudio = resolve; }));
   await click([...host.querySelectorAll("button")].find(b => b.textContent === "Enable audio")!);
-  localStorage.removeItem("makeshift.calibration.v1");
+  localStorage.removeItem("makeshift.calibration.v2");
   await advance(10_000);
   await frame();
   await act(async () => resolveAudio());
   vi.mocked(browserAudio.noteOn).mockClear();
-  await keys(115);
+  await keys(0);
   expect(browserAudio.noteOn).not.toHaveBeenCalled();
   expect(button("Start recording").disabled).toBe(true);
 });
@@ -791,14 +776,14 @@ it.each([[4,4,500],[3,4,500],[6,8,250],[7,8,250],[2,2,1000]])(
     for (let beat=1; beat<=numerator; beat++) {
       expect(host.querySelector(".ms-beat")?.textContent).toBe(String(beat));
       expect(host.querySelectorAll(".ms-beat + div > div")).toHaveLength(numerator);
-      await keys(225); await keys(); // Complete taps inside each full interval.
+      await keys(2); await keys(); // Complete taps inside each full interval.
       expect(browserAudio.noteOn).toHaveBeenCalledTimes(audioCalls);
       await advance(interval-1);
       expect(host.querySelector(".ms-beat")?.textContent).toBe(String(beat));
       await advance(1);
     }
     expect(button("Pause recording").disabled).toBe(false);
-    await keys(115); await advance(100);
+    await keys(0); await advance(100);
     await click(button("Pause recording"));
     expect(host.querySelector<HTMLInputElement>("#time-signature")!.disabled).toBe(true);
     await click(button("Resume recording"));
@@ -823,7 +808,7 @@ it("accompanies live playing and recording, silences pause, resumes and keeps cl
   expect(fixtures.clicks).toHaveBeenCalled();
   expect(fixtures.takes).toHaveLength(0);
   await start();
-  await keys(115);
+  await keys(0);
   await advance(200);
   await keys();
   await click(button("Pause recording"));
@@ -889,7 +874,7 @@ it("Stop rejects click-audio preparation that finishes after the pending recordi
 });
 
 it("runs metronome without calibration, camera readiness or enabling piano audio", async () => {
-  localStorage.removeItem("makeshift.calibration.v1");
+  localStorage.removeItem("makeshift.calibration.v2");
   await advance(10000); await frame();
   expect(button("Enable audio").disabled).toBe(true);
   expect(button("Start recording").disabled).toBe(true);
@@ -935,14 +920,14 @@ it("enables piano without preparing clicks and keeps playing after failed count-
   expect(host.textContent).toContain("Count-in audio could not start");
   expect(button("Start recording").disabled).toBe(false);
   vi.mocked(browserAudio.noteOn).mockClear();
-  await keys(115);
+  await keys(0);
   expect(browserAudio.noteOn).toHaveBeenCalled();
   expect(fixtures.takes).toHaveLength(0);
 });
 
 it("failed resume preparation leaves the take paused and piano available", async () => {
   await start();
-  await keys(115);
+  await keys(0);
   await advance(200);
   await click(button("Pause recording"));
   // Require fresh click preparation for the resume attempt.
@@ -965,20 +950,20 @@ it("cancels an interrupted count-in without interrupting piano playback", async 
   expect(button("Start recording").disabled).toBe(false);
   expect(fixtures.takes).toHaveLength(0);
   vi.mocked(browserAudio.noteOn).mockClear();
-  await keys(115);
+  await keys(0);
   expect(browserAudio.noteOn).toHaveBeenCalled();
 });
 
 it("continues piano recording when metronome audio is interrupted", async () => {
   await start();
-  await keys(115);
+  await keys(0);
   await advance(200);
   await act(async () => fixtures.interruptClicks?.());
   expect(host.textContent).toContain("Metronome audio interrupted");
   expect(button("Pause recording").disabled).toBe(false);
   await advance(200);
   await keys();
-  await keys(215);
+  await keys(2);
   await advance(200);
   await click(button("Stop recording"));
   expect(fixtures.takes).toHaveLength(1);
@@ -990,7 +975,7 @@ it("plays Start and Resume count-offs with the toggle off, then records only pia
   await countIn();
   expect(fixtures.clicks).toHaveBeenCalledTimes(4);
   expect(button("Toggle metronome").getAttribute("aria-pressed")).toBe("false");
-  await keys(115);
+  await keys(0);
   await advance(200);
   await keys();
   await click(button("Pause recording"));
@@ -1021,7 +1006,7 @@ it("plays Start and Resume count-offs with the toggle off, then records only pia
 it.each(["start", "resume"])("Stop cancels audible %s count-off with the toggle off", async action => {
   if (action === "resume") {
     await start();
-    await keys(115);
+    await keys(0);
     await advance(200);
     await click(button("Pause recording"));
   }
@@ -1065,7 +1050,7 @@ it("retires the gated request when count-in audio preparation fails", async () =
   await advance(2500);
   expect(fixtures.takes).toHaveLength(0);
   expect(browserAudio.resumeInput).toHaveBeenCalled();
-  await keys(115); expect(browserAudio.noteOn).toHaveBeenCalled();
+  await keys(0); expect(browserAudio.noteOn).toHaveBeenCalled();
   await keys();
   await start();
   await click(button("Stop recording"));
@@ -1081,12 +1066,12 @@ it.each([[20, 1, 1], [300, 32, 32]])("gates the full measure at %i BPM and %i/%i
   for (const resume of [false, true]) {
     await click(button(resume ? "Resume recording" : "Start recording"));
     const onsets = vi.mocked(browserAudio.noteOn).mock.calls.length;
-    await keys(115); await advance(duration - 1);
+    await keys(0); await advance(duration - 1);
     expect(host.querySelector(".ms-beat")).not.toBeNull();
     expect(browserAudio.noteOn).toHaveBeenCalledTimes(onsets);
     await advance(1); expect(host.querySelector(".ms-beat")).toBeNull();
     expect(browserAudio.noteOn).toHaveBeenCalledTimes(onsets);
-    await keys(); await keys(115); await advance(10);
+    await keys(); await keys(0); await advance(10);
     expect(browserAudio.noteOn).toHaveBeenCalledTimes(onsets + 1);
     await click(button(resume ? "Stop recording" : "Pause recording"));
   }
@@ -1100,7 +1085,7 @@ it.each([false, true])("keeps audible clicks while piano is gated (resume: %s)",
   const clicks = fixtures.clicks.mock.calls.length;
   await click(button(resume ? "Resume recording" : "Start recording"));
   const onsets = vi.mocked(browserAudio.noteOn).mock.calls.length;
-  await keys(115); await keys();
+  await keys(0); await keys();
   await advance(500);
   expect(fixtures.clicks.mock.calls.length).toBeGreaterThan(clicks);
   expect(browserAudio.noteOn).toHaveBeenCalledTimes(onsets);
@@ -1206,7 +1191,7 @@ it("#225 diagnostic: an overdue beat must not replace the current countdown with
 it.each(["start", "resume"])("keeps the %s overlay pending until a beat arrives and allows Stop", async action => {
   if (action === "resume") {
     await start();
-    await keys(115);
+    await keys(0);
     await advance(100);
     await keys();
     await click(button("Pause recording"));
@@ -1237,7 +1222,7 @@ it.each(["start", "resume"])("#225 diagnostic: delayed %s completion preserves t
   if (action === "resume") {
     await click(button("Start recording"));
     await advance(800);
-    await keys(115);
+    await keys(0);
     await advance(100);
     await keys();
     await click(button("Pause recording"));
@@ -1256,7 +1241,7 @@ it.each(["start", "resume"])("#225 diagnostic: delayed %s completion preserves t
   await deliverClickMessages();
   for (const notify of frames) await act(async () => notify());
   expect(fixtures.recorder!.getState()).toBe("recording");
-  await keys(225);
+  await keys(2);
   await advance(100);
   await keys();
   await click(button("Stop recording"));

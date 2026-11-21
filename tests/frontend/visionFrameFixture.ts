@@ -1,14 +1,5 @@
 // Synthetic Vision output for recording UI tests. These tests do not exercise CV.
-import type { HandObservation } from "../../frontend/src/cv/collision";
-import {
-  getFingertips,
-  getPianoKeyCollisions,
-} from "../../frontend/src/cv/collision";
-import {
-  getWhiteKeyPolygons,
-  getBlackKeyPolygons,
-} from "../../frontend/src/cv/keyboardGeometry";
-import { pianoKeyIndexToMidi } from "../../frontend/src/cv/noteMap";
+import { getWhiteKeyPolygons } from "../../frontend/src/cv/keyboardGeometry";
 import {
   computeHomography,
   invertHomography,
@@ -20,12 +11,12 @@ import type {
 } from "../../frontend/src/cv/visionCameraPipeline";
 
 export function recordingVisionFixture(fixtures: {
-  landmarks: null | ((hands: HandObservation[]) => void);
+  keys: null | ((keys: number[]) => void);
   markerShift: number;
   missNextDetection: boolean;
 }) {
   return class Fixture {
-    private hands: HandObservation[] = [];
+    private keys: number[] = [];
     private disposed = false;
     private geometry: VisionResult["geometry"] = null;
     private shift = NaN;
@@ -33,8 +24,8 @@ export function recordingVisionFixture(fixtures: {
     private requested = false;
     constructor(private options: VisionCameraOptions) {}
     start() {
-      fixtures.landmarks = (hands) => {
-        this.hands = hands;
+      fixtures.keys = (keys) => {
+        this.keys = keys;
         this.tick();
       };
       this.options.onStatus("Vision ready. Select Set reference.", false);
@@ -47,7 +38,7 @@ export function recordingVisionFixture(fixtures: {
     }
     dispose() {
       this.disposed = true;
-      fixtures.landmarks = null;
+      fixtures.keys = null;
       this.options.onUnavailable();
     }
     tick() {
@@ -89,23 +80,6 @@ export function recordingVisionFixture(fixtures: {
           ) as NonNullable<VisionResult["geometry"]>["whiteKeyPolygons"],
         };
       }
-      const tips = getFingertips(
-        this.hands.map((h) => h.landmarks),
-        1000,
-        1000,
-      );
-      const black = getBlackKeyPolygons(this.options.layout).map((poly) =>
-        poly.map((p) => projectPoint(this.geometry!.sheetToFrame, p)!),
-      );
-      const keys = getPianoKeyCollisions(
-        tips,
-        this.geometry!.whiteKeyPolygons,
-        black,
-      ).map(
-        ({ keyIndex }) =>
-          pianoKeyIndexToMidi(keyIndex, this.options.layout)! -
-          this.options.layout.startingMidi,
-      );
       const result: VisionResult = {
         width: 1000,
         height: 1000,
@@ -113,7 +87,7 @@ export function recordingVisionFixture(fixtures: {
         referenceRevision: this.revision,
         homographyReady: true,
         geometry: this.geometry,
-        pressedKeys: captured ? [] : [...new Set(keys)].sort((a, b) => a - b),
+        pressedKeys: captured ? [] : [...new Set(this.keys)].sort((a, b) => a - b),
         fingertips: [],
         pressRanges: [],
         referenceScan: blocked

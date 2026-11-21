@@ -1,3 +1,5 @@
+> Historical design: the frontend landmark/depth pipeline described here was removed in #297. See [current calibration](calibration.md) and [Vision](cv_wasm.md).
+
 # Knuckle eligibility boundary
 
 This is a working note for reviewing the current knuckle calibration. It

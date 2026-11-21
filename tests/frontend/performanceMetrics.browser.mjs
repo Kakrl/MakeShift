@@ -108,8 +108,6 @@ try {
   assert.equal(report.metrics.transfer.mean, null);
   assert.equal(report.resourceSnapshots.at(-1).resources.audioContexts, 0);
   assert.equal(report.resourceSnapshots.at(-1).resources.audioNodes, 0);
-  assert.equal(report.resourceSnapshots.at(-1).resources.handModels, 0);
-  assert.equal(report.resourceSnapshots.at(-1).resources.markerDetectors, 0);
   assert.equal(
     report.resourceSnapshots.at(-1).resources.mediaTracks,
     1,

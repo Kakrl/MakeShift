@@ -56,7 +56,7 @@ Select **Allow** whenever your browser asks for camera access.
 
 ### 1. Calibrate your keyboard
 
-Calibration helps MakeShift recognize your keyboard and hands.
+Calibration validates your keyboard setup and camera view.
 With the calibration screen open:
 
 1. Choose your keyboard range and lowest note. Set the number of
@@ -65,21 +65,20 @@ With the calibration screen open:
    setup, pick it from **Profile**, or select **Save profile** to name
    the current one. A profile only fills in these settings; the paper
    is still checked again.
-2. Follow the lighting and paper-positioning instructions.
-   Keep all four markers visible during paper alignment. Select **?**
-   on the camera for tips on each step.
-3. Follow the guided captures for each hand, making sure your
-   hand is visible to the camera.
-4. When **Calibration saved** appears, select **Start Playing**.
+2. Follow the lighting instructions.
+3. Remove your hands and other objects, show all four markers, and
+   select **Capture reference**. Select **?** on the camera for tips.
+4. After **Sheet geometry validated**, select **Next Step**, then
+   **Start Playing** to save your setup and return to Home.
 
 Keep the camera and paper in their calibrated positions.
 If you move either, you may need to repeat calibration.
 
 ### 2. Enable sound and play
 
-Keep all four markers in the camera view and wait for MakeShift
-to identify them. Look for a keyboard outline over the paper
-to confirm that it has located the keyboard.
+On Home, remove your hands and other objects, keep all four markers
+in view, and select **Set reference**. Home needs its own empty-keyboard
+reference after navigation or reload; the saved setup does not restore it.
 
 Once **Enable audio** becomes available, select it.
 
@@ -132,7 +131,8 @@ Improve the lighting and remove anything covering the markers.
 
 ### Enable audio or recording is unavailable
 
-Wait for tracking to settle after calibration.
+Clear the keyboard, show all four markers, select **Set reference**,
+and wait for tracking to settle.
 
 If you moved the paper or camera, restore their calibrated
 positions or repeat calibration. A visible keyboard outline

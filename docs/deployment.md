@@ -1,8 +1,8 @@
 # Deployment and Browser Support
 
 Vercel hosts MakeShift (#89). Vercel serves pages, the AudioWorklets, the
-DSP modules, 19 piano MP3 recordings and the hand model; jsDelivr serves the
-MediaPipe WASM runtime at the exact version pinned in `frontend/package.json`.
+DSP modules, 19 piano MP3 recordings and the verified Vision WASM bundle.
+Home, calibration and replay load CV assets from the same origin.
 Once loaded, camera, CV, audio and MIDI run on the device: playing makes no
 network requests (checked by `npm run test:deployment`). Server routes only
 back shared recordings: `/api/health` verifies hosted database configuration
@@ -37,11 +37,11 @@ give a secret a `NEXT_PUBLIC_` prefix.
 | `/audio/piano-worklet.js`, `/audio/sampled-piano.js`, `/audio/synth.js`, `/audio/metronome-worklet.js` | Vercel static | `application/javascript` |
 | `/audio/piano-samples/*.mp3` (19 files; 1,377,637 bytes) | Vercel static; preload before audio readiness | `audio/mpeg` |
 | `/audio/piano-samples/manifest.json` | Vercel static; source commit/hashes | `application/json` |
-| `/models/hand_landmarker.task` | Vercel static | `application/octet-stream` |
-| `vision_wasm_internal.{js,wasm}` | jsDelivr `@mediapipe/tasks-vision@<pinned>` | `application/javascript`, `application/wasm` |
+| `/vision/vision.worker.mjs`, `/vision/makeshift-vision.mjs`, `/vision/makeshift-vision-core.mjs` | Vercel static | `application/javascript` |
+| `/vision/makeshift-vision-core.wasm` | Vercel static | `application/wasm` |
 
-Keep `@mediapipe/tasks-vision` pinned exactly: the WASM URL uses the same
-version, and a mismatch fails at model load.
+`prepare-vision.mjs` verifies bundle hashes before copying the matching loader,
+core and WASM. No separate frontend hand model or CV CDN is loaded.
 
 ## Permissions and activation
 
@@ -78,7 +78,7 @@ entries only from a completed manual report in `tests/manual/`.
 
 ## Verifying a deployment
 
-The smoke test waits for Home Vision and calibration detector readiness, and for
+The smoke test waits for Home Vision readiness and the initial calibration setup controls, and for
 the Audio check, Tutorial and About page controls or headings. It checks displayed
 and uncaught errors after those signals instead of waiting for all network traffic
 to stop. Audio checks still require successful initialization before asserting

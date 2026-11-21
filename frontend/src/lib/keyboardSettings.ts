@@ -1,6 +1,5 @@
 import { DEFAULT_LAYOUT, validLayout, sameLayout, type KeyboardLayout } from "../cv/keyboardLayout";
 import { CALIBRATION_KEY } from "../cv/calibration";
-import { DEPTH_CALIBRATION_STORAGE_KEY } from "../cv/depthCalibration";
 import { browserStorage, readStored, writeStored, type WriteResult } from "./storage";
 
 const NAME = "keyboard-layout";
@@ -25,7 +24,7 @@ export function subscribeKeyboardLayout(listener: () => void): () => void {
     if (typeof window !== "undefined") window.removeEventListener("storage", storageChanged);
   };
 }
-/** Invalidate hand/marker calibration before exposing a new configuration.
+/** Invalidate Vision setup calibration before exposing a new configuration.
  * Synchronous notifications retire audio sessions before React rerenders. */
 export function saveKeyboardLayout(layout: KeyboardLayout): WriteResult {
   if (!validLayout(layout)) return { ok: false, reason: "error" };
@@ -34,7 +33,8 @@ export function saveKeyboardLayout(layout: KeyboardLayout): WriteResult {
     const area = browserStorage();
     if (!area) return { ok: false, reason: "unavailable" };
     area.removeItem(CALIBRATION_KEY);
-    area.removeItem(DEPTH_CALIBRATION_STORAGE_KEY);
+    area.removeItem("makeshift.calibration.v1");
+    area.removeItem("depthCalibrationLines");
   } catch {
     for (const listener of listeners) listener();
     return { ok: false, reason: "error" };
